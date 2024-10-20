@@ -1,5 +1,3 @@
-Here’s a suggested README for the Arrays section of your Data Structures repository:
-
 Arrays Overview
 
 Arrays are one of the most fundamental data structures, and they are a crucial building block for many algorithms. This section covers everything from basic array operations to advanced techniques like searching, sorting, and dynamic arrays. You’ll find problems, explanations, and Python implementations to deepen your understanding of arrays and their applications.
