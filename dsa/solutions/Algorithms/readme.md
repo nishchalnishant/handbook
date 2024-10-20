@@ -1,5 +1,3 @@
-Here’s a sample README.md file specifically for the Algorithms section of your DSA repository:
-
 Algorithms Section 📈
 
 Welcome to the Algorithms section of the DSA Problems Collection! This part of the repository focuses on fundamental and advanced algorithms with clear explanations, code implementations, and a diverse set of problems to sharpen your algorithmic thinking.
