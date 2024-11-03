@@ -1,3 +1,14 @@
+Representation	Ideal Use Case	Pros	Cons
+Adjacency List	Sparse graphs	Space-efficient for sparse graphs	Slower for edge existence check
+Adjacency Matrix	Dense graphs	Fast edge existence check	Space-consuming for sparse graphs
+Edge List	Sparse graphs	Memory-efficient	Slow for edge lookups
+Incidence Matrix	Special applications	Suitable for bipartite and matching	Inefficient for traversals
+Dictionary of Dicts	Sparse, weighted, directed	Flexible, fast lookups, weighted edges	Complexity
+Dictionary of Sets	Unweighted, undirected graphs	Space-efficient, fast edge existence	No support for weighted edges
+
+
+
+
 Detailed Summary of Graphs (Data Structures)
 A Graph is a non-linear data structure that consists of a set of vertices (or nodes) connected by edges. Graphs are used to model relationships between pairs of objects, making them incredibly useful in various real-world applications such as social networks, navigation systems, recommendation systems, etc.
 Key Concepts:
