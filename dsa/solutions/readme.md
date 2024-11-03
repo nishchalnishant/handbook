@@ -1,3 +1,9 @@
+striver sde
+- https://github.com/huanminwu/LeetCode/blob/master/Stock/Market_Update_2020_07.pptx
+
+- https://takeuforward.org/interviews/strivers-sde-sheet-top-coding-interview-problems/
+
+
 Here’s a sample README.md file for your DSA problems GitHub repository:
 
 DSA Problems Collection 🌐
