@@ -36,4 +36,7 @@ class Solution:
                 start += 1
         return True
 
+
+        
+
 # Link: https://leetcode.com/problems/hand-of-straights/
