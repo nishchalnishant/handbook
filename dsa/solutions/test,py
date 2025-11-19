@@ -1,0 +1,9 @@
+a="-000000021323432sdasf"
+
+
+
+def sol(a,i):
+    if(i==len(a) or a[i].isalpha()):
+        return 0
+    else:
+        
