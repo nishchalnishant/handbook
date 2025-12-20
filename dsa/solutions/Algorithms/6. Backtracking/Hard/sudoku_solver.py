@@ -1,0 +1,32 @@
+from typing import List
+
+class Solution:
+    def solveSudoku(self, board: List[List[str]]) -> None:
+        """
+        Problem: Sudoku Solver
+        Difficulty: Hard
+        Time Complexity: O(9^(n*m))
+        Space Complexity: O(81)
+        """
+        self.solve(board)
+        
+    def solve(self, board):
+        for i in range(len(board)):     # row
+            for j in range(len(board[0])): # col
+                if board[i][j] == ".":
+                    for c in "123456789":
+                        if self.isValid(board, i, j, c):
+                            board[i][j] = c
+                            if self.solve(board):
+                                return True
+                            else:
+                                board[i][j] = "." # backtrack
+                    return False
+        return True
+    
+    def isValid(self, board, row, col, c):
+        for i in range(9):
+            if board[i][col] == c: return False
+            if board[row][i] == c: return False
+            if board[3 * (row // 3) + i // 3][3 * (col // 3) + i % 3] == c: return False
+        return True
