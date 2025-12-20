@@ -1,96 +1,78 @@
-striver sde
-- https://github.com/huanminwu/LeetCode/blob/master/Stock/Market_Update_2020_07.pptx
+# DSA Problems Collection 🌐
 
-- https://takeuforward.org/interviews/strivers-sde-sheet-top-coding-interview-problems/
+Welcome to the Data Structures and Algorithms (DSA) Problems Collection! This repository is a comprehensive guide to mastering DSA concepts through well-structured problem sets and code implementations.
 
+## 📚 Resources
 
-Here’s a sample README.md file for your DSA problems GitHub repository:
+- [Striver's SDE Sheet](https://takeuforward.org/interviews/strivers-sde-sheet-top-coding-interview-problems/)
+- [Stock Market Problems (PPT)](https://github.com/huanminwu/LeetCode/blob/master/Stock/Market_Update_2020_07.pptx)
 
-DSA Problems Collection 🌐
+## 📁 Repository Structure
 
-Welcome to the Data Structures and Algorithms (DSA) Problems Collection! This repository is a comprehensive guide to mastering DSA concepts through well-structured problem sets, code implementations, and detailed explanations.
+The repository is organized into two main categories: `Data_Structures` and `Algorithms`.
 
-The content is divided into two main sections:
-
-	•	Data Structures
-	•	Algorithms
-
-Each section is further organized into specific topics with corresponding problems and solutions to help you strengthen your problem-solving skills.
-
-📁 Repository Structure
-
-The repository is divided as follows:
-
+```text
 .
 ├── Data_Structures
-│   ├── Arrays
-│   ├── Linked_Lists
-│   ├── Stacks
-│   ├── Queues
-│   ├── Trees
-│   ├── Heaps
-│   ├── Graphs
-│   ├── Hashing
-│   ├── Advanced_DS
-├── Algorithms
-│   ├── Searching
-│   ├── Sorting
-│   ├── Dynamic_Programming
-│   ├── Greedy_Algorithms
-│   ├── Divide_and_Conquer
-│   ├── Backtracking
-│   ├── Recursion
-│   ├── Graph_Algorithms
-│   ├── Bit_Manipulation
-│   ├── Mathematical_Algorithms
-│   ├── String_Algorithms
-│   ├── Miscellaneous
+│   ├── 1. Array
+│   ├── 2. Linked list
+│   ├── 3. Stack and queue
+│   ├── 5. Binary Tree
+│   ├── 6. Binary search tree
+│   ├── 6. Heap
+│   ├── 7. Graph
+│   ├── 8. Hashing
+│   └── 9. trie
+└── Algorithms
+    ├── 1. Searching
+    ├── 2. Sorting
+    ├── 3. DP (Dynamic Programming)
+    ├── 4. Greedy
+    ├── 5. Divide and concuer
+    ├── 6. Backtracking
+    ├── 7. Math
+    ├── 8. String
+    ├── 9. Mislanious
+    ├── 10. 2 pointers
+    ├── 11. Recursion
+    └── 12. bit manipulation
+```
 
-📚 Data Structures
+## 🧠 Data Structures
 
-	•	Arrays: In-depth problems on 1D, 2D, dynamic arrays, and their applications like sliding window techniques.
-	•	Linked Lists: Covering single, double, and circular linked lists, as well as advanced concepts like skip lists.
-	•	Stacks: From basic operations to complex applications like expression evaluation.
-	•	Queues: Encompassing circular, priority, and double-ended queues (Deques).
-	•	Trees: Including Binary Trees, Binary Search Trees, AVL Trees, and Trie structures.
-	•	Heaps: Learn about Min/Max heaps, their operations, and usage in sorting.
-	•	Graphs: Problems on graph representations, traversals (DFS/BFS), shortest path algorithms, and cycle detection.
-	•	Hashing: Understanding hash tables and collision resolution strategies.
-	•	Advanced Data Structures: Covering Segment Trees, Fenwick Trees, and Union-Find for advanced problem-solving.
+- **Array**: Problems involving 1D, 2D arrays, and sliding window techniques.
+- **Linked List**: Single, double, and circular linked lists.
+- **Stack and Queue**: Implementation and application problems.
+- **Binary Tree**: Tree traversals, views, and construction.
+- **Binary Search Tree (BST)**: Search, insert, delete, and validation.
+- **Heap**: Min-heap, max-heap, and priority queue applications.
+- **Graph**: Traversals (BFS/DFS), shortest paths, and MST.
+- **Hashing**: Hash maps and collision resolution.
+- **Trie**: Dictionary and prefix based problems.
 
-📘 Algorithms
+## ⚡ Algorithms
 
-	•	Searching: Binary, Linear, and Ternary search techniques, with advanced variations.
-	•	Sorting: Classical sorting algorithms (Bubble, Quick, Merge, etc.) along with non-comparison based sorting methods.
-	•	Dynamic Programming: Problems on knapsack, LIS, LCS, and optimization techniques.
-	•	Greedy Algorithms: Strategy-based problems on job scheduling, activity selection, and Huffman coding.
-	•	Divide and Conquer: Famous algorithms like Merge Sort, Quick Sort, and Karatsuba multiplication.
-	•	Backtracking: Solve complex problems like N-Queens, Subset Sum, and Sudoku.
-	•	Recursion: Recursive problem-solving with examples like Tower of Hanoi and Fibonacci series.
-	•	Graph Algorithms: Including MST algorithms (Kruskal, Prim), Dijkstra’s, and Flow networks.
-	•	Bit Manipulation: Efficient algorithms for bit-level operations.
-	•	Mathematical Algorithms: Sieve of Eratosthenes, GCD, Prime Factorization, and combinatorics.
-	•	String Algorithms: Pattern searching algorithms like KMP, Rabin-Karp, and tries.
+- **Searching**: Binary search and its variants.
+- **Sorting**: Merge sort, Quick sort, etc.
+- **DP (Dynamic Programming)**: Optimization problems (Knapsack, LCS, LIS).
+- **Greedy**: Local optimization strategies.
+- **Backtracking**: Recursion with state rollback (N-Queens, Sudoku).
+- **Recursion**: Base cases and recursive steps.
+- **String**: Pattern matching and string manipulation.
+- **Bit Manipulation**: XOR, shifting, and bitwise operations.
+- **Two Pointers**: Efficient array/list traversal strategies.
+- **Math**: Number theory, GCD, primes.
 
-🚀 How to Use This Repository
+## 🚀 How to Use
 
-	1.	Explore Topics: Browse through the Data Structures or Algorithms sections.
-	2.	Practice Problems: Each subdirectory contains a list of problems with solutions.
-	3.	Learn & Contribute: Feel free to contribute by adding new problems, optimizing existing solutions, or improving documentation.
+1. Navigate to the folder of the topic you are interested in.
+2. Each folder contains solution files/sub-folders for specific problems.
+3. Review the code to understand the approach.
 
-🛠 Technologies Used
+## 💡 Contributing
 
-	•	Languages: C++, Java, Python
-	•	Concepts: Problem-solving, Algorithm Design, Data Structures
+Contributions are welcome! If you spot a bug or have a better solution, feel free to open a pull request.
 
-💡 Contributing
+## 📄 License
 
-We welcome contributions! If you have new problems or optimizations, please open a pull request.
-
-📄 License
-
-This repository is licensed under the MIT License. See the LICENSE file for details.
-
-Happy Coding! ✨
-
-Let me know if you need any specific adjustments!
+This repository is licensed under the MIT License.
