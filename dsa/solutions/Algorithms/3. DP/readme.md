@@ -1,4 +1,4 @@
-# Dynamic Programming Overview 🧠
+# Dynamic Programming Overview
 
 Break problem into overlapping subproblems and store results (Memoization/Tabulation).
 

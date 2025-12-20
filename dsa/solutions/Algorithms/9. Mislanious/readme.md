@@ -1,4 +1,4 @@
-# Miscellaneous Algorithms Overview 🧩
+# Miscellaneous Algorithms Overview
 
 A collection of algorithms that don't fit perfectly into other categories or combine multiple concepts.
 

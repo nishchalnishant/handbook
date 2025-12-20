@@ -1,4 +1,4 @@
-# String Algorithms Overview 🧵
+# String Algorithms Overview
 
 String manipulation is a core part of programming interviews.
 

@@ -1,6 +1,6 @@
 Here’s a sample README.md file for the Data Structures section of your DSA repository:
 
-Data Structures Section 🏗️
+Data Structures Section
 
 Welcome to the Data Structures section of the DSA Problems Collection! This repository contains a wealth of problems, explanations, and code implementations, helping you master the key concepts of data structures.
 
@@ -77,13 +77,13 @@ Each category contains problems, solutions, and theoretical explanations related
 	•	Problems: Implementing Segment Trees, Fenwick Trees (BIT), Disjoint Set (Union-Find), and solving range query problems.
 	•	Topics Covered: Range Queries, Union-Find for cycle detection in graphs.
 
-🚀 How to Use This Section
+How to Use This Section
 
 	1.	Explore by Topic: Navigate through each data structure directory to understand its operations and applications.
 	2.	Practice Problems: Each directory contains problem sets with solutions in multiple programming languages (C++, Python, Java).
 	3.	Reinforce Concepts: Review theoretical explanations and code implementations to solidify your understanding of each data structure.
 
-📌 Recommended Learning Flow
+Recommended Learning Flow
 
 	1.	Start with Arrays: Begin your journey with basic arrays to understand data storage and manipulation.
 	2.	Move on to Linked Lists and Stacks: Strengthen your knowledge of dynamic memory and stack-based algorithms.
@@ -91,19 +91,19 @@ Each category contains problems, solutions, and theoretical explanations related
 	4.	Explore Graphs and Advanced Data Structures: Tackle complex problems with graph theory and advanced techniques like segment trees.
 	5.	Understand Hashing: Learn how to efficiently map and retrieve data.
 
-🛠 Technologies Used
+Technologies Used
 
 	•	Languages: Python, C++, Java
 	•	Concepts: Data Structure Theory, Problem Solving, Memory Management
 
-💡 Contributing
+Contributing
 
 We encourage contributions! If you have new problems, optimized solutions, or suggestions, feel free to open a pull request.
 
-📄 License
+License
 
 This repository is licensed under the MIT License. See the LICENSE file for details.
 
-Happy Learning! 🎯
+Happy Learning!
 
 Let me know if you’d like any changes to suit your project further!

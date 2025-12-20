@@ -1,4 +1,4 @@
-# Searching Overview 🔍
+# Searching Overview
 
 Searching algorithms retrieve elements from data structures. Efficiency depends on data organization (e.g., sorted vs. unsorted).
 

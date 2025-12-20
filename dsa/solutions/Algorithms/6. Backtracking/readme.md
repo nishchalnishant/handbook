@@ -1,4 +1,4 @@
-# Backtracking Overview ↩️
+# Backtracking Overview
 
 Build solution candidates incrementally and abandon ("backtrack") as soon as it determines the candidate cannot possibly be a valid solution.
 

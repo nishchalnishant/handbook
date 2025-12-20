@@ -1,4 +1,4 @@
-# Linked Lists Overview 🔗
+# Linked Lists Overview
 
 A Linked List is a linear data structure where elements (nodes) are not stored in contiguous memory locations but are linked using pointers. This allows for dynamic memory allocation and efficient insertion/deletion.
 

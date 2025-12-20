@@ -1,4 +1,4 @@
-# Bit Manipulation Overview 0️⃣1️⃣
+# Bit Manipulation Overview
 
 Manipulating individual bits.
 

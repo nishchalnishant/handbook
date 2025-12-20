@@ -1,4 +1,4 @@
-# Arrays Overview 📊
+# Arrays Overview
 
 Arrays are one of the most fundamental data structures, serving as a crucial building block for many algorithms. This section covers everything from basic operations to advanced techniques like searching, sorting, and dynamic arrays.
 

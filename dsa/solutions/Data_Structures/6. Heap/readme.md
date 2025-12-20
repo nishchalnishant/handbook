@@ -1,4 +1,4 @@
-# Heap (Priority Queue) Overview ⛰️
+# Heap (Priority Queue) Overview
 
 A Heap is a specialized tree-based data structure (usually a complete binary tree) that satisfies the heap property.
 

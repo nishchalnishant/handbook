@@ -1,4 +1,4 @@
-class Solution:
+wclass Solution:
     def longestPalindrome(self, s: str) -> str:
         """
         Problem: Longest Palindromic Substring

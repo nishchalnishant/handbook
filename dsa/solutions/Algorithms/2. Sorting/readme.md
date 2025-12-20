@@ -1,4 +1,4 @@
-# Sorting Overview 📶
+# Sorting Overview
 
 Sorting arranges elements in specific order (ascending/descending).
 

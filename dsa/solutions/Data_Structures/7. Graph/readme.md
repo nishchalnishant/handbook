@@ -1,4 +1,4 @@
-# Graph Overview 🕸️
+# Graph Overview
 
 A Graph consists of vertices (nodes) and edges. It can be Directed/Undirected and Weighted/Unweighted.
 

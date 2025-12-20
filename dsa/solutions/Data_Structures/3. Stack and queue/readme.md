@@ -1,4 +1,4 @@
-# Stack & Queue Overview 📚
+# Stack & Queue Overview
 
 Stacks and Queues are fundamental linear data structures. Stack follows **LIFO** (Last In First Out) and Queue follows **FIFO** (First In First Out).
 

@@ -1,4 +1,4 @@
-# Two Pointers Overview 👉👈
+# Two Pointers Overview
 
 Two pointers pattern involves using two pointers to iterate through a data structure (usually an array or string) to solve problems efficiently, often reducing O(n^2) to O(n).
 

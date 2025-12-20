@@ -1,4 +1,4 @@
-# Math Algorithms Overview ➕
+# Math Algorithms Overview
 
 Mathematical algorithms often involve number theory, combinatorics, and geometry.
 

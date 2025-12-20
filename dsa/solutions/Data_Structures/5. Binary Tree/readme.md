@@ -1,4 +1,4 @@
-# Binary Tree Overview 🌳
+# Binary Tree Overview
 
 A specialized tree where each node has at most two children (left and right).
 

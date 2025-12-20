@@ -1,4 +1,4 @@
-Algorithms Section 📈
+Algorithms Section
 
 Welcome to the Algorithms section of the DSA Problems Collection! This part of the repository focuses on fundamental and advanced algorithms with clear explanations, code implementations, and a diverse set of problems to sharpen your algorithmic thinking.
 
@@ -88,24 +88,24 @@ Each folder contains problems, explanations, and code implementations related to
 	•	Randomized Algorithms: Quick Sort (randomized), Monte Carlo algorithms.
 	•	Game Theory: Minimax Algorithm, Alpha-Beta Pruning.
 
-🚀 How to Navigate the Algorithms Section
+How to Navigate the Algorithms Section
 
 	1.	Explore by Topic: Each directory corresponds to an algorithmic paradigm (e.g., Dynamic Programming, Greedy Algorithms, etc.).
 	2.	Practice Problems: Within each topic, you’ll find categorized problems with solutions in different programming languages (Python, C++, Java).
 	3.	Learn the Concepts: Each section contains theoretical explanations, references, and example problems.
 
-📌 Recommended Practice Flow
+Recommended Practice Flow
 
 	1.	Start with Searching and Sorting to build foundational knowledge.
 	2.	Move on to Dynamic Programming and Greedy Algorithms to solve more complex problems.
 	3.	Explore Graph Algorithms, Backtracking, and Divide and Conquer for challenging problems involving advanced techniques.
 	4.	Use Bit Manipulation and Mathematical Algorithms for specific edge-case scenarios and optimizations.
 
-📄 Contributing
+Contributing
 
 We welcome contributions! Whether you want to add new problems, optimize existing algorithms, or improve documentation, feel free to open a pull request.
 
-🔗 References
+References
 
 Some problems and explanations are inspired by:
 
@@ -114,6 +114,6 @@ Some problems and explanations are inspired by:
 	•	HackerRank
 	•	Codeforces
 
-Happy Coding! ✨
+Happy Coding!
 
 Let me know if you want any adjustments to fit your project further!

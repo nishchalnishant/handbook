@@ -1,4 +1,4 @@
-# Divide and Conquer Overview ⚔️
+# Divide and Conquer Overview
 
 Break problems into subproblems, solve them, and combine results.
 

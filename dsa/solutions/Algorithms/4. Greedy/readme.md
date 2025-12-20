@@ -1,4 +1,4 @@
-# Greedy Algorithms Overview 🤑
+# Greedy Algorithms Overview
 
 Greedy algorithms make the locally optimal choice at each step with the hope of finding a global optimum.
 

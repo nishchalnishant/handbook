@@ -1,13 +1,13 @@
-# DSA Problems Collection 🌐
+# DSA Problems Collection
 
 Welcome to the Data Structures and Algorithms (DSA) Problems Collection! This repository is a comprehensive guide to mastering DSA concepts through well-structured problem sets and code implementations.
 
-## 📚 Resources
+## Resources
 
 - [Striver's SDE Sheet](https://takeuforward.org/interviews/strivers-sde-sheet-top-coding-interview-problems/)
 - [Stock Market Problems (PPT)](https://github.com/huanminwu/LeetCode/blob/master/Stock/Market_Update_2020_07.pptx)
 
-## 📁 Repository Structure
+## Repository Structure
 
 The repository is organized into two main categories: `Data_Structures` and `Algorithms`.
 
@@ -38,7 +38,7 @@ The repository is organized into two main categories: `Data_Structures` and `Alg
     └── 12. bit manipulation
 ```
 
-## 🧠 Data Structures
+## Data Structures
 
 - **Array**: Problems involving 1D, 2D arrays, and sliding window techniques.
 - **Linked List**: Single, double, and circular linked lists.
@@ -50,7 +50,7 @@ The repository is organized into two main categories: `Data_Structures` and `Alg
 - **Hashing**: Hash maps and collision resolution.
 - **Trie**: Dictionary and prefix based problems.
 
-## ⚡ Algorithms
+## Algorithms
 
 - **Searching**: Binary search and its variants.
 - **Sorting**: Merge sort, Quick sort, etc.
@@ -63,16 +63,16 @@ The repository is organized into two main categories: `Data_Structures` and `Alg
 - **Two Pointers**: Efficient array/list traversal strategies.
 - **Math**: Number theory, GCD, primes.
 
-## 🚀 How to Use
+## How to Use
 
 1. Navigate to the folder of the topic you are interested in.
 2. Each folder contains solution files/sub-folders for specific problems.
 3. Review the code to understand the approach.
 
-## 💡 Contributing
+## Contributing
 
 Contributions are welcome! If you spot a bug or have a better solution, feel free to open a pull request.
 
-## 📄 License
+## License
 
 This repository is licensed under the MIT License.

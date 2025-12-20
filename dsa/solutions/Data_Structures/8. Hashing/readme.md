@@ -1,4 +1,4 @@
-# Hashing Overview 🔑
+# Hashing Overview
 
 Hashing provides O(1) average time complexity for lookups, insertions, and deletions using a hash function to map keys to indices.
 

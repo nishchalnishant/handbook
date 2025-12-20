@@ -1,4 +1,4 @@
-# Recursion Overview ♾️
+# Recursion Overview
 
 Function calls itself to solve smaller instances of the problem.
 
