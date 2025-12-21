@@ -1,2 +1,2 @@
 - [Recursion](recursion/README.md)
-- [DP Patterns](0_1_Knapsack_Pattern/README.md)
+- [DP Patterns](README.md)

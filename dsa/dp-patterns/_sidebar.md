@@ -3,7 +3,7 @@
   - [Easy Problems](recursion/easy/README.md)
   - [Medium Problems](recursion/medium/README.md)
   - [Hard Problems](recursion/hard/README.md)
-- [DP Patterns]
+- [DP Patterns](README.md)
   - [0/1 Knapsack](0_1_Knapsack_Pattern/README.md)
   - [Bitmask DP](Bitmask_DP/README.md)
   - [DP on Graphs](DP_on_Graphs/README.md)
