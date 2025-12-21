@@ -1,2 +1,2 @@
-- [Recursion](recursion/README.md)
-- [DP Patterns](README.md)
+- [Recursion](/#/recursion/)
+- [DP Patterns](/#/)
