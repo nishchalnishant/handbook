@@ -10,11 +10,11 @@ Welcome to the definitive guide for mastering **Dynamic Programming** and **Recu
 
 Recursion is the engine behind most Dynamic Programming solutions. Before you can master DP, you must be comfortable with the recursive process of breaking down a large problem into smaller subproblems.
 
-### [Browse Recursion Foundations](/recursion/README.md)
+### [Browse Recursion Foundations](recursion/README.md)
 
-- **[Easy Problems](/recursion/easy/README.md)**: Factorial, Fibonacci, Palindrome Check, Binary Search.
-- **[Medium Problems](/recursion/medium/README.md)**: Backtracking, Subsets, Permutations, Combination Sum.
-- **[Hard Problems](/recursion/hard/README.md)**: N-Queens, Sudoku Solver, Regex Matching, Word Break.
+- **[Easy Problems](recursion/easy/README.md)**: Factorial, Fibonacci, Palindrome Check, Binary Search.
+- **[Medium Problems](recursion/medium/README.md)**: Backtracking, Subsets, Permutations, Combination Sum.
+- **[Hard Problems](recursion/hard/README.md)**: N-Queens, Sudoku Solver, Regex Matching, Word Break.
 
 ---
 
@@ -24,17 +24,17 @@ Dynamic Programming is best learned by identifying recurring patterns. We have c
 
 | Pattern | Description |
 | :--- | :--- |
-| **[0/1 Knapsack](/0_1_Knapsack_Pattern/README.md)** | Picking items with limited capacity. |
-| **[Unbounded Knapsack](/Unbounded_Knapsack_Pattern/README.md)** | Items with unlimited repetition. |
-| **[Fibonacci / Simple Recurrence](/Fibonacci_Simple_Recurrence_DP/README.md)** | Problems following linear recurrence. |
-| **[Longest Common Subsequence](/Longest_Common_Subsequence/README.md)** | String comparison and matching. |
-| **[Longest Increasing Subsequence](/Longest_Increasing_Subsequence/README.md)** | Finding order in sequences. |
-| **[Kadane's Algorithm](/Kadanes_Algorithm/README.md)** | Efficient subarray optimizations. |
-| **[Matrix Chain Multiplication](/Matrix_Chain_Multiplication/README.md)** | Optimal parenthesization (Interval DP). |
-| **[DP on Trees](/DP_on_Trees/README.md)** | Optimization on tree structures. |
-| **[DP on Graphs](/DP_on_Graphs/README.md)** | Pathfinding and subgraph optimizations. |
-| **[Grid DP](/Grid_DP/README.md)** | Pathfinding and optimization in 2D grids. |
-| **[Bitmask DP](/Bitmask_DP/README.md)** | Optimization over small subsets ($N \le 20$). |
+| **[0/1 Knapsack](0_1_Knapsack_Pattern/README.md)** | Picking items with limited capacity. |
+| **[Unbounded Knapsack](Unbounded_Knapsack_Pattern/README.md)** | Items with unlimited repetition. |
+| **[Fibonacci / Simple Recurrence](Fibonacci_Simple_Recurrence_DP/README.md)** | Problems following linear recurrence. |
+| **[Longest Common Subsequence](Longest_Common_Subsequence/README.md)** | String comparison and matching. |
+| **[Longest Increasing Subsequence](Longest_Increasing_Subsequence/README.md)** | Finding order in sequences. |
+| **[Kadane's Algorithm](Kadanes_Algorithm/README.md)** | Efficient subarray optimizations. |
+| **[Matrix Chain Multiplication](Matrix_Chain_Multiplication/README.md)** | Optimal parenthesization (Interval DP). |
+| **[DP on Trees](DP_on_Trees/README.md)** | Optimization on tree structures. |
+| **[DP on Graphs](DP_on_Graphs/README.md)** | Pathfinding and subgraph optimizations. |
+| **[Grid DP](Grid_DP/README.md)** | Pathfinding and optimization in 2D grids. |
+| **[Bitmask DP](Bitmask_DP/README.md)** | Optimization over small subsets ($N \le 20$). |
 
 ---
 
