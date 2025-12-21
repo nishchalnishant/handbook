@@ -1,32 +1,47 @@
 # Bitmask DP
 
 ## Introduction
-Bitmask DP is useful for problems that involve small constraints (usually N <= 20) where the state requires keeping track of a subset of elements. A bitmask (integer) is used to represent the set of included elements (1 for included, 0 for excluded).
+Bitmask DP is useful for problems that involve small constraints (usually $N \le 20$) where the state requires keeping track of a subset of elements. A bitmask (integer) is used to represent the set of included elements (1 for included, 0 for excluded).
 
-## Approach
-1.  **State Representation**:
-    -   Use an integer `mask` where the `i-th` bit being set means the `i-th` element is "visited" or "taken".
-    -   State often looks like `dp[mask][last_element]` or simply `dp[mask]`.
+## Core Recursion Tree
+For a state `dp(mask, last_node)` visiting nodes in a graph:
 
-2.  **Transitions**:
-    -   Iterate through all possible next elements to add to the current mask.
-    -   `new_mask = mask | (1 << next_element_index)`.
-    -   Update `dp[new_mask]` based on `dp[mask]`.
+```mermaid
+graph TD
+    A["dp(mask=001, last=0)"] --> B["dp(mask=011, last=1)"]
+    A --> C["dp(mask=101, last=2)"]
+    B --> D["dp(mask=111, last=2)"]
+    C --> E["dp(mask=111, last=1)"]
+```
 
-3.  **Complexity**:
-    -   Time Complexity usually involves `O(2^N * N)` or `O(2^N * N^2)`.
-    -   This is exponential but feasible for small `N`.
-
-4.  **Common Problems**:
-    -   Traveling Salesperson Problem (TSP).
-    -   Assignment Problems.
-    -   Partitioning into K subsets.
+---
 
 ## Similar Problems
--   **Traveling Salesman Problem**: Shortest route visiting all cities (Classic Bitmask).
--   **Minimum Incompatibility**: Partition into equal subsets with constraint (Bitmask + Submask iter).
--   **Assign Workers to Jobs**: Minimize unfairness/cost (Bitmask / Branch & Bound).
--   **Max Student Compatibility**: Bipartite matching max score (Bitmask over one set).
--   **Partition to K Equal Sum Subsets**: Check if possible (Bitmask state = current subset sum).
--   **Sudoku Solver**: Bitmask to fast track row/col/box constraints.
--   **Visit All Nodes**: Shortest path in graph visiting all nodes (BFS + Bitmask State).
+
+### 1. Traveling Salesman Problem (TSP)
+**Problem**: Find the shortest possible route that visits every city exactly once and returns to the origin.
+**Process**: `dp(mask, current_city)` stores the min cost to visit cities in `mask` ending at `current_city`.
+
+### 2. Minimum Incompatibility
+**Problem**: Partition an array into $k$ subsets of size $n/k$ such that each subset has unique elements, and minimize the sum of (max - min) of each subset.
+**Process**: Use bitmask to represent remaining elements and iterate over possible valid submasks for the next subset.
+
+### 3. Assign Workers to Jobs
+**Problem**: Minimize the total cost/unfairness when assigning $N$ workers to $N$ jobs.
+**Process**: `dp(mask, job_idx)` represents the min cost to assign workers in `mask` to the first `job_idx` jobs.
+
+### 4. Max Student Compatibility
+**Problem**: Match students into groups of two to maximize compatibility scores based on answers.
+**Process**: Similar to assignment problem, use bitmask to keep track of matched students.
+
+### 5. Partition to K Equal Sum Subsets
+**Problem**: Check if an array can be partitioned into $k$ subsets with equal sums.
+**Process**: `dp(mask)` stores the current sum of elements in `mask` modulo the target subset sum. 
+
+### 6. Sudoku Solver (Bitmask Optimized)
+**Problem**: Solve a Sudoku puzzle.
+**Process**: Use 3 bitmasks (row, col, box) to quickly check if a number can be placed in $O(1)$.
+
+### 7. Visit All Nodes
+**Problem**: Find the shortest path in an undirected graph that visits all nodes.
+**Process**: BFS where state is `(current_node, visited_mask)`.

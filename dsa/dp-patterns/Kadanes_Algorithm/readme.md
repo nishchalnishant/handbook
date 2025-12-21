@@ -1,32 +1,42 @@
 # Kadane's Algorithm
 
 ## Introduction
-Kadane's Algorithm is an efficient method to find the maximum sum subarray within a one-dimensional numeric array. It is a specific application of dynamic programming.
+Kadane's Algorithm is an efficient method to find the maximum sum subarray within a one-dimensional numeric array. It is a linear-time optimization over a simple DP approach.
 
-## Approach
-1.  **State Definition**:
-    -   `current_sum` keeps track of the maximum subarray sum ending at the current position.
-    -   `max_so_far` keeps track of the global maximum sum found so far.
+## Core Recursion Tree (Conceptual)
+For each element, we decide to either extend the previous subarray or start a new one.
 
-2.  **Recurrence Relation**:
-    -   `current_sum = max(num, current_sum + num)`
-        -   This decides whether to start a new subarray at the current number (`num`) or extend the existing subarray (`current_sum + num`).
-    -   `max_so_far = max(max_so_far, current_sum)`
+```mermaid
+graph TD
+    A["State(i)"] --> B["Start New: arr[i]"]
+    A --> C["Extend: arr[i] + State(i-1)"]
+    D["Max_Sum(i)"] --> E["max(arr[i], arr[i] + State(i-1))"]
+```
 
-3.  **Base Case**:
-    -   Initialize `current_sum` and `max_so_far` with the first element of the array (or a very small number if handling empty arrays isn't required).
-
-4.  **Complexity**:
-    -   Time Complexity: `O(n)` - Single pass.
-    -   Space Complexity: `O(1)` - Only two variables are used.
-
+---
 
 ## Similar Problems
--   **Maximum Circular Subarray Sum**: Max sum in circular array.
--   **Maximum Product Subarray**: Track min and max product at each step.
--   **Best Time to Buy and Sell Stock**: Maintain min price and check max profit.
--   **Stock II (Multiple Transactions)**: Accumulate positive slopes.
--   **Stock III (2 Transactions)**: Bidirectional DP or State Machine.
--   **Stock IV (k Transactions)**: Generalized version of Stock III.
--   **Max Subarray One Deletion**: Forward + Backward Kadane.
--   **Max Sum Rectangle**: 2D Kadane (Row accumulation).
+
+### 1. Maximum Circular Subarray Sum
+**Problem**: Find the maximum sum subarray in a circular array.
+**Process**: Result is `max(Kadane(arr), Total_Sum - Min_Kadane(arr))`.
+
+### 2. Maximum Product Subarray
+**Problem**: Find the subarray with the largest product.
+**Process**: Maintain both `max_so_far` and `min_so_far` (to handle negative numbers which can flip signs).
+
+### 3. Best Time to Buy and Sell Stock
+**Problem**: Maximize profit from a single buy and sell.
+**Process**: Maintain `min_price` seen so far and `max_profit = max(max_profit, current_price - min_price)`.
+
+### 4. Stock II (Multiple Transactions)
+**Problem**: Maximize profit with unlimited transactions.
+**Process**: Greedy approach: sum all positive price differences between adjacent days.
+
+### 5. Stock III (2 Transactions)
+**Problem**: Maximize profit with at most two transactions.
+**Process**: Use bidirectional Kadane/DP: find max profit for `[0...i]` and `[i+1...n-1]`.
+
+### 6. Max Subarray with One Deletion
+**Problem**: Max sum subarray allowing at most one element deletion.
+**Process**: Use two arrays: `left[i]` (max sum ending at `i`) and `right[i]` (max sum starting at `i`). Result is `max(left[i-1] + right[i+1])`.
