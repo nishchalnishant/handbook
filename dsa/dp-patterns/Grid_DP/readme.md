@@ -19,9 +19,7 @@ Grid DP refers to dynamic programming problems on 2D grids (matrices). The goal 
 4.  **Optimization**:
     -   Space can often be optimized from `O(N*M)` to `O(M)` (using only the previous row) or even `O(1)` (modifying grid in-place if allowed).
 
-
 ## Similar Problems
-
 -   **Unique Paths I/II**: Count paths from TL to BR (II has obstacles).
 -   **Minimum Path Sum**: Minimize cost path.
 -   **Dungeon Game**: Min initial health to survive path (Reverse DP).
@@ -31,4 +29,3 @@ Grid DP refers to dynamic programming problems on 2D grids (matrices). The goal 
 -   **Maximal Rectangle**: Largest rectangle of 1s (Histogram variation).
 -   **Min Falling Path Sum**: Min sum path from row 0 to N-1 with variable columns.
 -   **Increasing Paths**: Count strictly increasing paths (Memoized DFS).
-

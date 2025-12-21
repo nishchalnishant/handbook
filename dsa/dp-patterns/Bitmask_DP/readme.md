@@ -22,7 +22,7 @@ Bitmask DP is useful for problems that involve small constraints (usually N <= 2
     -   Assignment Problems.
     -   Partitioning into K subsets.
 
-## ## Similar Problems
+## Similar Problems
 -   **Traveling Salesman Problem**: Shortest route visiting all cities (Classic Bitmask).
 -   **Minimum Incompatibility**: Partition into equal subsets with constraint (Bitmask + Submask iter).
 -   **Assign Workers to Jobs**: Minimize unfairness/cost (Bitmask / Branch & Bound).
@@ -30,5 +30,3 @@ Bitmask DP is useful for problems that involve small constraints (usually N <= 2
 -   **Partition to K Equal Sum Subsets**: Check if possible (Bitmask state = current subset sum).
 -   **Sudoku Solver**: Bitmask to fast track row/col/box constraints.
 -   **Visit All Nodes**: Shortest path in graph visiting all nodes (BFS + Bitmask State).
-
-

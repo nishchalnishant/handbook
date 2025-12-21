@@ -21,7 +21,6 @@ The LCS pattern involves finding the longest subsequence present in two sequence
     -   Shortest Common Supersequence.
     -   Minimum insertions/deletions to convert s1 to s2.
 
-
 ## Similar Problems
 -   **Longest Common Substring**: Contiguous version of LCS.
 -   **Edit Distance**: Min operations to convert one string to another.
@@ -30,5 +29,3 @@ The LCS pattern involves finding the longest subsequence present in two sequence
 -   **Distinct Subsequences**: Count ways t is subsequence of s.
 -   **Wildcard Matching**: Matching with `?` and `*`.
 -   **Regular Expression Matching**: Matching with `.` and `*` (preceding element logic).
-
-
