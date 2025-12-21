@@ -1,16 +1,13 @@
 # Kadane's Algorithm
 
 ## Introduction
-Kadane's Algorithm is an efficient method to find the maximum sum subarray within a one-dimensional numeric array. It is a linear-time optimization over a simple DP approach.
+Kadane's Algorithm is an efficient method to find the maximum sum subarray.
 
-## Core Recursion Tree (Conceptual)
-For each element, we decide to either extend the previous subarray or start a new one.
-
+## Core Recursion Tree (Max sum ending at i)
 ```mermaid
 graph TD
     A["State(i)"] --> B["Start New: arr[i]"]
     A --> C["Extend: arr[i] + State(i-1)"]
-    D["Max_Sum(i)"] --> E["max(arr[i], arr[i] + State(i-1))"]
 ```
 
 ---
@@ -18,25 +15,49 @@ graph TD
 ## Similar Problems
 
 ### 1. Maximum Circular Subarray Sum
-**Problem**: Find the maximum sum subarray in a circular array.
-**Process**: Result is `max(Kadane(arr), Total_Sum - Min_Kadane(arr))`.
+**Recursion Tree**:
+```mermaid
+graph TD
+    A["Result"] --> B["Kadane(arr)"]
+    A --> C["Total - MinKadane(arr)"]
+```
 
 ### 2. Maximum Product Subarray
-**Problem**: Find the subarray with the largest product.
-**Process**: Maintain both `max_so_far` and `min_so_far` (to handle negative numbers which can flip signs).
+**Recursion Tree (State at i)**:
+```mermaid
+graph TD
+    A["State(i)"] --> B["Max: max(arr[i], arr[i]*prevMax, arr[i]*prevMin)"]
+    A --> C["Min: min(arr[i], arr[i]*prevMax, arr[i]*prevMin)"]
+```
 
 ### 3. Best Time to Buy and Sell Stock
-**Problem**: Maximize profit from a single buy and sell.
-**Process**: Maintain `min_price` seen so far and `max_profit = max(max_profit, current_price - min_price)`.
+**Recursion Tree (State: i)**:
+```mermaid
+graph TD
+    A["Day i"] --> B["Profit = Current - MinPriceSeen"]
+    A --> C["Update MinPriceSeen"]
+```
 
-### 4. Stock II (Multiple Transactions)
-**Problem**: Maximize profit with unlimited transactions.
-**Process**: Greedy approach: sum all positive price differences between adjacent days.
+### 4. Stock II
+**Recursion Tree**:
+```mermaid
+graph TD
+    A["Day i"] --> B["If i > i-1: Profit += (i - i-1)"]
+```
 
 ### 5. Stock III (2 Transactions)
-**Problem**: Maximize profit with at most two transactions.
-**Process**: Use bidirectional Kadane/DP: find max profit for `[0...i]` and `[i+1...n-1]`.
+**Recursion Tree**:
+```mermaid
+graph TD
+    A["Split at i"] --> B["MaxProfit(0, i)"]
+    A --> C["MaxProfit(i, n-1)"]
+```
 
-### 6. Max Subarray with One Deletion
-**Problem**: Max sum subarray allowing at most one element deletion.
-**Process**: Use two arrays: `left[i]` (max sum ending at `i`) and `right[i]` (max sum starting at `i`). Result is `max(left[i-1] + right[i+1])`.
+### 6. Max Subarray One Deletion
+**Recursion Tree (i-th element)**:
+```mermaid
+graph TD
+    A["State i"] --> B["Skip one: Forward(i-1) + Backward(i+1)"]
+    A --> C["Normal: Kadane(i)"]
+```
+*(Visualization of skip-one logic)*

@@ -1,17 +1,13 @@
 # DP on Graphs
 
 ## Introduction
-General Graph DP problems are more complex than Tree DP because graphs can have cycles. These problems often involve finding shortest paths, counting paths, or finding specific subgraphs.
+General Graph DP problems involve finding shortest paths, counting paths, or finding specific subgraphs.
 
-## Core Recursion Tree
-For a Directed Acyclic Graph (DAG) finding the longest path starting from node `u`:
-
+## Core Recursion Tree (DAG Longest Path)
 ```mermaid
 graph TD
     A["Longest(u)"] --> B["1 + Longest(v1)"]
     A --> C["1 + Longest(v2)"]
-    B --> B1["..."]
-    C --> C1["..."]
 ```
 
 ---
@@ -19,25 +15,45 @@ graph TD
 ## Similar Problems
 
 ### 1. Longest Path in a DAG
-**Problem**: Find the longest path from any node to any other node in a DAG.
-**Process**: Perform Topological Sort, then use DP: `dp[v] = max(dp[v], dp[u] + weight(u, v))`.
+**Recursion Tree**: (Same as Core Recursion Tree above).
 
 ### 2. Shortest Path in DAG
-**Problem**: Find the shortest path from source to destination.
-**Process**: Similar to longest path but use `min` instead of `max`. Or use Dijkstra for general graphs.
+**Recursion Tree**: (Same as Longest Path, but using `min`).
 
 ### 3. Course Schedule
-**Problem**: Determine if you can finish all courses given pre-requisites.
-**Process**: This is cycle detection in a graph. If no cycle, a topological order exists.
+**Recursion Tree (Cycle Detection)**:
+```mermaid
+graph TD
+    A["Course 0"] --> B["Course 1"]
+    B --> C["Course 2"]
+    C --> A["Back to 0 (Cycle)"]
+```
 
 ### 4. Cheapest Flights Within K Stops
-**Problem**: Find the cheapest price from src to dst with at most $k$ stops.
-**Process**: DP state `dp[stops][node]` = min cost to reach `node` using `stops` number of edges.
+**Recursion Tree (Src:A, Dst:C, K:1)**:
+```mermaid
+graph TD
+    A["A, stops:0"] --> B["B, stops:1"]
+    A --> C["C, stops:1 - Success"]
+    B --> B1["C, stops:2 - Fail (K=1)"]
+```
 
 ### 5. Hamiltonian Path
-**Problem**: A path that visits every vertex exactly once.
-**Process**: Use Bitmask DP: `dp[mask][u]` = True if there's a path visiting nodes in `mask` ending at `u`.
+**Recursion Tree (Mask=001, node=0)**:
+```mermaid
+graph TD
+    A["mask:001, node:0"] --> B["mask:011, node:1"]
+    B --> C["mask:111, node:2 - Full!"]
+```
 
 ### 6. Word Ladder II
-**Problem**: Find all shortest transformation sequences from `beginWord` to `endWord`.
-**Process**: Use BFS to find shortest path distance, then DFS + DP to reconstruct all paths.
+**Recursion Tree (hit -> cog)**:
+```mermaid
+graph TD
+    A["hit"] --> B["hot"]
+    B --> C["dot"]
+    B --> D["lot"]
+    C --> E["dog"]
+    E --> F["cog - Success"]
+```
+*(Visualization of BFS/DFS search path)*

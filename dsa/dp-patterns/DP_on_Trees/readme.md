@@ -1,46 +1,69 @@
 # DP on Trees
 
 ## Introduction
-DP on Trees involves solving problems on tree data structures where the solution for a node depends on the solutions of its children. This is usually implemented using Post-Order Traversal (DFS).
+DP on Trees involves solving problems on tree data structures where the solution for a node depends on its children.
 
-## Core Recursion Tree
-For a node `u` in a tree, computing its height/state based on its children `c1`, `c2`:
-
+## Core Recursion Tree (Generic DFS)
 ```mermaid
 graph TD
     A["Node u"] --> B["DFS(c1)"]
     A --> C["DFS(c2)"]
-    B --> B1["DFS(leaf)"]
-    C --> C1["DFS(leaf)"]
 ```
-*(Processing happens bottom-up)*
 
 ---
 
 ## Similar Problems
 
 ### 1. Diameter of a Tree
-**Problem**: Find the longest path between any two nodes in a tree.
-**Process**: At each node, compute `max(left_height + right_height)` and return `1 + max(left_height, right_height)`.
+**Recursion Tree**:
+```mermaid
+graph TD
+    A["Node(1)"] --> B["L: Height(2)=1"]
+    A --> C["R: Height(3)=2"]
+    B --> D["..."]
+    C --> E["..."]
+    A_D["Diameter = 1+2 = 3"]
+```
 
 ### 2. Maximum Path Sum
-**Problem**: Max path sum where nodes can have negative values.
-**Process**: Similar to diameter, but handle cases where a path might not include children if their sum is negative.
+**Recursion Tree (Node values: [-10, 9, 20])**:
+```mermaid
+graph TD
+    A["-10"] --> B["9"]
+    A --> C["20"]
+    B --> B1["0 (Leaf)"]
+    C --> C1["0 (Leaf)"]
+```
 
 ### 3. Binary Tree Cameras
-**Problem**: Minimum cameras to monitor all nodes.
-**Process**: Return a state: `0: Needs cover`, `1: Has camera`, `2: Is covered`.
+**Recursion Tree (States: 0:Needs, 1:Has, 2:Covered)**:
+```mermaid
+graph TD
+    A["Node"] --> B["Left: 0"]
+    A --> C["Right: 2"]
+    A_S["Return: 1 (Add Camera)"]
+```
 
 ### 4. Distribute Coins in Binary Tree
-**Problem**: Move coins so each node has exactly one.
-**Process**: Return the surplus/deficit from each subtree. `moves += abs(surplus_l) + abs(surplus_r)`.
+**Recursion Tree (Coins: [3, 0, 0])**:
+```mermaid
+graph TD
+    A["3"] --> B["0"]
+    A --> C["0"]
+    B --> B_ret["deficit: -1"]
+    C --> C_ret["deficit: -1"]
+    A_ret["surplus: +1"]
+```
 
 ### 5. House Robber III
-**Problem**: Rob nodes such that no two adjacent nodes are robbed.
-**Process**: Return a pair `[rob_current, skip_current]`.
-- `rob_current = val + skip_left + skip_right`
-- `skip_current = max(left) + max(right)`
+**Recursion Tree (Pair: [Rob, Skip])**:
+```mermaid
+graph TD
+    A["Node"] --> B["L: [10, 5]"]
+    A --> C["R: [20, 15]"]
+    A_R["Rob: Val + 5 + 15"]
+    A_S["Skip: max(L) + max(R)"]
+```
 
 ### 6. Max Independent Set
-**Problem**: Largest set of non-adjacent vertices.
-**Process**: Same logic as House Robber III, but with count 1 instead of node value.
+**Recursion Tree**: (Same logic as House Robber III with weights of 1).
