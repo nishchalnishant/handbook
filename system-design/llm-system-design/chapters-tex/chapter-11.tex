@@ -1,0 +1,640 @@
+\chapter{Chapter 11: Design a Financial Document Extraction System}
+
+\section*{Context}
+
+\textbf{Problem statement:} Design a production system that ingests millions of financial documents (invoices, bank statements, contracts, tax forms), extracts structured fields with $>$99.5\% per-field accuracy, and outputs validated JSON---where a single hallucinated number can trigger regulatory violations or erroneous payments.
+
+\subsection*{Real-World Examples}
+
+\begin{itemize}
+  \item A payments company processes 3M vendor invoices/day. Their regex-based extraction fails on 40\% of non-standard layouts. An OCR-to-LLM pipeline with layout-aware table extraction and constrained JSON decoding achieves 99.7\% field accuracy, reducing manual review from 45\% to 3\% of documents.
+  \item A bank's loan processing system extracts income figures from scanned tax returns. The LLM hallucinates ``\$85,000'' as ``\$850,000'' on a blurred document, approving a loan that defaults. Adding cross-field verification (income $\times$ tax rate $\approx$ reported tax) and confidence-gated human review catches the error class entirely.
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 1: Understand the Problem and Establish Design Scope}
+
+\subsection*{Simulated Dialogue}
+
+\textbf{Interviewer:} Design a system to extract structured data from financial documents at scale.\\
+\textbf{Candidate:} Financial extraction is an accuracy-critical domain. I need to understand document types, field schemas, volume, accuracy targets, and what happens when the system is wrong before proposing anything.
+
+\textbf{Candidate:} What document types and volumes?\\
+\textbf{Interviewer:} Invoices, bank statements, loan contracts, tax forms. 2M documents/day. Mix of digital-native PDFs (60\%) and scanned images (40\%).
+
+\textbf{Candidate:} What fields need extraction, and what accuracy is required?\\
+\textbf{Interviewer:} Average 15 fields per document---amounts, dates, account numbers, party names, line items. Target 99.5\%+ per-field accuracy. Errors in monetary fields are especially costly.
+
+\textbf{Candidate:} What's the latency budget?\\
+\textbf{Interviewer:} Under 5 seconds per document for the full pipeline. Some documents go through batch processing overnight, but real-time extraction for incoming invoices must meet the SLO.
+
+\textbf{Candidate:} What happens when the system is wrong?\\
+\textbf{Interviewer:} Incorrect amounts can trigger erroneous payments or regulatory flags. We need confidence scoring and human-in-the-loop routing for low-confidence extractions.
+
+\subsection*{Functional Requirements}
+
+\begin{itemize}
+  \item Ingest PDFs (digital-native and scanned), images (TIFF, JPEG, PNG), and structured electronic formats (EDI, XML).
+  \item Extract document-type-specific fields into a predefined JSON schema per document class.
+  \item Detect and extract tables (line items, transaction histories) preserving row-column relationships.
+  \item Assign per-field confidence scores; route low-confidence documents to human review.
+  \item Support 50+ document templates with zero-shot generalization to unseen layouts.
+\end{itemize}
+
+\subsection*{Non-Functional Requirements}
+
+\begin{itemize}
+  \item \textbf{Accuracy:} 99.5\%+ per-field extraction accuracy across all document types. 99.9\%+ for monetary fields after validation.
+  \item \textbf{Latency:} End-to-end $<$5s per document (OCR + classification + extraction + validation).
+  \item \textbf{Throughput:} Sustain 2M documents/day ($\sim$23 docs/sec average, 100 docs/sec peak).
+  \item \textbf{Auditability:} Full provenance trail---every extracted value links to bounding box coordinates in the source document.
+  \item \textbf{Availability:} 99.9\% uptime with queue-based decoupling (documents never lost).
+\end{itemize}
+
+\subsection*{Back-of-the-Envelope Estimation}
+
+\subsubsection*{Traffic Profile}
+
+\begin{itemize}
+  \item Documents/day: 2M
+  \item Average docs/sec: \texttt{2M / 86,400 $\approx$ 23}
+  \item Peak docs/sec (4x): \texttt{$\sim$92}
+  \item Fields/day: \texttt{2M $\times$ 15 = 30M field extractions}
+  \item Digital-native PDFs: 1.2M/day (text-layer extraction, no OCR needed)
+  \item Scanned documents: 800K/day (require full OCR pipeline)
+\end{itemize}
+
+\subsubsection*{Compute Budget per Document (5s SLO)}
+
+\begin{tabular}{|p{0.35\linewidth}|p{0.10\linewidth}|p{0.45\linewidth}|}
+\hline
+\textbf{Stage} & \textbf{Budget} & \textbf{Notes} \\
+\hline
+Document ingestion + classification & 200ms & Page count detection, format conversion, doc-type classifier \\
+\hline
+OCR (scanned only, 40\% of docs) & 1,500ms & Layout-aware OCR (Tesseract/PaddleOCR), multi-page \\
+\hline
+Text extraction (digital PDFs) & 100ms & PDF text layer + coordinate extraction \\
+\hline
+Layout detection + table parsing & 800ms & Object detection model for tables, headers, footers \\
+\hline
+LLM extraction (field mapping) & 1,800ms & $\sim$2K input tokens, $\sim$500 output tokens, 7B model \\
+\hline
+JSON validation + cross-field checks & 200ms & Schema validation, arithmetic checks, format verification \\
+\hline
+Confidence scoring + routing & 100ms & Per-field confidence aggregation, threshold check \\
+\hline
+\textbf{Total (scanned)} & \textbf{$\sim$4,700ms} & Within 5s SLO \\
+\hline
+\textbf{Total (digital)} & \textbf{$\sim$3,200ms} & Comfortable margin \\
+\hline
+\end{tabular}
+
+\subsubsection*{GPU Fleet Sizing}
+
+\begin{itemize}
+  \item LLM extraction: 7B quantized model (INT4), $\sim$120 tokens/sec/GPU
+  \item Output tokens/doc: $\sim$500
+  \item Time per doc per GPU: \texttt{500 / 120 $\approx$ 4.2s}
+  \item With continuous batching (6x efficiency): \texttt{$\sim$0.7s effective per doc}
+  \item Peak demand: 92 docs/sec $\rightarrow$ \texttt{92 $\times$ 0.7 / 1 $\approx$ 65 GPU-equivalents}
+  \item Layout detection model: $\sim$10 GPUs (lightweight object detection)
+  \item OCR: CPU-bound, $\sim$200 CPU cores for peak scanned volume
+  \item Total GPU fleet: \textbf{$\sim$80 GPUs} (steady-state $\sim$35 with autoscaling)
+\end{itemize}
+
+\subsubsection*{Storage}
+
+\begin{itemize}
+  \item Average document size: 2MB (PDF/image)
+  \item Daily ingestion: \texttt{2M $\times$ 2MB = 4TB/day}
+  \item 90-day retention (regulatory): $\sim$360TB
+  \item Extracted JSON: $\sim$2KB/doc $\rightarrow$ 4GB/day $\rightarrow$ negligible
+  \item Audit trail (bounding boxes + provenance): $\sim$10KB/doc $\rightarrow$ 20GB/day
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 2: Propose High-Level Design and Get Buy-In}
+
+\subsection*{Core Architecture Components}
+
+\begin{itemize}
+  \item \textbf{Document Ingestion Service:} Accepts uploads (API, SFTP, email), normalizes format, assigns document ID, queues for processing.
+  \item \textbf{Document Classifier:} CNN or lightweight vision model classifies document type (invoice, statement, contract, tax form) $\rightarrow$ selects appropriate extraction schema.
+  \item \textbf{OCR Engine:} Layout-aware OCR for scanned documents. Produces text + bounding box coordinates per word/line. Skipped for digital-native PDFs (direct text extraction).
+  \item \textbf{Layout Analyzer:} Object detection model identifies tables, headers, footers, logos, signatures. Outputs structural regions with coordinates.
+  \item \textbf{Table Extractor:} Specialized module for row-column parsing within detected table regions. Handles merged cells, multi-line rows, nested tables.
+  \item \textbf{LLM Extraction Engine:} Takes OCR text + layout structure + document schema $\rightarrow$ outputs structured JSON with per-field confidence.
+  \item \textbf{Validation Engine:} JSON schema validation, cross-field arithmetic checks, format verification (dates, account numbers, amounts), business rule enforcement.
+  \item \textbf{Confidence Router:} Aggregates per-field confidence $\rightarrow$ routes to auto-accept, human review, or auto-reject queues.
+  \item \textbf{Human Review UI:} Displays source document with bounding box overlays, extracted fields, and confidence scores. Reviewer corrects and confirms.
+  \item \textbf{Audit \& Provenance Store:} Links every extracted value to source coordinates. Immutable log for compliance.
+\end{itemize}
+
+\subsection*{Pipeline A: Document Processing Pipeline}
+
+\begin{enumerate}
+  \item Document arrives via API/SFTP/email $\rightarrow$ ingestion service assigns ID, stores original in blob storage.
+  \item Document classifier determines type and page count $\rightarrow$ selects extraction schema.
+  \item For scanned docs: OCR engine produces text + bounding boxes. For digital PDFs: text layer extracted with coordinates.
+  \item Layout analyzer detects structural regions (tables, headers, key-value blocks).
+  \item Table extractor parses detected table regions into row-column structures.
+  \item All extracted text, layout structure, and schema are assembled into the LLM prompt.
+  \item LLM generates structured JSON output with per-field values.
+  \item Validation engine checks schema conformance, cross-field consistency, and format rules.
+  \item Confidence router evaluates aggregate confidence $\rightarrow$ auto-accept ($>$0.95), human review (0.80--0.95), or auto-reject ($<$0.80).
+  \item Results stored with full provenance trail.
+\end{enumerate}
+
+\subsection*{Pipeline B: Model Training \& Improvement Pipeline}
+
+\begin{enumerate}
+  \item Human review corrections collected as ground truth labels.
+  \item Corrections mapped to (document\_image, OCR\_text, layout, correct\_JSON) tuples.
+  \item Weekly fine-tuning run on accumulated corrections (LoRA on extraction model).
+  \item Quality gate: new model must beat baseline on held-out test set (per-field accuracy, per-document exact-match).
+  \item Canary deployment to 5\% of traffic $\rightarrow$ monitor field-level accuracy for 24h.
+  \item Gradual rollout with automatic rollback if accuracy drops $>$0.1\%.
+\end{enumerate}
+
+\subsection*{Mermaid Architecture Diagram}
+
+\begin{verbatim}
+flowchart LR
+  input[Document Input API/SFTP/Email] --> ingest[IngestionService]
+  ingest --> blob[BlobStorage]
+  ingest --> classifier[DocumentClassifier]
+
+  classifier --> ocrBranch{Scanned?}
+  ocrBranch -->|Yes| ocr[OCR Engine]
+  ocrBranch -->|No| textExtract[PDF Text Extractor]
+
+  ocr --> layout[LayoutAnalyzer]
+  textExtract --> layout
+
+  layout --> tableExtract[TableExtractor]
+  tableExtract --> promptAssembly[PromptAssembler]
+  layout --> promptAssembly
+
+  promptAssembly --> llm[LLM Extraction Engine]
+  llm --> validator[ValidationEngine]
+  validator --> confidence[ConfidenceRouter]
+
+  confidence -->|High| autoAccept[AutoAccept Store]
+  confidence -->|Medium| humanReview[Human Review UI]
+  confidence -->|Low| autoReject[AutoReject + Alert]
+
+  humanReview --> corrections[Corrections DB]
+  corrections --> finetune[Fine-Tuning Pipeline]
+  finetune --> llm
+
+  autoAccept --> audit[Audit & Provenance Store]
+  humanReview --> audit
+\end{verbatim}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 3: Design Deep Dive}
+
+Focus areas:
+
+\begin{enumerate}
+  \item \textbf{OCR-to-LLM Pipeline (Layout Detection, Table Extraction, Field Mapping)}
+  \item \textbf{Structured Output Enforcement (JSON Schema, Constrained Decoding, Validation)}
+  \item \textbf{Hallucination Prevention for Financial Data}
+\end{enumerate}
+
+\subsection*{1) OCR-to-LLM Pipeline}
+
+The pipeline must bridge the gap between raw pixels and structured financial data. Each stage introduces potential error that compounds downstream.
+
+\textbf{OCR strategy by document type:}
+
+\begin{tabular}{|p{0.20\linewidth}|p{0.25\linewidth}|p{0.15\linewidth}|p{0.30\linewidth}|}
+\hline
+\textbf{Document Source} & \textbf{OCR Approach} & \textbf{Word-Level Accuracy} & \textbf{Notes} \\
+\hline
+Digital-native PDF & Direct text extraction (pdfplumber/PyMuPDF) & 99.9\%+ & No OCR needed; extract coordinates from PDF internals \\
+\hline
+Clean scan (300+ DPI) & Tesseract/PaddleOCR with preprocessing & 98--99\% & Deskew, binarize, denoise before OCR \\
+\hline
+Low-quality scan ($<$200 DPI) & PaddleOCR + super-resolution preprocessing & 94--97\% & Upscale with ESRGAN before OCR; flag for human review \\
+\hline
+Photographed documents & Document-specific model (DocTR/TrOCR) & 90--95\% & Perspective correction, shadow removal required \\
+\hline
+Handwritten fields & TrOCR fine-tuned on financial handwriting & 85--92\% & Always route to human review for monetary amounts \\
+\hline
+\end{tabular}
+
+\textbf{Layout detection architecture:}
+
+The layout analyzer uses an object detection model (Faster R-CNN or DETR fine-tuned on financial documents) to identify structural regions:
+
+\begin{itemize}
+  \item \textbf{Key-value blocks:} ``Invoice Number: INV-2024-001'' $\rightarrow$ detect label-value pairs with spatial proximity.
+  \item \textbf{Tables:} Detect table boundaries, then apply a secondary model for row/column segmentation.
+  \item \textbf{Headers/footers:} Identify recurring elements across pages for document template matching.
+  \item \textbf{Signatures/stamps:} Detect but don't extract (used for document completeness verification).
+\end{itemize}
+
+\textbf{Table extraction pipeline:}
+
+Tables are the hardest structural element. Financial documents contain line items, transaction histories, and amortization schedules with complex layouts.
+
+\begin{enumerate}
+  \item \textbf{Table detection:} Object detection model identifies table bounding boxes.
+  \item \textbf{Row/column segmentation:} TSR (Table Structure Recognition) model predicts row and column separators. Handles borderless tables using whitespace analysis.
+  \item \textbf{Cell content extraction:} Map OCR words to cells using spatial overlap with predicted cell boundaries.
+  \item \textbf{Header association:} Classify first row(s) as headers; map column semantics (Description, Quantity, Unit Price, Total).
+  \item \textbf{Multi-page table merging:} Detect continuation tables across pages using header matching and column alignment.
+\end{enumerate}
+
+\textbf{Prompt assembly for LLM extraction:}
+
+The prompt must convey document structure, not just raw text. The format:
+
+\begin{verbatim}
+Document Type: Invoice
+Schema: {invoice_number: string, date: date, vendor_name: string, ...}
+
+=== KEY-VALUE PAIRS ===
+[Label: "Invoice Number", Value: "INV-2024-001", Position: (120, 45)]
+[Label: "Date", Value: "March 15, 2024", Position: (120, 72)]
+...
+
+=== TABLE: Line Items ===
+| Description | Qty | Unit Price | Total |
+|---|---|---|---|
+| Widget A | 100 | $12.50 | $1,250.00 |
+| Widget B | 50 | $8.75 | $437.50 |
+
+=== RAW TEXT (remaining) ===
+Payment Terms: Net 30 ...
+
+Extract all fields matching the schema as JSON.
+\end{verbatim}
+
+\subsubsection*{OCR-to-LLM Trade-off Table}
+
+\begin{tabular}{|p{0.24\linewidth}|p{0.12\linewidth}|p{0.12\linewidth}|p{0.18\linewidth}|p{0.14\linewidth}|}
+\hline
+\textbf{Approach} & \textbf{Accuracy} & \textbf{Latency} & \textbf{Generalization} & \textbf{Complexity} \\
+\hline
+OCR $\rightarrow$ regex/template matching & 85--92\% & $<$500ms & None (new layouts fail) & Low \\
+\hline
+OCR $\rightarrow$ LLM (text only, no layout) & 93--96\% & 2s & Good for simple docs & Medium \\
+\hline
+OCR $\rightarrow$ layout-aware LLM (structured prompt) & 97--99\% & 3s & Strong & High \\
+\hline
+Vision-Language Model (end-to-end, no OCR) & 95--98\% & 3--5s & Best zero-shot & High (large model) \\
+\hline
+Hybrid: OCR + layout + LLM + VLM fallback & 99\%+ & 4--5s & Best overall & Very high \\
+\hline
+\end{tabular}
+
+\subsection*{2) Structured Output Enforcement}
+
+Financial extraction demands perfectly structured output. A missing closing brace or a string where a number belongs is unacceptable.
+
+\textbf{JSON schema enforcement layers:}
+
+\textbf{1. Schema definition per document type:}
+
+\begin{verbatim}
+{
+  "type": "object",
+  "properties": {
+    "invoice_number": {"type": "string",
+      "pattern": "^[A-Z]{2,4}-\\d{4,}$"},
+    "total_amount": {"type": "number", "minimum": 0},
+    "currency": {"type": "string",
+      "enum": ["USD", "EUR", "GBP", "JPY"]},
+    "line_items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "description": {"type": "string"},
+          "quantity": {"type": "integer", "minimum": 1},
+          "unit_price": {"type": "number", "minimum": 0},
+          "total": {"type": "number", "minimum": 0}
+        },
+        "required": ["description", "quantity",
+          "unit_price", "total"]
+      }
+    }
+  },
+  "required": ["invoice_number", "total_amount",
+    "currency", "line_items"]
+}
+\end{verbatim}
+
+\textbf{2. Constrained decoding at inference time:}
+
+Rather than hoping the LLM produces valid JSON, enforce it during generation:
+
+\begin{itemize}
+  \item \textbf{Grammar-constrained decoding:} Use a context-free grammar (CFG) that mirrors the JSON schema. At each token position, mask logits to only allow tokens that continue a valid parse. Libraries: Outlines, llama.cpp grammar mode, vLLM guided decoding.
+  \item \textbf{Finite-state machine (FSM) approach:} Track the parser state during decoding. When inside a string value for \texttt{total\_amount}, only allow digit tokens, decimal points, and the closing quote.
+  \item \textbf{Structured output APIs:} OpenAI/Anthropic structured output modes that guarantee schema conformance.
+\end{itemize}
+
+\textbf{3. Post-generation validation pipeline:}
+
+Even with constrained decoding, validate:
+
+\begin{itemize}
+  \item JSON schema conformance (jsonschema library).
+  \item Type coercion: parse ``\$1,250.00'' $\rightarrow$ 1250.00 (strip currency symbols, commas).
+  \item Date normalization: ``03/15/2024'', ``March 15, 2024'', ``15-Mar-24'' $\rightarrow$ ISO 8601.
+  \item Enum matching: fuzzy-match extracted values to allowed enum sets.
+\end{itemize}
+
+\subsubsection*{Structured Output Trade-off Table}
+
+\begin{tabular}{|p{0.22\linewidth}|p{0.14\linewidth}|p{0.14\linewidth}|p{0.18\linewidth}|p{0.14\linewidth}|}
+\hline
+\textbf{Technique} & \textbf{Conformance Rate} & \textbf{Latency Overhead} & \textbf{Quality Impact} & \textbf{Complexity} \\
+\hline
+Free-form generation + regex parsing & 70--85\% & None & Frequent parse failures & Low \\
+\hline
+Prompt engineering (``output valid JSON'') & 85--95\% & None & Model-dependent reliability & Low \\
+\hline
+Constrained decoding (grammar/FSM) & 99.9\%+ & 5--15\% slower decoding & Slight reduction in field value quality & Medium \\
+\hline
+Function calling / tool use API & 98--99\% & Minimal & Good quality, API-dependent & Low \\
+\hline
+Constrained decoding + post-validation & 100\% (by construction) & 10--20\% slower & Best overall & High \\
+\hline
+\end{tabular}
+
+\subsection*{3) Hallucination Prevention for Financial Data}
+
+In financial extraction, a hallucinated digit is not a minor quality issue---it's a potential compliance violation or erroneous payment. The system must treat hallucination as a safety problem.
+
+\textbf{Hallucination taxonomy for document extraction:}
+
+\begin{tabular}{|p{0.20\linewidth}|p{0.28\linewidth}|p{0.14\linewidth}|p{0.22\linewidth}|}
+\hline
+\textbf{Hallucination Type} & \textbf{Example} & \textbf{Frequency} & \textbf{Severity} \\
+\hline
+Digit transposition & ``\$1,250'' $\rightarrow$ ``\$1,520'' & 2--3\% of fields & Critical for amounts \\
+\hline
+Fabricated field & Model invents an invoice number not present in document & 1--2\% & High \\
+\hline
+Cross-document bleed & Value from a previous document in batch appears in current extraction & $<$0.5\% & Critical \\
+\hline
+OCR error propagation & OCR reads ``8'' as ``6'' $\rightarrow$ LLM faithfully extracts wrong value & 3--5\% on low-quality scans & High \\
+\hline
+Normalization error & ``\$1,250.00'' parsed as ``\$125,000'' (misplaced decimal) & 1--2\% & Critical for amounts \\
+\hline
+\end{tabular}
+
+\textbf{Multi-layer hallucination prevention:}
+
+\textbf{Layer 1 --- Source grounding:}
+\begin{itemize}
+  \item Every extracted value must trace to specific bounding box coordinates in the source document.
+  \item During extraction, require the LLM to output both the value and its source location: \texttt{\{"total\_amount": 1250.00, "total\_amount\_source": "page1, bbox(320, 415, 420, 435)"\}}.
+  \item Post-extraction: OCR the specific bounding box region independently and compare against extracted value. Mismatch $\rightarrow$ flag for review.
+\end{itemize}
+
+\textbf{Layer 2 --- Cross-field verification:}
+\begin{itemize}
+  \item Arithmetic checks: \texttt{sum(line\_item.total) == subtotal}, \texttt{subtotal + tax == total\_amount}.
+  \item Rate checks: \texttt{tax\_amount / subtotal $\approx$ expected\_tax\_rate $\pm$ 1\%}.
+  \item Date logic: \texttt{due\_date $>$ invoice\_date}, \texttt{payment\_terms\_days == due\_date $-$ invoice\_date}.
+  \item Relationship checks: \texttt{vendor\_name} in extracted text must appear in raw OCR output (not fabricated).
+\end{itemize}
+
+\textbf{Layer 3 --- Confidence scoring:}
+\begin{itemize}
+  \item Per-field confidence derived from:
+    \begin{itemize}
+      \item LLM token-level log-probabilities (average log-prob of tokens comprising the field value).
+      \item OCR confidence for the source bounding box region.
+      \item Validation pass/fail signals (arithmetic check passed $\rightarrow$ boost confidence).
+    \end{itemize}
+  \item Composite confidence: \texttt{conf = 0.4 $\times$ llm\_logprob + 0.3 $\times$ ocr\_confidence + 0.3 $\times$ validation\_score}.
+\end{itemize}
+
+\textbf{Layer 4 --- Human review routing:}
+
+\begin{tabular}{|p{0.20\linewidth}|p{0.40\linewidth}|p{0.25\linewidth}|}
+\hline
+\textbf{Confidence Band} & \textbf{Action} & \textbf{Expected Volume} \\
+\hline
+$>$ 0.95 & Auto-accept & 85\% of documents \\
+\hline
+0.80 -- 0.95 & Human review (reviewer sees flagged fields only) & 12\% of documents \\
+\hline
+$<$ 0.80 & Full manual extraction & 3\% of documents \\
+\hline
+\end{tabular}
+
+\textbf{Layer 5 --- Batch-level anomaly detection:}
+\begin{itemize}
+  \item Track field value distributions per vendor/document type.
+  \item Flag statistical outliers: invoice total 10x historical average for that vendor $\rightarrow$ review.
+  \item Detect cross-document bleed: if same unique identifier (invoice number) appears in two consecutive extractions $\rightarrow$ flag.
+\end{itemize}
+
+\subsubsection*{Hallucination Prevention Trade-off Table}
+
+\begin{tabular}{|p{0.22\linewidth}|p{0.14\linewidth}|p{0.14\linewidth}|p{0.18\linewidth}|p{0.18\linewidth}|}
+\hline
+\textbf{Technique} & \textbf{Error Reduction} & \textbf{Latency Cost} & \textbf{Human Review Load} & \textbf{Impl.\ Effort} \\
+\hline
+Source grounding (bbox verification) & 40--50\% & +200ms (re-OCR region) & Reduces review by surfacing specific errors & Medium \\
+\hline
+Cross-field arithmetic checks & 20--30\% & +10ms & Eliminates entire error class & Low \\
+\hline
+Confidence-gated routing & N/A (catch, not prevent) & +50ms & 12--15\% of docs routed & Medium \\
+\hline
+Dual extraction (run twice, compare) & 60--70\% & +100\% (2x compute) & Only review disagreements & Low complexity, high cost \\
+\hline
+Ensemble (two models, majority vote) & 50--60\% & +80\% compute & Review disagreements & High \\
+\hline
+\end{tabular}
+
+\subsection*{Production Bottlenecks and Mitigations}
+
+\begin{itemize}
+  \item \textbf{OCR quality variance across document sources}\\
+    Symptom: 99\% accuracy on clean scans, 88\% on faxed documents.\\
+    Mitigation: Per-source quality scoring at ingestion. Low-quality sources get super-resolution preprocessing and automatic human review routing.
+
+  \item \textbf{Table extraction failure on complex layouts}\\
+    Symptom: Merged cells, nested tables, or borderless tables cause row-column misalignment.\\
+    Mitigation: Ensemble of table detection models (rule-based + neural). Fallback to VLM for tables where structural parsing fails.
+
+  \item \textbf{LLM context window overflow on multi-page documents}\\
+    Symptom: 20-page contracts exceed token limit; extraction misses fields on later pages.\\
+    Mitigation: Per-page extraction with cross-page merging. Extract each page independently, then reconcile overlapping fields.
+
+  \item \textbf{Cross-document contamination in batch processing}\\
+    Symptom: KV cache from previous document leaks into current extraction.\\
+    Mitigation: Clear KV cache between documents. Never batch multiple documents in a single inference call.
+
+  \item \textbf{Schema evolution when new document types appear}\\
+    Symptom: New vendor invoice layout has fields not in schema.\\
+    Mitigation: Zero-shot extraction mode that outputs discovered fields alongside schema-mandated fields. Human review confirms; schema updated weekly.
+
+  \item \textbf{Confidence calibration drift}\\
+    Symptom: Confidence threshold of 0.95 auto-accepts 90\% of docs at launch but only 70\% after 3 months (model confidence distribution shifts).\\
+    Mitigation: Weekly recalibration using human review outcomes as ground truth. Platt scaling on held-out set.
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 4: Wrap Up}
+
+\subsection*{Final Design Summary}
+
+The system chains OCR, layout analysis, table extraction, and LLM-based field mapping into a pipeline that treats accuracy as a safety constraint. Constrained decoding guarantees structural validity. Multi-layer hallucination prevention---source grounding, cross-field verification, confidence routing, and anomaly detection---pushes effective per-field accuracy past 99.5\% while keeping human review load under 15\%.
+
+\subsection*{Wrap-Around Concerns}
+
+\begin{itemize}
+  \item \textbf{Risk:} OCR errors on degraded scans propagate through the entire pipeline undetected. Mitigation: Per-source quality scoring, automatic re-OCR with enhanced preprocessing, confidence penalties for low-quality sources.
+  \item \textbf{Risk:} Constrained decoding forces structurally valid but semantically wrong output (model ``guesses'' a number that fits the schema when uncertain). Mitigation: Prefer high-entropy ``null'' fields over low-confidence guesses; route nulls to human review.
+  \item \textbf{Risk:} Adversarial documents (deliberately manipulated invoices) exploit the system's trust in OCR output. Mitigation: Tamper detection layer (check for pixel-level edits near amount fields), cross-reference against vendor master data.
+  \item \textbf{Risk:} Regulatory requirements vary by jurisdiction (EU invoicing directives vs US standards). Mitigation: Per-jurisdiction schema variants with region-specific validation rules.
+  \item \textbf{Risk:} Human reviewer fatigue degrades correction quality during high-volume periods. Mitigation: Review prioritization by dollar amount at risk; auto-distribute review load; quality audits on reviewer corrections.
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 5: Interviewer Curveballs}
+
+\subsection*{Interviewer Follow-ups \& Frequently Asked Questions (FAQ)}
+
+\textbf{Q:} The system extracts ``\$12,500'' from an invoice but the actual amount is ``\$1,250.00''---an extra zero. How does your system catch this?
+
+\textbf{The Ideal Answer:} Three independent checks fire. First, source grounding: re-OCR the bounding box region for the total amount field and compare character-by-character against the extracted value. Second, cross-field arithmetic: sum the line item totals and compare against the extracted total---if line items sum to \$1,250 but the total says \$12,500, flag the discrepancy. Third, statistical anomaly detection: compare against historical invoice totals from this vendor---a 10x deviation triggers review.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Source grounding catches OCR propagation errors but not cases where the source document itself is wrong.
+  \item Arithmetic checks catch $\sim$80\% of amount errors on invoices with line items but fail on single-total invoices.
+  \item Vendor history checks require sufficient historical data (cold-start problem for new vendors).
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking multi-layered defense thinking for financial data integrity.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} A vendor sends invoices as photographed images taken with a phone camera. Quality is terrible. What do you do?
+
+\textbf{The Ideal Answer:} Pre-processing pipeline: perspective correction (detect document quadrilateral, warp to rectangle), shadow removal, super-resolution upscaling (Real-ESRGAN from 150 DPI effective to 300 DPI), adaptive binarization. After preprocessing, route through TrOCR (transformer-based OCR that handles degraded input better than Tesseract). Automatically set confidence floor lower for this source---all monetary fields go to human review regardless of extraction confidence.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Super-resolution adds $\sim$500ms but improves OCR accuracy from $\sim$88\% to $\sim$94\% on degraded images.
+  \item TrOCR is slower than Tesseract ($\sim$2x) but significantly more robust on noisy input.
+  \item Business decision: charge the vendor for manual review or require higher-quality submissions.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking practical image preprocessing knowledge and graceful degradation strategy.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} How do you handle a 50-page loan contract where you need to extract fields scattered across different sections?
+
+\textbf{The Ideal Answer:} Three-phase approach. Phase 1: Document segmentation---classify each page into sections (terms, signatures, schedules, amendments) using a page-level classifier. Phase 2: Per-section extraction---run the LLM on each relevant section independently with section-specific schemas. Phase 3: Cross-section reconciliation---merge extracted fields, resolve conflicts (e.g., interest rate mentioned on page 3 and page 47 must match), and validate cross-references.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Per-page extraction avoids context window limits but loses cross-page references.
+  \item Full-document extraction with a 128K context model preserves references but is expensive ($\sim$15s for 50 pages) and accuracy degrades on long contexts.
+  \item Hybrid: extract per-section, then run a lightweight verification pass with key fields from all sections in a single prompt.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking ability to decompose long-document problems without losing cross-document coherence.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} You need to support a new document type (e.g., customs declarations) with zero training data. How?
+
+\textbf{The Ideal Answer:} Zero-shot extraction using schema-driven prompting. Define the JSON schema for customs declarations (declaration number, HS codes, country of origin, declared value, etc.). Provide the schema and 2--3 synthetic examples in the system prompt. The LLM's general knowledge of financial document structure handles most field types. Monitor accuracy on the first 500 documents with 100\% human review. Use corrections as few-shot examples, then fine-tune a LoRA adapter after accumulating 2K+ labeled documents.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Zero-shot accuracy for new doc types: typically 85--92\% (sufficient for human-review-assisted launch).
+  \item Few-shot (5--10 examples in prompt): jumps to 92--96\%.
+  \item Fine-tuned (2K+ examples): reaches 98\%+ parity with established document types.
+  \item Cold-start cost: 100\% human review for $\sim$2 weeks $\rightarrow$ expensive but necessary for accuracy guarantees.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking cold-start strategy and understanding of the accuracy-data flywheel.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} Constrained decoding guarantees valid JSON, but the model fills in a plausible-looking but wrong account number. How do you detect this?
+
+\textbf{The Ideal Answer:} Constrained decoding only enforces structure, not semantics. Semantic correctness requires: (1) source grounding---verify the account number exists in the OCR text at the claimed bounding box; (2) format validation---check against known account number formats (routing numbers are 9 digits with a specific checksum algorithm, IBANs have country-specific formats with check digits); (3) entity resolution---if the vendor is known, check against the vendor master database for expected account numbers; (4) confidence thresholding---if the LLM's token log-probabilities for the account number tokens are low, route to review.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Checksum validation catches $\sim$60\% of fabricated account numbers (only works for formats with built-in checksums).
+  \item Vendor master lookup catches $\sim$90\% for known vendors but requires maintained database.
+  \item Source grounding is the strongest signal---if the value doesn't exist in the source text, it's hallucinated by definition.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking understanding that structural validity $\neq$ semantic correctness.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} How do you handle documents in 20 different languages?
+
+\textbf{The Ideal Answer:} Multilingual OCR (PaddleOCR supports 80+ languages). Language detection at the OCR stage (or from document metadata). LLM extraction uses a multilingual model (or language-specific LoRA adapters on a multilingual base). JSON schema field names remain in English (canonical); extracted values retain original language. Date and number format normalization is locale-aware (e.g., ``1.250,00'' in German = ``1,250.00'' in US format). Monetary amounts always normalize to a canonical (amount, currency) tuple.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Multilingual base model (e.g., Qwen2 series): good across languages but slightly weaker per-language than specialized models.
+  \item Per-language LoRA adapters: best accuracy but 20 adapters to maintain.
+  \item Number format ambiguity: ``1,250'' could be 1250 (US) or 1.25 (EU). Must resolve using document language and currency context.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking awareness of locale-specific formatting challenges in financial data.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} Your human review queue is growing faster than reviewers can process it. What do you do?
+
+\textbf{The Ideal Answer:} Triage by business impact: prioritize documents by monetary amount $\times$ confidence gap (low confidence on a \$500K invoice before high confidence on a \$50 invoice). Reduce review scope: show reviewers only the flagged fields, not the entire document (reduces review time from 3 min to 30 sec). Active learning: use reviewer corrections to fine-tune the model weekly---each correction should reduce future review load. Adjust confidence thresholds: if the auto-accept threshold is too conservative, analyze the error rate in the 0.90--0.95 band---if errors are $<$0.1\%, safely lower the review threshold to 0.90.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Lowering the review threshold increases auto-accept rate but increases undetected errors.
+  \item Quantify: at 0.95 threshold, 85\% auto-accept with 0.3\% error rate. At 0.90, 92\% auto-accept with 0.8\% error rate. Business decides acceptable error rate.
+  \item Long-term: model improvement should move the confidence distribution rightward, naturally reducing review volume.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking operational maturity thinking---the human-in-the-loop system is itself a system that needs optimization.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} A competitor claims their end-to-end vision-language model (no OCR step) achieves 99\% accuracy. Should you drop your OCR pipeline?
+
+\textbf{The Ideal Answer:} Not yet---and probably never fully. End-to-end VLMs (e.g., GPT-4V, Qwen-VL) achieve strong results on clean documents but degrade on low-quality scans, complex tables, and dense multi-page documents. The OCR pipeline provides: (1) explicit bounding box provenance (required for audit compliance); (2) deterministic text extraction for digital PDFs (why run a vision model on a text document?); (3) modular error isolation (you can identify whether an error is OCR-stage or extraction-stage). Best approach: use VLM as a fallback for documents where layout-based extraction fails, and as a verification channel for high-value documents.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item VLMs: simpler pipeline, fewer error propagation points, but opaque (no bounding box provenance without extra work).
+  \item OCR pipeline: explicit provenance, modular debugging, but more moving parts.
+  \item Hybrid wins: OCR pipeline for 90\% of documents (reliable, auditable), VLM for the 10\% that defeat layout analysis (complex or unusual formats).
+  \item Cost: VLMs are 5--10x more expensive per document than OCR + 7B extraction model.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking ability to evaluate pipeline architecture trade-offs against end-to-end alternatives.
+
+\section*{End of Chapter}
+
+\begin{itemize}
+  \item \textbf{Key takeaway:} Financial document extraction is an accuracy-critical pipeline where hallucination is a safety hazard. Multi-layer defense---source grounding, cross-field verification, constrained decoding, confidence routing---is non-negotiable. No single technique achieves 99.5\%; the combination does.
+  \item \textbf{What to practice:} Trace a single document through the full pipeline (ingestion $\rightarrow$ OCR $\rightarrow$ layout $\rightarrow$ LLM $\rightarrow$ validation $\rightarrow$ routing) and identify where each error type is caught.
+  \item \textbf{Interview drill:} Given a hallucinated monetary amount, explain every layer of defense that should have caught it and why each layer alone is insufficient.
+\end{itemize}

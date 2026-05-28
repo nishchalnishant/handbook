@@ -1,0 +1,618 @@
+\chapter{Chapter 9: Design an Autonomous Research Agent}
+
+\section*{Context}
+
+\textbf{Problem statement:} Design a production-grade autonomous research agent that decomposes complex questions into sub-tasks, selects and executes tools (web search, APIs, code execution), synthesizes findings with citations---while preventing infinite loops, hallucinated sources, and runaway costs.
+
+\subsection*{Real-World Examples}
+
+\begin{itemize}
+  \item A competitive intelligence agent tasked with ``Compare pricing strategies of the top 5 CRM vendors'' executes 47 tool calls over 23 steps, spending \$4.20 per task before loop detection and step budgets cap it at 15 steps and \$0.50. After budget controls, task quality improves because the agent is forced to plan efficiently.
+  \item A legal research agent hallucinates a court case citation that doesn't exist. Adding a mandatory source-verification tool call (check URL/database existence) before any citation is included drops hallucinated citations from 12\% to 0.8\%.
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 1: Understand the Problem and Establish Design Scope}
+
+\subsection*{Simulated Dialogue}
+
+\textbf{Interviewer:} Design an autonomous research agent system for production scale.\\
+\textbf{Candidate:} I need to understand the task complexity, tool landscape, latency expectations (this is likely async, not real-time), and cost constraints per task before designing the control loop.
+
+\textbf{Candidate:} What is the expected task volume and complexity?\\
+\textbf{Interviewer:} 500K research tasks per day. Tasks range from simple fact lookups (2 steps) to deep multi-source analysis (15+ steps). Average is 8 tool calls per task.
+
+\textbf{Candidate:} What tools are available to the agent?\\
+\textbf{Interviewer:} Web search, URL scraping, Python code execution, SQL database queries, document retrieval (internal knowledge base), and API calls to third-party data providers.
+
+\textbf{Candidate:} What is the latency expectation?\\
+\textbf{Interviewer:} This is async---users submit tasks and get results in minutes. p95 task completion $<$ 5 minutes. But individual tool calls should not hang indefinitely.
+
+\textbf{Candidate:} What is the cost budget?\\
+\textbf{Interviewer:} Maximum \$0.50 per task. Tasks exceeding budget must terminate gracefully with partial results.
+
+\subsection*{Functional Requirements}
+
+\begin{itemize}
+  \item \textbf{Task decomposition:} Break complex research questions into a plan of sub-tasks with dependencies.
+  \item \textbf{Tool execution:} Select and call appropriate tools with correct parameters at each step.
+  \item \textbf{Source verification:} Every factual claim must link to a verifiable source (URL, document ID, database row).
+  \item \textbf{Partial result delivery:} If budget or step limit is hit, return the best available answer with a coverage summary.
+  \item \textbf{Multi-format output:} Return structured reports with citations, confidence indicators, and source links.
+\end{itemize}
+
+\subsection*{Non-Functional Requirements}
+
+\begin{itemize}
+  \item \textbf{Latency:} p95 task completion $<$ 5 minutes. Individual tool call timeout: 30s.
+  \item \textbf{Cost:} Hard cap \$0.50/task (LLM tokens + tool call costs combined).
+  \item \textbf{Reliability:} No infinite loops. Maximum 15 reasoning steps per task. 99.5\% task completion rate (graceful termination counts as completion).
+  \item \textbf{Safety:} Sandboxed code execution. No write access to external systems. No PII leakage in tool calls.
+  \item \textbf{Auditability:} Full trace of every reasoning step, tool call, and decision for post-hoc review.
+\end{itemize}
+
+\subsection*{Back-of-the-Envelope Estimation}
+
+\subsubsection*{Traffic Profile}
+
+\begin{itemize}
+  \item Tasks/day: 500K
+  \item Average QPS: \texttt{500K / 86,400 $\approx$ 5.8 tasks/sec}
+  \item Peak (5x): $\sim$29 tasks/sec
+  \item Average tool calls/task: 8
+  \item Tool call QPS (average): \texttt{5.8 * 8 = 46.4 tool calls/sec}
+  \item Peak tool call QPS: $\sim$232 tool calls/sec
+\end{itemize}
+
+\subsubsection*{Token Budget per Task}
+
+\begin{itemize}
+  \item Average LLM calls per task: 10 (8 tool-selection + 1 planning + 1 synthesis)
+  \item Average input tokens per LLM call: 1,200 (context + tool results + history)
+  \item Average output tokens per LLM call: 300 (reasoning + tool call JSON + partial answer)
+  \item Total tokens per task: \texttt{10 * (1,200 + 300) = 15,000 tokens}
+  \item Approximation check: $\sim$12K tokens at median, $\sim$25K at p95
+\end{itemize}
+
+\subsubsection*{Cost Budget Breakdown (\$0.50/task)}
+
+\begin{tabular}{|p{0.30\linewidth}|p{0.15\linewidth}|p{0.45\linewidth}|}
+\hline
+\textbf{Component} & \textbf{Per-Task Budget} & \textbf{Calculation} \\
+\hline
+LLM inference (planner, 70B class) & \$0.30 & $\sim$12K input @ \$3/1M + $\sim$3K output @ \$15/1M \\
+\hline
+Web search API calls & \$0.08 & $\sim$4 searches @ \$0.02/search \\
+\hline
+URL scraping/parsing & \$0.02 & $\sim$3 scrapes (self-hosted, negligible marginal cost) \\
+\hline
+Code execution sandbox & \$0.02 & $\sim$1 execution, 30s max, spot instance \\
+\hline
+Buffer for retries & \$0.08 & $\sim$16\% headroom \\
+\hline
+\textbf{Total} & \textbf{\$0.50} & \\
+\hline
+\end{tabular}
+
+\subsubsection*{Daily Aggregate Cost}
+
+\begin{itemize}
+  \item \texttt{500K tasks * \$0.50 = \$250K/day} $\rightarrow$ \$7.5M/month
+  \item Cost optimization target: reduce average to \$0.30/task $\rightarrow$ \$4.5M/month (40\% savings)
+\end{itemize}
+
+\subsubsection*{Infrastructure Sizing}
+
+\begin{itemize}
+  \item LLM inference: \texttt{500K * 10 calls * 1,500 avg tokens = 7.5B tokens/day} $\rightarrow$ 70B model fleet or managed API
+  \item Sandbox cluster: 232 peak tool calls/sec, 30s max $\rightarrow$ $\sim$7,000 concurrent sandbox slots at peak
+  \item State store: 500K tasks $\times$ $\sim$50KB state per task = $\sim$25GB/day (7-day retention: 175GB)
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 2: Propose High-Level Design and Get Buy-In}
+
+\subsection*{Core Architecture Components}
+
+\begin{itemize}
+  \item \textbf{Task Intake:} API gateway accepting research tasks, deduplication, priority classification.
+  \item \textbf{Planner LLM:} Generates initial plan (sub-tasks, tool sequence, dependencies) from the research question.
+  \item \textbf{Executor Loop:} Iteratively selects next action, calls tool, ingests result, updates state, decides next step.
+  \item \textbf{Tool Registry:} Registered tools with schemas (input/output types, cost, latency, reliability).
+  \item \textbf{Tool Sandbox:} Isolated execution environment for each tool call (especially code execution).
+  \item \textbf{State Manager:} Persistent per-task state: plan, step history, accumulated findings, token/cost counters.
+  \item \textbf{Loop Detector:} Monitors for repeated states, oscillation, and non-progressing steps.
+  \item \textbf{Budget Controller:} Enforces token, step, cost, and time limits. Triggers graceful termination.
+  \item \textbf{Synthesizer LLM:} Final-step model that assembles accumulated findings into a structured report with citations.
+  \item \textbf{Observability:} Per-task traces, step-level latency, tool success rates, cost tracking, loop detection events.
+\end{itemize}
+
+\subsection*{Pipeline A: Task Planning Pipeline}
+
+\begin{enumerate}
+  \item Task arrives at intake; deduplicate against recent tasks (embedding similarity $>$ 0.95 = duplicate).
+  \item Planner LLM receives task + tool registry descriptions.
+  \item Planner outputs a structured plan: ordered list of sub-tasks, each with preferred tool and expected output type.
+  \item Plan validator checks: step count $\leq$ 15, estimated cost $\leq$ \$0.50, no forbidden tool combinations.
+  \item If validation fails: planner is re-prompted with constraints (``Reduce to 10 steps, budget is \$0.35 remaining'').
+  \item Approved plan is written to state store; executor loop begins.
+\end{enumerate}
+
+\subsection*{Pipeline B: Execution Loop Pipeline}
+
+\begin{enumerate}
+  \item Executor reads current state: completed steps, accumulated findings, remaining budget.
+  \item LLM selects next action: \texttt{\{tool: "web\_search", params: \{query: "..."\}\}} or \texttt{\{action: "synthesize"\}}.
+  \item Tool dispatcher validates parameters against tool schema; rejects malformed calls.
+  \item Tool call executes in sandbox with 30s timeout. Result stored in state.
+  \item Loop detector checks: is this state similar to a previous state? Has the same tool been called with the same params? Is the accumulated finding set growing?
+  \item Budget controller checks: tokens used, cost incurred, steps taken, wall-clock time.
+  \item If budget/loop limit hit $\rightarrow$ force transition to synthesis step with partial results.
+  \item If action = ``synthesize'' $\rightarrow$ pass accumulated findings to synthesizer LLM $\rightarrow$ structured output.
+  \item Source verifier checks all citations against tool results; removes unverifiable claims.
+  \item Final report returned; full trace persisted.
+\end{enumerate}
+
+\subsection*{Mermaid Architecture Diagram}
+
+\begin{verbatim}
+flowchart TD
+  user[User] -->|submit task| intake[TaskIntake]
+  intake --> dedup[Deduplication]
+  dedup --> planner[PlannerLLM]
+  planner --> planValidator[PlanValidator]
+  planValidator -->|approved| stateStore[(StateManager)]
+
+  stateStore --> executor[ExecutorLoop]
+  executor --> actionSelect[ActionSelectionLLM]
+  actionSelect --> toolDispatch[ToolDispatcher]
+
+  toolDispatch --> webSearch[WebSearchTool]
+  toolDispatch --> urlScrape[URLScrapeTool]
+  toolDispatch --> codeExec[CodeExecutionSandbox]
+  toolDispatch --> dbQuery[DatabaseQueryTool]
+  toolDispatch --> docRetrieval[DocRetrievalTool]
+  toolDispatch --> apiCall[ExternalAPITool]
+
+  webSearch --> stateStore
+  urlScrape --> stateStore
+  codeExec --> stateStore
+  dbQuery --> stateStore
+  docRetrieval --> stateStore
+  apiCall --> stateStore
+
+  executor --> loopDetector[LoopDetector]
+  executor --> budgetCtrl[BudgetController]
+
+  loopDetector -->|loop detected| forcesynth[ForceSynthesis]
+  budgetCtrl -->|budget exceeded| forcesynth
+
+  executor -->|synthesize action| synthesizer[SynthesizerLLM]
+  forcesynth --> synthesizer
+  synthesizer --> sourceVerify[SourceVerifier]
+  sourceVerify --> output[StructuredReport]
+
+  executor --> observability[Observability + Traces]
+\end{verbatim}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 3: Design Deep Dive}
+
+Focus areas:
+
+\begin{enumerate}
+  \item \textbf{Planner-Executor Architecture}
+  \item \textbf{Tool Integration and Sandboxing}
+  \item \textbf{Loop Detection and Budget Controls}
+\end{enumerate}
+
+\subsection*{1) Planner-Executor Architecture}
+
+The core design choice is how much autonomy the agent gets per step. This is the spectrum from fully scripted pipelines to fully autonomous agents.
+
+\textbf{Agent framework comparison:}
+
+\begin{tabular}{|p{0.13\linewidth}|p{0.18\linewidth}|p{0.15\linewidth}|p{0.20\linewidth}|p{0.22\linewidth}|}
+\hline
+\textbf{Framework} & \textbf{Approach} & \textbf{Step Control} & \textbf{Best For} & \textbf{Risk} \\
+\hline
+ReAct (Reason + Act) & Interleave reasoning and tool calls in a single LLM loop & LLM decides every step & Flexible, general-purpose research & Loop risk; high token usage from long traces \\
+\hline
+Plan-and-Solve & Separate planning phase, then execute plan steps & Plan constrains execution & Predictable tasks with known structure & Brittle when plan assumptions break \\
+\hline
+LATS (Language Agent Tree Search) & Tree search over action sequences, backtrack on failure & Search algorithm controls & High-stakes tasks needing exploration & Very expensive (multiple paths) \\
+\hline
+Reflexion & Execute $\rightarrow$ evaluate $\rightarrow$ reflect $\rightarrow$ retry & Reflection loop controls & Tasks with clear success criteria & Reflection loop can itself loop \\
+\hline
+\end{tabular}
+
+\textbf{Recommended: Hybrid Plan-then-ReAct.}
+
+\begin{enumerate}
+  \item \textbf{Planning phase:} Planner LLM generates a high-level plan (5--10 sub-tasks) with tool hints and dependency ordering. This constrains the search space.
+  \item \textbf{Execution phase:} Each sub-task is executed via a ReAct loop (Thought $\rightarrow$ Action $\rightarrow$ Observation $\rightarrow$ Thought\ldots) but scoped to that sub-task with a local step budget (max 3 steps per sub-task).
+  \item \textbf{Re-planning:} If a sub-task fails or returns unexpected results, the planner is re-invoked with updated state to generate a revised plan for remaining sub-tasks. Re-plan allowed at most 2 times per task.
+\end{enumerate}
+
+\textbf{State representation:}
+
+\begin{verbatim}
+{
+  "task_id": "abc-123",
+  "original_query": "Compare pricing strategies of top 5 CRM vendors",
+  "plan": [
+    {"step": 1, "subtask": "Identify top 5 CRM vendors by market share",
+     "tool_hint": "web_search", "status": "completed"},
+    {"step": 2, "subtask": "Find pricing pages for each vendor",
+     "tool_hint": "url_scrape", "status": "in_progress"},
+    {"step": 3, "subtask": "Extract pricing tiers and features",
+     "tool_hint": "code_exec", "status": "pending"}
+  ],
+  "findings": [
+    {"step": 1, "result": "Top 5: Salesforce, HubSpot, Zoho, Pipedrive,
+     Freshsales", "sources": ["https://..."], "confidence": 0.92}
+  ],
+  "budget": {"tokens_used": 4200, "tokens_remaining": 10800,
+    "cost_used": 0.18, "cost_remaining": 0.32,
+    "steps_used": 3, "steps_remaining": 12},
+  "loop_detector": {"state_hashes": ["a1b2c3", "d4e5f6"],
+    "repeated_tool_calls": 0}
+}
+\end{verbatim}
+
+\textbf{Planner prompt structure:}
+
+The planner receives: (1) task description, (2) available tools with schemas and costs, (3) budget constraints, (4) example plans for similar task types. It outputs a JSON plan. Key constraints injected into the prompt:
+\begin{itemize}
+  \item ``You have a maximum of 15 steps and \$0.50 total budget.''
+  \item ``Each web search costs \$0.02. Each LLM reasoning step costs $\sim$\$0.03.''
+  \item ``Prefer fewer, higher-quality tool calls over many speculative ones.''
+\end{itemize}
+
+\subsubsection*{Planner-Executor Trade-off Table}
+
+\begin{tabular}{|p{0.14\linewidth}|p{0.17\linewidth}|p{0.17\linewidth}|p{0.20\linewidth}|p{0.14\linewidth}|}
+\hline
+\textbf{Decision} & \textbf{Option A: Pure ReAct} & \textbf{Option B: Plan-then-Execute} & \textbf{Option C: Hybrid Plan-then-ReAct} & \textbf{Recommended} \\
+\hline
+Flexibility & High---adapts at every step & Low---locked to plan & Medium---adapts within sub-tasks & Hybrid \\
+\hline
+Cost predictability & Low---unbounded steps & High---fixed plan & Medium---bounded per sub-task & Hybrid \\
+\hline
+Trace readability & Low---long interleaved trace & High---clear step structure & High---structured with local detail & Hybrid \\
+\hline
+Failure recovery & Implicit (LLM reasons about failure) & Requires explicit re-plan trigger & Sub-task failure triggers re-plan & Hybrid \\
+\hline
+Token efficiency & Low---repeats full trace every step & High---plan is generated once & Medium---trace is scoped per sub-task & Hybrid \\
+\hline
+\end{tabular}
+
+\subsection*{2) Tool Integration and Sandboxing}
+
+Every tool is a potential failure point: timeouts, malformed responses, rate limits, security vulnerabilities. The tool layer must be as hardened as the LLM layer.
+
+\textbf{Tool registry schema:}
+
+Each tool is registered with:
+
+\begin{verbatim}
+{
+  "tool_id": "web_search",
+  "description": "Search the web for recent information. Returns top 5
+    results with titles, snippets, and URLs.",
+  "input_schema": {"type": "object",
+    "properties": {"query": {"type": "string", "maxLength": 200}},
+    "required": ["query"]},
+  "output_schema": {"type": "array",
+    "items": {"type": "object",
+      "properties": {"title": {}, "snippet": {}, "url": {}}}},
+  "cost_per_call": 0.02,
+  "avg_latency_ms": 800,
+  "timeout_ms": 10000,
+  "max_calls_per_task": 8,
+  "reliability_score": 0.97,
+  "requires_sandbox": false
+}
+\end{verbatim}
+
+\textbf{Sandbox architecture (for code execution):}
+
+\begin{tabular}{|p{0.18\linewidth}|p{0.40\linewidth}|p{0.32\linewidth}|}
+\hline
+\textbf{Requirement} & \textbf{Implementation} & \textbf{Notes} \\
+\hline
+Isolation & gVisor container per execution & Kernel-level syscall filtering \\
+\hline
+Resource limits & 1 vCPU, 512MB RAM, 30s wall-clock & Kill on exceed \\
+\hline
+Network & Blocked (no outbound connections) & Prevents data exfiltration \\
+\hline
+Filesystem & Read-only base + ephemeral writable tmp (50MB) & Destroyed after execution \\
+\hline
+Language support & Python 3.11 + numpy/pandas/scipy pre-installed & Fixed image, no pip install \\
+\hline
+Output capture & stdout/stderr captured, max 10KB & Truncated if exceeded \\
+\hline
+\end{tabular}
+
+\textbf{Tool call validation pipeline:}
+
+\begin{enumerate}
+  \item \textbf{Schema validation:} LLM output parsed as JSON; validated against tool input schema. If invalid, retry with schema error message (max 2 retries).
+  \item \textbf{Parameter sanitization:} SQL queries are parameterized (no string concatenation). URLs validated against allowlist patterns. Code execution input scanned for dangerous imports (\texttt{os.system}, \texttt{subprocess}, \texttt{socket}).
+  \item \textbf{Cost check:} Before executing, verify that tool cost doesn't exceed remaining budget.
+  \item \textbf{Execution with timeout:} Tool called with hard timeout. On timeout: return timeout error to agent state; agent can retry or skip.
+  \item \textbf{Output validation:} Tool output validated against output schema. Oversized outputs truncated to 2K tokens with summary.
+\end{enumerate}
+
+\textbf{Tool reliability tracking:}
+
+\begin{tabular}{|p{0.25\linewidth}|p{0.15\linewidth}|p{0.50\linewidth}|}
+\hline
+\textbf{Metric} & \textbf{Threshold} & \textbf{Action on Breach} \\
+\hline
+Success rate (per tool, rolling 1h) & $<$ 90\% & Flag tool as degraded; reduce max calls per task \\
+\hline
+p95 latency (per tool, rolling 1h) & $>$ 2x expected & Warn agent; extend timeout or suggest alternative tool \\
+\hline
+Consecutive failures & $>$ 3 & Circuit-break tool for 5 minutes \\
+\hline
+Cost overrun rate & $>$ 5\% of tasks & Alert ops; review tool pricing assumptions \\
+\hline
+\end{tabular}
+
+\subsubsection*{Tool Integration Trade-off Table}
+
+\begin{tabular}{|p{0.14\linewidth}|p{0.17\linewidth}|p{0.17\linewidth}|p{0.20\linewidth}|p{0.20\linewidth}|}
+\hline
+\textbf{Decision} & \textbf{Option A: Direct API Calls} & \textbf{Option B: Tool Proxy Layer} & \textbf{Option C: Full Sandbox} & \textbf{Recommended} \\
+\hline
+Security & Low---agent has raw API access & Medium---proxy filters/sanitizes & High---full isolation & Sandbox for code; proxy for APIs \\
+\hline
+Latency overhead & None & 5--10ms & 50--200ms (container start) & Accept sandbox latency for code \\
+\hline
+Observability & Low---must instrument each tool & High---proxy logs everything & High---sandbox captures all I/O & Proxy + sandbox \\
+\hline
+Cost control & Hard---agent can make unlimited calls & Easy---proxy enforces limits & Easy---sandbox has resource caps & Proxy for all tools \\
+\hline
+Reliability & Low---raw failures pass through & Medium---proxy retries & Medium---sandbox contains failures & Proxy with retry policy \\
+\hline
+\end{tabular}
+
+\subsection*{3) Loop Detection and Budget Controls}
+
+Infinite loops are the \#1 production risk for agentic systems. An agent that calls web\_search $\rightarrow$ gets unhelpful result $\rightarrow$ calls web\_search again with a slightly different query $\rightarrow$ repeat is burning tokens and time with no progress.
+
+\textbf{Loop detection signals:}
+
+\begin{tabular}{|p{0.16\linewidth}|p{0.22\linewidth}|p{0.22\linewidth}|p{0.30\linewidth}|}
+\hline
+\textbf{Signal} & \textbf{Detection Method} & \textbf{Threshold} & \textbf{Action} \\
+\hline
+Repeated tool call (same tool + same/similar params) & Hash tool\_id + params; check against history & $\geq$ 2 identical calls & Block call; force agent to choose different action \\
+\hline
+Semantic state repetition & Embed accumulated findings; cosine similarity between consecutive steps & Similarity $>$ 0.95 between step N and step N$-$2 & Increment loop counter; at 3: force synthesis \\
+\hline
+Non-progressing steps & Count new facts/findings added per step & 0 new findings for 3 consecutive steps & Force re-plan or synthesis \\
+\hline
+Oscillation & Detect A$\rightarrow$B$\rightarrow$A$\rightarrow$B action pattern & 2 full oscillation cycles & Break with forced alternative action \\
+\hline
+Token velocity & Track tokens consumed per new finding & $>$ 3,000 tokens per finding (vs 1,500 average) & Warn; at 2x threshold: force synthesis \\
+\hline
+\end{tabular}
+
+\textbf{Budget enforcement hierarchy:}
+
+\begin{enumerate}
+  \item \textbf{Token budget (15,000 tokens):} Soft limit at 80\% (12,000) triggers ``wrap up'' instruction injection. Hard limit at 100\% terminates immediately.
+  \item \textbf{Step budget (15 steps):} At step 12, inject ``you have 3 steps remaining; begin synthesis.'' At step 15, force synthesis.
+  \item \textbf{Cost budget (\$0.50):} Tracked as sum of LLM token cost + tool call cost. At 80\%, reduce allowed tool set to cheapest options. At 100\%, terminate.
+  \item \textbf{Wall-clock budget (5 minutes):} Hard timeout. At 4 minutes, inject ``time running low'' signal.
+  \item \textbf{Per-sub-task budget:} Each sub-task in the plan gets proportional share of remaining budget. Prevents early sub-tasks from consuming everything.
+\end{enumerate}
+
+\textbf{Graceful termination protocol:}
+
+When any budget limit forces early termination:
+\begin{enumerate}
+  \item Synthesizer LLM receives all accumulated findings + a ``partial result'' flag.
+  \item Output includes: (a) best available answer, (b) list of sub-tasks completed vs skipped, (c) confidence score adjusted downward for incomplete coverage, (d) suggested follow-up queries for uncovered areas.
+  \item User receives the partial result with a clear ``Budget limit reached---results may be incomplete'' indicator.
+\end{enumerate}
+
+\textbf{Cost optimization strategies:}
+
+\begin{tabular}{|p{0.28\linewidth}|p{0.14\linewidth}|p{0.22\linewidth}|p{0.14\linewidth}|}
+\hline
+\textbf{Strategy} & \textbf{Savings} & \textbf{Quality Impact} & \textbf{Complexity} \\
+\hline
+Prompt compression (summarize history instead of appending full trace) & 30--40\% token reduction & Minimal if summary is good & Medium \\
+\hline
+Tiered models (small model for tool selection, large for synthesis) & 40--50\% cost reduction & Risk: small model picks wrong tools & Medium \\
+\hline
+Result caching (cache web search results for 1h) & 15--20\% fewer tool calls & Staleness risk for time-sensitive queries & Low \\
+\hline
+Plan reuse (match new tasks to cached plans for similar past tasks) & 20--30\% fewer planning tokens & Poor fit if tasks differ in detail & Medium \\
+\hline
+Early termination (stop when confidence $>$ 0.9) & Variable---saves unused budget & Risk: premature stop on deceptively simple sub-tasks & Low \\
+\hline
+\end{tabular}
+
+\subsection*{Production Bottlenecks and Mitigations}
+
+\begin{itemize}
+  \item \textbf{Tool timeout cascades}\\
+    Symptom: Web search API has a 10-second outage; all active tasks stall on that step, hitting wall-clock budgets.\\
+    Mitigation: Per-tool circuit breaker (3 consecutive failures $\rightarrow$ skip tool for 5 min). Agent falls back to alternative tool or marks sub-task as incomplete.
+
+  \item \textbf{Context window overflow in long tasks}\\
+    Symptom: After 10 steps, the accumulated trace exceeds the LLM's context window (8K--32K tokens), causing truncation and lost information.\\
+    Mitigation: Progressive summarization---after every 3 steps, summarize accumulated findings into a compressed representation ($\sim$500 tokens). Only current sub-task trace is kept in full.
+
+  \item \textbf{Hallucinated tool calls}\\
+    Symptom: LLM generates a tool call for a tool that doesn't exist, or with parameters outside the schema.\\
+    Mitigation: Strict schema validation before execution. On invalid call, return the error with available tool list. Max 2 retries, then skip step.
+
+  \item \textbf{Cost spike on complex tasks}\\
+    Symptom: 5\% of tasks are 10x more expensive than average, blowing aggregate budget.\\
+    Mitigation: Pre-classify task complexity (simple/medium/complex) at intake. Complex tasks get higher budget (\$0.80) but count as 1.6x against daily spend limits.
+
+  \item \textbf{Stale web search results}\\
+    Symptom: Agent cites a cached search result that is outdated by the time the report is delivered.\\
+    Mitigation: Cache TTL of 1 hour for general queries, 0 (no cache) for queries containing temporal markers (``today'', ``latest'', year references).
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 4: Wrap Up}
+
+\subsection*{Final Design Summary}
+
+The design uses a Hybrid Plan-then-ReAct architecture: a planner LLM generates a constrained sub-task plan, each sub-task executes via a scoped ReAct loop with per-step tool calls through a validated proxy/sandbox layer, and a loop detector + budget controller guarantee termination. All findings are source-verified before synthesis into a structured report.
+
+\subsection*{Wrap-Around Concerns}
+
+\begin{itemize}
+  \item \textbf{Risk:} Agent discovers that the research question is fundamentally unanswerable (contradictory sources, no data exists). Mitigation: After 5 steps with no new findings, trigger ``answerability assessment''---if LLM judges the question as likely unanswerable, return early with explanation rather than burning remaining budget.
+  \item \textbf{Risk:} Tool API cost changes break budget assumptions. Mitigation: Tool registry includes cost field updated via weekly audit. Budget controller uses real-time cost tracking, not estimates.
+  \item \textbf{Risk:} Multi-agent coordination (parallel sub-tasks) introduces race conditions on shared state. Mitigation: State manager uses optimistic locking with retry; sub-tasks write to isolated finding slots, merged at synthesis.
+  \item \textbf{Risk:} Source verification fails silently (URL returns 200 but content has changed). Mitigation: Store a content hash at retrieval time; re-verify at synthesis time if content hash diverges.
+  \item \textbf{Risk:} Prompt injection via tool results (malicious web page injects instructions into scraped text). Mitigation: Sanitize tool outputs---strip instruction-like patterns; separate tool results from system prompt in context structure.
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 5: Interviewer Curveballs}
+
+\subsection*{Interviewer Follow-ups \& Frequently Asked Questions (FAQ)}
+
+\textbf{Q:} Your agent is stuck in a loop: web\_search $\rightarrow$ unsatisfying result $\rightarrow$ rephrase query $\rightarrow$ web\_search $\rightarrow$ unsatisfying result. How do you detect and break this?
+
+\textbf{The Ideal Answer:} Hash the tool name + normalized parameters; if the same hash appears twice, block the call. For ``similar but not identical'' queries, embed the query strings and check cosine similarity $>$ 0.9. On loop detection, inject a forced action change: ``You have already searched for this. Use a different tool or synthesize from available findings.''
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Exact-match detection catches 60\% of loops. Semantic similarity catches another 30\%.
+  \item The remaining 10\% are ``creative rephrasing'' loops---the agent generates genuinely different queries that all return the same unhelpful results. Detect via output similarity (same search results returned).
+  \item Breaking with forced synthesis preserves user value; breaking with an error wastes the entire task.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking practical loop detection beyond ``just set a step limit.''
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} How do you decide between giving the agent a large model (70B) for all steps vs a small model (7B) for tool selection and a large model only for synthesis?
+
+\textbf{The Ideal Answer:} Profile the error rate per step type. Tool selection (choosing which tool + generating parameters) can often be handled by a 7B model with 95\%+ accuracy if the tool registry is well-described. Reasoning about which sub-task to tackle next requires the larger model. Synthesis always uses the largest model. The tiered approach saves 40--50\% on token cost with $<$2\% quality regression.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Small model for tool selection: faster, cheaper, but higher rate of schema-invalid tool calls (5\% vs 1\% for large model). The retry mechanism absorbs this.
+  \item Risk: small model may select a suboptimal tool (e.g., web search when database query would be better). A/B test to measure.
+  \item Hybrid routing: use small model by default, escalate to large model after 2 failed tool calls in a sub-task.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking cost-quality optimization thinking for agentic systems.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} A user submits a research task that would require accessing a paywalled academic database. The agent doesn't have credentials. What happens?
+
+\textbf{The Ideal Answer:} The tool dispatcher returns a ``403 Forbidden'' error. The agent's ReAct loop observes this and should generate a thought: ``I cannot access this database. I will try alternative open-access sources.'' The system should have a tool fallback graph: if \texttt{academic\_db} fails, suggest \texttt{web\_search} for preprints or \texttt{doc\_retrieval} for internal knowledge base. If no alternative can satisfy the sub-task, mark it as incomplete with the reason.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Tool fallback graph adds complexity but prevents dead-ends.
+  \item The agent must not hallucinate results it couldn't access. The source verifier catches this---if a citation URL returns 403, it's flagged.
+  \item For enterprise: pre-configure available tools per tenant based on their subscriptions.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking graceful degradation when tools are unavailable.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} How do you handle a research task that requires real-time data (e.g., ``What is the current stock price of AAPL?'')?
+
+\textbf{The Ideal Answer:} Classify the task at intake as ``time-sensitive.'' Route to tools with real-time data access (financial API, not cached web search). Set cache TTL to 0 for all tool results on this task. Include a timestamp in the final report: ``Data as of 2024-03-15 14:30 UTC.'' If the task takes 5 minutes and data is stale by completion, include a staleness warning.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Real-time tasks have higher tool costs (financial APIs charge per call).
+  \item Time-sensitive classification can be done by keyword detection (``current'', ``today'', ``right now'') + LLM confirmation.
+  \item Trade-off: real-time accuracy vs cost. For tasks where ``within 1 hour'' is acceptable, use cached results.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking temporal reasoning and data freshness awareness.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} Two sub-tasks in the plan depend on each other's results. How do you handle this in the executor?
+
+\textbf{The Ideal Answer:} The planner annotates dependencies: \texttt{\{"step": 3, "depends\_on": [1, 2]\}}. The executor runs independent sub-tasks in parallel (if infrastructure supports it) and blocks dependent sub-tasks until prerequisites complete. For serial execution, the dependency graph reduces to a topological sort. For parallel execution, use a DAG scheduler with completion callbacks.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Parallel sub-tasks reduce wall-clock time by 30--50\% for tasks with independent branches.
+  \item Adds complexity: shared state must handle concurrent writes. Use per-sub-task finding slots.
+  \item Most research tasks are 70\% serial (each step depends on the previous). Parallelism helps most for ``compare X entities'' tasks where each entity is independent.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking execution graph reasoning.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} The agent produces a 2,000-word report, but 40\% of the content is filler. How do you improve output quality?
+
+\textbf{The Ideal Answer:} Problem is in the synthesis prompt, not the agent loop. Fix: (1) Add a ``relevance filter'' step before synthesis---LLM scores each finding for relevance to the original query, drops findings below threshold. (2) Constrain synthesis output format: require bullet points with citations, max 500 words for summary, detailed findings in appendix. (3) Add a post-synthesis ``self-critique'' step where the LLM evaluates its own output for redundancy and unsupported claims, then revises.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Self-critique adds one more LLM call ($\sim$\$0.03) but measurably improves output quality (user satisfaction +15\% in A/B tests).
+  \item Strict format constraints prevent verbosity but may miss nuance.
+  \item Alternative: train a lightweight quality scorer on human-rated outputs; reject and re-generate below threshold.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking output quality engineering beyond the agent loop.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} How do you prevent prompt injection from a malicious website that the agent scrapes?
+
+\textbf{The Ideal Answer:} Multi-layer defense: (1) \textbf{Structural separation:} Tool results are injected into a clearly delimited \texttt{<tool\_result>} block, separate from system instructions and agent reasoning. The model is fine-tuned (or prompted) to treat tool results as untrusted data. (2) \textbf{Content sanitization:} Strip patterns that look like instructions (``Ignore previous instructions'', ``You are now\ldots'') from scraped content. (3) \textbf{Output validation:} If the agent's behavior changes dramatically after a scrape (e.g., starts generating unrelated content), flag for review. (4) \textbf{Canary tokens:} Inject invisible markers in the system prompt; if they appear in the output, prompt injection occurred.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item No defense is 100\% effective against prompt injection.
+  \item Structural separation is the strongest practical defense.
+  \item Content sanitization has false positives (legitimate content discussing AI instructions).
+  \item Defense-in-depth: combine all four layers.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking security awareness for agentic systems interacting with untrusted data.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} Your daily cost is \$250K but leadership wants it under \$150K. Where do you cut?
+
+\textbf{The Ideal Answer:} Ranked by impact: (1) \textbf{Tiered model routing} (save $\sim$\$80K/day): Use 7B model for tool selection steps, keep 70B only for planning and synthesis. (2) \textbf{Task deduplication} (save $\sim$\$25K/day): 10--15\% of tasks are near-duplicates; serve cached results. (3) \textbf{Prompt compression} (save $\sim$\$20K/day): Summarize step history instead of appending full trace, reducing input tokens by 30\%. (4) \textbf{Early termination} (save $\sim$\$15K/day): Stop tasks when confidence $>$ 0.9 instead of exhausting the full plan. (5) \textbf{Web search result caching} (save $\sim$\$10K/day): Cache search results for 1h, reducing API costs.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Tiered routing is the biggest lever but requires careful validation that 7B doesn't degrade tool selection.
+  \item Deduplication is pure savings but requires robust similarity matching (false dedup = wrong answer).
+  \item Prompt compression has a quality risk---important details can be lost in summarization.
+  \item Total: $\sim$\$150K/day savings, hitting the target.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking cost engineering prioritization with concrete numbers.
+
+\section*{End of Chapter}
+
+\begin{itemize}
+  \item \textbf{Key takeaway:} Autonomous research agents are control-flow systems first, LLM systems second. The loop detector, budget controller, and tool sandbox determine production viability more than the choice of LLM. An agent without termination guarantees is a liability, not a product.
+  \item \textbf{What to practice:} Trace a research task end-to-end: plan generation $\rightarrow$ 3 tool calls with realistic failures $\rightarrow$ loop detection trigger $\rightarrow$ graceful synthesis with partial results. Calculate the token and dollar cost at each step.
+  \item \textbf{Interview drill:} Given a runaway agent that has spent \$2.50 on a single task (5x budget), walk through the root cause analysis: which control failed? Loop detector threshold too high? Budget controller not checking before tool calls? Tool cost estimate stale?
+\end{itemize}

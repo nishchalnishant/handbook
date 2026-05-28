@@ -1,0 +1,82 @@
+\chapter{Glossary: Core ML and LLM System Design Terms}
+
+This glossary extends core ML terms with production-focused LLM system design context.
+
+\section*{A}
+\textbf{Accuracy} -- Proportion of correct predictions: $(TP + TN)/(TP + TN + FP + FN)$. In LLM systems, pair with groundedness and policy metrics.\\
+\textbf{Activation Function} -- Non-linear transformation (ReLU, GELU, etc.) enabling expressive models.\\
+\textbf{AUC} -- Ranking metric for binary classifiers; useful for safety-threshold calibration.
+
+\section*{B}
+\textbf{Backpropagation} -- Gradient computation via chain rule through network layers.\\
+\textbf{Batch Size} -- Samples per update in training; in serving, request batching and continuous batching are key.\\
+\textbf{Bias-Variance Trade-off} -- Underfitting vs overfitting balance; appears in LLM policy/prompt constraints.
+
+\section*{C}
+\textbf{Confusion Matrix} -- TP/FP/FN/TN decomposition for classifier diagnostics.\\
+\textbf{Context Window} -- Max tokens model can attend to; central to latency/cost and chunking decisions.\\
+\textbf{Cross-Encoder Reranking} -- Pairwise relevance model improving top-K precision after retrieval.
+
+\section*{D}
+\textbf{Drift} -- Distribution changes over time (query, embedding, index, or policy drift).\\
+\textbf{Dropout} -- Training regularization by random neuron masking.
+
+\section*{E}
+\textbf{Embedding} -- Dense semantic vector representation of text/image/code.\\
+\textbf{Evaluation Harness} -- Reproducible quality pipeline (Recall@K, citation precision, unsupported-claim rate, TTFT, cost/query).
+
+\section*{F}
+\textbf{F1 Score} -- Harmonic mean of precision and recall.\\
+\textbf{Fine-tuning} -- Updating model weights for domain/task adaptation.
+
+\section*{G}
+\textbf{GPU OOM} -- Out-of-memory failure in VRAM; mitigated by token caps, batch controls, and quantization.\\
+\textbf{Grounding} -- Constraining outputs to verifiable evidence/citations.
+
+\section*{H}
+\textbf{Hallucination} -- Unsupported model output despite fluent phrasing.\\
+\textbf{Hybrid Search} -- BM25 + dense retrieval, usually best practical balance.
+
+\section*{I}
+\textbf{Inference Routing} -- Selecting model/provider/path per request based on complexity, risk, and SLO.
+
+\section*{K}
+\textbf{KV Cache} -- Reuse of attention key/value states to reduce generation compute and latency.
+
+\section*{L}
+\textbf{TTFT} -- Time To First Token.\\
+\textbf{TPOT} -- Time Per Output Token.\\
+\textbf{LoRA} -- Low-rank adapters for parameter-efficient specialization.
+
+\section*{M}
+\textbf{Managed vs Self-hosted LLM} -- Managed: fast launch, lower ops; Self-hosted: more control and potential unit-cost gains at scale.
+
+\section*{P}
+\textbf{Parent-Child Chunking} -- Links broad parent sections to precise child chunks for better long-doc retrieval quality.\\
+\textbf{Precision/Recall} -- Precision: $TP/(TP+FP)$, Recall: $TP/(TP+FN)$.
+
+\section*{Q}
+\textbf{QPS} -- Queries per second throughput metric used for capacity planning.
+
+\section*{R}
+\textbf{Rate Limiting} -- Request throttling to protect provider/system stability.\\
+\textbf{RAG} -- Retrieval-Augmented Generation using external context at inference.
+
+\section*{S}
+\textbf{Semantic Caching} -- Reuse prior responses for semantically similar prompts.\\
+\textbf{Safety Guardrails} -- Layered controls across inputs, runtime decisions, and outputs.
+
+\section*{T}
+\textbf{Token Budgeting} -- Route-level caps on input/output/context tokens.
+
+\section*{V}
+\textbf{Vector Index Lifecycle} -- Versioned re-embedding, shadow testing, alias cutover, rollback.\\
+\textbf{VRAM Planning} -- GPU memory sizing for target model tier and concurrency envelope.
+
+\section*{Interview Quick Set}
+\begin{itemize}
+  \item Core ML: bias-variance, precision/recall/F1, regularization, cross-validation
+  \item LLM Infra: TTFT, TPOT, token budgeting, KV caching, continuous batching
+  \item RAG: chunking, embeddings, hybrid retrieval, reranking, citation metrics
+  \item Operations: rate limits, queue saturation, drift, rollback, guardrail calibration
+\end{itemize}

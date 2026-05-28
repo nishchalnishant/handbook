@@ -1,0 +1,485 @@
+\chapter{Chapter 3: Data Pipelines and Vector Infrastructure}
+
+\section*{Context}
+
+\textbf{Problem statement:} Design scalable ingestion, embedding, indexing, and hybrid retrieval infrastructure that preserves relevance under fast-changing enterprise corpora.
+
+\subsection*{Real-World Examples}
+
+\begin{itemize}
+  \item A global knowledge base with PDFs, wikis, and tickets sees recall drop after parser upgrades; chunking and index lifecycle become the real bottleneck.
+  \item A legal search product improves citation accuracy by moving from fixed chunks to parent-child chunking plus cross-encoder reranking.
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 1: Understand the Problem and Establish Design Scope}
+
+\subsection*{Simulated Dialogue}
+
+\textbf{Interviewer:} Design the data pipeline and vector infrastructure for an enterprise knowledge platform.\\
+\textbf{Candidate:} I need to understand the corpus profile, freshness requirements, and retrieval quality bar first.
+
+\textbf{Candidate:} What document types and volume are we handling?\\
+\textbf{Interviewer:} 5M documents: PDFs, HTML, Markdown, Confluence pages, Jira tickets. Growing at 50K docs/week.
+
+\textbf{Candidate:} How fresh must retrieval results be?\\
+\textbf{Interviewer:} New/updated docs must be searchable within 30 minutes. Some sources are near-real-time (tickets).
+
+\textbf{Candidate:} What is the retrieval quality contract?\\
+\textbf{Interviewer:} Recall@10 $\geq$ 0.85 on benchmark queries, with citation precision $\geq$ 0.90.
+
+\subsection*{Functional Requirements}
+
+\begin{itemize}
+  \item Ingest documents from heterogeneous sources (PDF, HTML, Markdown, structured DB exports).
+  \item Parse layout-aware content preserving tables, headers, code blocks, and section hierarchy.
+  \item Chunk documents with configurable strategies (fixed, semantic, parent-child).
+  \item Generate embeddings and maintain both vector and lexical indexes.
+  \item Support hybrid retrieval (BM25 + dense vector) with cross-encoder reranking.
+  \item Enforce document-level ACLs at retrieval time.
+\end{itemize}
+
+\subsection*{Non-Functional Requirements}
+
+\begin{itemize}
+  \item \textbf{Freshness:} incremental indexing within 30 minutes of source update.
+  \item \textbf{Scale:} 300M+ chunks indexed, 500+ retrieval QPS at p95 $<$ 120ms.
+  \item \textbf{Consistency:} zero-downtime index updates via alias swaps.
+  \item \textbf{Cost:} embedding cost bounded to $<$ \$800/day at steady state.
+  \item \textbf{Durability:} index rollback within 5 minutes on quality regression.
+\end{itemize}
+
+\subsection*{Back-of-the-Envelope Estimation}
+
+\subsubsection*{Corpus Sizing}
+
+\begin{itemize}
+  \item Documents: 5M, average 8 pages, $\sim$2,400 tokens/page
+  \item Total tokens: $5M \times 8 \times 2{,}400 = 96B$ tokens
+  \item Chunks (avg 512 tokens, 50\% overlap): $\sim$375M chunks
+\end{itemize}
+
+\subsubsection*{Embedding Compute}
+
+\begin{itemize}
+  \item Model: \texttt{text-embedding-3-small} (1536-dim, \$0.02/1M tokens)
+  \item Full re-embed cost: $96B \times \$0.02/1M \approx \$1{,}920$ (one-time)
+  \item Incremental daily: $50K$ docs/week $\approx 7{,}200$ docs/day $\times 8$ pages $\times 2{,}400$ tokens $= 138M$ tokens/day
+  \item Incremental cost: $\sim$\$2.76/day
+\end{itemize}
+
+\subsubsection*{Vector Storage}
+
+\begin{itemize}
+  \item 375M vectors at 1536-dim, float32: $375M \times 6KB \approx 2.25TB$ raw
+  \item With HNSW index overhead + metadata + replicas ($\times 2.5$): \textbf{$\sim$5.6TB}
+  \item HNSW memory for search: $\sim$60--80GB RAM per shard (serving-layer requirement)
+\end{itemize}
+
+\subsubsection*{Retrieval Throughput}
+
+\begin{itemize}
+  \item Target: 500 QPS hybrid retrieval
+  \item Per-query: BM25 lookup ($\sim$15ms) + ANN search ($\sim$25ms) + reranker on top-50 ($\sim$60ms) + ACL filter ($\sim$10ms)
+  \item p95 target: \textbf{$<$ 120ms} end-to-end retrieval
+\end{itemize}
+
+\subsubsection*{Ingestion Throughput}
+
+\begin{itemize}
+  \item Daily new chunks: $\sim$57,600 chunks/day (incremental)
+  \item Full re-index (375M chunks at 500 chunks/sec): \textbf{$\sim$8.7 days} $\rightarrow$ requires parallelized pipeline
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 2: Propose High-Level Design and Get Buy-In}
+
+\subsection*{Core Architecture Components}
+
+\begin{itemize}
+  \item \textbf{Source Connectors:} CDC listeners, scheduled crawlers, webhook receivers per source type.
+  \item \textbf{Parser Layer:} layout-aware extraction (tables, headers, code) with format-specific parsers.
+  \item \textbf{Chunking Engine:} configurable strategy selector (fixed, semantic, parent-child) with metadata tagging.
+  \item \textbf{Embedding Service:} batched embedding generation with rate limiting and retry logic.
+  \item \textbf{Index Manager:} dual-write to vector index (HNSW) and lexical index (BM25/Elasticsearch).
+  \item \textbf{Retrieval Service:} hybrid search orchestrator with ACL filtering and cross-encoder reranker.
+  \item \textbf{Index Lifecycle Controller:} versioned indexes, alias swap, rollback, and quality gates.
+  \item \textbf{Observability:} parser success rate, embedding latency, index freshness lag, retrieval recall/MRR.
+\end{itemize}
+
+\subsection*{Pipeline A: Document Ingestion Pipeline}
+
+\begin{enumerate}
+  \item Source connector detects new/updated documents via CDC or scheduled crawl.
+  \item Parser extracts text with layout preservation; routes failures to dead-letter queue.
+  \item Chunking engine applies configured strategy; tags each chunk with \texttt{doc\_id}, section, position, ACL.
+  \item Embedding service generates vectors in batches (rate-limited to stay within cost envelope).
+  \item Index writer dual-writes vectors to HNSW index and text to BM25 index.
+  \item Quality gate samples random chunks and validates embedding coherence and parse fidelity.
+  \item Index lifecycle controller promotes new version via alias swap once quality gate passes.
+\end{enumerate}
+
+\subsection*{Pipeline B: Hybrid Retrieval Pipeline}
+
+\begin{enumerate}
+  \item Query arrives; ACL context resolved from auth token.
+  \item Query rewriter expands/reformulates query for both lexical and semantic channels.
+  \item BM25 retriever returns top-100 lexical matches; ANN retriever returns top-100 dense matches.
+  \item Score fusion (reciprocal rank fusion or weighted combination) produces merged top-100 candidate set.
+  \item ACL filter removes unauthorized chunks.
+  \item Cross-encoder reranker scores top-50 candidates; returns top-K (typically 5--10) with scores.
+  \item Context packer assembles chunks within token budget; returns with chunk metadata and citations.
+\end{enumerate}
+
+\textit{[Insert Architecture Diagram: Source connectors feeding parser $\rightarrow$ chunker $\rightarrow$ embedding service $\rightarrow$ dual index (vector + lexical). Retrieval path: query rewriter $\rightarrow$ parallel BM25 and ANN search $\rightarrow$ fusion $\rightarrow$ ACL filter $\rightarrow$ cross-encoder reranker $\rightarrow$ context packer. Index lifecycle controller managing alias swaps and rollback.]}
+
+\subsection*{Mermaid Architecture Diagram}
+
+\begin{verbatim}
+flowchart LR
+  sources[SourceConnectors] --> parser[LayoutAwareParser]
+  parser --> chunker[ChunkingEngine]
+  chunker --> embedder[EmbeddingService]
+  embedder --> vectorIndex[HNSWVectorIndex]
+  chunker --> lexicalIndex[BM25LexicalIndex]
+
+  query[QueryInput] --> rewriter[QueryRewriter]
+  rewriter --> bm25[BM25Retriever]
+  rewriter --> ann[ANNRetriever]
+  bm25 --> fusion[ScoreFusion]
+  ann --> fusion
+  fusion --> aclFilter[ACLFilter]
+  aclFilter --> reranker[CrossEncoderReranker]
+  reranker --> contextPack[ContextPacker]
+
+  vectorIndex --> ann
+  lexicalIndex --> bm25
+
+  lifecycleCtrl[IndexLifecycleController] --> vectorIndex
+  lifecycleCtrl --> lexicalIndex
+  contextPack --> observability[ObservabilityAndEval]
+\end{verbatim}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 3: Design Deep Dive}
+
+Focus areas for this chapter:
+
+\begin{enumerate}
+  \item \textbf{Chunking Strategies}
+  \item \textbf{Hybrid Retrieval Architecture}
+  \item \textbf{Vector Index Lifecycle Management}
+\end{enumerate}
+
+\subsection*{1) Chunking Strategies}
+
+Chunking determines retrieval granularity and directly impacts recall, precision, and cost.
+
+\subsubsection*{Chunking Trade-off Table}
+
+\small
+\begin{tabular}{|p{0.18\linewidth}|p{0.24\linewidth}|p{0.24\linewidth}|p{0.24\linewidth}|}
+\hline
+\textbf{Approach} & \textbf{Strengths} & \textbf{Weaknesses} & \textbf{Best For} \\
+\hline
+Fixed-size (512 tokens, 50\% overlap) & Predictable count, simple & Splits mid-sentence/table & Homogeneous text, MVP \\
+\hline
+Semantic (sentence/paragraph boundary) & Preserves meaning units & Variable sizes, harder to budget tokens & Narrative docs, policies \\
+\hline
+Parent-child & High recall (parent) + precise grounding (child) & 2x storage, complex metadata & Long docs, legal, technical manuals \\
+\hline
+AST/symbol-aware & Preserves code structure & Language-specific parsers & Code repositories \\
+\hline
+\end{tabular}
+\normalsize
+
+\textbf{Parent-child chunking in detail:}
+
+\begin{itemize}
+  \item \textbf{Parent chunk:} 1,500--2,000 tokens covering a full section or subsection.
+  \item \textbf{Child chunk:} 256--512 tokens, each linked to parent via \texttt{parent\_id}.
+  \item \textbf{Retrieval:} search child chunks for precision; expand to parent for full context assembly.
+  \item \textbf{Storage overhead:} $\sim$1.8x compared to flat chunking.
+  \item \textbf{When to use:} any corpus where answer evidence spans multiple paragraphs but retrieval must be precise.
+\end{itemize}
+
+\subsubsection*{Parsing Failures and Mitigations}
+
+\begin{itemize}
+  \item PDFs with scanned images: route through OCR (Tesseract/DocTR) before chunking.
+  \item Complex tables: extract as structured markdown; embed table + caption as one chunk.
+  \item Code blocks: preserve language tags and indentation; do not split across function boundaries.
+  \item Dead-letter queue for unparseable documents with alerting on failure rate $>$ 2\%.
+\end{itemize}
+
+\subsection*{2) Hybrid Retrieval Architecture}
+
+\subsubsection*{Retrieval Strategy Trade-off Table}
+
+\small
+\begin{tabular}{|p{0.18\linewidth}|p{0.13\linewidth}|p{0.13\linewidth}|p{0.16\linewidth}|p{0.24\linewidth}|}
+\hline
+\textbf{Approach} & \textbf{Recall@10} & \textbf{p95 Latency} & \textbf{Infra Cost} & \textbf{Best For} \\
+\hline
+BM25 only & 0.55--0.65 & $\sim$15ms & Low & Exact-match, IDs, legal refs \\
+\hline
+Dense vector only & 0.70--0.80 & $\sim$25ms & Medium (HNSW RAM) & Semantic paraphrase queries \\
+\hline
+Hybrid (BM25 + dense) & 0.80--0.88 & $\sim$40ms & Medium-High & General-purpose enterprise \\
+\hline
+Hybrid + cross-encoder reranker & 0.85--0.92 & $\sim$100ms & High & High-precision RAG \\
+\hline
+\end{tabular}
+\normalsize
+
+\textbf{Score fusion methods:}
+
+\begin{itemize}
+  \item \textbf{Reciprocal Rank Fusion (RRF):} $\text{score} = \sum 1/(k + \text{rank}_i)$. Simple, robust, no tuning needed. Default recommendation.
+  \item \textbf{Weighted linear combination:} $\text{score} = \alpha \cdot \text{bm25\_norm} + (1-\alpha) \cdot \text{dense\_norm}$. Requires tuning alpha per corpus. Use when one channel dominates.
+\end{itemize}
+
+\textbf{Cross-encoder reranking:}
+
+\begin{itemize}
+  \item Reranker takes (query, chunk) pairs and produces relevance scores.
+  \item Typical model: $\sim$110M params, $\sim$1.2ms/pair on GPU.
+  \item Reranking top-50 candidates: $\sim$60ms on dedicated GPU.
+  \item Quality lift: +5--12\% Recall@5 over fusion alone.
+  \item \textbf{Throughput bottleneck:} at 500 QPS, reranking requires dedicated GPU pool ($\sim$4--8 GPUs for reranker alone).
+\end{itemize}
+
+\textbf{ACL-aware retrieval:}
+
+\begin{itemize}
+  \item Pre-filter approach: inject ACL predicates into index query. Faster but requires ACL-indexed metadata.
+  \item Post-filter approach: retrieve broadly, then filter. Simpler but wastes retrieval budget on unauthorized chunks.
+  \item \textbf{Recommended:} pre-filter for low-cardinality ACLs ($<$ 1K groups); post-filter + over-retrieve for high-cardinality.
+\end{itemize}
+
+\subsection*{3) Vector Index Lifecycle Management}
+
+\subsubsection*{Index Lifecycle Trade-off Table}
+
+\small
+\begin{tabular}{|p{0.16\linewidth}|p{0.15\linewidth}|p{0.19\linewidth}|p{0.18\linewidth}|p{0.18\linewidth}|}
+\hline
+\textbf{Strategy} & \textbf{Update Latency} & \textbf{Risk} & \textbf{Rollback Speed} & \textbf{Best For} \\
+\hline
+In-place upsert & Seconds & Corruption risk, no rollback & None & Dev/testing only \\
+\hline
+Blue-green alias swap & Minutes & Safe, but 2x storage during swap & Instant (re-point alias) & Production default \\
+\hline
+Shadow index + canary eval & Hours & Safest; validates before exposure & Instant & High-stakes corpora \\
+\hline
+\end{tabular}
+\normalsize
+
+\textbf{Blue-green index lifecycle:}
+
+\begin{enumerate}
+  \item Build new index version in background with updated embeddings/chunks.
+  \item Run automated quality gate: sample 200 benchmark queries, measure Recall@10, MRR, citation precision.
+  \item If quality gate passes (no regression $>$ 2\% on any metric), swap alias to new index.
+  \item Keep old index hot for 24h as rollback target.
+  \item If quality regresses post-swap, revert alias within 5 minutes.
+\end{enumerate}
+
+\textbf{Embedding version management:}
+
+\begin{itemize}
+  \item Tag every chunk with \texttt{embedding\_model\_version} and \texttt{index\_version}.
+  \item Never mix embeddings from different model versions in one index (cosine distances are incomparable).
+  \item On model upgrade: full re-embed into shadow index $\rightarrow$ canary eval $\rightarrow$ alias swap.
+\end{itemize}
+
+\textbf{Index freshness monitoring:}
+
+\begin{itemize}
+  \item Track \texttt{source\_updated\_at} vs \texttt{indexed\_at} per document.
+  \item Alert if p95 freshness lag exceeds SLA (30 minutes).
+  \item Dashboard: freshness histogram, parse failure rate, embedding queue depth.
+\end{itemize}
+
+\subsection*{Production Bottlenecks and Mitigations}
+
+\begin{itemize}
+  \item \textbf{Embedding queue backlog}
+  \begin{itemize}
+    \item Symptom: freshness SLA violation; documents stuck in queue.
+    \item Mitigation: horizontal scaling of embedding workers, priority queue for high-value sources, batch size tuning.
+  \end{itemize}
+
+  \item \textbf{ANN recall degradation at high compression}
+  \begin{itemize}
+    \item Symptom: Recall@10 drops below 0.80 as index grows.
+    \item Mitigation: tune HNSW \texttt{ef\_construction} and \texttt{M} parameters; consider IVF-PQ only for cost-constrained scenarios.
+  \end{itemize}
+
+  \item \textbf{Metadata DB saturation from ACL filter queries}
+  \begin{itemize}
+    \item Symptom: retrieval p95 spikes from metadata lookups.
+    \item Mitigation: read replicas, connection pooling, cache hot ACL groups with short TTL (60s).
+  \end{itemize}
+
+  \item \textbf{Parser failures on edge-case documents}
+  \begin{itemize}
+    \item Symptom: dead-letter queue grows; coverage gaps in index.
+    \item Mitigation: fallback to raw text extraction, alerting on failure rate, periodic manual review.
+  \end{itemize}
+
+  \item \textbf{Stale embeddings after schema/content drift}
+  \begin{itemize}
+    \item Symptom: retrieval quality degrades silently over weeks.
+    \item Mitigation: scheduled quality audits (weekly Recall@K sampling), triggered re-embedding on schema changes.
+  \end{itemize}
+\end{itemize}
+
+\subsection*{Advanced Techniques}
+
+\begin{itemize}
+  \item \textbf{Parent-child chunking} for large document retrieval with precise grounding.
+  \item \textbf{Cross-encoder reranking} as quality amplifier after hybrid fusion.
+  \item \textbf{Semantic caching} for repeated retrieval patterns (hash query embedding, cache top-K results with TTL).
+  \item \textbf{Matryoshka embeddings} for variable-precision search (coarse fast pass, fine rerank).
+  \item \textbf{Incremental HNSW} for near-real-time index updates without full rebuild.
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 4: Wrap Up}
+
+\subsection*{Final Design Summary}
+
+The design treats retrieval correctness as a systems problem: robust parsing, configurable chunking, hybrid retrieval with reranking, and versioned index lifecycle controls with automated quality gates.
+
+\subsection*{Wrap-Around Concerns}
+
+\begin{itemize}
+  \item \textbf{Release engineering:} blue-green index swap with automated quality gates and instant rollback.
+  \item \textbf{Governance:} embedding model version tracking, ACL audit logs, chunk provenance metadata.
+  \item \textbf{Cost controls:} embedding cost caps per day, HNSW shard budgets, reranker GPU allocation limits.
+  \item \textbf{Drift controls:} weekly Recall@K sampling, freshness lag monitoring, parser failure rate alerting.
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 5: Interviewer Curveballs}
+
+\subsection*{Interviewer Follow-ups \& Frequently Asked Questions (FAQ)}
+
+\textbf{Q: Your Recall@10 dropped from 0.87 to 0.72 after a parser upgrade. How do you debug?}
+
+\textbf{The Ideal Answer:} I compare chunk distributions before and after the parser change, check for truncation or boundary shifts, and run A/B retrieval on benchmark queries against old vs new index.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Parser changes can shift chunk boundaries, altering which evidence lands in which chunk.
+  \item Shadow index with old parser provides safe comparison baseline.
+  \item Fix: rollback alias to old index, fix parser, rebuild, re-validate.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking whether you treat retrieval quality as a testable, rollbackable property.
+
+\textbf{Q: How do you handle a 50M-document corpus where full re-embedding takes 10 days?}
+
+\textbf{The Ideal Answer:} Parallelize embedding across a worker pool, use incremental re-embedding for changed docs only, and schedule full re-embeds during low-traffic windows.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item At 500 chunks/sec, 375M chunks takes $\sim$8.7 days single-threaded.
+  \item 10 workers: $\sim$21 hours. 50 workers: $\sim$4.2 hours. Cost scales linearly.
+  \item Incremental: only re-embed changed documents (typically $<$ 1\% of corpus daily).
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking whether you can reason about embedding compute at production scale.
+
+\textbf{Q: When would you choose post-filter ACLs over pre-filter?}
+
+\textbf{The Ideal Answer:} Post-filter when ACL cardinality is high (thousands of distinct groups) and pre-filter index metadata would bloat beyond acceptable limits.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Pre-filter: faster retrieval but requires ACL metadata in vector index (storage + indexing overhead).
+  \item Post-filter: simpler index but wastes retrieval budget on unauthorized chunks; must over-retrieve to hit target K.
+  \item Hybrid: pre-filter on coarse groups, post-filter on fine-grained permissions.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking ACL-aware retrieval design maturity.
+
+\textbf{Q: How do you keep retrieval quality stable when the embedding model is upgraded?}
+
+\textbf{The Ideal Answer:} Never mix embedding versions in one index. Build shadow index with new model, run canary evaluation, and alias-swap only if quality improves.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Cosine distances are incomparable across different embedding models.
+  \item Shadow index requires 2x storage temporarily during migration.
+  \item Canary eval on 200+ benchmark queries with Recall@K and MRR gates.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking embedding lifecycle management sophistication.
+
+\textbf{Q: What is the cost-optimal reranker deployment at 500 QPS?}
+
+\textbf{The Ideal Answer:} Dedicated GPU pool sized for reranker throughput. At $\sim$1.2ms/pair and top-50 reranking, each request takes $\sim$60ms. Need $\sim$30 concurrent slots $\rightarrow$ 4--8 GPUs depending on batch efficiency.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item CPU reranking is 10--20x slower; not viable at 500 QPS.
+  \item Batch reranking across concurrent requests improves GPU utilization.
+  \item Fallback: skip reranker under extreme load, accept quality degradation.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking whether you can size reranker infrastructure with real math.
+
+\textbf{Q: How do you detect stale embeddings before users notice quality degradation?}
+
+\textbf{The Ideal Answer:} Weekly automated quality audit: run benchmark queries against live index, compare Recall@K and MRR to baseline. Alert on any regression $>$ 2\%.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Synthetic benchmarks miss real query distribution drift.
+  \item Supplement with sampled production queries (anonymized) for ongoing relevance checks.
+  \item Track \texttt{embedding\_age} histogram; flag indexes where $>$ 20\% of chunks are older than 30 days.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking proactive quality monitoring beyond reactive incident response.
+
+\textbf{Q: What is the single most impactful improvement you would add to a BM25-only retrieval system?}
+
+\textbf{The Ideal Answer:} Add dense vector retrieval with hybrid fusion. Expected lift: +15--25\% Recall@10 on semantic/paraphrase queries.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item BM25 misses semantic paraphrases entirely.
+  \item Hybrid fusion (RRF) is simple to implement and robust without tuning.
+  \item Cross-encoder reranker adds another +5--12\% but at higher latency cost.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking prioritization judgment for retrieval improvements.
+
+\textbf{Q: How do you size HNSW parameters for a 375M-vector index?}
+
+\textbf{The Ideal Answer:} \texttt{M=16}, \texttt{ef\_construction=200} as starting point. Tune \texttt{ef\_search} at query time to balance recall vs latency. Monitor Recall@10 on held-out benchmark.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Higher \texttt{M}: better recall, more memory ($\sim$2x at M=32 vs M=16).
+  \item Higher \texttt{ef\_construction}: better graph quality, slower build time.
+  \item \texttt{ef\_search} is the runtime knob: higher = better recall, more latency.
+  \item At 375M vectors, expect $\sim$5.6TB storage and $\sim$60--80GB RAM per shard for serving.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking hands-on familiarity with ANN index tuning.
+
+\section*{End of Chapter}
+
+\begin{itemize}
+  \item \textbf{Key takeaway:} Retrieval quality is a pipeline problem, not just a model problem. Parser fidelity, chunking strategy, hybrid fusion, and index lifecycle controls all compound.
+  \item \textbf{What to practice:} Walk through a full ingestion pipeline from raw document to indexed chunk, explaining each decision with trade-offs.
+  \item \textbf{Interview drill:} Given a Recall@10 regression, explain your debug workflow from symptom to root cause to rollback.
+\end{itemize}

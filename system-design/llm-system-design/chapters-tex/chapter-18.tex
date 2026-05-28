@@ -1,0 +1,794 @@
+\chapter{Chapter 18: Design a Voice-First Real-Time Agent (AI Drive-Thru / Phone Agent)}
+
+\section*{Context}
+\textbf{Problem statement:} Design a real-time voice agent that conducts natural conversations over phone or drive-thru intercom with sub-500ms voice-to-voice latency, handles interruptions gracefully, and maintains task state across multi-turn dialogues---processing 50K concurrent sessions with human-like responsiveness.
+
+\subsection*{Real-World Examples}
+\begin{itemize}
+  \item A fast-food chain deploys AI drive-thru agents across 5,000 locations. Each agent handles 200 orders/day. The critical metric: voice-to-voice latency (time from when the customer stops speaking to when the agent starts responding). At 800ms, customers perceive the agent as ``slow and robotic'' and 30\% abandon mid-order. At 400ms, satisfaction scores match human operators. The system must handle interruptions---a customer changing their order mid-sentence (``Actually, make that a large---no, medium'') requires the agent to stop speaking, reparse, and respond within 500ms.
+  \item A healthcare appointment scheduling system handles 50K concurrent calls during open enrollment. Callers frequently interrupt the agent (``I already said Tuesday'') and speak over confirmations. A naive pipeline (wait for silence $\rightarrow$ STT $\rightarrow$ LLM $\rightarrow$ TTS) produces 1.2s latency that causes callers to repeat themselves, creating a feedback loop of confusion. Switching to a streaming pipeline (STT starts transcribing during speech, LLM begins generating before STT finalizes) cuts latency to 450ms and reduces repeat-utterance rate by 60\%.
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 1: Understand the Problem and Establish Design Scope}
+
+\subsection*{Simulated Dialogue}
+\textbf{Interviewer:} Design a voice-first real-time agent for drive-thru ordering or phone-based customer service.\\
+\textbf{Candidate:} Voice agents have a fundamentally different latency contract than text-based systems. In text chat, 2 seconds is fine. In voice, anything over 500ms feels unnatural---humans expect conversational pacing. I need to understand the voice pipeline architecture (STT$\rightarrow$LLM$\rightarrow$TTS vs.\ native multimodal), interruption handling requirements, and concurrent session targets.
+
+\textbf{Candidate:} What's the scale and concurrency?\\
+\textbf{Interviewer:} 50K concurrent voice sessions at peak. Each session lasts 2--5 minutes with 5--15 conversational turns.
+
+\textbf{Candidate:} What latency targets?\\
+\textbf{Interviewer:} Voice-to-voice latency (end of user speech to start of agent speech) must be $<$500ms at p95. Total response must begin within 500ms; full responses stream over 2--5 seconds.
+
+\textbf{Candidate:} What quality metrics?\\
+\textbf{Interviewer:} STT accuracy $>$95\% WER (word error rate $<$5\%). TTS naturalness MOS $>$4.0 (Mean Opinion Score, 1--5 scale). Task completion rate $>$90\% (e.g., order placed correctly). Interruption handling: agent must stop within 200ms of user barge-in.
+
+\textbf{Candidate:} What's the deployment environment?\\
+\textbf{Interviewer:} Phone calls via SIP/PSTN for customer service. Drive-thru intercom via audio stream. Both require handling background noise (kitchen noise, traffic, multiple speakers).
+
+\subsection*{Functional Requirements}
+\begin{itemize}
+  \item Real-time bidirectional voice conversation: agent speaks while listening for interruptions.
+  \item STT with streaming partial transcripts (not wait-for-end).
+  \item LLM response generation triggered on partial transcripts (speculative execution).
+  \item TTS with streaming audio output (first audio chunk before full response is generated).
+  \item Barge-in detection: if the user speaks while the agent is speaking, the agent stops and listens.
+  \item Task-state management: order state, appointment details, or issue context maintained across turns.
+  \item Multi-language support for common scenarios (English + Spanish at minimum).
+  \item Graceful escalation to human agent when confidence drops below threshold.
+\end{itemize}
+
+\subsection*{Non-Functional Requirements}
+\begin{itemize}
+  \item \textbf{Voice-to-voice latency:} p95 $<$ 500ms (user silence detected $\rightarrow$ first agent audio byte).
+  \item \textbf{Concurrent sessions:} 50K peak.
+  \item \textbf{STT accuracy:} WER $<$ 5\% on domain-specific vocabulary.
+  \item \textbf{TTS naturalness:} MOS $>$ 4.0.
+  \item \textbf{Barge-in response:} agent audio stops within 200ms of user voice detection.
+  \item \textbf{Availability:} 99.95\% (voice downtime = lost revenue).
+  \item \textbf{Cost:} $<$ \$0.05 per minute of conversation.
+\end{itemize}
+
+\subsection*{Back-of-the-Envelope Estimation}
+
+\subsubsection*{Session Profile}
+\begin{itemize}
+  \item Concurrent sessions: 50K
+  \item Average session duration: 3 minutes
+  \item Turns per session: 10 (5 user, 5 agent)
+  \item Total sessions/day: assuming average session = 3 min, 50K concurrent, avg utilization 40\%: \texttt{50K * 0.4 * (86400 / 180) = 9.6M sessions/day}
+  \item Realistically (business hours, 12hr window): \texttt{50K * (12 * 3600 / 180) = 12M sessions/day}
+\end{itemize}
+
+\subsubsection*{Audio Data Volume}
+\begin{itemize}
+  \item Audio bitrate: 16kHz, 16-bit mono = 256 kbps = 32 KB/s
+  \item Per session (3 min): \texttt{32 * 180 = 5.76 MB}
+  \item Daily audio: \texttt{12M * 5.76 MB = 69 TB} (if stored; typically not stored long-term)
+  \item Audio in transit: 50K sessions $\times$ 32 KB/s = 1.6 GB/s sustained bandwidth
+\end{itemize}
+
+\subsubsection*{STT Compute}
+\begin{itemize}
+  \item Whisper large-v3: processes 30s of audio in $\sim$1s on A100 GPU (30x real-time)
+  \item For streaming STT (Deepgram, AssemblyAI): cloud API, no GPU management needed
+  \item Self-hosted streaming STT: each GPU handles $\sim$30 concurrent streams
+  \item GPUs for 50K concurrent: \texttt{50K / 30 = \textasciitilde{}1,667 GPUs} for STT alone (prohibitive self-hosted)
+  \item Reality: use managed STT API (Deepgram: \$0.0043/min, AssemblyAI: \$0.0065/min)
+  \item STT cost: \texttt{12M sessions * 3 min * \$0.0043 = \$154,800/day} $\leftarrow$ significant
+\end{itemize}
+
+\subsubsection*{LLM Compute}
+\begin{itemize}
+  \item Tokens per turn: $\sim$100 input (transcript + state), $\sim$50 output
+  \item Turns per session: 5 agent turns
+  \item Tokens per session: \texttt{5 * 150 = 750 tokens}
+  \item Total tokens/day: \texttt{12M * 750 = 9B tokens}
+  \item Using a fast 7B model (self-hosted, \$0.10/1M tokens): \texttt{9B * \$0.10/1M = \$900/day}
+  \item Using GPT-4o-mini (\$0.15/1M input, \$0.60/1M output): $\sim$\$2,700/day
+  \item LLM is NOT the cost bottleneck. STT and TTS are.
+\end{itemize}
+
+\subsubsection*{TTS Compute}
+\begin{itemize}
+  \item Agent speaks $\sim$15 seconds per turn, 5 turns = 75 seconds per session
+  \item ElevenLabs: \$0.18/1K chars, $\sim$15 chars/second = $\sim$\$0.04/min
+  \item Self-hosted (VITS/Bark): 1 GPU handles $\sim$100 concurrent streams at real-time factor 50x
+  \item GPUs for 50K concurrent TTS: \texttt{50K / 100 = 500 GPUs} self-hosted
+  \item Managed TTS cost: \texttt{12M * 1.25 min * \$0.04 = \$600K/day} $\leftarrow$ prohibitive at scale
+  \item Self-hosted TTS is mandatory at this scale
+\end{itemize}
+
+\subsubsection*{Latency Budget (500ms voice-to-voice)}
+
+\begin{tabular}{|p{0.35\linewidth}|p{0.08\linewidth}|p{0.47\linewidth}|}
+\hline
+\textbf{Stage} & \textbf{Budget} & \textbf{Notes} \\
+\hline
+Voice Activity Detection (VAD) & 50ms & Detect end-of-speech (silence threshold) \\
+\hline
+STT finalization (last partial $\rightarrow$ final) & 100ms & Streaming STT already has partial; final confirmation \\
+\hline
+Network (STT $\rightarrow$ LLM) & 20ms & Co-located services \\
+\hline
+LLM prefill + first token & 150ms & 7B model, $\sim$100 input tokens \\
+\hline
+LLM first token $\rightarrow$ TTS first chunk & 30ms & Streaming handoff \\
+\hline
+TTS first audio chunk generation & 100ms & First 200ms of audio generated \\
+\hline
+Network (TTS $\rightarrow$ user) & 50ms & Audio packet delivery \\
+\hline
+\textbf{Total} & \textbf{500ms} & Zero slack---every stage must hit budget \\
+\hline
+\end{tabular}
+
+\subsubsection*{Cost Summary}
+
+\begin{tabular}{|p{0.14\linewidth}|p{0.2\linewidth}|p{0.22\linewidth}|p{0.3\linewidth}|}
+\hline
+\textbf{Component} & \textbf{Self-Hosted (per day)} & \textbf{Managed API (per day)} & \textbf{Notes} \\
+\hline
+STT & \$12K (400 GPUs) & \$155K (Deepgram) & Self-host at scale \\
+\hline
+LLM & \$900 (30 GPUs) & \$2.7K (GPT-4o-mini) & Either works \\
+\hline
+TTS & \$15K (500 GPUs) & \$600K (ElevenLabs) & Must self-host \\
+\hline
+Infrastructure & \$5K (networking, storage) & \$2K & \\
+\hline
+\textbf{Total} & \textbf{$\sim$\$33K/day} & \textbf{$\sim$\$760K/day} & Self-hosted is 23x cheaper \\
+\hline
+\textbf{Per minute} & \textbf{\$0.0019} & \textbf{\$0.044} & \\
+\hline
+\end{tabular}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 2: Propose High-Level Design and Get Buy-In}
+
+\subsection*{Core Architecture Components}
+\begin{itemize}
+  \item \textbf{Voice Gateway:} Handles SIP/PSTN connections for phone calls, WebSocket/WebRTC for web-based voice, and audio stream connections for drive-thru intercoms. Manages audio codec negotiation, echo cancellation, and noise suppression.
+  \item \textbf{VAD (Voice Activity Detection):} Continuously monitors the audio stream. Detects speech onset (user starts talking) and speech offset (user stops talking). Also detects barge-in (user talks while agent is speaking). Low-latency requirement: $<$50ms detection.
+  \item \textbf{Streaming STT:} Converts audio to text in real-time with partial (interim) transcripts. Partial transcripts arrive every 100--300ms as the user speaks. Final transcript arrives 100--200ms after speech ends.
+  \item \textbf{Dialogue Manager:} Maintains conversation state (order items, customer info, issue context). Receives transcripts, determines next action (respond, ask clarification, execute tool call), manages multi-turn context window.
+  \item \textbf{LLM Engine:} Generates agent responses based on transcript + dialogue state + system prompt. Must support streaming output (token-by-token). Optimized for low TTFT ($<$150ms).
+  \item \textbf{Streaming TTS:} Converts LLM text output to audio in real-time. Starts generating audio from the first sentence fragment, doesn't wait for full response. Streams audio chunks back to the user.
+  \item \textbf{Barge-In Controller:} Coordinates interruption handling. When VAD detects user speech during agent TTS playback: (1) immediately stop TTS audio, (2) cancel in-flight LLM generation, (3) route new audio to STT, (4) update dialogue state with interruption context.
+  \item \textbf{Session State Store:} Low-latency key-value store (Redis) holding per-session state: conversation history, order state, customer metadata, current turn status.
+  \item \textbf{Audio Transport Layer:} WebRTC for low-latency bidirectional audio. Jitter buffer management, packet loss concealment, adaptive bitrate.
+  \item \textbf{Observability:} Voice-to-voice latency histograms, STT WER sampling, TTS MOS sampling, barge-in rate, task completion rate, escalation rate.
+\end{itemize}
+
+\subsection*{Pipeline A: Session Establishment Pipeline}
+\begin{enumerate}
+  \item Incoming call (SIP) or audio connection (WebSocket) arrives at \textbf{Voice Gateway}.
+  \item Gateway negotiates codec (Opus for WebRTC, G.711 for PSTN), establishes bidirectional audio stream.
+  \item New session created in \textbf{Session State Store} with initial context (caller ID, time, location for drive-thru).
+  \item \textbf{VAD} begins monitoring inbound audio stream.
+  \item \textbf{TTS} generates and plays the greeting: ``Welcome to [restaurant], what can I get for you?''
+  \item System enters listening state.
+\end{enumerate}
+
+\subsection*{Pipeline B: Turn-by-Turn Conversation Pipeline}
+\begin{enumerate}
+  \item \textbf{User speaks.} VAD detects speech onset $\rightarrow$ \textbf{Streaming STT} begins transcribing.
+  \item STT emits partial transcripts every 200ms: ``I'd like a\ldots'' $\rightarrow$ ``I'd like a large\ldots'' $\rightarrow$ ``I'd like a large combo number three.''
+  \item \textbf{Speculative execution (optional):} after the first 2--3 partial transcripts, the \textbf{Dialogue Manager} begins pre-processing likely intents. If ``I'd like a large'' strongly predicts an order, pre-load the menu context.
+  \item VAD detects end-of-speech (300ms silence) $\rightarrow$ STT emits final transcript.
+  \item \textbf{Dialogue Manager} receives final transcript, resolves it against conversation state:
+  \begin{itemize}
+    \item Extracts intent (order item, modify order, ask question, confirm).
+    \item Executes any tool calls (add item to order, check availability).
+    \item Constructs LLM prompt: system prompt + menu/policy context + conversation history + current transcript.
+  \end{itemize}
+  \item \textbf{LLM Engine} generates response with streaming output. First token in $<$150ms.
+  \item \textbf{Streaming TTS} receives first sentence fragment from LLM, begins audio synthesis. First audio chunk ready in $<$100ms.
+  \item Audio streams to user. Agent is ``speaking.''
+  \item \textbf{If user interrupts (barge-in):} VAD detects user speech $\rightarrow$ \textbf{Barge-In Controller} triggers:
+  \begin{itemize}
+    \item TTS audio playback stops within 200ms.
+    \item LLM generation cancelled.
+    \item STT begins transcribing the interruption.
+    \item Dialogue Manager receives the interruption transcript with context: ``interrupted agent mid-response.''
+    \item New LLM call generated with interruption context.
+  \end{itemize}
+  \item Turn completes. State updated. Next turn begins.
+\end{enumerate}
+
+\subsection*{Mermaid Architecture Diagram}
+
+% Mermaid diagram (not natively supported in LaTeX)
+\begin{verbatim}
+flowchart LR
+  caller[Caller Phone/Intercom] <-->|audio| voiceGW[VoiceGateway SIP/WebRTC]
+  voiceGW --> vad[VAD SileroVAD]
+  voiceGW <-->|audio stream| transport[AudioTransport Jitter Buffer]
+
+  vad -->|speech onset| stt[StreamingSTT Whisper/Deepgram]
+  vad -->|end of speech| stt
+  vad -->|barge-in| bargeIn[BargeInController]
+
+  stt -->|partial transcripts| dialogMgr[DialogueManager]
+  stt -->|final transcript| dialogMgr
+
+  dialogMgr --> sessionStore[SessionStateStore Redis]
+  dialogMgr --> toolExec[ToolExecutor Order/Lookup]
+  dialogMgr --> llm[LLMEngine 7B Streaming]
+
+  llm -->|streaming tokens| tts[StreamingTTS VITS/XTTS]
+  tts -->|audio chunks| transport
+  transport --> caller
+
+  bargeIn -->|stop| tts
+  bargeIn -->|cancel| llm
+  bargeIn -->|interrupt context| dialogMgr
+
+  observability[Observability Latency WER MOS BargeIn] --> stt
+  observability --> llm
+  observability --> tts
+  observability --> vad
+\end{verbatim}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 3: Design Deep Dive}
+
+Focus areas:
+\begin{enumerate}
+  \item \textbf{End-to-End Voice Latency Pipeline}
+  \item \textbf{Interruption Handling and Turn-Taking}
+  \item \textbf{Pipeline vs.\ Native Multimodal Architecture}
+\end{enumerate}
+
+\subsection*{1) End-to-End Voice Latency Pipeline}
+
+The 500ms budget is the single most important constraint. Every millisecond wasted in one stage must be recovered in another. The pipeline must be designed for streaming at every stage---no stage waits for the previous stage to complete.
+
+\textbf{The streaming pipeline principle:}
+
+In a naive (batch) pipeline: user finishes speaking $\rightarrow$ STT processes full utterance $\rightarrow$ LLM receives full text $\rightarrow$ generates full response $\rightarrow$ TTS synthesizes full audio $\rightarrow$ playback begins. Total: 2--3 seconds.
+
+In a streaming pipeline: STT emits partial transcripts while user speaks $\rightarrow$ LLM begins generating from partial context $\rightarrow$ TTS synthesizes audio from first sentence fragment $\rightarrow$ first audio byte plays before LLM finishes generating. Total: 400--500ms from end-of-speech to first audio.
+
+\textbf{Per-stage latency optimization:}
+
+\textbf{Stage 1: VAD (Voice Activity Detection) --- 50ms budget}
+
+\begin{tabular}{|p{0.15\linewidth}|p{0.08\linewidth}|p{0.08\linewidth}|p{0.1\linewidth}|p{0.47\linewidth}|}
+\hline
+\textbf{VAD Model} & \textbf{Latency} & \textbf{Accuracy} & \textbf{Resource} & \textbf{Notes} \\
+\hline
+Silero VAD & 10--30ms & 95\%+ & CPU only & \textbf{Production default.} Lightweight, runs on any CPU. \\
+\hline
+WebRTC VAD (Google) & 5--10ms & 90\% & CPU only & Very fast but higher false-positive rate in noisy environments \\
+\hline
+Energy-based (RMS threshold) & 1--5ms & 80\% & CPU only & Too many false triggers in drive-thru noise \\
+\hline
+Custom CNN VAD & 20--50ms & 97\% & GPU & Overkill unless noise environment is extreme \\
+\hline
+\end{tabular}
+
+\bigskip
+End-of-speech detection: VAD must decide ``the user has stopped talking'' quickly but not prematurely. Use a silence duration threshold:
+\begin{itemize}
+  \item 300ms silence $\rightarrow$ end-of-speech (default for transactional conversations)
+  \item 500ms silence $\rightarrow$ end-of-speech (for more deliberate speakers)
+  \item Adaptive: start at 300ms, increase to 500ms if the user has been pausing mid-sentence (detected via partial transcript analysis)
+\end{itemize}
+
+\textbf{Stage 2: Streaming STT --- 100ms budget (from end-of-speech to final transcript)}
+
+The STT has been running throughout the user's speech, emitting partial transcripts. After VAD signals end-of-speech, the STT needs only $\sim$100ms to finalize the transcript (commit the last few words, apply language model correction).
+
+{\small
+\begin{tabular}{|p{0.14\linewidth}|p{0.07\linewidth}|p{0.08\linewidth}|p{0.1\linewidth}|p{0.09\linewidth}|p{0.1\linewidth}|p{0.15\linewidth}|}
+\hline
+\textbf{STT System} & \textbf{Streaming} & \textbf{WER (clean)} & \textbf{WER (noisy)} & \textbf{Latency (partial)} & \textbf{Latency (final)} & \textbf{Cost} \\
+\hline
+Deepgram Nova-2 & Yes & 3.2\% & 8.5\% & 200ms & 100ms after EOS & \$0.0043/min \\
+\hline
+Google Cloud STT v2 & Yes & 3.8\% & 9.1\% & 250ms & 150ms after EOS & \$0.006/min \\
+\hline
+Whisper large-v3 (streaming via whisper.cpp) & Semi (chunked) & 2.9\% & 7.8\% & 500ms chunks & 300ms after EOS & Self-hosted: $\sim$\$0.001/min \\
+\hline
+AssemblyAI Universal & Yes & 3.5\% & 8.0\% & 200ms & 100ms after EOS & \$0.0065/min \\
+\hline
+Fine-tuned Whisper (domain vocab) & Semi & 2.1\% & 5.2\% & 500ms chunks & 300ms after EOS & Self-hosted: $\sim$\$0.001/min \\
+\hline
+\end{tabular}
+}
+
+\bigskip
+For $<$500ms voice-to-voice: managed streaming STT (Deepgram) provides the best latency profile. Self-hosted Whisper requires chunked streaming (500ms chunks), which adds 200ms to the pipeline.
+
+\textbf{Domain vocabulary adaptation:}
+
+Drive-thru menus have domain-specific terms (``McFlurry,'' ``Whopper,'' ``venti''). STT systems misrecognize these. Fix:
+\begin{itemize}
+  \item \textbf{Hot-word boosting:} Deepgram/Google Cloud support keyword boosting---provide a list of menu item names with boosted recognition probability. +15\% accuracy on menu items, zero latency impact.
+  \item \textbf{Fine-tuning:} fine-tune Whisper on 100 hours of drive-thru audio with transcripts. WER drops from 8.5\% to 5.2\% on domain vocab. Requires labeled training data.
+  \item \textbf{Post-correction:} after STT, run a fast string-matching pass to correct common misrecognitions: ``large MacFlurry'' $\rightarrow$ ``large McFlurry.'' Adds $<$5ms.
+\end{itemize}
+
+\textbf{Stage 3: LLM Generation --- 150ms budget (to first token)}
+
+The LLM must produce the first output token within 150ms of receiving the final transcript. This constrains model size and optimization stack.
+
+{\small
+\begin{tabular}{|p{0.14\linewidth}|p{0.05\linewidth}|p{0.1\linewidth}|p{0.06\linewidth}|p{0.12\linewidth}|p{0.1\linewidth}|p{0.2\linewidth}|}
+\hline
+\textbf{Model} & \textbf{Size} & \textbf{TTFT (100 tok in)} & \textbf{TPOT} & \textbf{Quality (task compl.)} & \textbf{Self-hosted GPU} & \textbf{Notes} \\
+\hline
+GPT-4o-mini (API) & Unk. & 200--400ms & 15ms & 94\% & N/A & API latency adds 50--100ms network \\
+\hline
+Llama 3 8B (INT4, vLLM) & 8B & 80ms & 8ms & 88\% & $1\times$ A100 & \textbf{Production default} \\
+\hline
+Llama 3 8B + speculative & 8B+1B & 80ms & 3ms & 88\% & $1\times$ A100 & Fastest decode \\
+\hline
+Phi-3 3.8B (INT4) & 3.8B & 40ms & 5ms & 82\% & $1\times$ A10 & Budget option \\
+\hline
+Mistral 7B (INT4) & 7B & 75ms & 7ms & 86\% & $1\times$ A100 & Good alternative \\
+\hline
+\end{tabular}
+}
+
+\bigskip
+For voice agents, a self-hosted 8B model with speculative decoding is optimal: 80ms TTFT, 3ms TPOT, fitting the 150ms budget with headroom. API-based models add 50--100ms network latency that's hard to recover.
+
+\textbf{Prompt design for voice agents:}
+
+Voice agent prompts differ from text agent prompts:
+\begin{itemize}
+  \item Responses must be SHORT. A 200-word text response is fine; a 200-word spoken response takes 60 seconds and the caller hangs up.
+  \item Responses must be SPEAKABLE. No bullet points, URLs, or code. No parenthetical remarks.
+  \item System prompt includes: ``Keep responses to 1--2 sentences. Use simple, conversational language. Never list more than 3 items. If the order is ambiguous, ask one clarifying question.''
+  \item Token budget: cap output at 50 tokens ($\sim$15 seconds of speech). Longer responses get truncated.
+\end{itemize}
+
+\textbf{Stage 4: Streaming TTS --- 100ms budget (to first audio chunk)}
+
+TTS begins synthesizing as soon as the first complete sentence or clause arrives from the LLM. It doesn't wait for the full response.
+
+{\small
+\begin{tabular}{|p{0.13\linewidth}|p{0.07\linewidth}|p{0.05\linewidth}|p{0.09\linewidth}|p{0.08\linewidth}|p{0.12\linewidth}|p{0.24\linewidth}|}
+\hline
+\textbf{TTS System} & \textbf{Streaming} & \textbf{MOS} & \textbf{Latency (1st chunk)} & \textbf{Languages} & \textbf{Cost} & \textbf{Notes} \\
+\hline
+ElevenLabs Turbo v2 (API) & Yes & 4.5 & 200--400ms & 30+ & \$0.18/1K chars & High quality but API latency \\
+\hline
+XTTS v2 (self-hosted) & Yes & 4.2 & 80ms & 17 & Self-hosted: $\sim$\$0.001/min & \textbf{Production default} \\
+\hline
+VITS (self-hosted) & Yes & 3.8 & 40ms & Per-language & Self-hosted: $\sim$\$0.0005/min & Fastest, lower quality \\
+\hline
+Bark (self-hosted) & No (batch) & 4.3 & 2,000ms & 10+ & Self-hosted & Too slow for real-time \\
+\hline
+Azure Neural TTS (API) & Yes & 4.4 & 150--300ms & 100+ & \$16/1M chars & Good quality, API latency \\
+\hline
+\end{tabular}
+}
+
+\bigskip
+For $<$500ms pipeline: self-hosted XTTS v2 with 80ms first-chunk latency. Trade-off: slightly lower naturalness (MOS 4.2 vs 4.5) but meets the latency budget.
+
+\textbf{Sentence-level streaming:}
+
+The LLM generates tokens one at a time. TTS needs at least a sentence fragment to produce natural-sounding audio. Strategy:
+\begin{itemize}
+  \item Buffer LLM tokens until a sentence boundary (period, question mark) or a pause-worthy clause boundary (comma followed by a conjunction).
+  \item Minimum fragment: 5 words. Shorter fragments produce choppy audio.
+  \item Maximum wait before forcing synthesis: 500ms of buffered tokens. If the LLM is slow, synthesize whatever is available.
+\end{itemize}
+
+\subsubsection*{End-to-End Latency Trade-off Table}
+
+{\small
+\begin{tabular}{|p{0.15\linewidth}|p{0.1\linewidth}|p{0.13\linewidth}|p{0.1\linewidth}|p{0.12\linewidth}|p{0.22\linewidth}|}
+\hline
+\textbf{Pipeline Mode} & \textbf{V2V Latency} & \textbf{Quality} & \textbf{Complexity} & \textbf{Cost} & \textbf{Best For} \\
+\hline
+Batch (wait for each stage) & 2,000--3,000ms & Highest (no partial errors) & Low & Low & Voicemail transcription, non-interactive \\
+\hline
+Streaming STT + batch LLM + batch TTS & 1,200--1,800ms & High & Medium & Medium & Low-priority phone IVR \\
+\hline
+Full streaming (STT$\rightarrow$LLM$\rightarrow$TTS all streaming) & 400--500ms & Good (occasional partial-transcript errors) & High & Medium & \textbf{Production default for real-time agents} \\
+\hline
+Speculative pipeline (start LLM on partial transcript) & 300--400ms & Lower (may generate wrong response) & Very high & Higher (wasted compute) & Ultra-low-latency premium \\
+\hline
+\end{tabular}
+}
+
+\subsection*{2) Interruption Handling and Turn-Taking}
+
+Humans interrupt each other constantly in conversation. A voice agent that can't handle interruptions feels robotic and frustrating. Barge-in handling is the second most critical feature after latency.
+
+\textbf{Barge-in detection pipeline:}
+
+\begin{enumerate}
+  \item While TTS is playing (agent speaking), VAD continues monitoring the inbound audio stream.
+  \item \textbf{Challenge:} the agent's own audio (played through a speaker/earpiece) feeds back into the microphone, creating an echo. VAD must distinguish the user's voice from the echo of the agent's voice.
+  \item \textbf{Acoustic Echo Cancellation (AEC):} subtract the known agent audio signal from the incoming audio before VAD analysis. This is standard in telephony hardware (PSTN handles it) and WebRTC (built-in AEC). Drive-thru intercoms require custom AEC tuning for the acoustic environment.
+  \item After AEC, if VAD detects speech energy above threshold $\rightarrow$ \textbf{barge-in detected.}
+\end{enumerate}
+
+\textbf{Barge-in response sequence (must complete in $<$200ms):}
+
+\begin{tabular}{|p{0.04\linewidth}|p{0.4\linewidth}|p{0.08\linewidth}|p{0.36\linewidth}|}
+\hline
+\textbf{Step} & \textbf{Action} & \textbf{Latency} & \textbf{Notes} \\
+\hline
+1 & VAD detects speech during agent playback & 30ms & After AEC \\
+\hline
+2 & Send stop signal to TTS audio output & 10ms & Immediate audio mute \\
+\hline
+3 & Cancel in-flight LLM generation & 10ms & Abort streaming response \\
+\hline
+4 & Record how much of the agent response was played & 5ms & For context: ``agent said X before interrupted'' \\
+\hline
+5 & Route inbound audio to STT & 10ms & STT begins transcribing interruption \\
+\hline
+6 & Update dialogue state with interruption & 5ms & Flag: partial response delivered \\
+\hline
+\textbf{Total} & & \textbf{70ms} & Well within 200ms budget \\
+\hline
+\end{tabular}
+
+\bigskip
+\textbf{Turn-taking state machine:}
+
+\begin{verbatim}
+States: LISTENING -> PROCESSING -> SPEAKING -> INTERRUPTED
+
+LISTENING: VAD monitors. On speech_onset -> route to STT.
+           On end_of_speech -> transition to PROCESSING.
+PROCESSING: STT finalizes. LLM generates.
+            On first_audio_chunk -> transition to SPEAKING.
+SPEAKING: TTS plays. On barge_in -> transition to INTERRUPTED.
+          On playback_complete -> transition to LISTENING.
+INTERRUPTED: Stop TTS. Cancel LLM. STT transcribes interruption.
+             On end_of_speech -> transition to PROCESSING
+             (with interruption context).
+\end{verbatim}
+
+\textbf{Context handling after interruption:}
+
+When the user interrupts, the dialogue manager must know:
+\begin{itemize}
+  \item What the agent was saying when interrupted (for context, the user heard part of it).
+  \item What the user said during/after the interruption.
+  \item Whether the interruption is a correction (``no, I said medium''), an addition (``and also a drink''), or a redirect (``actually, cancel that'').
+\end{itemize}
+
+Prompt augmentation after interruption:
+\begin{verbatim}
+[Previous agent response, spoken up to: "Your total comes to $12.50.
+  Would you like to add--"]
+[User interrupted with: "Actually, remove the fries."]
+[Instruction: The user interrupted your response. Acknowledge the
+  interruption, process their request, and continue.]
+\end{verbatim}
+
+\textbf{False barge-in handling:}
+
+Not all detected speech during agent playback is an intentional interruption:
+\begin{itemize}
+  \item Background noise (other people talking, traffic)
+  \item The user saying ``uh-huh'' or ``yeah'' as backchannel acknowledgment
+  \item Someone else at the drive-thru window talking
+\end{itemize}
+
+Strategy:
+\begin{itemize}
+  \item \textbf{Minimum speech duration:} don't trigger barge-in for speech bursts $<$ 300ms. Short bursts are likely backchannel or noise.
+  \item \textbf{Confidence threshold:} if STT produces only filler words (``uh,'' ``hmm,'' ``yeah'') with high confidence, treat as backchannel, not interruption. Continue agent playback.
+  \item \textbf{Two-stage detection:} on first speech detection, lower TTS volume by 50\% for 500ms. If speech continues past 500ms, fully stop TTS and process as interruption. If speech stops, restore TTS volume. This creates a graceful ``pause'' rather than a jarring stop.
+\end{itemize}
+
+\subsubsection*{Interruption Handling Trade-off Table}
+
+\begin{tabular}{|p{0.2\linewidth}|p{0.12\linewidth}|p{0.12\linewidth}|p{0.2\linewidth}|p{0.12\linewidth}|}
+\hline
+\textbf{Strategy} & \textbf{False Barge-In Rate} & \textbf{Missed Barge-In Rate} & \textbf{User Experience} & \textbf{Complexity} \\
+\hline
+Immediate stop on any speech & 25\% (noise triggers) & 0\% & Choppy---agent stops for every noise & Low \\
+\hline
+300ms minimum speech + backchannel filter & 5\% & 3\% (misses very short corrections) & Good for most environments & Medium \\
+\hline
+Two-stage (volume reduction $\rightarrow$ full stop) & 3\% & 2\% & \textbf{Most natural} & High \\
+\hline
+No barge-in (wait for agent to finish) & 0\% & 100\% & Terrible---caller must wait & Trivial \\
+\hline
+\end{tabular}
+
+\subsection*{3) Pipeline vs.\ Native Multimodal Architecture}
+
+The traditional voice agent uses a cascade pipeline: STT $\rightarrow$ LLM $\rightarrow$ TTS. An emerging alternative: native speech-to-speech models that process audio directly without text intermediation.
+
+\textbf{Pipeline architecture (STT $\rightarrow$ LLM $\rightarrow$ TTS):}
+
+\begin{verbatim}
+Audio In -> STT -> Text -> LLM -> Text -> TTS -> Audio Out
+\end{verbatim}
+
+Each stage is independently optimizable and debuggable. STT, LLM, and TTS can be swapped independently. Text intermediation enables logging, filtering, and safety checks on the actual words.
+
+\textbf{Native multimodal architecture (Audio $\rightarrow$ Model $\rightarrow$ Audio):}
+
+\begin{verbatim}
+Audio In -> Multimodal Model -> Audio Out
+\end{verbatim}
+
+A single model (e.g., GPT-4o voice mode, Moshi, SpeechGPT) takes audio tokens as input and produces audio tokens as output. No text intermediation.
+
+{\small
+\begin{tabular}{|p{0.14\linewidth}|p{0.18\linewidth}|p{0.18\linewidth}|p{0.38\linewidth}|}
+\hline
+\textbf{Dimension} & \textbf{Pipeline (STT$\rightarrow$LLM$\rightarrow$TTS)} & \textbf{Native Multimodal} & \textbf{Notes} \\
+\hline
+\textbf{Voice-to-voice latency} & 400--500ms (sum of stages) & 200--300ms (single model) & Multimodal eliminates inter-stage latency \\
+\hline
+\textbf{STT accuracy dependency} & Yes---LLM only sees STT output; STT errors propagate & No---model hears raw audio, can understand despite noise & Major advantage for noisy environments \\
+\hline
+\textbf{LLM reasoning quality} & High---text-mode LLMs are well-optimized & Lower---speech-to-speech models are less capable at reasoning & Pipeline wins for complex tasks \\
+\hline
+\textbf{TTS naturalness} & Depends on TTS model (MOS 3.8--4.5) & Very high---model controls prosody, emotion, pacing natively (MOS 4.5+) & Multimodal produces more human-like speech \\
+\hline
+\textbf{Debuggability} & High---inspect text at each stage & Low---audio-in/audio-out is a black box & Critical for production debugging \\
+\hline
+\textbf{Safety/filtering} & Easy---text-based content filtering between LLM and TTS & Hard---must analyze audio output or add separate ASR for monitoring & Compliance requirement \\
+\hline
+\textbf{Language/voice control} & Separate TTS voice selection, style control & Limited---model has its own voice(s) & Pipeline offers more customization \\
+\hline
+\textbf{Cost} & Sum of 3 models & Single model (but larger, GPU-intensive) & Roughly comparable at scale \\
+\hline
+\textbf{Maturity} & Production-proven (2+ years) & Early production (2024--2025) & Pipeline is safer choice today \\
+\hline
+\textbf{Modularity} & Swap any component independently & Monolithic---upgrade is all-or-nothing & Pipeline wins for iteration speed \\
+\hline
+\textbf{Emotion/tone} & TTS must be explicitly instructed (SSML) & Model naturally modulates tone based on context & Multimodal feels more human \\
+\hline
+\end{tabular}
+}
+
+\bigskip
+\textbf{Recommended: Pipeline with multimodal as a staged migration.}
+
+Start with the pipeline architecture (STT$\rightarrow$LLM$\rightarrow$TTS) for production reliability, debuggability, and safety filtering. Monitor multimodal model maturity. Pilot multimodal on low-risk, high-volume scenarios (drive-thru greetings, simple order confirmations) while keeping pipeline for complex interactions (order modifications, complaints, escalations).
+
+\textbf{Hybrid architecture (emerging best practice):}
+
+\begin{verbatim}
+Audio In -> STT -> Text -> LLM (text) -> Text -> TTS -> Audio Out
+                    |
+              Audio In -> Multimodal Model -> Audio Out
+              (fallback for noisy audio where STT fails)
+\end{verbatim}
+
+Use the pipeline by default. If STT confidence drops below 70\% (noisy environment), fall back to the multimodal model that can handle audio directly. This gives the best of both worlds.
+
+\subsubsection*{Architecture Strategy Trade-off Table}
+
+{\small
+\begin{tabular}{|p{0.15\linewidth}|p{0.08\linewidth}|p{0.1\linewidth}|p{0.1\linewidth}|p{0.1\linewidth}|p{0.1\linewidth}|p{0.2\linewidth}|}
+\hline
+\textbf{Architecture} & \textbf{Latency} & \textbf{Quality} & \textbf{Safety} & \textbf{Debug.} & \textbf{Maturity} & \textbf{Best For} \\
+\hline
+Pipeline (STT$\rightarrow$LLM$\rightarrow$TTS) & 400--500ms & Good & High (text filter) & High & Production & \textbf{Default for most deployments} \\
+\hline
+Native multimodal & 200--300ms & Higher nat. & Low (audio black box) & Low & Early & Greenfield projects with lower compliance \\
+\hline
+Hybrid (pipeline + multimodal fallback) & 400ms default, 250ms fallback & Best overall & Medium & Medium & & \textbf{Target architecture (2025+)} \\
+\hline
+Pipeline with speculative LLM & 300--400ms & Good & High & High & Exper. & Latency-critical premium tier \\
+\hline
+\end{tabular}
+}
+
+\subsection*{Production Bottlenecks and Mitigations}
+
+\begin{itemize}
+  \item \textbf{STT latency spike under load}
+  \begin{itemize}
+    \item Symptom: managed STT API p95 latency jumps from 100ms to 500ms during peak hours, pushing total voice-to-voice latency to 900ms.
+    \item Mitigation: multi-provider STT failover. Primary: Deepgram. Failover: Google Cloud STT. If primary latency exceeds 200ms for 3 consecutive calls, route to failover. Additionally: self-host a Whisper instance pool for fallback (higher latency but no rate limits).
+  \end{itemize}
+
+  \item \textbf{Background noise false-triggers VAD continuously}
+  \begin{itemize}
+    \item Symptom: drive-thru kitchen noise triggers speech detection, causing constant barge-in on agent speech.
+    \item Mitigation: deploy a noise-robust VAD trained on drive-thru audio (fine-tune Silero VAD on 1,000 hours of drive-thru ambient noise). Additionally: use directional microphone hardware at the order point to reduce ambient noise pickup.
+  \end{itemize}
+
+  \item \textbf{TTS audio glitches during streaming}
+  \begin{itemize}
+    \item Symptom: audio artifacts (clicks, pops, gaps) at sentence boundaries when TTS switches from one synthesized fragment to the next.
+    \item Mitigation: overlap-add blending at fragment boundaries. Generate 50ms of overlapping audio between consecutive fragments and crossfade. This smooths transitions. Additionally: buffer two fragments ahead before starting playback (adds 100ms to initial latency but eliminates all audible gaps).
+  \end{itemize}
+
+  \item \textbf{Dialogue state corruption on rapid interruptions}
+  \begin{itemize}
+    \item Symptom: user interrupts twice in quick succession (``no---wait---actually, make it a large''), and the dialogue manager loses track of the current order state.
+    \item Mitigation: atomic state updates with version numbers. Each state change is a versioned transaction. Interrupted LLM generations that haven't committed a state change are rolled back. Only fully processed turns update the state.
+  \end{itemize}
+
+  \item \textbf{Caller on hold / silence handling}
+  \begin{itemize}
+    \item Symptom: caller goes silent for 10+ seconds (putting phone down, talking to someone else). System times out and disconnects.
+    \item Mitigation: implement a ``patience protocol.'' After 5s silence: ``Take your time, I'm still here.'' After 15s: ``Are you still there?'' After 30s: ``I'll keep your order saved. Call back when you're ready.'' Don't hard-disconnect until 60s.
+  \end{itemize}
+\end{itemize}
+
+\subsection*{Advanced Techniques}
+\begin{itemize}
+  \item \textbf{Speculative response generation:} while the user is still speaking (mid-utterance), the system predicts the likely complete utterance from partial transcripts and begins generating a response speculatively. If the prediction is correct ($>$70\% of the time for common patterns like ``I'd like a [menu\_item]''), the response is already partially generated by the time the user finishes. Saves 100--200ms. Risk: wasted compute on wrong predictions ($\sim$30\% waste rate).
+  \item \textbf{Emotion detection for escalation:} analyze audio features (pitch, speaking rate, volume) to detect caller frustration. If frustration score exceeds threshold, proactively offer: ``I want to make sure I get this right for you. Would you like me to connect you with a team member?'' Early escalation improves CSAT vs.\ letting the caller struggle with the AI.
+  \item \textbf{Contextual pre-loading:} for drive-thru, pre-load the current menu, promotions, and item availability into the LLM context before the first customer interaction. For phone agents, use caller ID to pre-load account history. Reduces per-turn context assembly time to near-zero.
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 4: Wrap Up}
+
+\subsection*{Final Design Summary}
+
+The system achieves sub-500ms voice-to-voice latency through a fully streaming pipeline: Silero VAD for end-of-speech detection (50ms), streaming STT with domain-adapted vocabulary (100ms finalization), a self-hosted 8B LLM with speculative decoding (80ms TTFT), and self-hosted XTTS v2 for streaming TTS (80ms first chunk). Barge-in handling uses a two-stage detection strategy (volume reduction then full stop) that achieves 3\% false positive rate while catching 98\% of real interruptions. At 50K concurrent sessions, self-hosted STT and TTS at \$0.002/minute is 23x cheaper than managed APIs. The architecture is pipeline-based (STT$\rightarrow$LLM$\rightarrow$TTS) for production maturity and debuggability, with a planned migration path to hybrid pipeline + native multimodal for noisy environments.
+
+\subsection*{Wrap-Around Concerns}
+\begin{itemize}
+  \item \textbf{Risk:} 500ms latency budget has zero slack. Any single stage regression (STT provider latency spike, GPU contention on LLM, TTS audio buffer underrun) breaks the SLO. Mitigation: per-stage latency monitoring with circuit breakers. If any stage exceeds 1.5x budget, degrade gracefully (shorter responses, skip speculative execution, use lower-quality but faster TTS).
+  \item \textbf{Risk:} Background noise in drive-thru environments degrades STT accuracy below 95\%. Mitigation: domain-adapted STT model, hot-word boosting, and multimodal fallback for low-confidence transcripts.
+  \item \textbf{Risk:} Barge-in handling with AEC fails in novel acoustic environments (new intercom hardware, outdoor seating areas). Mitigation: per-location AEC calibration during installation. Monitor barge-in false-positive rate per location; alert if $>$10\%.
+  \item \textbf{Risk:} Self-hosted TTS and STT require 900+ GPUs at peak, creating significant infrastructure operational burden. Mitigation: auto-scaling with spot instances for burst. Maintain 60\% baseline on reserved instances, scale 40\% on spot.
+  \item \textbf{Risk:} Dialogue state errors cause wrong orders (customer says ``large'' but system records ``small''). Mitigation: explicit confirmation turns for high-value items. ``Got it---one large combo number three. Is that correct?'' Confirmation rate should be $>$95\%.
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 5: Interviewer Curveballs}
+
+\subsection*{Interviewer Follow-ups \& Frequently Asked Questions (FAQ)}
+
+\textbf{Q:} The customer says ``I'd like a large number three with no pickles and a Coke---oh wait, make that a Sprite.'' Your system must handle this single utterance. Walk through exactly what happens.
+
+\textbf{The Ideal Answer:} This is a self-correction within a single turn---not a multi-turn dialogue issue. The STT transcribes the full utterance as one text. The LLM must parse the self-correction. Prompt design handles this: the system prompt instructs ``Customers may change their mind mid-sentence. The LAST stated preference overrides earlier ones.'' The LLM parses: (1) large \#3, (2) no pickles, (3) Coke, (4) correction: Sprite replaces Coke. Final order: large \#3, no pickles, Sprite. The dialogue manager commits this as a single state update. Confirmation: ``A large number three, no pickles, with a Sprite. Anything else?''
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item The LLM must be robust to self-corrections. Include few-shot examples of self-corrections in the system prompt.
+  \item If STT segments this as two utterances (pause between ``Coke'' and ``oh wait''), the system processes two turns. The second turn (``make that a Sprite'') is a modification. Both paths work but the two-turn path adds 500ms.
+  \item Edge case: ``no pickles'' is a negation. LLMs sometimes struggle with negations in structured extraction. Include explicit negation examples in few-shot.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking understanding of real-world speech patterns and how they map to dialogue management.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} Your STT transcribes ``I'd like a four-piece nugget'' but the customer actually said ``forty-piece nugget.'' This is a real order---how do you prevent costly misrecognitions?
+
+\textbf{The Ideal Answer:} Numerals in noisy environments are the \#1 STT failure mode. Defense layers: (1) \textbf{Hot-word boosting:} if the menu has ``4-piece'' and ``40-piece'' but no ``forty-piece'' as a string, STT may default to the more common ``four-piece.'' Boost all menu item names including their numeric variants. (2) \textbf{Menu-aware post-processing:} after STT, validate the transcript against the actual menu. ``Four-piece nugget'' is a valid menu item but so is ``forty-piece nugget.'' If ambiguous, use acoustic confidence scores on the numeral. (3) \textbf{Confirmation protocol:} for items where the quantity matters (and thus the price difference is large---\$3 vs \$12), always confirm: ``Was that a four-piece or forty-piece nugget?'' This adds one turn ($\sim$3 seconds) but prevents a wrong order. (4) \textbf{Cost-based confirmation threshold:} only confirm when the price difference between homophones exceeds \$5. ``Coke vs.\ Diet Coke'' (\$0 difference) $\rightarrow$ don't confirm. ``4-piece vs.\ 40-piece'' (\$9 difference) $\rightarrow$ confirm.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Confirmation on every item creates a tedious experience. Cost-based thresholding limits confirmations to $\sim$10\% of items.
+  \item Alternative: use DTMF (keypad) input for quantities. ``Press 4 for four-piece, press 0 for forty-piece.'' Works for phone; not for drive-thru.
+  \item Long-term: fine-tune STT on menu-specific audio (with emphasis on numeric terms) to reduce misrecognition rate.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking awareness of domain-specific STT failure modes and practical mitigation.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} Two people are talking at the drive-thru speaker simultaneously---one ordering, one commenting to their passenger. How does the system handle overlapping speakers?
+
+\textbf{The Ideal Answer:} Multi-speaker handling at drive-thru is a hard unsolved problem. Practical approaches: (1) \textbf{Speaker diarization:} identify the primary speaker (closest to the microphone) and filter out the secondary speaker. Modern diarization models (pyannote) can separate speakers in real-time but add 100--200ms latency---tight for the budget. (2) \textbf{Dominant speaker extraction:} without full diarization, use audio energy and direction (if using a directional microphone array) to focus on the loudest/closest speaker. Simpler, faster ($<$50ms), works 80\% of the time. (3) \textbf{Confusion detection:} if the STT output is incoherent (two interleaved conversations), the system recognizes confusion and asks: ``Sorry, I heard a couple of things. Could you repeat your order?'' (4) \textbf{Hardware solution:} directional microphone with cardioid pattern pointed at the driver-side window. Rejects speech from the passenger side by 15--20 dB. This is the most effective solution and most drive-thru installations use it.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Real-time speaker diarization adds 100--200ms---may break the 500ms budget if the pipeline is already tight.
+  \item Directional microphones solve 90\% of the problem at hardware level, zero latency impact.
+  \item For phone calls (not drive-thru), there's no directional mic. Must rely on diarization or simply accept that multi-speaker phone calls are harder.
+  \item Worst case: if the system can't distinguish speakers, it processes whatever STT produces and relies on the confirmation step to catch errors.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking understanding that voice pipeline challenges are often solved at the hardware/acoustic layer, not just software.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} Your LLM generates a response but the TTS pronunciation is wrong---it says ``live'' (as in ``alive'') instead of ``live'' (as in ``broadcast''). How do you control pronunciation?
+
+\textbf{The Ideal Answer:} TTS pronunciation errors on homographs (``live,'' ``read,'' ``lead,'' ``wind'') are common. Controls: (1) \textbf{SSML (Speech Synthesis Markup Language):} wrap ambiguous words with phoneme hints: \texttt{<phoneme alphabet="ipa" ph="la\textsci v">live</phoneme>}. This requires the LLM to generate SSML-annotated text, which is feasible with prompt engineering. (2) \textbf{Pronunciation dictionary:} the TTS system maintains a custom pronunciation dictionary mapping words to phonemes in context. ``Live music'' $\rightarrow$ /la\textsci v/, ``live broadcast'' $\rightarrow$ /la\textsci v/, ``live animals'' $\rightarrow$ /la\textsci v/. Context-dependent rules. (3) \textbf{Domain-specific TTS fine-tuning:} fine-tune the TTS model on domain-specific text-audio pairs. For a drive-thru, the vocabulary is limited; pronunciation errors are rare after fine-tuning on menu items. (4) \textbf{Post-synthesis verification (expensive):} run a lightweight STT on the generated audio and compare against the input text. If mismatched, re-synthesize. Adds $\sim$200ms per turn.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item SSML adds complexity to the LLM prompt and output parsing. Not all TTS systems fully support SSML.
+  \item Pronunciation dictionaries are effective for domain-specific terms but don't generalize to novel text.
+  \item TTS fine-tuning requires 5--10 hours of recorded audio in the target voice + domain text. $\sim$1 week of effort.
+  \item In practice, for constrained domains (drive-thru, appointment scheduling), the vocabulary is small enough that a pronunciation dictionary covers 99\% of cases.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking awareness of TTS quality control beyond ``plug in a TTS API.''
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} You need to deploy this system across 5,000 drive-thru locations worldwide. How do you handle the infrastructure?
+
+\textbf{The Ideal Answer:} Two architectural options: (1) \textbf{Cloud-centralized:} all audio streams back to regional cloud data centers. Pros: centralized GPU fleet, easy model updates, shared capacity. Cons: network latency from store to cloud (50--100ms RTT), bandwidth costs (32KB/s per stream $\times$ 5K locations), dependency on WAN. (2) \textbf{Edge deployment:} deploy a small compute node at each location (or per-cluster of locations). Run VAD + lightweight processing locally; stream only to STT/LLM in a regional data center. Pros: reduced network dependency, lower latency. Cons: 5,000 edge devices to manage, limited compute per location.
+
+\textbf{Recommended: Hybrid.} VAD runs on a local edge device (Raspberry Pi-class, \$50 hardware). Audio streams to the nearest regional data center (8--12 regions globally) for STT$\rightarrow$LLM$\rightarrow$TTS processing. Audio transport over WebRTC with adaptive bitrate.
+
+Regional data center sizing: 5,000 locations / 10 regions = 500 locations per region. At peak (lunch rush): 500 locations $\times$ 3 concurrent orders = 1,500 concurrent sessions per region. GPU fleet per region: $\sim$30 GPUs for STT, $\sim$5 for LLM, $\sim$15 for TTS = $\sim$50 GPUs per region, 500 GPUs total.
+
+Network resilience: if WAN to cloud fails, the edge device plays pre-recorded prompts (``Our AI system is temporarily unavailable. A team member will take your order.'') and escalates to human.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Edge VAD eliminates false triggers before audio leaves the premises, saving bandwidth.
+  \item Running full STT/LLM/TTS on-premise is theoretically possible (with a \$5K GPU box per location) but operationally nightmarish at 5,000 locations.
+  \item Network quality varies by location. Rural locations with poor connectivity may need a larger edge compute footprint.
+  \item Model updates: push new model weights to regional data centers (trivial). Push new VAD models to edge devices (non-trivial---requires OTA update infrastructure).
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking infrastructure architecture thinking for geographically distributed real-time systems.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} A customer has a heavy accent that drops STT accuracy to 70\% WER. How do you handle graceful degradation?
+
+\textbf{The Ideal Answer:} Accent robustness is an equity and accessibility concern, not just a quality metric. Layers: (1) \textbf{Multi-model STT ensemble:} run two STT models in parallel (e.g., Deepgram + Whisper). Take the transcript with higher confidence. Different models have different accent strengths. (2) \textbf{Confidence-based clarification:} if STT confidence on any word drops below 60\%, ask for clarification on that specific word rather than the whole utterance: ``I got `large number three'---was the drink a Coke or a Fanta?'' (3) \textbf{Multimodal fallback:} if text-based understanding fails, route the audio to a native multimodal model (GPT-4o voice mode) that processes audio directly---it may understand accented speech that STT couldn't transcribe. (4) \textbf{Human escalation:} if confidence stays below threshold for 3 consecutive turns, offer: ``Let me connect you with a team member who can help.'' Don't let the customer struggle. (5) \textbf{Long-term:} collect and label accent-diverse training data (with speaker consent). Fine-tune STT models to improve accuracy across accent groups. Monitor WER by demographic cohort (accent, age) to ensure equitable performance.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Multi-model STT doubles compute cost. Only activate for low-confidence sessions.
+  \item Clarification questions add friction. Limit to 1 clarification per turn.
+  \item Human escalation is the safety net but defeats the purpose of automation. Track escalation rate by accent group---if one group escalates 5x more, the model needs retraining for that accent.
+  \item Ethical consideration: if the system performs significantly worse for certain accent groups, it's discriminatory. Regular fairness audits on WER by accent are mandatory.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking fairness and accessibility thinking in voice AI systems.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} The restaurant changes its menu seasonally. How do you update the voice agent without downtime?
+
+\textbf{The Ideal Answer:} Menu updates propagate through three components: (1) \textbf{Dialogue context:} the system prompt and menu context (item names, prices, availability) are stored in a configuration database, not hardcoded in the model. Menu update = database record update, zero model changes. The LLM reads the current menu from context at the start of each session. (2) \textbf{STT hot-words:} the keyword boost list must be updated with new item names. Push new hot-word list to the STT service (API parameter, no model reload). (3) \textbf{TTS pronunciation dictionary:} add pronunciation entries for new menu items. Deploy as a config update to the TTS service.
+
+Deployment: blue-green deployment at the session level. New sessions use the updated config (new menu). Existing sessions continue with the old config until they end (max 5 minutes). No mid-session menu changes to avoid confusion. Zero downtime.
+
+Testing: before deployment, run the updated config through an automated test suite: 50 synthetic orders covering new menu items. Verify: STT recognizes new item names, LLM correctly adds them to orders, TTS pronounces them correctly, confirmation messages include correct prices.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Separating menu data from model weights is critical. If menu items were in the model's training data, updates would require model retraining.
+  \item Hot-word lists have limits (typically 100--500 terms). Seasonal menus fit easily; restaurants with 500+ items may need tiered boosting (boost seasonal items + top-50 by popularity).
+  \item The test suite should run in $<$5 minutes. Block deployment if any test fails.
+  \item Rollback: if the new menu config causes issues (wrong prices, unrecognized items), revert the database record. All new sessions immediately use the old menu. Rollback time: $<$1 minute.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking operational maturity for configuration-driven updates in real-time systems.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} How do you measure whether the voice agent is actually good? What metrics matter beyond latency?
+
+\textbf{The Ideal Answer:} Voice agent quality is multi-dimensional. Metric stack: (1) \textbf{Task completion rate:} did the order get placed correctly / did the appointment get scheduled / did the issue get resolved? Ground truth: compare agent-recorded order vs.\ POS system receipt. Target: $>$90\%. (2) \textbf{Order accuracy:} for drive-thru, exact match between what the agent understood and what the customer received. Track mismatches at the item and modifier level (wrong size, missing ``no pickles''). (3) \textbf{Average handle time (AHT):} total session duration. Compare against human operator baseline. Target: within 20\% of human AHT. (4) \textbf{Escalation rate:} \% of sessions escalated to human. Target: $<$10\%. (5) \textbf{Customer satisfaction (CSAT):} post-call survey or inferred from behavioral signals (repeat usage, abandonment). (6) \textbf{Utterance understanding rate:} \% of user utterances that the system correctly interpreted (manual sampling of 500/week). (7) \textbf{Barge-in success rate:} when users interrupt, does the system correctly handle the interruption? (8) \textbf{Revenue per session:} for sales agents, compare average order value (AI agent vs.\ human). AI agents are consistent (always upsell) but may miss contextual cues.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Task completion rate is the ultimate metric but is expensive to measure (requires ground truth from the fulfillment system).
+  \item AHT is easy to measure but can be gamed (agent that confirms excessively has low error but high AHT).
+  \item CSAT surveys have low response rates ($<$5\%). Infer satisfaction from behavioral signals: repeat usage, session duration, abandonment timing.
+  \item Weekly review of 500 sampled sessions by QA team provides qualitative insights that metrics miss.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking holistic quality measurement beyond engineering metrics.
+
+\section*{End of Chapter}
+\begin{itemize}
+  \item \textbf{Key takeaway:} Voice-first agents are latency-engineering problems first and AI problems second. The 500ms voice-to-voice budget requires streaming at every pipeline stage---STT, LLM, and TTS cannot operate in batch mode. Barge-in handling (interruption detection and response within 200ms) is the feature that separates usable voice agents from frustrating ones. At 50K concurrent sessions, self-hosted STT and TTS are 23x cheaper than managed APIs, making infrastructure architecture as critical as model selection.
+  \item \textbf{What to practice:} Draw the end-to-end latency waterfall from user speech $\rightarrow$ VAD $\rightarrow$ STT $\rightarrow$ LLM $\rightarrow$ TTS $\rightarrow$ audio playback, with millisecond budgets per stage. Identify which stage is the bottleneck and how to shave 50ms from it.
+  \item \textbf{Interview drill:} Walk through a barge-in scenario: the agent is saying ``Your total comes to twelve dollars and fifty cents'' and the customer interrupts at ``twelve dollars.'' Trace every system action from VAD detection through TTS stop through STT transcription of the interruption through LLM re-generation through audio playback.
+\end{itemize}

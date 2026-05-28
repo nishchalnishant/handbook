@@ -1,0 +1,652 @@
+\chapter{Chapter 7: Design an Enterprise Semantic Search Engine}
+
+\section*{Context}
+
+\textbf{Problem statement:} Design a semantic search engine over a 50M-document enterprise corpus with heterogeneous document types (PDFs, HTML, spreadsheets), strict document-level access control (ACLs) enforced at query time, and sub-200ms latency at scale---while maintaining recall above 0.85.
+
+\subsection*{Real-World Examples}
+
+\begin{itemize}
+  \item A Fortune 500 company's internal search leaks document existence metadata to unauthorized users when ACL filtering is applied post-retrieval; switching to pre-filtered vector search with ACL-indexed metadata eliminates the information leak but requires re-architecting the index.
+  \item A pharmaceutical compliance team discovers that table-heavy FDA submission PDFs have 40\% lower retrieval accuracy than plain-text documents; implementing layout-aware parsing with header-row preservation and table-as-markdown chunking recovers 35\% of the lost recall.
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 1: Understand the Problem and Establish Design Scope}
+
+\subsection*{Simulated Dialogue}
+
+\textbf{Interviewer:} Design an enterprise semantic search engine for a large organization.\\
+\textbf{Candidate:} I need to understand corpus size, document types, access control complexity, and search latency requirements before proposing architecture.
+
+\textbf{Candidate:} What is the corpus size and composition?\\
+\textbf{Interviewer:} 50M documents. Mix of PDFs (40\%), HTML/wiki pages (30\%), Office documents (20\%), and spreadsheets/CSVs (10\%). Average document is 5 pages. Growing at 200K new docs/week.
+
+\textbf{Candidate:} How complex is the access control model?\\
+\textbf{Interviewer:} 5,000 security groups, nested group inheritance, per-document ACLs. Some documents have individual user-level permissions. Average user belongs to 15 groups. ACL correctness is non-negotiable---no unauthorized user may see even a snippet from a restricted document.
+
+\textbf{Candidate:} What are the search volume and latency requirements?\\
+\textbf{Interviewer:} 2M searches/day. p95 end-to-end latency under 200ms. Users expect faceted results with snippet highlighting.
+
+\textbf{Candidate:} Is this keyword search, semantic search, or both?\\
+\textbf{Interviewer:} Both. Users search with natural language queries and also with exact terms (error codes, product IDs, employee names). Results must support facets (document type, date range, department, author).
+
+\subsection*{Functional Requirements}
+
+\begin{itemize}
+  \item Full-text lexical search (BM25) with exact-match capability for IDs, error codes, names.
+  \item Semantic vector search for natural language and paraphrase queries.
+  \item Hybrid retrieval with score fusion and reranking.
+  \item Document-level ACL enforcement: no snippets, titles, or metadata from unauthorized documents.
+  \item Faceted search results: filter by document type, date range, department, author.
+  \item Snippet generation with query-term highlighting.
+  \item Support for all document types: PDF (including scanned), HTML, DOCX, XLSX, CSV.
+\end{itemize}
+
+\subsection*{Non-Functional Requirements}
+
+\begin{itemize}
+  \item \textbf{Latency:} p95 end-to-end $<$ 200ms (including ACL resolution).
+  \item \textbf{Relevance:} Recall@10 $>$ 0.85, NDCG@10 $>$ 0.70 on benchmark query set.
+  \item \textbf{ACL correctness:} 100\%. Zero tolerance for unauthorized document exposure.
+  \item \textbf{Freshness:} new/updated documents searchable within 30 minutes.
+  \item \textbf{Scale:} 50M documents, 500M+ chunks, 2M searches/day.
+  \item \textbf{Availability:} 99.95\% uptime.
+\end{itemize}
+
+\subsection*{Back-of-the-Envelope Estimation}
+
+\subsubsection*{Corpus Sizing}
+
+\begin{itemize}
+  \item Documents: 50M, average 5 pages, $\sim$2,000 tokens/page
+  \item Total tokens: $50M \times 5 \times 2{,}000 = 500B$ tokens
+  \item Chunks (512 tokens, 25\% overlap): $50M \times 5 \times 2000 / (512 \times 0.75) \approx 1.3B$ chunks
+  \item Practical with dedup and smart chunking: \textbf{$\sim$650M chunks}
+\end{itemize}
+
+\subsubsection*{Embedding Compute}
+
+\begin{itemize}
+  \item Model: \texttt{text-embedding-3-small} (1536-dim, \$0.02/1M tokens)
+  \item Full embed cost: $500B \times \$0.02/1M = \$10{,}000$ (one-time)
+  \item Incremental daily: $200K$ docs/week $\approx 28.6K$ docs/day $\times 5$ pages $\times 2{,}000$ tokens $= 286M$ tokens/day
+  \item Incremental cost: $\sim$\$5.72/day
+\end{itemize}
+
+\subsubsection*{Vector Index Storage}
+
+\begin{itemize}
+  \item 650M vectors at 1536-dim, float32: $650M \times 6KB \approx 3.9TB$ raw
+  \item With HNSW overhead + metadata + replicas ($\times 2.5$): \textbf{$\sim$9.75TB}
+  \item HNSW serving RAM: $\sim$100--150GB per shard across shard cluster
+\end{itemize}
+
+\subsubsection*{Search Throughput}
+
+\begin{itemize}
+  \item Searches/day: 2M
+  \item Average QPS: $2M / 86{,}400 \approx 23$
+  \item Peak QPS (10x): $\sim$230
+  \item Per-query latency budget breakdown:
+  \begin{itemize}
+    \item ACL group resolution: $\sim$10ms (cached)
+    \item BM25 lookup: $\sim$15ms
+    \item ANN vector search: $\sim$30ms
+    \item Score fusion: $\sim$3ms
+    \item ACL filtering: $\sim$15ms
+    \item Reranker (top-50): $\sim$60ms
+    \item Snippet generation: $\sim$25ms
+    \item Facet aggregation: $\sim$20ms
+    \item \textbf{Total: $\sim$178ms} (within 200ms p95 budget)
+  \end{itemize}
+\end{itemize}
+
+\subsubsection*{ACL Overhead}
+
+\begin{itemize}
+  \item 5,000 groups, avg user in 15 groups
+  \item ACL resolution per query: expand user $\rightarrow$ group membership $\rightarrow$ permission set
+  \item With caching (TTL 5 min): $\sim$10ms p95 (cache hit rate $>$95\%)
+  \item Without caching: $\sim$80ms (group expansion with nested inheritance)
+  \item ACL metadata per document: $\sim$200 bytes (group IDs + permission bits)
+  \item Total ACL metadata: $50M \times 200B = 10GB$
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 2: Propose High-Level Design and Get Buy-In}
+
+\subsection*{Core Architecture Components}
+
+\begin{itemize}
+  \item \textbf{Document Processor:} format-specific parsers (PDF/OCR, HTML, DOCX, XLSX), layout-aware extraction, table preservation.
+  \item \textbf{Chunking Engine:} configurable strategy per document type, metadata tagging (\texttt{doc\_id}, section, page, ACL groups).
+  \item \textbf{Embedding Service:} batched embedding generation with rate limiting, model version tracking.
+  \item \textbf{Dual Index:} lexical index (Elasticsearch/BM25) + vector index (HNSW via Qdrant/Weaviate/Pinecone).
+  \item \textbf{ACL Resolver:} user $\rightarrow$ group expansion with caching, permission set computation.
+  \item \textbf{Query Planner:} routes query to lexical, semantic, or hybrid path based on query analysis.
+  \item \textbf{Score Fusion Engine:} reciprocal rank fusion or weighted combination of lexical + semantic results.
+  \item \textbf{Reranker:} cross-encoder model for precision boost on top-N candidates.
+  \item \textbf{ACL Filter:} enforces document-level access control on retrieval results.
+  \item \textbf{Snippet Generator:} extracts relevant passages with query-term highlighting.
+  \item \textbf{Facet Aggregator:} computes facet counts (type, date, department, author) on ACL-filtered results.
+  \item \textbf{Index Lifecycle Controller:} versioned indexes, alias swap, blue-green deployments, quality gates.
+  \item \textbf{Observability:} search latency, recall, NDCG, ACL filter hit rate, parse failure rate, freshness lag.
+\end{itemize}
+
+\subsection*{Pipeline A: Document Ingestion Pipeline}
+
+\begin{enumerate}
+  \item Source connectors detect new/updated documents via CDC, crawlers, or API webhooks.
+  \item Document processor routes to format-specific parser: PDF $\rightarrow$ layout-aware extraction (PyMuPDF + table detection), HTML $\rightarrow$ boilerplate removal, DOCX $\rightarrow$ structured extraction, XLSX $\rightarrow$ row-level records.
+  \item OCR pipeline for scanned PDFs (Tesseract/DocTR); confidence scoring on OCR output quality.
+  \item Chunking engine applies document-type-specific strategy; tags each chunk with \texttt{doc\_id}, \texttt{page}, \texttt{section}, \texttt{acl\_groups}, \texttt{last\_updated}.
+  \item Embedding service generates vectors in batches; tagged with \texttt{embedding\_model\_version}.
+  \item Dual write: vectors to HNSW index, text + metadata to Elasticsearch.
+  \item ACL metadata synced from identity provider (Active Directory / LDAP) into ACL index.
+  \item Quality gate: sample 100 benchmark queries on shadow index; verify Recall@10, NDCG@10, parse fidelity.
+  \item Alias swap to promote new index version; keep old version hot for 24h rollback.
+\end{enumerate}
+
+\subsection*{Pipeline B: Search Query Pipeline}
+
+\begin{enumerate}
+  \item User submits query; auth token resolved to user identity.
+  \item ACL resolver expands user $\rightarrow$ group memberships $\rightarrow$ permission set (cached, TTL 5 min).
+  \item Query planner analyzes query: exact-match signals (IDs, error codes) $\rightarrow$ lexical-heavy; natural language $\rightarrow$ semantic-heavy; mixed $\rightarrow$ hybrid.
+  \item Query rewriter expands abbreviations, resolves acronyms from enterprise glossary.
+  \item Parallel execution: BM25 retrieval (top-200) + ANN vector retrieval (top-200).
+  \item Score fusion (RRF) produces merged candidate set (top-200).
+  \item \textbf{ACL filter} removes all chunks from documents the user cannot access.
+  \item Reranker scores top-50 ACL-filtered candidates; returns top-10 with relevance scores.
+  \item Snippet generator extracts highlight passages from top-10 results.
+  \item Facet aggregator computes counts on ACL-filtered result set.
+  \item Response assembled: ranked results with snippets, facets, metadata, and search telemetry.
+\end{enumerate}
+
+\subsection*{Mermaid Architecture Diagram}
+
+\begin{verbatim}
+flowchart LR
+  sources[DocumentSources] --> docProcessor[DocumentProcessor]
+  docProcessor --> pdfParser[PDFLayoutParser+OCR]
+  docProcessor --> htmlParser[HTMLParser]
+  docProcessor --> docxParser[DOCXParser]
+  docProcessor --> xlsxParser[XLSXParser]
+
+  pdfParser --> chunker[ChunkingEngine]
+  htmlParser --> chunker
+  docxParser --> chunker
+  xlsxParser --> chunker
+
+  chunker --> embedder[EmbeddingService]
+  embedder --> vectorIndex[HNSWVectorIndex]
+  chunker --> lexicalIndex[ElasticsearchBM25]
+
+  idProvider[IdentityProviderAD] --> aclSync[ACLMetadataSync]
+  aclSync --> aclIndex[ACLIndex]
+
+  user[User] --> aclResolver[ACLResolver]
+  aclResolver --> aclIndex
+  user --> queryPlanner[QueryPlanner]
+
+  queryPlanner --> bm25[BM25Retriever]
+  queryPlanner --> ann[ANNRetriever]
+  bm25 --> fusion[RRFScoreFusion]
+  ann --> fusion
+
+  fusion --> aclFilter[ACLFilter]
+  aclFilter --> reranker[CrossEncoderReranker]
+  reranker --> snippetGen[SnippetGenerator]
+  snippetGen --> facets[FacetAggregator]
+  facets --> results[SearchResults]
+
+  lexicalIndex --> bm25
+  vectorIndex --> ann
+  aclResolver --> aclFilter
+
+  lifecycleCtrl[IndexLifecycleController] --> vectorIndex
+  lifecycleCtrl --> lexicalIndex
+  results --> observability[SearchObservability]
+\end{verbatim}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 3: Design Deep Dive}
+
+Focus areas for this chapter:
+
+\begin{enumerate}
+  \item \textbf{Document Parsing at Scale}
+  \item \textbf{ACL-Aware Retrieval}
+  \item \textbf{Search Relevance Tuning}
+\end{enumerate}
+
+\subsection*{1) Document Parsing at Scale}
+
+The single biggest quality bottleneck in enterprise search is not the model---it is the parser. Garbage in, garbage out.
+
+\subsubsection*{Document Type Parser Trade-off Table}
+
+\small
+\begin{tabular}{|p{0.14\linewidth}|p{0.14\linewidth}|p{0.18\linewidth}|p{0.10\linewidth}|p{0.12\linewidth}|p{0.12\linewidth}|}
+\hline
+\textbf{Doc Type} & \textbf{Parser} & \textbf{Table Handling} & \textbf{OCR Needed} & \textbf{Avg Parse Time} & \textbf{Failure Rate} \\
+\hline
+Native PDF (text layer) & PyMuPDF / pdfplumber & Extract as markdown with headers & No & $\sim$200ms/page & $<$1\% \\
+\hline
+Scanned PDF (image-only) & Tesseract + DocTR & OCR $\rightarrow$ markdown reconstruction & Yes & $\sim$2s/page & 5--8\% \\
+\hline
+PDF with mixed text+images & PyMuPDF + DocTR fallback & Hybrid: text extraction + OCR for image regions & Partial & $\sim$800ms/page & 3--5\% \\
+\hline
+HTML / Wiki & BeautifulSoup + boilerplate removal & HTML table $\rightarrow$ markdown & No & $\sim$50ms/page & $<$1\% \\
+\hline
+DOCX & python-docx & Native table extraction & No & $\sim$100ms/page & $<$1\% \\
+\hline
+XLSX / CSV & openpyxl / pandas & Row-level chunking with headers & No & $\sim$150ms/sheet & 2\% \\
+\hline
+\end{tabular}
+\normalsize
+
+\textbf{Table extraction in detail:}
+
+\begin{itemize}
+  \item Tables are the highest-value, lowest-recall content in enterprise search.
+  \item Strategy: extract table as markdown with column headers repeated in every chunk that contains table rows.
+  \item Example: a 50-row financial table $\rightarrow$ chunk into groups of 10 rows, each chunk includes column headers + row data + table caption.
+  \item Embed table chunks separately from surrounding text; tag with \texttt{content\_type: table}.
+  \item At retrieval time, boost table chunks when query contains numerical/comparison signals.
+\end{itemize}
+
+\textbf{Layout-aware parsing pipeline:}
+
+\begin{enumerate}
+  \item Detect document structure: headers, paragraphs, tables, figures, sidebars.
+  \item Assign hierarchy: H1 $\rightarrow$ section, H2 $\rightarrow$ subsection, body $\rightarrow$ paragraph.
+  \item Preserve reading order (critical for multi-column PDFs).
+  \item Extract tables as structured markdown; extract figures as captions only (image content via OCR if needed).
+  \item Tag each chunk with structural metadata: \texttt{\{section: "Q3 Revenue", page: 12, content\_type: "table"\}}.
+\end{enumerate}
+
+\textbf{Dead-letter queue and fallback:}
+
+\begin{itemize}
+  \item Documents that fail primary parser route to fallback: raw text extraction (loses structure but preserves content).
+  \item Alert on failure rate $>$ 2\% per document type.
+  \item Weekly manual review of dead-letter queue; failure patterns feed parser improvements.
+  \item Parse quality metric: compare extracted text against ground-truth for 200 sampled documents monthly.
+\end{itemize}
+
+\subsubsection*{Chunking Strategy by Document Type}
+
+\small
+\begin{tabular}{|p{0.14\linewidth}|p{0.18\linewidth}|p{0.14\linewidth}|p{0.10\linewidth}|p{0.28\linewidth}|}
+\hline
+\textbf{Doc Type} & \textbf{Chunk Strategy} & \textbf{Chunk Size} & \textbf{Overlap} & \textbf{Rationale} \\
+\hline
+Long-form PDF/DOCX & Section-level semantic & 512--768 tokens & 25\% & Preserves topic coherence \\
+\hline
+Policy/Legal & Clause-level with parent & 256--512 tokens & 10\% & Precise citation needed \\
+\hline
+FAQ / Knowledge articles & Q+A or section atomic & 200--500 tokens & None & Self-contained units \\
+\hline
+Spreadsheets & Row-group + headers & 256--512 tokens & Header repeated & Tabular context preserved \\
+\hline
+Code/Technical docs & AST-aware or block-level & 512 tokens & 25\% & Preserve function/class boundaries \\
+\hline
+\end{tabular}
+\normalsize
+
+\subsection*{2) ACL-Aware Retrieval}
+
+ACL correctness is the non-negotiable constraint. The system must never expose even a title or snippet from an unauthorized document. This eliminates any approach that relies on post-hoc filtering where document existence is leaked.
+
+\subsubsection*{ACL Enforcement Strategy Trade-off Table}
+
+\small
+\begin{tabular}{|p{0.12\linewidth}|p{0.13\linewidth}|p{0.13\linewidth}|p{0.13\linewidth}|p{0.13\linewidth}|p{0.18\linewidth}|}
+\hline
+\textbf{Strategy} & \textbf{Latency Impact} & \textbf{ACL Correctness} & \textbf{Index Complexity} & \textbf{Storage Overhead} & \textbf{Best For} \\
+\hline
+Post-filter (retrieve broadly, filter after) & Low retrieval, +15ms filter & Metadata leak risk (reveals doc existence) & Low & None & Internal low-sensitivity corpora only \\
+\hline
+Pre-filter (inject ACL predicate into query) & +10--20ms query overhead & Full correctness & Medium (ACL-indexed metadata) & +10--15\% index size & Default for ACL-sensitive enterprise \\
+\hline
+Partitioned indexes (per-group shards) & Lowest query latency & Full correctness & Very high (combinatorial explosion) & 3--10x storage & Single-tenant or very few groups \\
+\hline
+Hybrid pre-filter + post-filter & +15ms & Full correctness & Medium-high & +15\% & High-cardinality ACLs ($>$5K groups) \\
+\hline
+\end{tabular}
+\normalsize
+
+\textbf{Recommended: Pre-filter for production enterprise search.}
+
+\textbf{Pre-filter implementation:}
+
+\begin{itemize}
+  \item Each chunk in vector index and lexical index is tagged with \texttt{acl\_groups: [group\_id\_1, group\_id\_2, ...]}.
+  \item At query time, ACL resolver computes user's effective permission set: \texttt{user\_groups = expand(user\_id) $\rightarrow$ [g1, g2, ..., g15]}.
+  \item Search query includes filter: \texttt{WHERE acl\_groups INTERSECT user\_groups IS NOT EMPTY}.
+  \item Elasticsearch: \texttt{terms} filter on \texttt{acl\_groups} field. Qdrant/Weaviate: payload filter on group array.
+\end{itemize}
+
+\textbf{ACL group expansion and caching:}
+
+\begin{itemize}
+  \item Active Directory / LDAP group membership with nested inheritance.
+  \item Expansion: user $\rightarrow$ direct\_groups $\rightarrow$ parent\_groups $\rightarrow$ \ldots\ $\rightarrow$ root. Typically 2--3 levels deep.
+  \item Cache expanded group set per user in Redis with 5-minute TTL.
+  \item Cache hit rate: $>$95\% (users don't change groups frequently).
+  \item Invalidation: LDAP change event triggers cache eviction for affected users.
+\end{itemize}
+
+\textbf{ACL sync pipeline:}
+
+\begin{itemize}
+  \item Identity provider (AD/Okta) $\rightarrow$ CDC stream $\rightarrow$ ACL metadata store $\rightarrow$ index metadata update.
+  \item Sync latency SLA: $<$ 15 minutes from permission change to search enforcement.
+  \item Audit log: every ACL sync event logged for compliance; weekly reconciliation job verifies index ACLs match source-of-truth.
+\end{itemize}
+
+\textbf{Handling high-cardinality ACLs:}
+
+\begin{itemize}
+  \item Documents with individual user-level permissions (not just group): store as \texttt{acl\_users: [user\_id]} alongside \texttt{acl\_groups}.
+  \item For documents accessible to most users (e.g., public company-wide docs): tag with special \texttt{acl\_groups: [ALL\_EMPLOYEES]} to avoid bloated filter predicates.
+  \item Over-retrieval strategy for edge cases: retrieve 2x target set before ACL filter to ensure enough results survive filtering.
+\end{itemize}
+
+\subsection*{3) Search Relevance Tuning}
+
+\subsubsection*{Retrieval Strategy Trade-off Table}
+
+\small
+\begin{tabular}{|p{0.18\linewidth}|p{0.12\linewidth}|p{0.12\linewidth}|p{0.22\linewidth}|p{0.20\linewidth}|}
+\hline
+\textbf{Approach} & \textbf{Recall@10} & \textbf{p95 Latency} & \textbf{Strengths} & \textbf{Weaknesses} \\
+\hline
+BM25 only & 0.55--0.65 & $\sim$15ms & Exact match, IDs, error codes & Misses paraphrases \\
+\hline
+Dense vector only & 0.70--0.80 & $\sim$30ms & Semantic understanding & Misses exact terms, OOV tokens \\
+\hline
+Hybrid BM25 + dense (RRF) & 0.80--0.88 & $\sim$45ms & Best of both & More infrastructure \\
+\hline
+Hybrid + cross-encoder reranker & 0.85--0.92 & $\sim$105ms & Highest precision & Reranker GPU cost, latency \\
+\hline
+\end{tabular}
+\normalsize
+
+\textbf{Score fusion:}
+
+\begin{itemize}
+  \item Default: Reciprocal Rank Fusion (RRF) with $k=60$.
+  \item $\text{score}(\text{doc}) = \sum 1/(k + \text{rank\_bm25}) + \sum 1/(k + \text{rank\_vector})$
+  \item No hyperparameter tuning needed; robust across query types.
+  \item Alternative: learned weighted combination (alpha-tuned per query class). Use only with sufficient labeled data.
+\end{itemize}
+
+\textbf{Cross-encoder reranking:}
+
+\begin{itemize}
+  \item Model: $\sim$110M params (e.g., cross-encoder/ms-marco-MiniLM-L-12-v2), $\sim$1.2ms/pair on GPU.
+  \item Reranking top-50 candidates: $\sim$60ms on dedicated GPU.
+  \item At 230 peak QPS: need $\sim$14 concurrent reranker slots $\rightarrow$ 2--4 GPUs with batching.
+  \item Quality lift: +5--12\% Recall@5 over fusion alone.
+  \item Fallback: skip reranker under extreme load; degrade gracefully to fusion-only.
+\end{itemize}
+
+\textbf{Query understanding:}
+
+\begin{itemize}
+  \item Query classification: exact-match query (error codes, IDs) $\rightarrow$ boost BM25 weight. Natural language $\rightarrow$ boost vector weight.
+  \item Acronym/abbreviation expansion from enterprise glossary (maintained by search team).
+  \item Spell correction for common enterprise terms.
+  \item Query intent detection: navigational (``find the Q3 report'') vs.\ informational (``how does our vacation policy work'') $\rightarrow$ affects ranking.
+\end{itemize}
+
+\textbf{Snippet generation:}
+
+\begin{itemize}
+  \item Extract top passage from each result document that matches the query.
+  \item Highlight matched terms (lexical matches bolded, semantic matches context-highlighted).
+  \item Max snippet length: 200 tokens. Truncate with ``\ldots'' at sentence boundary.
+  \item For table results: show matching row(s) with column headers.
+\end{itemize}
+
+\textbf{Zero-result handling:}
+
+\begin{itemize}
+  \item If ACL filtering eliminates all results: return ``No documents matching your query are available with your current access level.''
+  \item If retrieval returns zero results pre-ACL: suggest query refinements, check spelling, offer facet-based browsing.
+  \item Never indicate whether restricted documents exist (prevents information leak).
+\end{itemize}
+
+\subsubsection*{Search Quality Evaluation}
+
+\small
+\begin{tabular}{|p{0.20\linewidth}|p{0.14\linewidth}|p{0.30\linewidth}|p{0.20\linewidth}|}
+\hline
+\textbf{Metric} & \textbf{Target} & \textbf{Measurement} & \textbf{Frequency} \\
+\hline
+Recall@10 & $>$ 0.85 & Benchmark query set (500 queries) & Weekly automated \\
+\hline
+NDCG@10 & $>$ 0.70 & Benchmark with graded relevance labels & Weekly automated \\
+\hline
+MRR & $>$ 0.75 & First relevant result position & Weekly automated \\
+\hline
+Zero-result rate & $<$ 5\% & Production query logs & Daily monitoring \\
+\hline
+Click-through rate (CTR) & $>$ 40\% on first page & Search analytics & Weekly trending \\
+\hline
+ACL violation rate & 0\% & Audit + pen testing & Monthly \\
+\hline
+\end{tabular}
+\normalsize
+
+\subsection*{Production Bottlenecks and Mitigations}
+
+\begin{itemize}
+  \item \textbf{ACL resolution latency spike on cache miss}
+  \begin{itemize}
+    \item Symptom: p95 search latency jumps to 300ms+ when ACL cache expires for many users simultaneously (e.g., after maintenance window).
+    \item Mitigation: staggered cache TTLs (5 min $\pm$ random jitter), background cache refresh 1 min before expiry, read-through cache with LDAP connection pooling.
+  \end{itemize}
+
+  \item \textbf{PDF table extraction quality regression}
+  \begin{itemize}
+    \item Symptom: recall drops on table-heavy queries after parser library upgrade.
+    \item Mitigation: parse quality benchmark (200 ground-truth docs), canary eval before parser rollout, shadow index comparison.
+  \end{itemize}
+
+  \item \textbf{Index freshness lag exceeding 30-minute SLA}
+  \begin{itemize}
+    \item Symptom: newly published documents not appearing in search results.
+    \item Mitigation: priority queue for high-value sources, horizontal scaling of embedding workers, freshness monitoring dashboard with alerting at 20-minute lag.
+  \end{itemize}
+
+  \item \textbf{Embedding model upgrade requiring full re-index}
+  \begin{itemize}
+    \item Symptom: 650M chunks need re-embedding; takes days and costs \$10K.
+    \item Mitigation: shadow index build over 3--5 days using parallel workers (50x parallelism $\rightarrow$ $\sim$8 hours), canary eval on benchmark queries, alias swap only after quality gate passes.
+  \end{itemize}
+
+  \item \textbf{Cross-encoder reranker throughput bottleneck at peak}
+  \begin{itemize}
+    \item Symptom: reranking adds 150ms+ at peak QPS, pushing p95 over 200ms.
+    \item Mitigation: dynamic reranker depth (top-50 at normal load, top-20 at peak), skip reranker entirely under extreme load with graceful quality degradation, auto-scaling GPU pool.
+  \end{itemize}
+
+  \item \textbf{Stale ACL metadata causing unauthorized access}
+  \begin{itemize}
+    \item Symptom: user removed from security group but still sees restricted documents.
+    \item Mitigation: ACL cache TTL of 5 minutes (max), near-real-time CDC from identity provider, daily full reconciliation audit comparing index ACLs to source-of-truth.
+  \end{itemize}
+\end{itemize}
+
+\subsection*{Advanced Techniques}
+
+\begin{itemize}
+  \item \textbf{Matryoshka embeddings} for variable-precision search: use coarse 256-dim for fast ANN pass, refine with full 1536-dim on shortlist. $\sim$3x ANN speedup with $<$2\% recall loss.
+  \item \textbf{Learned sparse retrieval (SPLADE)} as BM25 replacement: better recall on semantic queries while preserving exact-match capability. Requires dedicated infrastructure.
+  \item \textbf{Query-time document expansion:} inject document titles and metadata into query for BM25 boost on navigational queries.
+  \item \textbf{Incremental HNSW:} add new vectors without full rebuild; maintain graph quality with periodic optimization passes.
+  \item \textbf{Federated search across geographically distributed indexes} for global enterprises with data residency requirements.
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 4: Wrap Up}
+
+\subsection*{Final Design Summary}
+
+The design treats enterprise search as a security-first retrieval problem. ACL correctness is enforced via pre-filter on indexed metadata with cached group expansion. Document parsing quality is gated by format-specific parsers with layout preservation and dead-letter handling. Relevance is optimized through hybrid retrieval with cross-encoder reranking, bounded by strict latency SLOs.
+
+\subsection*{Wrap-Around Concerns}
+
+\begin{itemize}
+  \item \textbf{Risk:} ACL metadata desync causing unauthorized document exposure.
+  \begin{itemize}
+    \item Gate: 5-minute cache TTL, near-real-time CDC sync, daily full reconciliation audit with zero-tolerance alerting.
+  \end{itemize}
+  \item \textbf{Risk:} Parser regression silently degrading index quality for specific document types.
+  \begin{itemize}
+    \item Gate: monthly parse quality benchmark on 200 ground-truth documents, canary eval before parser upgrades.
+  \end{itemize}
+  \item \textbf{Risk:} Index freshness lag causing missing results for recently published documents.
+  \begin{itemize}
+    \item Gate: freshness monitoring dashboard, alerting at 20-minute lag, priority queue for critical sources.
+  \end{itemize}
+  \item \textbf{Risk:} Reranker latency exceeding budget at peak traffic.
+  \begin{itemize}
+    \item Gate: dynamic reranker depth, auto-scaling GPU pool, graceful degradation to fusion-only under extreme load.
+  \end{itemize}
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 5: Interviewer Curveballs}
+
+\subsection*{Interviewer Follow-ups \& Frequently Asked Questions (FAQ)}
+
+\textbf{Q: A user reports they can see a snippet from a document they shouldn't have access to. Walk me through your investigation.}
+
+\textbf{The Ideal Answer:} First, verify the claim: reproduce the query with the user's identity and check if the result appears. If confirmed: (1) check ACL metadata on the document in the index---is it tagged with the correct groups? (2) Check ACL sync pipeline---was there a sync delay or failure? (3) Check the user's group expansion---are they in a group that was recently supposed to be removed? (4) Check if the document's ACL changed in the source system but hasn't propagated. Fix: immediately remove the document from the index, patch the ACL sync, and trigger a full reconciliation.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item ACL leaks are P0 severity---investigate before root-causing.
+  \item Pre-filter approach should make this impossible if ACL metadata is correct.
+  \item Root cause is almost always ACL sync lag or stale cache, not a retrieval bug.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking incident response discipline for security-critical bugs.
+
+\textbf{Q: How do you handle documents that become stale or are deleted in the source system?}
+
+\textbf{The Ideal Answer:} CDC stream captures delete events $\rightarrow$ mark chunk as tombstoned in index $\rightarrow$ remove from search results immediately. Soft-delete with 7-day retention for rollback. For stale docs: \texttt{last\_updated} comparison against source; if source is newer and chunk is $>$30 minutes stale, trigger re-index. Daily reconciliation job compares index inventory against source catalog; orphaned chunks are flagged and removed.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Hard delete risks losing rollback capability.
+  \item Soft delete with tombstone is safer but accumulates garbage; compact periodically.
+  \item Reconciliation job catches CDC misses but is expensive to run on 50M docs daily.
+  \item Optimization: reconcile by last-modified-date bucketing; only check docs modified in last 7 days.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking index lifecycle management for deletions and staleness.
+
+\textbf{Q: Your search engine needs to support queries in English, German, and Japanese. How do you handle cross-language retrieval?}
+
+\textbf{The Ideal Answer:} Two options: (1) Multilingual embeddings (e.g., multilingual-e5-large) with a single unified index---simplest but $\sim$5--8\% recall degradation vs.\ monolingual. (2) Per-language indexes with query language detection and parallel search---best quality but 3x index storage and operational complexity. I recommend starting with multilingual embeddings for v1, then adding per-language indexes for high-traffic languages if recall regression is measured.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Multilingual models: single index, simpler ops, but cross-language retrieval quality varies by language pair.
+  \item Per-language indexes: best quality but need language detection, parallel search, and result merging.
+  \item BM25 is inherently language-specific (stemming, tokenization)---needs per-language analyzers regardless.
+  \item Hybrid approach: multilingual vectors + per-language BM25 analyzers in single Elasticsearch index.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking practical multilingual search architecture.
+
+\textbf{Q: A batch of 10,000 scanned PDF documents has table data that your OCR pipeline consistently misreads. How do you improve extraction quality?}
+
+\textbf{The Ideal Answer:} First, diagnose: sample 50 failed documents and identify the failure pattern (low contrast, multi-column, handwriting, unusual fonts). Then: (1) try a stronger OCR model (DocTR or LayoutLMv3 instead of Tesseract), (2) pre-process images (deskew, contrast enhancement, binarization), (3) for tables specifically, use a dedicated table detection model (TableTransformer) to identify table regions before OCR, (4) for the worst cases, route to a multimodal LLM (GPT-4V) as an expensive fallback for high-value documents.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Tesseract: fast, free, good for clean scans. Poor on complex layouts.
+  \item DocTR: better accuracy, 3x slower, handles multi-column better.
+  \item Multimodal LLM: best accuracy but \$0.01--0.05 per page---use only for high-value docs.
+  \item Table detection + specialized OCR: best balance for table-heavy corpora.
+  \item Always measure: per-document OCR confidence score; route low-confidence to fallback pipeline.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking document parsing depth and fallback strategy.
+
+\textbf{Q: How do you generate high-quality snippets for search results, especially for table content?}
+
+\textbf{The Ideal Answer:} For text: extract the passage with highest BM25 + semantic overlap with the query, truncate at sentence boundaries, highlight matched terms. For tables: extract matching row(s) with full column headers, format as a mini-table in the snippet. For mixed content: prefer the content type that best matches the query (numerical query $\rightarrow$ table snippet, natural language $\rightarrow$ text snippet).
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Snippet generation is latency-sensitive (must fit within 200ms budget).
+  \item BM25-based highlighting is fast ($\sim$5ms) but misses semantic matches.
+  \item LLM-generated snippets are highest quality but too expensive/slow for search results.
+  \item Practical: BM25 highlights + pre-computed ``best passage'' stored at index time for top-scoring chunk.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking UX attention---snippets are what users actually read.
+
+\textbf{Q: 15\% of searches return zero results. How do you diagnose and reduce this?}
+
+\textbf{The Ideal Answer:} Categorize zero-result queries: (1) typos/misspellings $\rightarrow$ add spell correction, (2) queries for content that doesn't exist in the corpus $\rightarrow$ show ``no results found'' with suggested related topics, (3) ACL filtering removing all results $\rightarrow$ show ``no accessible documents found'' (without revealing restricted docs exist), (4) vocabulary mismatch $\rightarrow$ expand enterprise glossary, improve acronym handling. Track each category separately and target the largest bucket first.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Spell correction catches 30--40\% of zero-result queries in enterprise settings.
+  \item Acronym/abbreviation expansion catches another 10--15\%.
+  \item ``Did you mean?'' suggestions reduce frustration and improve engagement.
+  \item Critical: never reveal that documents exist but are inaccessible (ACL information leak).
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking zero-result handling as a search quality signal.
+
+\textbf{Q: How do you build a relevance feedback loop to improve search quality over time?}
+
+\textbf{The Ideal Answer:} Three signals: (1) implicit feedback---clicks, dwell time, and click-through position (user clicked result \#3 means \#1 and \#2 were less relevant), (2) explicit feedback---thumbs up/down on results, (3) reformulation patterns---user refines query after seeing results, indicating initial results were poor. Feed these into (a) fine-tuning the reranker on domain-specific click data, (b) adjusting fusion weights, (c) identifying queries that need KB content expansion.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Implicit signals are noisy (user might click first result by habit, not relevance).
+  \item Explicit signals are sparse ($<$ 5\% of queries get feedback).
+  \item Reformulations are the strongest negative signal---easy to collect, hard to interpret.
+  \item Reranker fine-tuning on click data: +3--5\% NDCG@10 after 4--6 weeks of collection.
+  \item Risk: feedback loops can reinforce popularity bias (rich-get-richer).
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking closed-loop search quality improvement design.
+
+\textbf{Q: Your search analytics show that 25\% of queries are for content that users know exists but can't find. How do you address this discoverability problem?}
+
+\textbf{The Ideal Answer:} This is a recall problem, not a relevance problem. Investigate: (1) are these documents properly indexed? Check ingestion pipeline for failures. (2) Are chunk boundaries splitting key content? Audit chunking for the affected document types. (3) Is the query vocabulary mismatched with document vocabulary? Add synonym expansion, enterprise glossary, and query suggestion. (4) Are these documents in formats we parse poorly (scanned PDFs, complex spreadsheets)? Improve parser quality for those formats.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Most ``can't find'' reports are parser/chunking issues, not search algorithm issues.
+  \item User interviews reveal the document and query---use these as benchmark test cases.
+  \item Adding these to the benchmark query set creates a flywheel for continuous improvement.
+  \item Organizational fix: content owners should tag documents with searchable metadata at publish time.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking root-cause analysis depth for search recall failures.
+
+\section*{End of Chapter}
+
+\begin{itemize}
+  \item \textbf{Key takeaway:} Enterprise semantic search is a security and parsing problem more than a model problem. ACL correctness is non-negotiable and must be enforced at the retrieval layer, not patched post-hoc. Document parsing quality directly determines recall---fix the parser before tuning the retrieval algorithm.
+  \item \textbf{What to practice:} Walk through a query from user input to result rendering, explaining ACL enforcement at each stage and how you would handle a table-heavy PDF that your parser struggles with.
+  \item \textbf{Interview drill:} Given a reported ACL leak where a user sees a restricted document snippet, trace the investigation from reproduction to root cause (ACL sync lag, cache staleness, metadata tagging error) to remediation and prevention.
+\end{itemize}
