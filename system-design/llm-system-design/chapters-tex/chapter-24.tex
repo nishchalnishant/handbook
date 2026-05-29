@@ -1,0 +1,35 @@
+\chapter{Chapter 24: LLMOps and Production Lifecycle Management}
+
+\section*{Context}
+\textbf{Problem statement:} Design the operational platform and lifecycle practices required to ship, monitor, evaluate, and safely evolve LLM-backed systems across an organization.
+
+\subsection*{Core Architecture}
+\begin{itemize}
+  \item \textbf{Prompt registry:} versioned templates, variables, examples, owners, and changelogs.
+  \item \textbf{Model registry:} model/provider versions, adapters, tokenizer, inference parameters, and validation status.
+  \item \textbf{Index registry:} retrieval index versions, embedding model, source snapshot, and ACL policy.
+  \item \textbf{Eval store and orchestrator:} golden sets, adversarial sets, rubrics, judge calibration, and release gates.
+  \item \textbf{Release orchestrator:} shadow mode, canaries, A/B tests, promotion, and rollback.
+  \item \textbf{Observability pipeline:} traces, metrics, logs, feedback, cost attribution, and drift detection.
+  \item \textbf{Incident console:} triage, blast-radius analysis, trace replay, rollback, and postmortem artifacts.
+\end{itemize}
+
+\section*{Key Design Points}
+\begin{itemize}
+  \item LLMOps treats prompts, models, retrieval indexes, tools, policies, and inference configs as versioned production artifacts.
+  \item Every production response should be reproducible from its artifact bundle and trace.
+  \item Release gates should scale with risk: smoke tests for low-risk changes, full eval and human review for high-risk domains.
+  \item Metrics must attribute quality, latency, safety, and cost to artifact versions.
+\end{itemize}
+
+\section*{Production Risks}
+\begin{itemize}
+  \item \textbf{Silent regression:} prevent with eval gates, shadow traffic, canaries, and segment-level monitoring.
+  \item \textbf{Cost spike:} track cost per prompt/model/tool/index version.
+  \item \textbf{Audit failure:} store prompt version, model version, index version, retrieved evidence IDs, tool calls, guardrail decisions, and inference parameters.
+  \item \textbf{Rollback coupling:} make prompts, policies, models, and indexes independently revertible.
+\end{itemize}
+
+\section*{Interview Drill}
+Given a model upgrade that improves benchmark score but worsens citation accuracy, walk through shadow evaluation, failing trace analysis, rollback, and regression-test creation.
+

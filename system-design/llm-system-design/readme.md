@@ -53,3 +53,21 @@ Focus: High-concurrency scaling, persistent long-term memory across gaming sessi
 Chapter 20: Design a Healthcare Triage and Diagnostic Assistant
 
 Focus: Designing for zero-tolerance hallucination environments, strict data privacy (HIPAA compliance, PII scrubbing before API calls), deterministic fallbacks (handing off to a human doctor), and audit trail logging.
+
+Chapter 21: Design an Advanced RAG Platform
+
+Focus: Query planning, hybrid retrieval, GraphRAG, cross-encoder reranking, parent-child context packing, citation verification, freshness SLAs, and ACL-safe evidence retrieval.
+
+Chapter 22: Design a Multi-Agent Workflow Orchestrator
+
+Focus: Supervisor-worker orchestration, DAG scheduling, typed agent handoffs, shared state, tool budgets, human approval gates, trace replay, and conflict resolution.
+
+Chapter 23: Design an MCP-Based Tool Integration Platform
+
+Focus: Model Context Protocol host/client/server architecture, tools/resources/prompts, server registry, OAuth and permissioning, approval UX, result sanitization, and MCP security risks.
+
+Part 3: Production Operations
+
+Chapter 24: LLMOps and Production Lifecycle Management
+
+Focus: Prompt/model/index/tool versioning, eval gates, shadow deployments, canaries, cost attribution, observability, drift detection, rollback, incident response, and audit replay.

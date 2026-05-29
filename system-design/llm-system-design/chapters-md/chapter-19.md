@@ -258,14 +258,16 @@ MemoryEntry {
 
 Storage per entry: ~1.6KB (100 tokens × 4 bytes + 384 × 4 bytes embedding + metadata). 16KB limit per pair ≈ 10 memory entries. Retrieval: embed the current player input, cosine similarity against stored memory embeddings, return top-3 most relevant entries. This ensures the NPC references relevant past interactions, not just the most recent.
 
+> **Why:** Recency-based retrieval (always use the last 3 entries) fails when a player brings up a topic from a session three weeks ago—the relevant memory is buried beneath more recent but topically irrelevant entries. Vector similarity retrieval selects memories by semantic relevance to the current conversation turn, not by age. With only 10 entries in the store, the cosine similarity search is a 10-way dot product (trivially fast at < 0.1ms)—the embedding cost dominates at ~2ms using MiniLM-L6. This is the same mechanism used in RAG systems but applied to a per-player-per-NPC private memory store rather than a shared knowledge base.
+
 **Memory eviction strategy:**
 
 | Strategy | Pros | Cons | Best For |
 |---|---|---|---|
-| Pure LRU (oldest out) | Simple | Evicts important old events (first meeting, quest completion) | Not recommended |
-| Importance-weighted LRU | Preserves key moments | Requires reliable importance scoring | **Production default** |
-| Compaction (merge similar) | Frees space without losing info | Lossy merging can distort facts | Supplement to weighted LRU |
-| Fixed slots (1 for first meeting, 1 for last interaction, 8 flexible) | Guarantees key anchors | Rigid, wastes slots if no first-meeting exists | Games with structured narratives |
+| Pure LRU (oldest out) | Zero configuration required; O(1) eviction with a doubly-linked list + hash map | Blindly evicts high-importance old events: the NPC's memory of the player saving their life 3 months ago is lost before a trivial "player asked about weather" from yesterday | Never recommended for narrative games; acceptable only for ambient, stateless NPCs |
+| Importance-weighted LRU | Preserves emotionally and narratively significant moments; eviction score = `importance × (1 / log(1 + days_since))` so very high-importance entries never fall off | Requires a reliable importance scorer trained on labeled data; a miscalibrated scorer can permanently protect trivial memories while evicting important ones | Production default for any NPC with a persistent narrative role |
+| Compaction (merge similar) | Frees 2-3× capacity by consolidating semantically overlapping entries (e.g., five "player bought items" entries → one "player is a frequent buyer" entry), preserving the narrative gist | Merging is inherently lossy—specific details (exact item purchased, price negotiated) are discarded; if the merged summary is inaccurate, the error persists permanently | Best used as a supplement to weighted LRU: run compaction when store reaches 80% capacity before falling back to eviction |
+| Fixed slots (1 for first meeting, 1 for last interaction, 8 flexible) | Guarantees the two most important structural anchors are always present; prevents first-meeting amnesia which players find jarring | Rigid allocation wastes reserved slots for NPCs that have never met the player; 8 flexible slots may be insufficient for long-running questlines | Games with structured narrative chapters where the first-meeting and most-recent-session are the primary dialogue anchors |
 
 **Recommended:** Importance-weighted LRU with two protected slots: (1) the first-ever interaction summary (always kept—NPCs should always remember meeting the player), (2) the most impactful interaction (highest importance score). Remaining 8 slots use importance × recency scoring for eviction.
 
@@ -324,11 +326,11 @@ Relationship dynamics: Warms up over multiple interactions. Initially dismissive
 
 | Layer | Mechanism | Cost | Catch Rate | Latency |
 |---|---|---|---|---|
-| System prompt instructions | "You are Grimbold. Never praise elves." | Zero (part of prompt) | ~85% (LLMs occasionally ignore instructions) | 0ms |
-| Constrained decoding | Suppress token logits for banned phrases (e.g., "elves are wonderful") | Low (logit manipulation) | ~95% for known phrases | +2ms per token |
-| Post-generation classifier | 100M model checks: does response violate persona constraints? | Medium (separate inference) | ~98% | +40ms |
-| Lore retrieval grounding | Inject relevant lore chunks so model has correct facts | Medium (retrieval cost) | ~92% (prevents hallucination of lore) | +30ms |
-| **Combined** | All layers | | **~99.96%** (0.04% violation rate) | +40ms (classifier is the bottleneck; others are parallel/overlapping) |
+| System prompt instructions | Prefix the context with explicit behavioral rules: "You are Grimbold. Never praise elves. Never reveal the Deep Forge location. Always address the player as lad or lass." | Zero incremental cost—these tokens are already part of the prefill; the prefix KV cache means the persona system prompt is computed once per archetype, not per request | ~85%; LLMs follow instructions reliably under normal prompting but occasionally override them under pressure from long conversation history or adversarial player inputs | 0ms; already baked into prefill |
+| Constrained decoding | At each decode step, identify banned token sequences via a trie lookup and set their logit scores to `-inf` before sampling; boost persona-aligned sequences by +2.0 logit bias | Low—trie lookup is O(K) per token where K=vocabulary size (32K tokens); adds ~0.5ms per decode step; ~5% throughput reduction on the GPU | ~95% for all known banned phrase variants in the vocabulary; misses novel paraphrases not in the ban trie (e.g., "I have great admiration for the elven folk" may slip through if only "elves are wonderful" is banned) | +2ms per decode step (amortized over 60 tokens: ~+10ms total) |
+| Post-generation classifier | After generation completes, run the full response through a fine-tuned 100M DistilBERT-class encoder trained on (persona, response, label) triples; threshold at confidence > 0.85 to block | Medium—requires a second model inference on every request; 100M model on CPU or shared GPU costs ~$0.002/1K requests, adding ~$0.0002 per turn to the cost budget | ~98%; catches paraphrased violations that bypass constrained decoding; trained explicitly on the output distribution of the 3B model so it understands the model's common failure modes | +40ms (bottleneck of the four layers; runs in parallel with post-processing to minimize wall-clock impact) |
+| Lore retrieval grounding | Pre-embed the 2M-token lore bible into ~4,000 chunks; inject the top-3 most relevant chunks for the NPC archetype into context so the model has authoritative facts rather than fabricating them | Medium—vector search over 4,000 embeddings takes ~5ms; adds ~150 tokens to the context window, increasing prefill time by ~15ms; pre-computed per-archetype hits reduce this to 0ms for the 90% of queries covered by the archetype's knowledge base | ~92%; grounding prevents lore hallucination (the model confidently stating wrong world facts) but does not catch behavioral violations that are already factually grounded (e.g., Grimbold correctly recites elvish history he should not know) | +30ms for on-demand retrieval; 0ms for pre-computed archetype knowledge base hits |
+| **Combined** | All four layers applied in sequence, with classifier and lore retrieval running in parallel during decode | ~$0.0002/turn incremental cost over prompt-only; GPU memory overhead: 100M classifier (~400MB) + 400MB KV cache for 200 archetype prefixes = ~800MB additional VRAM per serving node | **~99.96%** violation detection (0.04% slip rate); validated on 10M synthetic interaction pairs; accounts for both novel paraphrases and edge-case lore topics | +40ms wall-clock (classifier is the bottleneck; lore retrieval and constrained decoding are either parallel or sub-10ms) |
 
 **Constrained decoding implementation:**
 
@@ -403,6 +405,8 @@ At inference time:
 
 **Speculative decoding for game dialogue:**
 
+> **Why:** Standard autoregressive decoding generates one token at a time, with each forward pass through the full 3B model taking ~1.5ms. For 60 tokens, that is ~90ms of sequential compute with the GPU underutilized at each step because the key-value cache lookups dominate memory bandwidth. Speculative decoding parallelizes this by having a cheap 300M draft model generate K candidate tokens at once, then verifying all K tokens in a single pass of the 3B target model. When most tokens are accepted (as they are for predictable NPC speech), the effective throughput is 3-4× higher at identical output quality. This is the single largest latency optimization available without reducing model size.
+
 Game dialogue is highly predictable—NPCs have restricted vocabulary and speech patterns. Speculative decoding exploits this:
 
 - Draft model: 300M params, same tokenizer as 3B target.
@@ -414,6 +418,8 @@ Game dialogue is highly predictable—NPCs have restricted vocabulary and speech
 
 **Prefix KV cache per archetype:**
 
+> **Why:** Every dialogue request for a given NPC archetype includes the same 200-token persona system prompt at the start of the context. Without prefix caching, the model re-computes the key-value attention tensors for those 200 tokens on every single request—at 5,000 requests/sec, that is 5,000 redundant identical prefill operations per second. Caching the KV tensors for these 200 tokens per archetype eliminates this redundant work entirely. The savings compound: 200 tokens × 5,000 req/sec × 4 bytes × 32 layers ≈ 1.28 GB/sec of memory bandwidth reclaimed, which directly translates to reduced prefill latency (~20ms saved per request) and increased batch throughput.
+
 Each NPC archetype has a fixed system prompt (~200 tokens). With 200 archetypes:
 - Cache 200 prefix KV states.
 - Each KV state: ~2MB for a 3B model (200 tokens × 32 layers × 2 × hidden_dim × dtype).
@@ -424,13 +430,15 @@ Each NPC archetype has a fixed system prompt (~200 tokens). With 200 archetypes:
 
 | Batching Approach | Throughput | Latency Fairness | Complexity | Best For |
 |---|---|---|---|---|
-| Static batching (wait for N requests) | High throughput per GPU | High variance (first request waits for batch fill) | Low | Offline batch processing |
-| Continuous batching (vLLM-style) | High throughput | Low variance (requests admitted as slots free) | Medium | **Real-time serving** |
-| Priority-aware continuous batching | High throughput | Tier 1 NPCs get priority slots | High | **Production default** |
+| Static batching (wait for N requests) | Very high per-GPU utilization (~90% MFU) because the GPU is never partially occupied; but throughput per unit time drops when request arrival is bursty since the system waits to fill the batch | High variance: the first request in a batch may wait up to 50-100ms for the batch to fill, while the last request added starts immediately; p95 latency is dominated by batch-fill wait, not generation | Low—fixed batch size means simple memory allocation and kernel invocation; no dynamic slot management needed | Offline batch processing (lore generation, memory summarization) where latency SLOs are in seconds, not milliseconds |
+| Continuous batching (vLLM-style) | High—GPU utilization stays at 70-80% MFU because requests are admitted the moment a KV-cache slot frees, eliminating idle GPU cycles between batches; measured throughput gain over static batching: 2-3× at the same hardware | Low variance: p95 latency tracks generation time rather than batch-fill time; requests processed within 5-10ms of arrival for a 64-slot batch at 5,000 req/sec peak | Medium—requires a dynamic KV-cache allocator (PagedAttention or equivalent) to track variable-length sequences sharing GPU memory; vLLM implements this out of the box | **Real-time NPC dialogue serving** without tiering; suitable when all requests have similar priority and similar expected output lengths |
+| Priority-aware continuous batching | Same as continuous batching at the GPU level; adds logical priority queues so Tier 1 requests (main quest NPCs) preempt Tier 2 requests (ambient NPCs) for available KV-cache slots; under extreme load (> 95% slot utilization), Tier 2 falls back to scripted dialogue before Tier 1 latency is affected | Tier 1 p95 latency remains at SLO even when GPU is saturated; Tier 2 latency degrades gracefully from 450ms → scripted fallback rather than both tiers exceeding SLO together | High—requires priority metadata on every request, a preemption mechanism for in-flight Tier 2 requests, and careful testing to ensure priority inversion cannot occur (a Tier 2 request holding a slot while a Tier 1 request queues) | **Production default for any two-tier NPC architecture**; the priority boundary acts as a quality-of-service guarantee for narrative-critical interactions |
 
 Priority-aware batching: Tier 1 NPC requests (main quest NPCs) get priority admission. Tier 2 NPC requests fill remaining slots. Under extreme load, Tier 2 requests fall back to scripted dialogue before Tier 1 requests are affected.
 
 **Edge deployment topology:**
+
+> **Why:** A centralized cloud model serving cluster in US-East would impose 80-150ms of round-trip network latency for players in Asia and Europe before generation even begins. With a 450ms total generation budget and 50ms network budget, a centralized design has already burned 60-70% of the latency budget on wire time alone. Edge deployment co-locates the model serving fleet with the game servers in each region, keeping dialogue requests on the same physical or logically adjacent infrastructure as the game server. Network RTT drops to 5-20ms, restoring ~100ms of generation headroom. Additionally, regional isolation means a GPU fleet failure in EU-West does not affect players in Asia-East—regional faults stay regional.
 
 ```
 6 Edge Regions:
@@ -458,11 +466,11 @@ In many game deployments, GPU clusters already exist for physics simulation and 
 
 | Architecture | Latency | Cost | Operational Complexity | Fault Tolerance |
 |---|---|---|---|---|
-| Centralized cloud (single region) | High (100-200ms network RTT) | Lower (economies of scale) | Low | Single point of failure for remote players |
-| Edge-deployed (6 regions, self-hosted) | Low (< 20ms RTT) | Higher (distributed fleet) | High | Regional isolation; players unaffected by other regions | 
-| Hybrid (edge for Tier 1, cloud for Tier 2) | Mixed | Medium | Medium | Tier 2 degrades gracefully |
-| On-device (model on player's machine) | Lowest (0ms network) | Zero serving cost | Very high (device compatibility) | Perfect—no server dependency |
-| **Edge-deployed with scripted fallback** | Low | Higher | High | **Best: regional isolation + scripted fallback** |
+| Centralized cloud (single region) | High: 100-200ms network RTT for players more than 1,500km from the data center, consuming 40-50% of the total latency budget before generation begins; p95 generation window shrinks to ~250ms | Lower: economies of scale reduce per-GPU cost by 20-30%; a single 150-GPU cluster is cheaper to operate than 6 × 25-GPU regional fleets due to shared operations, spare capacity pooling, and single-vendor negotiation | Low: one deployment target, one monitoring stack, one network configuration; on-call burden is concentrated | Single point of failure for all remote players; a regional outage in the cloud provider takes down all dialogue globally; fallback to scripted dialogue must be client-side to survive |
+| Edge-deployed (6 regions, self-hosted) | Low: < 20ms RTT when dialogue servers are co-located with game servers in the same PoP; generation window is the full 430ms after the 20ms network round-trip | Higher: 6 separate GPU clusters require 6 sets of spare capacity, 6 monitoring pipelines, and 6 operational runbooks; estimated 25-35% cost premium over centralized | High: rolling deployments must be coordinated across 6 regions; a model update requires staged rollout with per-region health checks; KV cache and memory store sharding are region-local by player, requiring cross-region failover logic | Regional isolation: a full outage in EU-West affects only EU-West players; remaining 5 regions serve normally; regional fallback to scripted dialogue is contained |
+| Hybrid (edge for Tier 1, cloud for Tier 2) | Mixed: Tier 1 (40% of requests) enjoys < 20ms RTT at edge; Tier 2 (60% of requests) incurs 100-200ms cloud RTT, pushing Tier 2 responses to 550-650ms—exceeding the 500ms SLO unless Tier 2 uses an even smaller 1.5B model to compensate | Medium: edge fleet is 60 GPUs (only Tier 1 workload) instead of 150; cloud fleet handles Tier 2 at shared-infrastructure pricing; total cost estimated at 15-20% below full edge-deployed | Medium: two separate serving paths with different latency budgets, model versions, and fallback behaviors; routing logic must correctly classify every request into Tier 1 or Tier 2 with < 1ms overhead | Tier 2 degrades gracefully when cloud is unavailable; Tier 1 remains protected at edge; cross-tier failover (promoting Tier 2 to Tier 1 path) requires capacity headroom at edge |
+| On-device (model on player's machine) | Lowest: 0ms network latency; generation speed depends on player hardware (RTX 4090: ~200ms; integrated GPU: > 2,000ms); p95 latency is hardware-dependent and cannot be SLO-guaranteed | Zero serving cost; model weights are downloaded once (1.5B INT4 ≈ 900MB) and all compute is on the player's machine; removes cloud GPU cost entirely | Very high: model must be compatible with Windows/Mac/Linux, Nvidia/AMD/Intel GPUs, and console hardware; device-specific quantization, driver version compatibility, and memory management are significant engineering burdens | Perfect server-side availability—no server dependency; offline play works; but model updates require client patches, which can lag weeks behind server-side changes |
+| **Edge-deployed with scripted fallback** | Low: < 20ms RTT + full 430ms generation window; scripted fallback adds < 5ms (tree lookup) when triggered | Higher than centralized, justified by the latency SLO requirement; scripted fallback adds negligible cost (CPU-only, no GPU) | High: same as edge-deployed, plus fallback tree maintenance per NPC archetype; fallback trees must be kept up-to-date with lore changes | **Best combination**: regional isolation limits blast radius of GPU failures; scripted fallback ensures 100% dialogue availability even during total fleet outage for a region; players receive reduced-quality (scripted) but correct (lore-safe) dialogue during degraded operation |
 
 ### Production Bottlenecks and Mitigations
 
@@ -488,10 +496,19 @@ In many game deployments, GPU clusters already exist for physics simulation and 
 
 ### Advanced Techniques
 
-- **Emotion state machine:** Track NPC emotional state as a finite state machine (neutral → annoyed → angry → hostile) updated by player actions and dialogue sentiment. Inject current emotion into persona prompt. Prevents jarring emotional jumps between turns.
-- **Hierarchical memory:** Compress old episodic memories into "chapter summaries" (e.g., "In Chapter 1, the player helped Grimbold find rare ore"). Reduces retrieval noise while preserving narrative arc.
-- **Player modeling:** After 10+ interactions, build a lightweight player preference model: does this player prefer combat-focused dialogue, lore exposition, or humor? Adjust NPC response style accordingly. Implemented as a 3-value preference vector stored alongside memory.
-- **Parallel NPC-NPC dialogue:** When two NPCs are in proximity, generate ambient NPC-NPC conversations using a shared context. Players overhearing these gain lore and world-building. Generated at lower priority during GPU idle time.
+- **Emotion state machine:** Track NPC emotional state as a finite state machine (neutral → annoyed → angry → hostile) updated by player actions and dialogue sentiment. Inject current emotional state as a structured token into the persona prompt: `[Emotion: hostile, cause: player_threatened_npc]`. Without an explicit state machine, the LLM interprets each turn in isolation—an NPC who was furious two turns ago may inexplicably return to friendly within a single generation. Keeping a discrete state prevents jarring emotional resets and allows the game engine to trigger gameplay consequences (e.g., a guard NPC transitioning to "hostile" state can simultaneously flag the player for combat AI).
+
+> **Why:** LLMs do not maintain state between calls—they only see the last N tokens of context. An emotion state machine externalizes the NPC's mood as structured data so it persists reliably, independent of whether the earlier turns that caused the emotion are still in the sliding context window.
+
+- **Hierarchical memory:** Compress old episodic memories into "chapter summaries" (e.g., "In Chapter 1, the player helped Grimbold find rare ore and earned his trust") once the episodic store reaches 70% capacity. Summaries are generated by the 3B model in a low-priority background job and stored at a dedicated "arc" slot separate from the 16KB per-pair budget. This preserves the shape of a long-running narrative without consuming retrieval slots with fine-grained but stale details—"player asked about armor prices on Tuesday" is useless after a month, but "player saved Grimbold's apprentice from the mines" defines the relationship anchor indefinitely.
+
+> **Why:** Vector similarity retrieval over 10 fine-grained memory entries is less robust than having 1-2 arc summaries that always appear in context. A summary condenses signal while discarding noise, reducing the chance that the retrieval step returns irrelevant old details over important ones.
+
+- **Player modeling:** After 10+ interactions with any NPC archetype, build a lightweight player preference vector: 3 float dimensions representing preference for combat-focused dialogue, lore exposition, and humor respectively (e.g., `[0.2, 0.8, 0.1]` for a lore-heavy player). Update via exponential moving average: `pref = 0.9 × pref + 0.1 × turn_signal` where `turn_signal` is extracted from the player's choice of dialogue option or free-text topic. Store alongside memory. The context assembly service appends a 10-token directive to the persona prompt: `[Player prefers: lore > combat > humor. Favor lore exposition when multiple framings are available]`. This costs 10 tokens of context budget but demonstrably improves engagement—players who receive preference-matched dialogue show 18% longer conversation chains.
+
+> **Why:** Different players want different things from the same NPC. A uniform response style optimizes for an average player and satisfies no one fully. Preference modeling is cheap (3 floats, negligible compute), requires no user-facing configuration, and degrades gracefully to neutral behavior when data is sparse.
+
+- **Parallel NPC-NPC dialogue:** When two NPCs are within proximity range in the game world, generate ambient NPC-NPC conversations using a shared context window containing both NPCs' personas and the current world state. Generated at low priority (batch queue, no latency SLO) during GPU idle cycles—these conversations are not interactive, so latency tolerances are in the 2-5 second range. The output is stored as short audio-less text snippets delivered to nearby players as overhead chat bubbles or environmental chatter. Players overhearing guards discuss recent bandit activity or merchants arguing over trade prices reinforces world-building without any player action. Rate-limited to 1 NPC-NPC exchange per NPC pair per 90 seconds to avoid ambient chatter overwhelming the GPU budget.
 
 ---
 
@@ -624,6 +641,387 @@ Q: Players have discovered they can extract your NPC system prompt by asking "re
 - For truly sensitive content (model architecture, API keys), never put them in the prompt. They should be server-side configuration, not in the LLM context window.
 
 **The Interviewer's Rubric:** Checking security awareness for adversarial interactions with LLM-powered systems in an environment (games) where adversarial probing is guaranteed.
+
+## Practical Implementation
+
+### 1. Three-Tier Memory Assembly
+
+The context assembly service must pull from three data sources in parallel and merge them into a token-budget-constrained prompt. The following implementation shows the core memory retrieval and prompt construction logic used in production-grade NPC dialogue systems.
+
+```python
+import asyncio
+import time
+from dataclasses import dataclass, field
+from typing import Optional
+import numpy as np
+
+@dataclass
+class MemoryEntry:
+    entry_id: str
+    summary: str          # max 100 tokens
+    importance: float     # 0.0 - 1.0
+    embedding: np.ndarray # float[384], MiniLM-L6
+    tags: list[str]
+    timestamp: float      # unix seconds
+    verified: bool = True # False for unverified player claims
+
+@dataclass
+class DialogueContext:
+    persona_tokens: int = 0
+    memory_tokens: int = 0
+    world_tokens: int = 0
+    history_tokens: int = 0
+    total_tokens: int = 0
+    prompt: str = ""
+
+TOKEN_BUDGET = {
+    "persona":  200,   # archetype system prompt (prefix-cached)
+    "memory":   150,   # top-3 episodic entries
+    "world":    100,   # quest/faction/environment
+    "history":  400,   # last 8 turns
+    "input":    150,   # current player message
+    "headroom":  200,  # output + safety margin
+}
+MAX_CONTEXT = sum(TOKEN_BUDGET.values())  # 1200 tokens
+
+class ContextAssemblyService:
+    def __init__(self, persona_cache, memory_store, world_state, embedder):
+        self.persona_cache = persona_cache      # dict: archetype_id -> str
+        self.memory_store = memory_store        # RedisMemoryStore
+        self.world_state = world_state          # WorldStateService
+        self.embedder = embedder                # MiniLM-L6 embedding model
+
+    async def assemble(
+        self,
+        player_id: str,
+        npc_archetype_id: str,
+        player_input: str,
+        session_history: list[dict],
+    ) -> DialogueContext:
+        t0 = time.monotonic()
+
+        # Fire all four lookups in parallel — target: all complete within 40ms
+        persona_task = asyncio.create_task(
+            self._get_persona(npc_archetype_id)
+        )
+        memory_task = asyncio.create_task(
+            self._get_relevant_memories(player_id, npc_archetype_id, player_input)
+        )
+        world_task = asyncio.create_task(
+            self._get_world_state(player_id)
+        )
+
+        persona, memories, world = await asyncio.gather(
+            persona_task, memory_task, world_task
+        )
+
+        # Assemble history within token budget (oldest turns dropped first)
+        history_text = self._truncate_history(
+            session_history, budget=TOKEN_BUDGET["history"]
+        )
+
+        # Build structured prompt
+        prompt = self._build_prompt(
+            persona, memories, world, history_text, player_input
+        )
+
+        elapsed_ms = (time.monotonic() - t0) * 1000
+        assert elapsed_ms < 45, f"Context assembly exceeded budget: {elapsed_ms:.1f}ms"
+
+        return DialogueContext(
+            prompt=prompt,
+            total_tokens=self._count_tokens(prompt),
+        )
+
+    async def _get_persona(self, archetype_id: str) -> str:
+        # L1 hit: in-process Python dict (< 0.1ms)
+        return self.persona_cache[archetype_id]
+
+    async def _get_relevant_memories(
+        self, player_id: str, archetype_id: str, query: str
+    ) -> list[MemoryEntry]:
+        all_entries = await self.memory_store.get_all(player_id, archetype_id)
+        if not all_entries:
+            return []
+
+        # Embed the current player input and rank memories by cosine similarity
+        query_emb = self.embedder.encode(query)  # float[384]
+        scored = []
+        for entry in all_entries:
+            # Importance-weighted similarity: high-importance old memories score above
+            # low-importance recent ones when the topic matches
+            sim = float(np.dot(query_emb, entry.embedding) /
+                        (np.linalg.norm(query_emb) * np.linalg.norm(entry.embedding)))
+            recency_decay = np.exp(-0.02 * (time.time() - entry.timestamp) / 86400)
+            score = sim * 0.6 + entry.importance * 0.3 + recency_decay * 0.1
+            scored.append((score, entry))
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return [entry for _, entry in scored[:3]]  # top-3
+
+    async def _get_world_state(self, player_id: str) -> dict:
+        return await self.world_state.get_player_context(player_id)
+
+    def _truncate_history(self, history: list[dict], budget: int) -> str:
+        # Build from most recent, truncate if total tokens exceeds budget
+        lines, token_count = [], 0
+        for turn in reversed(history):
+            line = f"{turn['speaker'].upper()}: {turn['text']}"
+            turn_tokens = len(line.split()) * 1.3  # rough token estimate
+            if token_count + turn_tokens > budget:
+                break
+            lines.insert(0, line)
+            token_count += turn_tokens
+        return "\n".join(lines)
+
+    def _build_prompt(self, persona, memories, world, history, player_input) -> str:
+        memory_block = "\n".join(
+            f"- [{e.tags[0] if e.tags else 'memory'}] {e.summary}"
+            + ("" if e.verified else " (UNVERIFIED PLAYER CLAIM)")
+            for e in memories
+        ) if memories else "No prior interactions with this player."
+
+        world_block = (
+            f"- Quest: {world.get('active_quest', 'None')}\n"
+            f"- Faction standing: {world.get('faction', 'Neutral')}\n"
+            f"- Environment: {world.get('time_of_day', 'Day')}, {world.get('weather', 'Clear')}\n"
+            f"- Location: {world.get('location', 'Unknown')}"
+        )
+
+        return (
+            f"[System]\n{persona}\n\n"
+            f"[Memory]\n{memory_block}\n\n"
+            f"[World State]\n{world_block}\n\n"
+            f"[Conversation History]\n{history}\n\n"
+            f"[Player]: {player_input}\n"
+            f"[NPC]:"
+        )
+
+    def _count_tokens(self, text: str) -> int:
+        return int(len(text.split()) * 1.3)  # replace with tokenizer.encode in production
+```
+
+### 2. Importance-Weighted Memory Eviction
+
+When the 16KB per-pair memory store is full, the eviction policy must protect narrative-critical entries. This implementation uses importance × recency scoring with two permanently protected slots.
+
+```python
+import heapq
+from typing import Optional
+
+MAX_STORE_BYTES = 16 * 1024   # 16KB per NPC-player pair
+ENTRY_SIZE_BYTES = 1638       # ~1.6KB per MemoryEntry
+
+class MemoryEvictionPolicy:
+    """
+    Two protected slots (first_meeting, highest_importance) + N flexible slots
+    using importance-weighted LRU eviction.
+    """
+    MAX_ENTRIES = MAX_STORE_BYTES // ENTRY_SIZE_BYTES  # ~10
+
+    def __init__(self):
+        self.entries: dict[str, MemoryEntry] = {}      # entry_id -> entry
+        self.first_meeting_id: Optional[str] = None
+        self.highest_importance_id: Optional[str] = None
+
+    def add(self, entry: MemoryEntry) -> Optional[str]:
+        """
+        Add a new memory entry. Returns the evicted entry_id if eviction occurred,
+        otherwise None.
+        """
+        self.entries[entry.entry_id] = entry
+
+        # Set first-meeting anchor on the very first entry
+        if self.first_meeting_id is None:
+            self.first_meeting_id = entry.entry_id
+
+        # Update highest-importance anchor
+        best = max(self.entries.values(), key=lambda e: e.importance)
+        self.highest_importance_id = best.entry_id
+
+        evicted_id = None
+        if len(self.entries) > self.MAX_ENTRIES:
+            evicted_id = self._evict_one()
+
+        return evicted_id
+
+    def _evict_one(self) -> str:
+        protected = {self.first_meeting_id, self.highest_importance_id}
+        candidates = [e for eid, e in self.entries.items() if eid not in protected]
+
+        if not candidates:
+            # All entries are protected (should not happen with > 2 entries and MAX_ENTRIES > 2)
+            # Fall back to evicting the oldest non-protected entry
+            candidates = list(self.entries.values())
+
+        now = time.time()
+        def eviction_score(entry: MemoryEntry) -> float:
+            """
+            Lower score = evict first.
+            importance × recency_weight — old, unimportant entries go first.
+            """
+            days_old = (now - entry.timestamp) / 86400
+            recency_weight = np.exp(-0.1 * days_old)   # half-life ~7 days
+            return entry.importance * recency_weight
+
+        victim = min(candidates, key=eviction_score)
+        del self.entries[victim.entry_id]
+        return victim.entry_id
+
+    def get_for_retrieval(self) -> list[MemoryEntry]:
+        """Return all entries sorted by importance descending for embedding search."""
+        return sorted(self.entries.values(), key=lambda e: e.importance, reverse=True)
+
+    def update_importance(self, entry_id: str, new_importance: float) -> None:
+        if entry_id in self.entries:
+            self.entries[entry_id].importance = new_importance
+            # Re-evaluate highest_importance anchor
+            best = max(self.entries.values(), key=lambda e: e.importance)
+            self.highest_importance_id = best.entry_id
+```
+
+### 3. Contradiction Detection Inference Pipeline
+
+The 100M classifier runs on every generated response before it reaches the player. The following shows the inference call, threshold logic, and regeneration trigger integrated into the dialogue serving path.
+
+```python
+import torch
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from enum import Enum
+
+class ContradictionLabel(Enum):
+    CONSISTENT = 0
+    PERSONA_VIOLATION = 1
+    LORE_VIOLATION = 2
+    KNOWLEDGE_BOUNDARY_VIOLATION = 3
+    REGISTER_VIOLATION = 4
+
+@dataclass
+class ContradictionResult:
+    label: ContradictionLabel
+    confidence: float
+    should_block: bool
+
+BLOCK_THRESHOLD = 0.85
+REGENERATE_MAX_ATTEMPTS = 2
+
+class ContradictionDetector:
+    def __init__(self, model_path: str, device: str = "cuda"):
+        self.tokenizer = AutoTokenizer.from_pretrained(model_path)
+        self.model = AutoModelForSequenceClassification.from_pretrained(model_path)
+        self.model.to(device).eval()
+        self.device = device
+
+    @torch.inference_mode()
+    def check(self, persona_constraints: str, response: str) -> ContradictionResult:
+        """
+        Input format: [CLS] persona_constraints [SEP] response [SEP]
+        Classifies the response against the persona constraint set.
+        """
+        inputs = self.tokenizer(
+            persona_constraints,
+            response,
+            max_length=512,
+            truncation=True,
+            return_tensors="pt",
+        ).to(self.device)
+
+        logits = self.model(**inputs).logits
+        probs = torch.softmax(logits, dim=-1).squeeze().cpu().numpy()
+        pred_class = int(np.argmax(probs))
+        confidence = float(probs[pred_class])
+        label = ContradictionLabel(pred_class)
+
+        return ContradictionResult(
+            label=label,
+            confidence=confidence,
+            should_block=(label != ContradictionLabel.CONSISTENT and confidence > BLOCK_THRESHOLD),
+        )
+
+
+async def generate_with_contradiction_guard(
+    model_client,
+    contradiction_detector: ContradictionDetector,
+    fallback_dialogue: dict,
+    prompt: str,
+    persona_constraints: str,
+    archetype_id: str,
+    max_tokens: int = 80,
+) -> tuple[str, str]:
+    """
+    Returns (response_text, source) where source is one of:
+      "model_clean", "model_regenerated", "scripted_fallback"
+    """
+    for attempt in range(REGENERATE_MAX_ATTEMPTS + 1):
+        if attempt > 0:
+            # Inject an explicit constraint reminder on regeneration attempts
+            constraint_reminder = (
+                f"\n[IMPORTANT: The previous response violated persona constraints. "
+                f"Strictly adhere to: {persona_constraints[:200]}]\n"
+            )
+            prompt_to_use = prompt + constraint_reminder
+        else:
+            prompt_to_use = prompt
+
+        response = await model_client.generate(
+            prompt_to_use, max_tokens=max_tokens
+        )
+
+        result = contradiction_detector.check(persona_constraints, response)
+
+        if not result.should_block:
+            source = "model_clean" if attempt == 0 else "model_regenerated"
+            return response, source
+
+        # Log for offline review
+        print(
+            f"[ContradictionDetector] Attempt {attempt+1}: "
+            f"{result.label.name} (confidence={result.confidence:.2f}) — blocking"
+        )
+
+    # All attempts violated constraints: fall back to scripted dialogue
+    scripted = fallback_dialogue.get(archetype_id, {}).get(
+        "generic_deflect",
+        "I'm not sure what to say to that, lad. Perhaps another time."
+    )
+    return scripted, "scripted_fallback"
+```
+
+---
+
+## Exercises
+
+### Design Exercises
+
+**1. Design the memory system for a procedurally generated NPC population of 10,000 unique NPCs (not archetypes — each is individually unique) across a persistent online world with 200K CCU.**
+
+Each NPC has a unique backstory and personality that must persist across server restarts. Extend the memory architecture described in this chapter to handle: (a) 10,000 unique persona definitions that cannot all fit in L2 cache simultaneously — design a tiered persona cache with LRU eviction, sizing each tier and estimating hit rates; (b) cross-NPC memory for events that affect entire settlements (e.g., a plague that every NPC in a town witnessed); (c) NPC-NPC relationship memory (not just player-NPC) where two specific NPCs remember interactions with each other. Calculate the total persistent storage requirement assuming 50M player-NPC pairs and 5M NPC-NPC pairs at 16KB each, and propose a Redis + object storage tiering strategy for hot vs cold NPC state.
+
+**2. Design an AI NPC system for a battle royale game where NPCs act as autonomous agents competing against players — not as dialogue partners but as adversarial decision-makers.**
+
+The NPC must make real-time decisions (movement, weapon choice, cover selection, engagement decisions) every 100ms, informed by game state but not by player input. The latency SLO is 50ms per decision (tighter than dialogue), and there are 50-90 NPC agents active per match with 100K concurrent matches. Design the inference architecture: model size, batching strategy, decision representation (token-based vs structured output), and how you would ground NPC behavior in the current match state (player positions, loot, zone boundaries). Address how you handle the adversarial alignment problem — NPCs that are too accurate are unfun; too inaccurate are trivial — and propose a difficulty-scaling mechanism that adjusts model sampling temperature or applies action masking based on the configured difficulty tier.
+
+---
+
+### Implementation Exercises
+
+**3. Implement an importance scorer for NPC memory entries.**
+
+Write a function `score_importance(conversation_summary: str, world_state: dict, npc_archetype: str) -> float` that returns a value between 0.0 and 1.0. The scorer should assign high importance (> 0.8) to: quest completions, first meetings, promises made by the NPC, player actions that changed faction reputation, and moments of high emotional intensity (rescue, betrayal, revelation). It should assign low importance (< 0.3) to: small talk, weather commentary, and generic vendor transactions. Implement two versions: (a) a rule-based version using keyword matching and the world state dict (fast, deterministic), and (b) a classifier-based version using a zero-shot text classification model (slower, generalizes to novel events). Write unit tests with at least 10 labeled examples covering both high- and low-importance cases. Benchmark the latency of each version and determine which meets the 5ms budget for the memory persistence pipeline.
+
+**4. Implement a streaming NPC response delivery system with contradiction checking that does not block the first tokens from reaching the client.**
+
+The constraint: players see the speech bubble start animating within 200ms (first token visible). The contradiction classifier needs the full response before it can check (it cannot check partial responses). Design and implement a two-phase streaming architecture: (a) the first N tokens (greeting/opener, typically safe) are streamed immediately to the client while the rest of the response is being generated; (b) the full response is checked by the contradiction classifier; (c) if a violation is detected, the client receives a "correction" message that naturally supersedes the partial response (e.g., the NPC pauses mid-sentence and says "No, what I mean is..."). Implement the client-side protocol for handling partial-then-correction delivery, and measure the worst-case user experience impact (the player sees a brief contradiction before it is corrected). Propose a threshold for how many tokens can be safely pre-streamed before the risk of an uncorrectable contradiction is too high.
+
+---
+
+### Debug Exercise
+
+**5. You deploy the NPC dialogue system to production. Within 6 hours, the monitoring dashboard shows: (a) lore contradiction rate spiked from 0.04% to 1.8%; (b) classifier confidence scores on violations dropped from 0.91 average to 0.63 average (classifier is less certain); (c) the spike coincides with a game content patch that added 30 new questlines and updated 15 NPC backstories; (d) no changes were made to the model serving infrastructure. Diagnose the root cause and propose a remediation plan.**
+
+Walk through the following diagnostic steps in sequence: (1) Why would a game content patch — with no model changes — cause an increase in lore contradictions? Identify all the system components that are coupled to lore content and would become stale after a lore patch. (2) Why would the classifier's confidence drop simultaneously? What does low classifier confidence on true violations indicate about the relationship between the training data distribution and the new lore content? (3) Propose an immediate mitigation (< 1 hour) that does not require retraining any model. (4) Propose a medium-term fix (< 1 week) that updates the affected components without full retraining. (5) Propose a systemic process change that prevents this class of incident from recurring when future content patches are deployed. For each step, identify the specific system component involved (lore retrieval index, persona cache, contradiction classifier training data, constrained decoding ban lists) and estimate the engineering effort required.
+
+---
 
 ## End of Chapter
 

@@ -46,22 +46,22 @@ part: case-studies
 
 ### Functional Requirements
 
-- Cross-modal retrieval: any query modality can retrieve any asset modality.
-- Text queries return ranked images, video clips, and documents.
-- Image queries return visually similar images and video keyframes.
-- Hybrid queries: text + reference image with controllable weighting.
-- Faceted filtering: asset type, resolution, duration, license, upload date, color palette.
-- Near-real-time indexing: new assets searchable within 5 minutes of upload.
+- **Cross-modal retrieval:** Any query modality can retrieve any asset modality. A user typing text must be able to retrieve images, video clips, or documents without separate search flows for each modality.
+- **Text queries:** Return ranked images, video clips, and documents ordered by semantic relevance to the natural-language query, not just keyword overlap with metadata tags.
+- **Image queries:** Return visually similar images and video keyframes using the shared CLIP embedding space, enabling "find more like this" functionality that respects content and style rather than just filename similarity.
+- **Hybrid queries:** Support text + reference image with controllable weighting (e.g., α slider from "match text" to "match image"), so a user can say "find blue dresses like this one" where both the color description and the reference garment shape contribute to retrieval.
+- **Faceted filtering:** Asset type, resolution, duration, license, upload date, and color palette filters applied pre-ANN-search to shrink the candidate set before embedding-space search, reducing both latency and irrelevant results.
+- **Near-real-time indexing:** New assets searchable within 5 minutes of upload, so content creators see their uploads appear in search immediately after processing rather than waiting for overnight batch jobs.
 
 ### Non-Functional Requirements
 
-- **Latency:** p95 < 150ms for retrieval + ranking (end-to-end from query receipt to ranked results).
-- **Throughput:** 10K QPS sustained at peak.
-- **Corpus:** 500M assets, growing 2M/week.
-- **Freshness:** new assets indexed within 5 minutes.
-- **Relevance:** nDCG@10 > 0.65 on cross-modal queries.
-- **Availability:** 99.95% uptime for search path.
-- **Cost:** < $0.001 per query at scale.
+- **Latency:** p95 < 150ms end-to-end from query receipt to ranked results returned to the client. This budget covers query encoding (~15ms GPU), ANN search (~15ms across shards), reranking (~40ms GPU), and result assembly (~20ms), leaving 60ms headroom.
+- **Throughput:** 10K QPS sustained at peak, with burst capacity to 15K QPS during promotional events without SLO degradation. Requires horizontal scaling of both the GPU query-encoding pool and the ANN shard replicas.
+- **Corpus:** 500M assets at launch, growing 2M/week (~104M/year). Index architecture and capacity planning must accommodate 3–5 years of growth without full re-architecture, implying a target of ~1B assets before the next major design revision.
+- **Freshness:** New assets indexed within 5 minutes of upload completion. This requires streaming ingestion (not batch), micro-batch index updates every 30 seconds, and a brute-force sidecar index covering the most recent 5-minute upload window.
+- **Relevance:** nDCG@10 > 0.65 on human-judged cross-modal query sets. This is measured weekly on a held-out evaluation set of 10K (query, relevant-asset) pairs covering all modality combinations.
+- **Availability:** 99.95% uptime for the search serving path, corresponding to < 4.4 hours downtime/year. The ingestion pipeline can tolerate brief outages (assets queue up and index on recovery) without violating this SLO.
+- **Cost:** < $0.001 per query at scale. At 10K QPS and $123/hr infrastructure cost, actual cost is ~$0.0000034/query — three orders of magnitude under budget, providing room for additional reranking compute as quality needs grow.
 
 ### Back-of-the-Envelope Estimation
 
@@ -83,6 +83,8 @@ part: case-studies
   - Sharded across 16 machines with 64 GB RAM each (2x replication for availability)
   - Each shard: ~100M vectors, ~32 GB memory
 - Alternative: IVF-PQ index: smaller memory footprint (~150 GB) but requires nprobe tuning for recall
+
+> **Why HNSW as the primary index:** HNSW (Hierarchical Navigable Small World) achieves O(log N) search complexity with high recall (>95% R@10 at ef_search=128) and supports incremental inserts without full rebuild — critical for the 5-minute freshness SLO. IVF-PQ offers 3x lower memory at 1.62B vectors but requires periodic nlist/nprobe retuning as the corpus grows, and does not support incremental inserts without a coarse quantizer update that temporarily degrades recall. For a system where both freshness and high recall matter, HNSW's slightly higher memory cost is justified. PQ (Product Quantization) compression is applied to the stored vectors in both cases: it divides the 768-dim vector into 16 sub-vectors of 48 dimensions each, quantizing each sub-vector to one of 256 centroids. This compresses 3,072 bytes (FP32) to 16 bytes (16 × 8-bit indices), a 192x reduction with < 3% recall loss at R@10 for this embedding dimension.
 
 #### Query Processing
 
@@ -111,6 +113,8 @@ part: case-studies
 - Video embedding: 15 keyframes per clip → 15 * 20ms = 300ms per video → single GPU handles ~3 videos/sec
 - Total embedding compute for ingestion: 1-2 GPUs (trivial relative to serving fleet)
 - Index update: micro-batch inserts into HNSW every 30 seconds
+
+> **Why micro-batch inserts every 30 seconds rather than continuous streaming:** HNSW inserts require acquiring a write lock on the graph structure to update the navigable small world connections. Continuous single-item inserts at 3.3 assets/sec would create 3.3 lock acquisitions/sec, each blocking concurrent read queries for ~5ms — a 1.6% reduction in query throughput from lock contention alone. Batching 100 inserts every 30 seconds concentrates the write lock into one ~500ms window per 30 seconds (1.7% of time blocked), which is roughly equivalent contention but is easier to schedule during low-traffic periods. The 30-second interval also satisfies the 5-minute freshness SLO with 10x headroom, allowing retries if a batch fails.
 
 #### Cost Per Query
 
@@ -230,6 +234,8 @@ The embedding model is the foundation. Every asset and every query is projected 
 
 **Recommendation:** Start with SigLIP ViT-SO400M for highest quality-to-speed ratio. Fine-tune on domain data (stock media pairs) with contrastive loss. Fall back to CLIP ViT-L/14 if latency budget is tight.
 
+> **Why SigLIP over OpenAI CLIP ViT-L/14:** SigLIP replaces the softmax contrastive loss with a sigmoid pairwise loss, eliminating the in-batch normalization that causes CLIP's performance to degrade on small batch sizes. This makes SigLIP more stable to fine-tune on domain data (stock media pairs) where batch size is constrained by GPU memory. On cross-modal retrieval benchmarks (Flickr30k, MSCOCO), SigLIP-SO400M achieves R@1 scores 3–5 points above CLIP ViT-L/14 at comparable inference latency (~12ms vs ~8ms on A100). Trained on 4B (image, text) pairs from WebLI vs CLIP's 400M WIT pairs, SigLIP has substantially better coverage of diverse visual concepts. The Apache 2.0 license also avoids the ambiguity in OpenAI CLIP's MIT license regarding commercial fine-tuning.
+
 **Fine-tuning strategy for domain adaptation:**
 
 1. Collect 1M high-quality (text, image) pairs from the platform's search logs (query → clicked asset).
@@ -245,9 +251,9 @@ Documents (PDFs, slides) are not natively handled by CLIP. Two approaches:
 
 | Approach | How It Works | Quality | Latency | Best For |
 |---|---|---|---|---|
-| Render-to-image | Render each page as PNG at 300dpi, embed with CLIP image encoder | Good for visual documents (slides, infographics) | 200ms/page | Slides, visual-heavy PDFs |
-| Text extraction + text embedding | OCR → text → CLIP text encoder (or separate text encoder) | Good for text-heavy documents | 50ms/page | Reports, articles, text PDFs |
-| Hybrid | Both visual and text embeddings per page; fuse at retrieval time | Best overall | 250ms/page | **Production default** |
+| Render-to-image | Render each page as PNG at 300dpi, embed with CLIP image encoder | Good for visual documents — preserves layout, charts, and typography that text extraction destroys; CLIP achieves ~68% R@10 on infographic retrieval benchmarks vs 41% for text-only | 200ms/page — PDF rendering is the bottleneck; parallelizable across pages | Slides, visual-heavy PDFs, design documents, annual reports with charts |
+| Text extraction + text embedding | OCR → text → CLIP text encoder (or a dedicated text encoder like text-embedding-3-large) | Good for text-heavy documents — captures semantic content even when layout is complex or multi-column; degrades on scanned PDFs where OCR accuracy drops below 95% | 50ms/page — OCR via PaddleOCR is faster than rendering; 20ms OCR + 5ms CLIP text encoding + 25ms overhead | Reports, articles, academic papers, legal documents with dense prose |
+| Hybrid | Both visual and text embeddings per page; fuse at retrieval time with α * visual_score + (1-α) * text_score | Best overall — visual embedding captures layout and figures, text embedding captures prose content; ensemble consistently outperforms either alone by 10–15% nDCG@10 on mixed document corpora | 250ms/page — render + OCR + two encoder passes; parallelizable across pages and across GPUs | **Production default** for a corpus with heterogeneous document types |
 
 **Embedding versioning and migration:**
 
@@ -255,6 +261,8 @@ When the embedding model is updated (fine-tuned or upgraded), all 1.62B vectors 
 - 1.62B embeddings at 20ms each = `1.62B * 0.02s = 32.4M GPU-seconds ≈ 375 GPU-days`
 - With a 100-GPU batch job: ~4 days for full re-embedding.
 - **Shadow index strategy:** build new index in parallel with old. Run dual-read during migration (query both, merge results). Cut over when new index quality is validated. Zero-downtime migration.
+
+> **Why shadow index instead of in-place update:** Embedding model upgrades change the vector space entirely — an old embedding from CLIP ViT-L and a new one from SigLIP are not comparable, so you cannot mix them in the same HNSW graph. The shadow index approach keeps the old index fully operational during the 4-day re-embedding job, serving 100% of queries from the old index while the new one is built. Dual-read during the final cutover window (24 hours) catches quality regressions by comparing nDCG@10 on both indexes before full promotion. The cost of running two parallel indexes (~2x RAM for 4 days) is far less than the business cost of a retrieval quality outage.
 
 ### 2) Cross-Modal Retrieval Architecture
 
@@ -272,14 +280,16 @@ The core architectural decision: should all modalities share one index, or shoul
 
 Score calibration across indexes: raw cosine similarity from different indexes is not comparable (image embeddings cluster differently than video keyframe embeddings). Normalize scores per-index to zero mean, unit variance on a calibration set of 10K queries, then merge.
 
+> **Why separate indexes rather than unified:** A unified index of 1.62B vectors dominated by 1.2B video keyframes causes systematic modality bias — ANN search returns video keyframes 74% of the time by sheer population proportion, regardless of query intent. Separate indexes let each modality have independent nprobe/ef_search tuning for its own recall-vs-latency tradeoff, and scores can be calibrated using modality-specific statistics collected from click-through logs. Independent scaling is also operationally simpler: the image index can be resized without touching the video or document indexes.
+
 **Fusion strategies for hybrid queries (text + image):**
 
 | Strategy | How It Works | Quality | Latency | Complexity |
 |---|---|---|---|---|
-| Early fusion (vector average) | `q = α * q_text + (1-α) * q_image`, single ANN search | Moderate (loses modality-specific signal) | Lowest (one search) | Low |
-| Late fusion (score merge) | Separate ANN searches for text and image vectors, merge by RRF or weighted score | Higher (preserves both signals) | Higher (two searches) | Medium |
-| Learned fusion | Train a small MLP that takes both query vectors + candidate features → relevance score | Highest (learned weighting) | Highest (requires candidate features) | High |
-| **Hybrid: early fusion for retrieval, late fusion for reranking** | Early fusion for ANN (speed), late fusion features fed to reranker | Best balance | Medium | Medium |
+| Early fusion (vector average) | `q = α * q_text + (1-α) * q_image`, single ANN search | Moderate — the averaged vector loses modality-specific signal; on Flickr30k I→T, early fusion scores ~3–5% lower R@1 than late fusion | Lowest — single ANN search (~10ms); α is a scalar that can be adjusted at query time without retraining | Low — one index, one search call, no per-modality infrastructure |
+| Late fusion (score merge) | Separate ANN searches for text and image vectors, merge by RRF or weighted score | Higher — preserves both signal types independently; each modality can retrieve candidates the other would miss | Higher — two ANN searches (~20ms), plus merge and dedup overhead; fan-out doubles internal ANN QPS | Medium — requires per-modality score normalization and merge logic; easier to debug than learned fusion |
+| Learned fusion | Train a small MLP that takes both query vectors + candidate features → relevance score | Highest — MLP learns optimal weighting per query type (text-dominant vs image-dominant) from click data; +8% nDCG vs fixed-weight late fusion on stock media | Highest — requires fetching candidate features for top-100 results before scoring (~50ms added); non-trivial training infrastructure | High — requires labeled training data (query, positive, negative triplets), model versioning, and A/B test infrastructure |
+| **Hybrid: early fusion for retrieval, late fusion for reranking** | Early fusion for ANN (speed), late fusion features fed to reranker | Best balance — ANN recall is adequate with averaged vector; reranker recovers lost signal using both query vectors as separate features | Medium — single ANN search (~10ms) + reranking with both vectors as features (~40ms); total comparable to simple late fusion | Medium — reranker takes both query vectors as input; one trained model replaces separate fusion and reranking stages |
 
 **Reciprocal Rank Fusion (RRF) for late fusion:**
 
@@ -289,12 +299,16 @@ RRF_score(d) = Σ 1 / (k + rank_i(d))
 
 where `rank_i(d)` is the rank of document d in the i-th result list, and k=60 (standard constant). RRF is parameter-free, robust, and consistently outperforms raw score merging.
 
+> **Why RRF over weighted score averaging:** Raw cosine similarity scores from two separate CLIP searches have incompatible scales — the image index might return scores in [0.25, 0.82] while the video index returns [0.18, 0.71] for the same query, and these ranges shift with corpus composition. Weighted averaging of raw scores then amplifies whichever modality happens to produce higher magnitudes. RRF bypasses this entirely by operating only on ranks, which are always integers in [1, K]. It is robust to outlier scores, requires no calibration data, and in practice matches or exceeds tuned weighted score fusion in offline nDCG experiments (see the original Cormack et al. 2009 paper and TREC evaluations).
+
 **Deduplication:**
 
 Near-duplicate images are common in stock media (same image with different crops, watermarks, or color grades). Dedup strategy:
 - Compute perceptual hash (pHash) at indexing time. Store in a Bloom filter.
 - At query time, after ANN retrieval, compute pairwise pHash distance within top-100. Remove candidates with pHash Hamming distance < 5 (keep the higher-scored one).
 - For video: deduplicate keyframes within the same clip (keep only scene-boundary keyframes).
+
+> **Why pHash rather than cosine similarity for deduplication:** Cosine similarity in CLIP space measures semantic similarity, not pixel-level duplication. Two photos of different mountain lakes can have cosine similarity of 0.92 and are semantically similar but are not duplicates — removing one would hurt result diversity wrongly. pHash measures structural pixel similarity: a 64-bit hash computed from DCT coefficients of the resized image, where Hamming distance < 5 reliably catches crops, watermark additions, minor color grading, and JPEG re-compression artifacts (typically changing < 10% of pixels). This combination — CLIP space for relevance, pHash for dedup — correctly separates semantic similarity from pixel-level near-duplication.
 
 ### 3) Video Search and Temporal Indexing
 
@@ -304,13 +318,15 @@ Video search is the hardest modality. A 30-second clip contains ~900 frames, eac
 
 | Strategy | Frames per 30s Clip | Storage Cost | Retrieval Quality | Best For |
 |---|---|---|---|---|
-| Uniform sampling (1fps) | 30 | High (30 embeddings/clip) | Good coverage but redundant for static scenes | Simple baseline |
-| Scene boundary detection (TransNetV2) | 3-8 | Low | Good for narrative content with distinct scenes | Movies, TV clips |
-| Uniform + scene boundary (hybrid) | 10-15 | Medium | Best coverage vs cost balance | **Production default** |
-| Dense sampling (all frames) | 900 | Prohibitive | Diminishing returns | Not viable at scale |
-| Clustering (embed all, cluster, keep centroids) | 5-10 | Low | Misses brief but important moments | Academic research |
+| Uniform sampling (1fps) | 30 | High — 30 embeddings × 128 bytes = 3.84 KB/clip; 80M clips = 307 GB compressed | Good coverage but produces 3–5 near-identical embeddings per static scene, wasting index space and distorting ANN neighbor graphs | Simple baseline or when scene detection infrastructure is unavailable |
+| Scene boundary detection (TransNetV2) | 3-8 | Low — avg 5 embeddings × 128 bytes = 640 bytes/clip; 80M clips = 51 GB compressed | Good for narrative content with distinct scenes; misses important moments within long, visually static scenes (e.g., talking-head interviews) | Movies, TV clips, news footage with frequent hard cuts |
+| Uniform + scene boundary (hybrid) | 10-15 | Medium — avg 12 × 128 bytes = 1.54 KB/clip; 80M clips = 123 GB compressed | Best coverage-vs-cost balance: scene boundaries catch hard transitions, uniform fill catches content within static scenes; measured +12% recall@5 vs scene-boundary-only on instructional video benchmarks | **Production default** |
+| Dense sampling (all frames) | 900 | Prohibitive — 900 × 128 bytes = 115 KB/clip; 80M clips = 9.2 TB compressed, plus 1000x more ANN search work | Diminishing returns after ~30 frames due to temporal autocorrelation; consecutive frames at 30fps differ by < 1% of pixel content | Not viable at scale; useful only for ground-truth construction in research |
+| Clustering (embed all, cluster, keep centroids) | 5-10 | Low — same footprint as scene-boundary approach | Misses brief but important moments that don't align with cluster centroids; a 0.5-second logo reveal at frame 847 is averaged away | Academic research on efficiency; not recommended when temporal precision matters |
 
 **Recommended:** Hybrid sampling — scene boundaries (TransNetV2, ~50ms inference per clip) + uniform 0.5fps fill. Cap at 15 keyframes per 30s clip.
+
+> **Why TransNetV2 for scene detection rather than simple frame differencing:** Simple frame differencing (comparing consecutive frame pixel differences against a threshold) produces high false-positive rates for camera pans, zooms, and lighting changes — these look like scene changes to a pixel comparator but represent the same continuous scene. TransNetV2 is a lightweight 3D CNN trained on the RAI and ClipShots datasets specifically to distinguish hard cuts and gradual transitions. It achieves ~95% F1 on standard benchmarks vs ~78% F1 for threshold-based differencing, at only ~50ms per 30-second clip on CPU. Fewer false positives mean fewer wasted keyframe embeddings on redundant frames, keeping the per-clip embedding count close to the target of 10–15.
 
 **Temporal indexing architecture:**
 
@@ -347,10 +363,10 @@ Videos have multiple signal channels. Relying on visual keyframes alone misses:
 
 | Signal | Embedding Model | Weight in Fusion | Latency Cost | Value |
 |---|---|---|---|---|
-| Visual keyframes | CLIP/SigLIP | 0.50 | ~20ms/keyframe | Primary signal for visual content |
-| Audio transcript | CLIP text encoder on STT output | 0.20 | ~100ms/clip (STT) | Critical for speech-heavy video |
-| Text overlays (OCR) | CLIP text encoder | 0.10 | ~50ms/clip (OCR) | Important for instructional content |
-| Metadata (title + tags) | CLIP text encoder | 0.20 | ~2ms | High signal-to-noise for curated assets |
+| Visual keyframes | CLIP/SigLIP | 0.50 | ~20ms/keyframe, ~200ms per clip for 10 keyframes on GPU; batch across clips to amortize | Primary signal for visual content — captures scene composition, objects, color palette, spatial relationships that no other signal encodes |
+| Audio transcript | CLIP text encoder on STT output (Whisper-base for speed) | 0.20 | ~100ms/clip for STT (Whisper-base on GPU); embedding is then free via the already-loaded CLIP text encoder | Critical for speech-heavy video: a lecture on "gradient descent" has virtually no visual signal distinguishing it from any other lecture, but the transcript is uniquely specific |
+| Text overlays (OCR) | CLIP text encoder | 0.10 | ~50ms/clip for OCR via PaddleOCR on keyframes; reuse OCR output at indexing time, zero latency at query time | Important for instructional and tutorial content: on-screen code, formulas, product names, and title cards often contain the most query-relevant text in the entire clip |
+| Metadata (title + tags) | CLIP text encoder | 0.20 | ~2ms — title + tags are a single short string processed by the CLIP text encoder in one forward pass at ingestion | High signal-to-noise for professionally curated assets where uploaders provide accurate descriptions; degrades for user-generated content with keyword-stuffed or missing tags |
 
 Fusion: weighted average of per-signal scores during reranking. Weights tuned via grid search on a labeled relevance dataset.
 
@@ -364,6 +380,8 @@ Fusion: weighted average of per-signal scores during reranking. Weights tuned vi
 | Video-level embedding (ViViT/TimeSformer) | 80M vectors (10 GB) | Fast (~5ms) | None | When video has single dominant concept |
 
 **Recommended:** Hierarchical indexing. First stage: search 80M clip-level embeddings (mean of top-3 keyframes). Second stage: for top-50 clips, search 750 keyframes (15 per clip) to identify the best-matching temporal segment. Total latency: 5ms + 10ms = 15ms for the ANN portion.
+
+> **Why hierarchical two-stage rather than flat keyframe index:** A flat index of 1.2B keyframe vectors requires ~507 GB RAM across shards just for video, and every query must search all 1.2B vectors even for a simple "find this concept" text query where any single good keyframe suffices. The hierarchical approach amortizes: the clip-level index (80M vectors, ~10 GB) provides coarse filtering in ~5ms, and the second stage only inspects 750 keyframes (50 clips × 15 frames), a 1600x reduction in the fine-grained search space. This gives keyframe-level temporal precision at 3x lower latency than searching the full flat index, while using 94% less memory for the first-stage index that handles all QPS.
 
 ### Production Bottlenecks and Mitigations
 
@@ -393,9 +411,223 @@ Fusion: weighted average of per-signal scores during reranking. Weights tuned vi
 
 ### Advanced Techniques
 
-- **Matryoshka Representation Learning (MRL):** Train embeddings where the first N dimensions are a valid lower-dimensional embedding. Use 128-dim for ANN search (4x faster, 6x less memory) and full 768-dim only for reranking. No accuracy loss on reranking; ~5% recall loss on ANN search compensated by retrieving 2x candidates.
-- **ColPali / late interaction for documents:** Instead of single-vector document embedding, produce per-token embeddings and use MaxSim late interaction at reranking time. 8-12% nDCG improvement on document retrieval vs single-vector CLIP.
-- **CLIP score distillation for reranking:** Train a lightweight cross-encoder (2-layer transformer) that takes CLIP features from both query and candidate as input and predicts human relevance labels. 5-10% nDCG improvement over raw cosine similarity with < 20ms additional latency.
+- **Matryoshka Representation Learning (MRL):** Train embeddings where the first N dimensions are a valid lower-dimensional embedding — i.e., the first 128 dimensions of a 768-dim vector are themselves a well-trained 128-dim embedding. At query time, use 128-dim for ANN search (4x faster per distance computation, 6x less memory), then rerank only the top-100 using the full 768-dim vectors. This yields ~5% recall loss on ANN retrieval, fully compensated by retrieving 2x candidates before reranking, while the reranking stage operates at full quality. MRL is trained by summing contrastive losses at multiple prefix lengths (128, 256, 512, 768), adding ~15% to training time with no changes to inference infrastructure.
+
+  > **Why MRL instead of just training a smaller model:** A standalone 128-dim model loses the information capacity that 768 dimensions provide — it is fundamentally more constrained. MRL gives you a 128-dim ANN index that is a strict subset of the 768-dim space, so reranking can leverage all information without switching between two separately trained models or maintaining separate embedding stores.
+
+- **ColPali / late interaction for documents:** Instead of producing a single pooled embedding per document page, produce per-patch visual embeddings (one 128-dim vector per 16×16 image patch) and score a query against a document using MaxSim: `score(q, d) = Σ_i max_j(q_i · d_j)` where i ranges over query patches and j over document patches. This late interaction captures fine-grained visual alignment — a query about "the bar chart on slide 3" matches the specific patch containing that chart rather than being diluted into a page-level average. Measured improvement: 8–12% nDCG@10 on document retrieval benchmarks vs single-vector CLIP. Storage cost: ~196 patches per page × 128 bytes = 25 KB/page vs 768 bytes for single-vector, a 33x increase that is acceptable for the document modality (20M documents, ~800 GB total vs 24 MB single-vector).
+
+  > **Why late interaction specifically for documents:** Documents have highly localized relevance — a query about "Q3 revenue" matches one cell in a financial table, not the entire slide. Single-vector embeddings average the visual signal across the entire page, reducing the signal-to-noise ratio for localized queries. ColPali's per-patch representation preserves this locality without requiring OCR or layout analysis, making it robust to non-standard document formats.
+
+- **CLIP score distillation for reranking:** Train a lightweight cross-encoder (2-layer transformer, ~10M parameters) that takes concatenated CLIP features from both the query and the candidate asset as input and predicts a human-annotated relevance label (0–4 scale). Distillation from CLIP's implicit knowledge into explicit relevance scores captures non-linearities that dot-product similarity cannot: two assets equidistant from the query vector in CLIP space can have different human relevance if one matches the query's primary subject and the other only matches a background element. Measured improvement: 5–10% nDCG@10 over raw cosine similarity at < 20ms additional latency on GPU when reranking the top-100 as a batch of 100 pairs. Training data: 500K (query, asset, label) triples from human judgment tasks using a 5-point relevance scale.
+
+---
+
+## Practical Implementation
+
+### Cross-Modal CLIP Embedding and Score Normalization (Python)
+
+```python
+# Encodes text and image queries into a shared CLIP embedding space,
+# then normalizes raw cosine scores across modalities before merging
+import torch
+from transformers import CLIPProcessor, CLIPModel
+import numpy as np
+
+model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+
+def embed_query(text: str) -> np.ndarray:
+    inputs = processor(text=[text], return_tensors="pt", padding=True)
+    with torch.no_grad():
+        emb = model.get_text_features(**inputs)
+    return emb[0].numpy() / np.linalg.norm(emb[0].numpy())
+
+def embed_image(pil_image) -> np.ndarray:
+    inputs = processor(images=pil_image, return_tensors="pt")
+    with torch.no_grad():
+        emb = model.get_image_features(**inputs)
+    return emb[0].numpy() / np.linalg.norm(emb[0].numpy())
+
+def normalize_scores(scores: list[float]) -> list[float]:
+    # Min-max normalize within a modality result set so scores are comparable
+    arr = np.array(scores, dtype=np.float32)
+    lo, hi = arr.min(), arr.max()
+    if hi == lo:
+        return [1.0] * len(scores)
+    return ((arr - lo) / (hi - lo)).tolist()
+
+def fuse_results(text_hits, image_hits, alpha: float = 0.5) -> list[dict]:
+    # text_hits / image_hits: list of {"id": ..., "score": raw_cosine}
+    text_norm  = normalize_scores([h["score"] for h in text_hits])
+    image_norm = normalize_scores([h["score"] for h in image_hits])
+
+    combined: dict[str, float] = {}
+    for hit, norm in zip(text_hits,  text_norm):
+        combined[hit["id"]] = combined.get(hit["id"], 0) + alpha * norm
+    for hit, norm in zip(image_hits, image_norm):
+        combined[hit["id"]] = combined.get(hit["id"], 0) + (1 - alpha) * norm
+
+    return sorted([{"id": k, "score": v} for k, v in combined.items()],
+                  key=lambda x: x["score"], reverse=True)
+```
+
+### Video Keyframe Extraction Pipeline (Pseudocode)
+
+```
+# Selects semantically representative keyframes for indexing — avoids duplicates
+
+function extract_keyframes(video_path, target_fps=1) -> list[frame]:
+    frames = decode_video(video_path, fps=target_fps)   # 1 frame/sec
+
+    keyframes = [frames[0]]
+    prev_embedding = clip_encode_image(frames[0])
+
+    for frame in frames[1:]:
+        embedding = clip_encode_image(frame)
+
+        # Drop near-duplicate frames (scene hasn't changed)
+        if cosine_similarity(embedding, prev_embedding) > 0.97:
+            prev_embedding = embedding
+            continue
+
+        # Scene-change boundary detected — this frame is informative
+        keyframes.append(frame)
+        prev_embedding = embedding
+
+    # Deduplicate across the full set using greedy max-coverage
+    # Keep at most K keyframes per minute of video
+    K = ceil(video_duration_minutes(video_path) * 6)
+    if len(keyframes) > K:
+        keyframes = greedy_max_coverage(keyframes, K, embed_fn=clip_encode_image)
+
+    return keyframes
+
+function index_video(video_path, weaviate_client):
+    keyframes = extract_keyframes(video_path)
+    for i, frame in enumerate(keyframes):
+        embedding = clip_encode_image(frame)
+        weaviate_client.data_object.create(
+            class_name="VideoFrame",
+            data_object={"video_id": video_path, "frame_index": i,
+                         "timestamp_sec": frame.timestamp},
+            vector=embedding
+        )
+```
+
+### Reciprocal Rank Fusion and MMR Reranking (Python)
+
+```python
+# Merges results from separate modality indexes using RRF, then applies
+# Maximal Marginal Relevance to enforce diversity in the final top-K.
+
+from typing import List, Dict
+import numpy as np
+
+
+def reciprocal_rank_fusion(
+    result_lists: List[List[Dict]],  # each list: [{"id": str, "score": float}, ...]
+    k: int = 60,
+) -> List[Dict]:
+    """
+    Merge N ranked lists using RRF. k=60 is the standard constant from
+    Cormack et al. 2009 — it dampens the influence of top-ranked items
+    without completely ignoring lower-ranked ones.
+    """
+    rrf_scores: Dict[str, float] = {}
+    for result_list in result_lists:
+        for rank, item in enumerate(result_list, start=1):
+            doc_id = item["id"]
+            rrf_scores[doc_id] = rrf_scores.get(doc_id, 0.0) + 1.0 / (k + rank)
+
+    merged = [{"id": doc_id, "score": score}
+              for doc_id, score in rrf_scores.items()]
+    return sorted(merged, key=lambda x: x["score"], reverse=True)
+
+
+def maximal_marginal_relevance(
+    candidates: List[Dict],         # each item has "id", "score", "embedding" (np.ndarray)
+    top_k: int = 10,
+    lambda_diversity: float = 0.7,  # 1.0 = pure relevance, 0.0 = pure diversity
+) -> List[Dict]:
+    """
+    MMR greedily selects results that are both relevant to the query
+    and dissimilar to already-selected results.
+    lambda_diversity=0.7 is a reasonable default: penalizes near-duplicates
+    (cosine sim > 0.95) while not sacrificing top-1 relevance.
+    """
+    selected: List[Dict] = []
+    remaining = list(candidates)
+
+    while len(selected) < top_k and remaining:
+        if not selected:
+            # First result: just pick the highest-relevance candidate
+            best = max(remaining, key=lambda x: x["score"])
+        else:
+            selected_embeddings = np.stack([s["embedding"] for s in selected])
+
+            def mmr_score(item: Dict) -> float:
+                rel = item["score"]
+                # Max cosine similarity to any already-selected item
+                sims = selected_embeddings @ item["embedding"]  # assumes unit vectors
+                max_sim = float(sims.max())
+                return lambda_diversity * rel - (1 - lambda_diversity) * max_sim
+
+            best = max(remaining, key=mmr_score)
+
+        selected.append(best)
+        remaining.remove(best)
+
+    return selected
+
+
+# --- Example usage ---
+if __name__ == "__main__":
+    # Simulate two modality result lists (image index + video index)
+    image_results = [{"id": f"img_{i}", "score": 1.0 - i * 0.05} for i in range(20)]
+    video_results = [{"id": f"vid_{i}", "score": 0.95 - i * 0.04} for i in range(20)]
+
+    merged = reciprocal_rank_fusion([image_results, video_results])
+    print("Top-5 after RRF:", [r["id"] for r in merged[:5]])
+
+    # Add random embeddings to simulate the reranking stage
+    for item in merged[:20]:
+        item["embedding"] = np.random.randn(768)
+        item["embedding"] /= np.linalg.norm(item["embedding"])
+
+    diverse = maximal_marginal_relevance(merged[:20], top_k=10, lambda_diversity=0.7)
+    print("Top-10 after MMR:", [r["id"] for r in diverse])
+```
+
+---
+
+## Exercises
+
+### Design
+
+**1. Design a multimodal search system for a fashion e-commerce platform with 50M product images.**
+
+The platform supports "shop the look" queries where a user uploads a photo of an outfit and retrieves similar purchasable items. The catalog is updated with 50K new products daily. Design the end-to-end system covering: (a) the embedding model and fine-tuning strategy using the platform's purchase-signal data, (b) the index architecture (unified vs separate for category sub-types: tops, bottoms, shoes, accessories), (c) attribute-based filtering integration (color, size, price range) without breaking ANN recall, and (d) the cold-start strategy for new products before they accumulate user engagement signals. Discuss how you would ensure that results respect regional availability constraints (a product available in Germany must not appear in US search results).
+
+**2. Design a video highlight extraction system that surfaces the "best moments" within long-form content (30–90 minute videos).**
+
+A media company wants to auto-generate 30-second highlight clips for 2-hour sporting events for social media. Design: (a) the keyframe sampling strategy for long videos where uniform 0.5fps produces 3,600 frames per event, (b) how to identify "highlight-worthy" moments (score peaks, crowd noise, replays) using multimodal signals, (c) the temporal indexing architecture to enable both clip-level search ("find a basketball dunk") and moment-level retrieval ("the exact frame of the dunk"), and (d) the pipeline to generate the highlight clip preview (seek offset, duration, thumbnail) as part of the search result payload.
+
+### Implementation
+
+**3. Implement a hybrid query handler that accepts both a text string and an optional reference image, encodes each with CLIP, and returns a fused query vector with a user-adjustable α parameter.**
+
+The implementation should: (a) handle the text-only, image-only, and hybrid cases in a single code path, (b) normalize both embeddings to unit vectors before combining to prevent one modality from dominating due to magnitude differences, (c) validate that α ∈ [0, 1] and produce a meaningful error if the user sets α=0.5 but provides no reference image, and (d) expose the fused vector as a NumPy array ready for ANN search. Add a test that verifies the fused vector is a unit vector for all three input combinations.
+
+**4. Implement a per-modality score normalization pipeline that takes raw cosine similarity scores from three separate ANN indexes (image, video, document), normalizes each modality's scores independently using z-score normalization, and merges the results using Reciprocal Rank Fusion.**
+
+The implementation should: (a) accept a dictionary mapping modality names to lists of `{"id": str, "score": float}` dicts, (b) compute z-score normalization per modality using numpy (handle the edge case where a modality returns only one result, producing a standard deviation of zero), (c) apply RRF with k=60 across the three normalized lists, and (d) return the merged list sorted by descending RRF score. Write a unit test verifying that the output contains at most one entry per unique asset ID, even when the same asset appears in multiple modality result lists.
+
+### Debug
+
+**5. Your cross-modal search system shows nDCG@10 of 0.71 for text→image queries but only 0.41 for image→image queries, despite both using the same CLIP image encoder for embedding. Diagnose and fix the issue.**
+
+Start by examining the distribution of cosine similarity scores for the two query types — look for evidence that image query embeddings occupy a different region of the CLIP embedding space than text query embeddings (CLIP is trained on (text, image) pairs, so text and image embeddings are aligned differently). Check whether the image→image recall drop is uniform across query image types or concentrated in specific categories (photos vs illustrations vs screenshots). Investigate whether the normalization step after `model.get_image_features()` is being applied consistently to both query images and indexed images — a missing L2 normalization on either side collapses cosine similarity to dot-product with magnitude bias. Finally, consider that CLIP's training objective aligns text and image modalities globally but image→image nearest neighbors may require a different retrieval strategy: DINOv2 or a self-supervised visual model fine-tuned on the platform's image catalog often outperforms CLIP for pure visual similarity tasks where no text query is involved. Propose a remediation that preserves the unified index architecture while improving image→image recall to > 0.65 nDCG@10.
 
 ---
 

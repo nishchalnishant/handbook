@@ -24,6 +24,14 @@ Each term uses this structure:
 
 ## A
 
+### Agentic Loop
+- **Definition:** Repeated cycle where an LLM plans or reasons, takes an action, observes the result, and decides the next step.
+- **Math / Formula:** Cost roughly grows with `steps * (model_cost + tool_cost + verification_cost)`.
+- **How it works:** The system maintains state across iterations and stops when a goal, budget, or failure condition is reached.
+- **Why it matters:** Core control pattern behind autonomous agents and multi-agent workflows.
+- **Pitfalls:** Unbounded loops can create runaway cost, tool spam, and unsafe side effects.
+- **Related:** Tool Use, Multi-Agent Orchestration, Budget Controller, ReAct.
+
 ### Accuracy
 - **Definition:** Fraction of predictions that are correct over all predictions.
 - **Math / Formula:** `(TP + TN) / (TP + TN + FP + FN)`.
@@ -272,6 +280,14 @@ Each term uses this structure:
 - **Pitfalls:** Benchmark overfitting via repeated evaluation on same test sets.
 - **Related:** Cross-Validation, Overfitting, Distribution Shift.
 
+### GraphRAG
+- **Definition:** Retrieval-augmented generation that uses an entity or knowledge graph alongside text/vector retrieval.
+- **Math / Formula:** Often combines graph traversal scores with lexical/vector scores during candidate fusion.
+- **How it works:** Extract entities and relationships from documents, retrieve graph neighborhoods, then pack supporting text evidence for generation.
+- **Why it matters:** Improves multi-hop questions where answers depend on relationships across documents.
+- **Pitfalls:** Poor entity resolution or stale graph edges can produce confident but wrong context.
+- **Related:** RAG, Entity Extraction, Hybrid Retrieval, Multi-Hop Retrieval.
+
 ### Gradient Clipping
 - **Definition:** Restricts gradient magnitude to improve numerical stability.
 - **Math / Formula:** Commonly clip global norm: `g <- g * min(1, c/||g||)`.
@@ -344,6 +360,14 @@ Each term uses this structure:
 - **Pitfalls:** Too much smoothing can hurt separability and confidence where needed.
 - **Related:** Cross-Entropy, Calibration, Overconfidence.
 
+### LLMOps
+- **Definition:** Operational discipline for versioning, evaluating, deploying, monitoring, and rolling back LLM system artifacts.
+- **Math / Formula:** No single formula; key metrics include quality, safety, latency, and cost by artifact version.
+- **How it works:** Treats prompts, models, retrieval indexes, tools, policies, and inference configs as governed production artifacts.
+- **Why it matters:** Prevents silent regressions and makes LLM behavior reproducible under audit.
+- **Pitfalls:** Monitoring only model metrics while ignoring prompt, tool, and retrieval changes.
+- **Related:** MLOps, Prompt Registry, Eval Gates, Trace Replay, Model Registry.
+
 ### Latency (TTFT, TPOT, Tail)
 - **Definition:** Response-time profile for generation systems.
 - **Math / Formula:** `E2E ~= queue_wait + TTFT + output_tokens*TPOT + postproc`.
@@ -372,6 +396,14 @@ Each term uses this structure:
 
 ## M
 
+### Multi-Agent Orchestration
+- **Definition:** Coordination of multiple specialized agents through a shared workflow, state model, and control plane.
+- **Math / Formula:** Workflow cost is approximately the sum of agent step costs, tool costs, verifier costs, and retry costs.
+- **How it works:** A supervisor, DAG scheduler, or workflow engine assigns tasks, manages dependencies, validates outputs, and resolves conflicts.
+- **Why it matters:** Enables complex work while keeping autonomy bounded and auditable.
+- **Pitfalls:** Free-form agent chat without typed state leads to conflicts, loops, and hard-to-debug behavior.
+- **Related:** Agentic Loop, Tool Use, Shared State, Human Approval.
+
 ### Multi-Head Attention
 - **Definition:** Parallel attention heads learn different relational subspaces.
 - **Math / Formula:** Concatenate head outputs then project: `MHA(Q,K,V)=Concat(head_i)W_O`.
@@ -387,6 +419,22 @@ Each term uses this structure:
 - **Why it matters:** Requires monitoring, retraining triggers, and safe rollback workflows.
 - **Pitfalls:** Monitoring only one global metric misses important cohort failures.
 - **Related:** Distribution Shift, Monitoring, Shadow Evaluation.
+
+### Model Context Protocol (MCP)
+- **Definition:** Open protocol for connecting AI applications to external tools, resources, and prompt workflows through a host-client-server architecture.
+- **Math / Formula:** No formula; it is an integration protocol and control-plane concern.
+- **How it works:** An AI host creates MCP clients that connect to MCP servers exposing capabilities such as tools, resources, and prompts.
+- **Why it matters:** Standardizes tool/data integration for agentic systems while allowing centralized governance.
+- **Pitfalls:** MCP does not replace permissioning, approval UX, result sanitization, or audit logging.
+- **Related:** Tool Use, Resources, Prompt Registry, Agentic Loop, MCP Server.
+
+### MCP Server
+- **Definition:** Service that exposes MCP capabilities such as tools, resources, and prompts to an AI host.
+- **Math / Formula:** No formula; capacity planning uses tool-call QPS, timeout, and result-size budgets.
+- **How it works:** The host connects through an MCP client, discovers capabilities, and invokes approved operations.
+- **Why it matters:** Encapsulates integrations in reusable, discoverable components.
+- **Pitfalls:** Unreviewed servers can introduce tool poisoning, data exfiltration, or prompt-injection risks.
+- **Related:** Model Context Protocol, Tool Gateway, Resources, OAuth.
 
 ### Mixture of Experts (MoE)
 - **Definition:** Model architecture where each input token is routed to a sparse subset of "expert" feed-forward networks rather than a single dense FFN.
@@ -439,6 +487,14 @@ Each term uses this structure:
 - **Why it matters:** Useful intrinsic metric for next-token prediction quality.
 - **Pitfalls:** Poor proxy for task-specific usefulness and factual correctness.
 - **Related:** NLL, Cross-Entropy, Task Evaluation.
+
+### Prompt Registry
+- **Definition:** Versioned store for prompt templates, variables, examples, owners, and deployment metadata.
+- **Math / Formula:** No formula; each prompt version should map to quality, cost, latency, and safety metrics.
+- **How it works:** Applications reference immutable prompt versions rather than editing live prompt strings directly.
+- **Why it matters:** Makes prompt changes reviewable, testable, reversible, and auditable.
+- **Pitfalls:** Treating prompts as informal config causes untraceable behavior changes.
+- **Related:** LLMOps, Eval Gates, Trace Replay, Prompt Engineering.
 
 ### Positional Encoding
 - **Definition:** Mechanism that injects token order information into attention-based models.
@@ -495,6 +551,14 @@ Each term uses this structure:
 - **Why it matters:** Improves grounding, freshness, and domain specificity without full model retraining.
 - **Pitfalls:** Low recall retrieval or poor chunking causes confident but unsupported answers.
 - **Related:** Embeddings, Hybrid Search, Cross-Encoder, Groundedness.
+
+### RAG Evaluation
+- **Definition:** Measurement framework for retrieval, context quality, generation faithfulness, and citation correctness.
+- **Math / Formula:** Common metrics include recall@K, MRR, NDCG, unsupported-claim rate, and citation accuracy.
+- **How it works:** Evaluates each stage separately so wrong answers can be traced to ingestion, retrieval, packing, generation, or verification.
+- **Why it matters:** End-to-end answer quality alone does not reveal which subsystem failed.
+- **Pitfalls:** Measuring only final answer preference hides low recall and bad citations.
+- **Related:** RAG, Recall@K, LLM-as-Judge, Groundedness.
 
 ### Recall
 - **Definition:** Fraction of true positives captured among all actual positives.
@@ -600,6 +664,14 @@ Each term uses this structure:
 - **Pitfalls:** Hallucinated tool names or arguments; unbounded tool call loops; sandbox escapes in code execution.
 - **Related:** Agentic Orchestration, RAG, Prompt Injection, Structured Output, Sandboxing.
 
+### Trace Replay
+- **Definition:** Re-running historical requests or workflows using stored inputs, artifact versions, retrieved context, and tool outputs.
+- **Math / Formula:** No formula; compare old vs new outputs with fixed or controlled context.
+- **How it works:** Uses production traces to test prompt/model/index/policy changes before rollout or during incident analysis.
+- **Why it matters:** Makes regressions reproducible and supports audit investigations.
+- **Pitfalls:** Re-executing real side-effecting tools during replay unless tool outputs are mocked or frozen.
+- **Related:** LLMOps, Observability, Eval Gates, Incident Response.
+
 ### TPOT (Time Per Output Token)
 - **Definition:** Average latency to generate each token after first token.
 - **Math / Formula:** `TPOT ~= (generation_time_after_first_token) / output_tokens`.
@@ -691,9 +763,11 @@ Each term uses this structure:
 5. Transformer, Attention, Context Window  
 6. TTFT, TPOT, Throughput, Tail Latency  
 7. Tokenization and Prompt Budgeting  
-8. RAG (retrieval, reranking, grounding)  
-9. Hallucination and Guardrails  
-10. KV Cache, Quantization, Continuous/Server-Side Batching  
+8. RAG (retrieval, reranking, grounding, evaluation)
+9. Hallucination, Guardrails, and Agent/MCP Security
+10. KV Cache, Quantization, Continuous/Server-Side Batching
+11. Agentic Loops and Multi-Agent Orchestration
+12. MCP, Tool Use, Prompt Registry, and Trace Replay
 
 ## Quick Self-Check for Interviews
 

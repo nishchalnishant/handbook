@@ -9939,6 +9939,88 @@ Q: Your system currently uses a 7B model. A new 70B medical model achieves 15% b
 
 ---
 
+# Chapter 21: Design an Advanced RAG Platform
+
+## Context
+
+**Problem statement:** Design a reusable RAG platform that multiple product teams can use to answer questions over large, permissioned, frequently changing enterprise corpora with citations and measurable faithfulness.
+
+### Core Design
+
+- Preserve document structure, metadata, ACLs, freshness timestamps, and source lineage during ingestion.
+- Use query planning to choose exact lookup, semantic, comparison, multi-hop, or freshness-sensitive retrieval paths.
+- Run hybrid retrieval over BM25, dense vectors, metadata filters, and optional graph/entity expansion.
+- Rerank candidates, pack concise evidence into the token budget, and verify generated claims against cited spans.
+- Evaluate each stage separately: parse coverage, recall@K, reranking quality, context precision, unsupported-claim rate, citation accuracy, and freshness lag.
+
+### Key Takeaway
+
+Advanced RAG is a retrieval and verification system, not a prompt-stuffing pattern. The hardest production failures are usually weak recall, stale evidence, bad context packing, ACL leakage, or unverifiable claims.
+
+## End of Chapter
+
+# Chapter 22: Design a Multi-Agent Workflow Orchestrator
+
+## Context
+
+**Problem statement:** Design a platform where multiple specialized agents collaborate on complex enterprise workflows such as incident response, sales research, code migration, or compliance review.
+
+### Core Design
+
+- Use a supervisor agent and deterministic DAG scheduler as the control plane.
+- Store typed artifacts such as findings, plans, code diffs, evidence, and decisions instead of relying on free-form agent chat.
+- Assign agents from a registry with scoped tools, budgets, model tiers, and output schemas.
+- Route every tool call through a gateway that validates arguments, applies policy, executes in a sandbox when needed, and writes audit logs.
+- Require human approval for external writes, customer communication, money movement, and production changes.
+
+### Key Takeaway
+
+Multi-agent systems are distributed workflow systems first and LLM systems second. The scheduler, state model, approval gates, and trace replay determine whether the system is operable.
+
+## End of Chapter
+
+# Chapter 23: Design an MCP-Based Tool Integration Platform
+
+## Context
+
+**Problem statement:** Design an enterprise platform that lets AI applications connect to internal and third-party tools through the Model Context Protocol (MCP) while preserving security, user control, auditability, and reliable developer operations.
+
+### Core Design
+
+- Treat the AI application as the MCP host, with managed MCP clients connecting to approved MCP servers.
+- Maintain a server registry with owners, versions, trust tiers, transports, tool/resource/prompt capabilities, and scopes.
+- Enforce permissions through a policy engine and tool/resource gateways outside the prompt.
+- Keep OAuth credentials and secrets outside model context.
+- Sanitize tool descriptions, resources, and results before exposing them to the model.
+- Store replayable audit logs for server discovery, tool calls, resource reads, approvals, and outputs.
+
+### Key Takeaway
+
+MCP standardizes tool, resource, and prompt integration, but it does not replace enterprise security. Production MCP needs registry governance, least privilege, approval UX, result sanitization, taint tracking, and auditability.
+
+## End of Chapter
+
+# Chapter 24: LLMOps and Production Lifecycle Management
+
+## Context
+
+**Problem statement:** Design the operational platform and lifecycle practices required to ship, monitor, evaluate, and safely evolve LLM-backed systems across an organization.
+
+### Core Design
+
+- Version prompts, models, retrieval indexes, tool schemas, guardrail policies, and inference configs as production artifacts.
+- Run offline eval gates, shadow deployments, canaries, and A/B tests before broad rollout.
+- Attribute latency, quality, safety, and cost metrics to artifact versions.
+- Store traces that include prompt version, model version, index version, retrieved evidence IDs, tool calls, guardrail decisions, inference params, latency, cost, and output hash.
+- Support independent rollback of prompts, models, indexes, and policies.
+- Convert incidents into regression evals and postmortem action items.
+
+### Key Takeaway
+
+LLMOps extends MLOps because prompts, retrieved context, tools, model providers, and policies all change system behavior. Reproducibility requires the full artifact bundle, not just the model name.
+
+## End of Chapter
+
 # ML/DL/LLM Glossary (Detailed Reference)
 
 Comprehensive A-Z glossary for machine learning, deep learning, and LLM systems.  
@@ -10587,9 +10669,11 @@ Each term uses this structure:
 5. Transformer, Attention, Context Window  
 6. TTFT, TPOT, Throughput, Tail Latency  
 7. Tokenization and Prompt Budgeting  
-8. RAG (retrieval, reranking, grounding)  
-9. Hallucination and Guardrails  
-10. KV Cache, Quantization, Continuous/Server-Side Batching  
+8. RAG (retrieval, reranking, grounding, evaluation)
+9. Hallucination, Guardrails, and Agent/MCP Security
+10. KV Cache, Quantization, Continuous/Server-Side Batching
+11. Agentic Loops and Multi-Agent Orchestration
+12. MCP, Tool Use, Prompt Registry, and Trace Replay
 
 ## Quick Self-Check for Interviews
 
