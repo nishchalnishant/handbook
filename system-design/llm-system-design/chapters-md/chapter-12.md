@@ -30,7 +30,7 @@ part: case-studies
 ### Simulated Dialogue
 
 **Interviewer:** Design a personalized shopping assistant for a large e-commerce platform.  
-**Candidate:** This is a retrieval-augmented generation problem layered on top of a recommendation system. I need to understand the catalog scale, user base, personalization signals available, and how success is measured—because the metric is revenue, not BLEU score.
+**Candidate:** This is a [[glossary#RAG (Retrieval-Augmented Generation)|retrieval-augmented generation]] problem layered on top of a recommendation system. I need to understand the catalog scale, user base, personalization signals available, and how success is measured—because the metric is revenue, not BLEU score.
 
 **Candidate:** What's the catalog and user scale?  
 **Interviewer:** 50M products across 5K categories. 10M daily active users. Products have structured attributes (price, brand, specs) plus unstructured descriptions and reviews.
@@ -112,17 +112,17 @@ part: case-studies
 
 ### Core Architecture Components
 
-- **Conversation Manager:** Maintains session state, conversation history, extracted preferences, and cart context across multiple turns. This component is stateful per session and is responsible for compressing older turns into a structured preference summary (budget, must-haves, deal-breakers) once the session exceeds four turns, preventing context-window overflow while preserving actionable user intent.
+- **Conversation Manager:** Maintains session state, conversation history, extracted preferences, and cart context across multiple turns. This component is stateful per session and is responsible for compressing older turns into a structured preference summary (budget, must-haves, deal-breakers) once the session exceeds four turns, preventing [[glossary#Context Window|context-window]] overflow while preserving actionable user intent.
 
 - **Query Understanding Module:** Performs intent classification (discovery/comparison/transactional/post-purchase), entity extraction (brand, category, price range, attributes), and query rewriting for retrieval. It transforms ambiguous conversational queries—such as "something like those shoes I bought last month"—into structured retrieval queries by resolving cross-turn references and filling in implicit constraints from session history.
 
-- **Retrieval Engine:** Executes hybrid search combining semantic (vector/ANN) retrieval, keyword (BM25) retrieval, and structured attribute filtering, then merges results with Reciprocal Rank Fusion (RRF). This multi-signal approach ensures both intent-level recall (semantic) and exact-match precision (keyword) are covered, since a query like "Samsung QN90C" requires keyword match while "best OLED TV for bright rooms" is better served by embedding similarity.
+- **Retrieval Engine:** Executes hybrid search combining semantic ([[glossary#Vector Database / ANN Index|vector/ANN]]) retrieval, keyword (BM25) retrieval, and structured attribute filtering, then merges results with Reciprocal Rank Fusion (RRF). This multi-signal approach ensures both intent-level [[glossary#Recall|recall]] (semantic) and exact-match [[glossary#Precision|precision]] (keyword) are covered, since a query like "Samsung QN90C" requires keyword match while "best OLED TV for bright rooms" is better served by [[glossary#Embedding|embedding]] similarity.
 
 - **Personalization Service:** Scores retrieval candidates using a fused signal of the user's long-term preference embedding, the current session embedding, collaborative filtering scores, and explicit conversation-derived constraints. Running this as a separate microservice allows it to degrade gracefully—if the service is unavailable, the system falls back to unscored retrieval rather than returning an error.
 
 - **Business Rules Engine:** Applies hard and soft constraints post-retrieval and pre-reranking: hard filters remove out-of-stock or ineligible products, while soft boosts adjust ranking scores for margin targets and active promotions. Separating business logic from ML scoring makes rules auditable and enables non-ML engineers to modify promotion configurations without touching model code.
 
-- **LLM Response Generator:** Takes the top-10 ranked product candidates plus conversation context and user preference state, then generates a conversational response that references specific products by name and key differentiator. The LLM is strictly grounded—it receives only verified catalog attributes in its prompt and is instructed to avoid any claim not present in the provided product data, reducing hallucinated spec comparisons.
+- **LLM Response Generator:** Takes the top-10 ranked product candidates plus conversation context and user preference state, then generates a conversational response that references specific products by name and key differentiator. The LLM is strictly grounded—it receives only verified catalog attributes in its prompt and is instructed to avoid any claim not present in the provided product data, reducing [[glossary#Hallucination (LLM)|hallucinated]] spec comparisons.
 
 - **Product Card Renderer:** Enriches LLM output with structured product cards (image, price, rating, availability badge, add-to-cart CTA) by post-processing the generated text to detect product references and inject card components. This keeps the LLM focused on language generation rather than UI formatting, and allows the card design to be updated without model retraining.
 
@@ -201,7 +201,7 @@ Focus areas:
 
 The core challenge: merging a user's implicit preferences (derived from behavioral history) with explicit query intent and a 50M-product catalog in real-time.
 
-> **Why:** Separating long-term preference signals from short-term session signals is critical because they serve different purposes. Long-term embeddings capture stable identity (a user who consistently buys mid-range running shoes should not suddenly see luxury fashion just because they clicked one coat). Short-term session embeddings capture immediate intent (the same user starting a session by viewing backpacks is clearly in a different shopping mode). Fusing both—rather than using one or the other—reduces the recommendation irrelevance rate by ~40% compared to long-term-only approaches in internal benchmarks, while still adapting to session context without erasing persistent preferences.
+> **Why fuse separate long-term and short-term session embeddings:** Separating long-term preference signals from short-term session signals is critical because they serve different purposes. Long-term embeddings capture stable identity (a user who consistently buys mid-range running shoes should not suddenly see luxury fashion just because they clicked one coat). Short-term session embeddings capture immediate intent (the same user starting a session by viewing backpacks is clearly in a different shopping mode). Fusing both—rather than using one or the other—reduces the recommendation irrelevance rate by ~40% compared to long-term-only approaches in internal benchmarks, while still adapting to session context without erasing persistent preferences.
 
 **User representation architecture:**
 
@@ -217,11 +217,11 @@ The user profile is a multi-signal embedding that captures long-term preferences
 - **Structured attributes:** Category, brand, price, rating, review count, seller ID, inventory status. Stored in Elasticsearch for filtered search.
 - **Collaborative signal:** `P(purchase | user_cluster, product)` from matrix factorization on the interaction matrix.
 
-> **Why:** The two-tower model architecture (user encoder + product encoder trained jointly) is preferred over a single cross-encoder for the candidate retrieval stage because it enables pre-computing and caching product embeddings for the entire 50M-product catalog offline. At inference time, only the user query embedding needs to be generated, reducing per-query compute from O(candidates × model_size) to O(1 embedding lookup + ANN search). Cross-encoders, which jointly encode user-product pairs and achieve higher precision, are reserved for the reranking stage where they operate over only the top-50 candidates rather than the full catalog.
+> **Why a two-tower model for retrieval rather than a cross-encoder:** The two-tower model architecture (user encoder + product encoder trained jointly) is preferred over a single cross-encoder for the candidate retrieval stage because it enables pre-computing and caching product embeddings for the entire 50M-product catalog offline. At inference time, only the user query embedding needs to be generated, reducing per-query compute from O(candidates × model_size) to O(1 embedding lookup + ANN search). Cross-encoders, which jointly encode user-product pairs and achieve higher precision, are reserved for the reranking stage where they operate over only the top-50 candidates rather than the full catalog.
 
 **Fusion scoring at retrieval time:**
 
-```
+```text
 score(user, product) = α × cosine(user_longterm, product_embedding)
                      + β × cosine(user_session, product_embedding)
                      + γ × collaborative_score(user_cluster, product)
@@ -250,9 +250,9 @@ Where α, β, γ, δ are learned weights from a click-prediction model trained o
 
 E-commerce search is not pure relevance ranking. Business constraints are hard requirements that override relevance—a perfectly semantically matched product that is out of stock or sold by a suspended seller must be filtered out before it ever reaches the user, regardless of its embedding score.
 
-> **Why:** Mixing business constraint enforcement into the ranking model (as a learned feature) produces unpredictable behavior because ML models can learn to compensate for a strong constraint with other signals. Keeping constraints as a deterministic post-retrieval filter layer ensures that "inventory = 0" always means exclusion, making the system auditable and predictable for operations teams and allowing non-ML engineers to modify business rules without retraining models.
+> **Why business constraints as a deterministic post-retrieval filter rather than a ranking-model feature:** Mixing business constraint enforcement into the ranking model (as a learned feature) produces unpredictable behavior because ML models can learn to compensate for a strong constraint with other signals. Keeping constraints as a deterministic post-retrieval filter layer ensures that "inventory = 0" always means exclusion, making the system auditable and predictable for operations teams and allowing non-ML engineers to modify business rules without retraining models.
 
-> **Why:** Reciprocal Rank Fusion (RRF) is chosen over learned fusion weights for combining BM25 and ANN candidate lists because it is robust to score distribution differences between the two retrieval systems. BM25 scores are unnormalized term-frequency statistics (e.g., 12.4, 8.7, 3.1) while ANN cosine similarity scores are bounded between -1 and 1. Normalizing and weighting these incompatible scales introduces calibration errors that degrade under distribution shift (new product categories, seasonal query patterns). RRF uses only rank positions—not raw scores—making it scale-invariant and requiring no per-deployment tuning. In offline evaluation on e-commerce query logs, RRF outperforms score-weighted fusion by ~4% Recall@100 without any tuning.
+> **Why Reciprocal Rank Fusion over learned weights for combining BM25 and ANN results:** Reciprocal Rank Fusion (RRF) is chosen over learned fusion weights for combining BM25 and ANN candidate lists because it is robust to score distribution differences between the two retrieval systems. BM25 scores are unnormalized term-frequency statistics (e.g., 12.4, 8.7, 3.1) while ANN cosine similarity scores are bounded between -1 and 1. Normalizing and weighting these incompatible scales introduces calibration errors that degrade under distribution shift (new product categories, seasonal query patterns). RRF uses only rank positions—not raw scores—making it scale-invariant and requiring no per-deployment tuning. In offline evaluation on e-commerce query logs, RRF outperforms score-weighted fusion by ~4% Recall@100 without any tuning.
 
 **Hybrid retrieval architecture:**
 
@@ -319,7 +319,7 @@ Measuring whether personalization actually works—in revenue terms, not just ML
 | Session length (turns) | Average conversation turns per session | 4-6 (engagement without frustration) | Daily |
 | Fallback rate | % of queries where personalization service fails and falls back to non-personalized | < 0.5% | Hourly |
 
-> **Why:** User-level randomization—rather than session-level or request-level—is the correct unit for this experiment because returning users within a single experiment period would otherwise be assigned to different variants across sessions, producing noisy measurements that understate true variant effects. If a user experiences both the control and treatment, their behavior in each condition is contaminated by the other (Hawthorne effect, order effects). User-level assignment ensures each user's entire behavioral trajectory is captured in a single arm, producing clean per-user conversion and revenue metrics suitable for causal inference.
+> **Why user-level randomization rather than session-level or request-level for the A/B test:** User-level randomization—rather than session-level or request-level—is the correct unit for this experiment because returning users within a single experiment period would otherwise be assigned to different variants across sessions, producing noisy measurements that understate true variant effects. If a user experiences both the control and treatment, their behavior in each condition is contaminated by the other (Hawthorne effect, order effects). User-level assignment ensures each user's entire behavioral trajectory is captured in a single arm, producing clean per-user conversion and revenue metrics suitable for causal inference.
 
 **A/B testing framework:**
 
@@ -378,130 +378,6 @@ Attributing purchases to assistant recommendations requires careful modeling:
   - Mitigation: Conversation summarizer compresses history to structured preference state (category, budget, brand, must-haves, deal-breakers) after every 4 turns. Raw history truncated; preference state persists.
 
 ---
-
-## Step 4: Wrap Up
-
-### Final Design Summary
-
-The system fuses user behavioral signals (long-term embeddings, session vectors, explicit preferences) with hybrid catalog retrieval (semantic + keyword + structured filters) under hard business constraints (inventory, seller eligibility, promotions). Personalized reranking bridges the gap between what the catalog contains and what this specific user wants. The LLM generates conversational responses grounded in verified product data, and the entire system is evaluated on revenue impact through causal A/B testing.
-
-### Wrap-Around Concerns
-
-- **Risk:** Personalization creates filter bubbles—users never discover new categories or brands. Mitigation: Exploration budget (10% of recommendation slots are serendipity picks from adjacent categories). Monitor category diversity per session.
-- **Risk:** LLM generates persuasive but misleading product comparisons (hallucinated spec advantages). Mitigation: All product claims must trace to catalog attributes. Comparison responses use only verified specs from both products.
-- **Risk:** Revenue optimization pressures high-margin products over best-fit products, degrading user trust. Mitigation: Margin boost is soft (1.1x), never overrides a >2-position relevance gap. Track return rates per recommendation source.
-- **Risk:** Session state loss on app restart or browser refresh kills multi-turn context. Mitigation: Server-side session persistence with 24h TTL. Resume conversation from last state.
-- **Risk:** Adversarial queries ("find me the cheapest product and apply every coupon") exploit the assistant. Mitigation: Intent classifier detects coupon stacking and policy-violating requests; assistant responds with promotion policy, not exploits.
-
----
-
-## Step 5: Interviewer Curveballs
-
-### Interviewer Follow-ups & Frequently Asked Questions (FAQ)
-
-Q: A user says "I want something like the jacket I bought last winter but in blue." How does your system handle this?
-
-**The Ideal Answer:** Three-step resolution. Step 1: Query understanding resolves "the jacket I bought last winter" by querying the user's purchase history for jacket purchases in Q4/Q1. Step 2: Retrieve the product embedding for the identified jacket (e.g., North Face Thermoball, black, size M). Step 3: Search for products with high embedding similarity to the original jacket AND filter on color=blue AND same size. The LLM response references the original purchase: "Based on your North Face Thermoball from December, here are similar jackets in blue..."
-
-**Deep Dive & Trade-offs:**
-- Ambiguity: "last winter" could be last calendar winter or ~12 months ago. Use recency-weighted purchase lookup.
-- Multiple matches: if user bought 3 jackets, either ask for clarification or show options similar to all three.
-- Attribute transfer: "like X but in blue" means preserve all attributes except color. This requires structured attribute-level similarity, not just embedding proximity.
-
-**The Interviewer's Rubric:** The interviewer is checking whether the candidate can decompose a deceptively simple natural-language query into a three-step pipeline: coreference resolution against user history, structured attribute retrieval from the resolved product record, and attribute-level constraint transfer ("like X but in blue" means copy all attributes except color). Candidates who jump straight to "run a search for blue jackets" miss the reference resolution step entirely. Candidates who resolve the reference but use only embedding similarity may miss the attribute transfer—the returned results should be blue jackets of the same insulation type and fit category, not just any blue jacket with a similar embedding. Bonus points for identifying the ambiguity handling: multiple jacket purchases, unclear time reference ("last winter"), and handling the case where no matching blue variant of the same product exists.
-
----
-
-Q: How do you prevent the assistant from recommending a product that will go out of stock by the time the user clicks "add to cart"?
-
-**The Ideal Answer:** You can't guarantee it, but you can minimize it. Inventory cache refreshes every 30 seconds from the warehouse system. At recommendation time, filter candidates with `inventory > 0`. At product card render time (200ms later), re-check inventory for the top-10 displayed products. If an item went OOS between recommendation and card render, swap in the next-ranked candidate. For the cart click itself, the cart service does a real-time inventory hold—if the hold fails, show "This item just sold out. Here are similar options:" with pre-computed alternatives.
-
-**Deep Dive & Trade-offs:**
-- 30s cache refresh means a product that sold out 29s ago still appears available. For high-velocity items (flash sales), reduce cache TTL to 5s at the cost of higher Redis load.
-- Inventory "holds" at recommendation time (not cart time) are wasteful—most recommendations are never clicked.
-- Showing "Only 2 left" creates urgency and sets expectations for potential unavailability.
-
-**The Interviewer's Rubric:** The interviewer is checking whether the candidate understands that inventory consistency in a distributed system is a probabilistic guarantee, not an absolute one, and that the correct response is layered mitigation rather than a false promise of zero OOS recommendations. Strong candidates recognize there are at least three distinct check points—retrieval-time filter, card-render-time re-check, and cart-time hold—each catching a different failure mode. The candidate should also reason about the cost asymmetry: checking inventory too aggressively (e.g., per-item holds at recommendation time) wastes resources because most recommendations are never clicked, while checking too lazily (only at cart time) creates frustrating OOS errors after the user has already engaged. Flash sale handling (5s TTL vs standard 30s TTL) demonstrates awareness of high-velocity inventory dynamics that standard cache designs cannot handle.
-
----
-
-Q: Your A/B test shows the personalized assistant lifts revenue per session by 8%, but the return rate also increased by 3%. Is this a win?
-
-**The Ideal Answer:** Calculate net revenue impact: `net_lift = revenue_lift - (return_rate_increase × average_return_cost)`. If average order value is $80, 8% revenue lift = $6.40/session. If return rate goes from 10% to 13%, and average return processing cost is $15, the return cost increase = 3% × $15 = $0.45/session. Net: +$5.95/session—still a clear win. BUT: investigate why returns increased. If the assistant is making inaccurate claims about products (sizing, specs), fix the grounding. If returns are from impulse purchases driven by persuasive language, consider whether this is sustainable long-term.
-
-**Deep Dive & Trade-offs:**
-- Short-term revenue lift from persuasive recommendations can mask long-term trust erosion.
-- Track 30-day retention of users in treatment vs control. If returning user rate drops, the "win" is borrowing from future revenue.
-- Decompose return reasons: "didn't match description" = system problem; "changed my mind" = normal.
-
-**The Interviewer's Rubric:** The interviewer is checking whether the candidate can translate a mixed-signal A/B result into a net business decision rather than declaring a win or loss based on a single metric. Strong candidates perform the arithmetic (revenue lift × AOV minus return cost increase × return processing cost) and demonstrate that the answer depends on quantities that must be measured, not assumed. Excellent candidates also flag the temporal dimension: a 3% return rate increase may erode user trust and reduce 30-day retention, meaning the 8% revenue lift may be partially borrowed from future sessions. The strongest answers decompose the return rate increase by return reason code—"didn't match description" implicates the LLM's factual accuracy and must be fixed, while "changed my mind" is normal e-commerce behavior and does not require product changes.
-
----
-
-Q: How do you handle "Compare X vs Y" queries where the user names two specific products?
-
-**The Ideal Answer:** Bypass the retrieval pipeline entirely—directly fetch both products from the catalog service by name/ID matching. Assemble a structured comparison: extract shared attribute dimensions (price, specs, rating, reviews), identify key differentiators, and generate a side-by-side comparison. The LLM response uses ONLY verified catalog attributes—no hallucinated comparisons. Add personalization: "Based on your preference for long battery life, the Y is a better fit because..."
-
-**Deep Dive & Trade-offs:**
-- Entity linking: "AirPods Pro" could match AirPods Pro 1st gen or 2nd gen. Disambiguate with recency bias + clarifying question if ambiguous.
-- Attribute alignment: products in different categories may have incomparable specs. The LLM should note "these products serve different use cases" rather than force a comparison.
-- Bias risk: the system should not always favor the higher-margin product. Comparison must be factually neutral; personalization layer adds user-relevant weighting.
-
-**The Interviewer's Rubric:** The interviewer is checking two things simultaneously: the candidate's awareness that direct catalog lookup is more accurate and faster than embedding-based retrieval for known-entity queries, and the candidate's commitment to factual grounding when generating comparison responses. Candidates who run a vector search for "AirPods Pro vs Sony WF-1000XM5" miss the point—both product IDs can be resolved directly. The subtler skill tested is disambiguation: "AirPods Pro" is ambiguous across generations (1st gen vs 2nd gen vs Pro 2), and a production system must resolve this rather than silently returning the wrong product. Bonus points for identifying that personalized comparison ("based on your preference for long battery life") is only valid if the personalization signal matches a dimension that actually differs between the two products—adding spurious personalization where the products are identical on the relevant dimension is misleading.
-
----
-
-Q: A product has 4.2 stars but mostly from paid reviews. How does your system handle review quality?
-
-**The Ideal Answer:** Review signals feed into the reranking model, not the LLM directly. Integrate a review quality score that downweights suspicious review patterns: sudden rating spikes, generic language (NLP-based), verified vs unverified purchase ratio, reviewer account age. The reranking model uses `adjusted_rating = raw_rating × review_quality_multiplier`. The LLM never cites specific review text unless from verified purchases. Disclose: "4.2 stars from 230 ratings (85% verified purchases)" rather than just "4.2 stars."
-
-**Deep Dive & Trade-offs:**
-- Review fraud detection is an entire system. The shopping assistant consumes its signals, doesn't build it.
-- Suppressing low-quality-review products too aggressively hurts new products with few reviews. Use a Bayesian prior (global average rating as prior, weighted by review count).
-- Legal/ethical: the assistant should not call out "fake reviews"—just quietly downweight in ranking.
-
-**The Interviewer's Rubric:** The interviewer is checking whether the candidate treats star ratings as a raw signal to be passed directly to the LLM or as a noisy, manipulable metric that requires quality adjustment before influencing recommendations. Strong candidates recognize that the shopping assistant is a downstream consumer of the review fraud detection system—it should not rebuild fraud detection from scratch, but it must integrate adjusted rating signals and communicate uncertainty to the user (verified purchase ratio, review count, rating trajectory). The Bayesian prior approach (shrinking ratings toward the global mean for low-review-count products) is the key insight that distinguishes candidates who understand statistical estimation from those who treat a 4.8-star product with 3 reviews as genuinely better than a 4.2-star product with 5,000 reviews. The ethical constraint—never explicitly accusing a seller of fake reviews in the LLM response—is a practical guardrail that strong candidates raise unprompted.
-
----
-
-Q: The user asks "What's trending right now?" How does the personalization system handle a query with no specific product intent?
-
-**The Ideal Answer:** This is a discovery query. Dual-signal response: (1) Global trending: products with highest velocity (purchases/hour) in the last 24h, filtered by the user's historical category preferences. (2) Personalized trending: products popular among users in the same collaborative filtering cluster. Response: "Here's what's trending in categories you shop: [3 products from user's top categories] and trending overall: [2 products from global trending]." This blends personal relevance with social proof.
-
-**Deep Dive & Trade-offs:**
-- Pure global trending ignores user preferences (showing trending kids' toys to a single adult).
-- Pure personalized trending may show items the user already owns or has seen.
-- Time decay: trending signal uses exponential decay (half-life 6h) to capture recency.
-- Seasonality: "trending" in December is gift-oriented; adjust category weights by season.
-
-**The Interviewer's Rubric:** The interviewer is checking whether the candidate can design a retrieval strategy for queries that have no product-level intent signal—no category, no brand, no price range, no attributes. Strong candidates recognize this as a signal-switching problem: when query-level retrieval signals are absent, shift to session-level and user-level signals (category preferences from history, collaborative cluster trends). The dual-signal response design (global trending + personalized trending) is the key insight—pure global trending is impersonal and surface-level; pure personalized trending may surface items already owned or seen. Candidates who mention time decay and seasonality (trending in December is gifting-oriented) demonstrate production-level thinking about temporal dynamics that affect trending signal quality.
-
----
-
-Q: How do you handle a query in the middle of a session where the user completely switches topics—from "laptop for video editing" to "birthday gift for my mom"?
-
-**The Ideal Answer:** The query understanding module detects a topic shift (intent + entity extraction shows zero overlap with session context). Two options: (1) start a new implicit sub-session—reset the session embedding and product context, but preserve explicit user preferences (budget, brand). (2) Maintain a session tree rather than a linear history—branch from the current point, allowing the user to return to "laptop" later. The LLM should acknowledge the shift naturally: "Let's look at birthday gifts! What does your mom enjoy?" rather than awkwardly connecting it to the laptop discussion.
-
-**Deep Dive & Trade-offs:**
-- Linear session history confuses the retrieval engine (laptop context pollutes gift search).
-- Conversation summarizer should mark the topic boundary and segment the preference state.
-- UX decision: some platforms offer explicit "new topic" buttons; others rely on detection.
-
-**The Interviewer's Rubric:** The interviewer is checking whether the candidate treats conversation state as a linear log (the naive implementation) or as a structured preference model that can be segmented and branched. Strong candidates identify that the root problem is retrieval contamination—if laptop embeddings from the first half of the session pollute the session vector, gift-related queries will retrieve irrelevant results. The session-tree approach (branching rather than linear replacement) is the sophisticated answer because it allows users to return to earlier topics without losing context, which is a common real shopping behavior ("actually, let's go back to the laptop"). Candidates who note the UX dimension—the assistant should acknowledge the topic switch explicitly rather than silently pivoting—demonstrate end-to-end thinking that goes beyond the retrieval mechanics.
-
----
-
-Q: Your recommendation engine works great for English queries, but 30% of your users speak Spanish, Hindi, and Mandarin. How do you extend?
-
-**The Ideal Answer:** Three layers. (1) Query understanding: multilingual intent classifier and entity extractor (trained on translated query logs or using a multilingual LLM). (2) Retrieval: product embeddings generated from a multilingual encoder (e5-multilingual) so that a Spanish query retrieves English-cataloged products. Product titles/descriptions machine-translated and indexed alongside originals for BM25. (3) Response generation: multilingual LLM (or language-specific LoRA adapters) generates responses in the user's language. Product names kept in original language with translated descriptions.
-
-**Deep Dive & Trade-offs:**
-- Multilingual embedding models have ~5-10% lower retrieval accuracy than language-specific models.
-- Machine-translated product descriptions may contain errors. Surface original language for critical specs.
-- Regional catalog differences: products available in India may differ from US. Filter by region before retrieval.
-- Cost: multilingual models are typically same-size but require broader training data. LoRA per-language adds 3-5% overhead.
-
-**The Interviewer's Rubric:** The interviewer is checking whether the candidate can decompose a multilingual requirement into its three distinct layers—query understanding, retrieval, and response generation—and recognize that each layer has different accuracy/cost trade-offs for multilingual support. Candidates who answer "use a multilingual LLM" pass the surface check but miss the retrieval layer: a Spanish query embedding must be compatible with English product embeddings in the same vector space, which requires either a cross-lingual encoder trained on parallel corpora or a translation step before embedding. Strong candidates also raise the regional catalog dimension—the same assistant serving India and the US must not only respond in the right language but also retrieve from the right regional catalog, which may have entirely different product availability, pricing, and regulatory constraints. The LoRA adapter approach (language-specific fine-tuning layers on a shared base LLM) is the production-realistic answer for balancing multilingual quality against serving cost.
 
 ## Practical Implementation
 
@@ -876,6 +752,133 @@ class ConversationStateManager:
 
 ---
 
+
+---
+
+## Step 4: Wrap Up
+
+### Final Design Summary
+
+The system fuses user behavioral signals (long-term embeddings, session vectors, explicit preferences) with hybrid catalog retrieval (semantic + keyword + structured filters) under hard business constraints (inventory, seller eligibility, promotions). Personalized reranking bridges the gap between what the catalog contains and what this specific user wants. The LLM generates conversational responses grounded in verified product data, and the entire system is evaluated on revenue impact through causal A/B testing.
+
+### Wrap-Around Concerns
+
+- **Risk:** Personalization creates filter bubbles—users never discover new categories or brands. Mitigation: Exploration budget (10% of recommendation slots are serendipity picks from adjacent categories). Monitor category diversity per session.
+- **Risk:** LLM generates persuasive but misleading product comparisons (hallucinated spec advantages). Mitigation: All product claims must trace to catalog attributes. Comparison responses use only verified specs from both products.
+- **Risk:** Revenue optimization pressures high-margin products over best-fit products, degrading user trust. Mitigation: Margin boost is soft (1.1x), never overrides a >2-position relevance gap. Track return rates per recommendation source.
+- **Risk:** Session state loss on app restart or browser refresh kills multi-turn context. Mitigation: Server-side session persistence with 24h TTL. Resume conversation from last state.
+- **Risk:** Adversarial queries ("find me the cheapest product and apply every coupon") exploit the assistant. Mitigation: Intent classifier detects coupon stacking and policy-violating requests; assistant responds with promotion policy, not exploits.
+
+---
+
+## Step 5: Interviewer Curveballs
+
+### Interviewer Follow-ups & Frequently Asked Questions (FAQ)
+
+Q: A user says "I want something like the jacket I bought last winter but in blue." How does your system handle this?
+
+**The Ideal Answer:** Three-step resolution. Step 1: Query understanding resolves "the jacket I bought last winter" by querying the user's purchase history for jacket purchases in Q4/Q1. Step 2: Retrieve the product embedding for the identified jacket (e.g., North Face Thermoball, black, size M). Step 3: Search for products with high embedding similarity to the original jacket AND filter on color=blue AND same size. The LLM response references the original purchase: "Based on your North Face Thermoball from December, here are similar jackets in blue..."
+
+**Deep Dive & Trade-offs:**
+- Ambiguity: "last winter" could be last calendar winter or ~12 months ago. Use recency-weighted purchase lookup.
+- Multiple matches: if user bought 3 jackets, either ask for clarification or show options similar to all three.
+- Attribute transfer: "like X but in blue" means preserve all attributes except color. This requires structured attribute-level similarity, not just embedding proximity.
+
+**The Interviewer's Rubric:** The interviewer is checking whether the candidate can decompose a deceptively simple natural-language query into a three-step pipeline: coreference resolution against user history, structured attribute retrieval from the resolved product record, and attribute-level constraint transfer ("like X but in blue" means copy all attributes except color). Candidates who jump straight to "run a search for blue jackets" miss the reference resolution step entirely. Candidates who resolve the reference but use only embedding similarity may miss the attribute transfer—the returned results should be blue jackets of the same insulation type and fit category, not just any blue jacket with a similar embedding. Bonus points for identifying the ambiguity handling: multiple jacket purchases, unclear time reference ("last winter"), and handling the case where no matching blue variant of the same product exists.
+
+---
+
+Q: How do you prevent the assistant from recommending a product that will go out of stock by the time the user clicks "add to cart"?
+
+**The Ideal Answer:** You can't guarantee it, but you can minimize it. Inventory cache refreshes every 30 seconds from the warehouse system. At recommendation time, filter candidates with `inventory > 0`. At product card render time (200ms later), re-check inventory for the top-10 displayed products. If an item went OOS between recommendation and card render, swap in the next-ranked candidate. For the cart click itself, the cart service does a real-time inventory hold—if the hold fails, show "This item just sold out. Here are similar options:" with pre-computed alternatives.
+
+**Deep Dive & Trade-offs:**
+- 30s cache refresh means a product that sold out 29s ago still appears available. For high-velocity items (flash sales), reduce cache TTL to 5s at the cost of higher Redis load.
+- Inventory "holds" at recommendation time (not cart time) are wasteful—most recommendations are never clicked.
+- Showing "Only 2 left" creates urgency and sets expectations for potential unavailability.
+
+**The Interviewer's Rubric:** The interviewer is checking whether the candidate understands that inventory consistency in a distributed system is a probabilistic guarantee, not an absolute one, and that the correct response is layered mitigation rather than a false promise of zero OOS recommendations. Strong candidates recognize there are at least three distinct check points—retrieval-time filter, card-render-time re-check, and cart-time hold—each catching a different failure mode. The candidate should also reason about the cost asymmetry: checking inventory too aggressively (e.g., per-item holds at recommendation time) wastes resources because most recommendations are never clicked, while checking too lazily (only at cart time) creates frustrating OOS errors after the user has already engaged. Flash sale handling (5s TTL vs standard 30s TTL) demonstrates awareness of high-velocity inventory dynamics that standard cache designs cannot handle.
+
+---
+
+Q: Your A/B test shows the personalized assistant lifts revenue per session by 8%, but the return rate also increased by 3%. Is this a win?
+
+**The Ideal Answer:** Calculate net revenue impact: `net_lift = revenue_lift - (return_rate_increase × average_return_cost)`. If average order value is $80, 8% revenue lift = $6.40/session. If return rate goes from 10% to 13%, and average return processing cost is $15, the return cost increase = 3% × $15 = $0.45/session. Net: +$5.95/session—still a clear win. BUT: investigate why returns increased. If the assistant is making inaccurate claims about products (sizing, specs), fix the grounding. If returns are from impulse purchases driven by persuasive language, consider whether this is sustainable long-term.
+
+**Deep Dive & Trade-offs:**
+- Short-term revenue lift from persuasive recommendations can mask long-term trust erosion.
+- Track 30-day retention of users in treatment vs control. If returning user rate drops, the "win" is borrowing from future revenue.
+- Decompose return reasons: "didn't match description" = system problem; "changed my mind" = normal.
+
+**The Interviewer's Rubric:** The interviewer is checking whether the candidate can translate a mixed-signal A/B result into a net business decision rather than declaring a win or loss based on a single metric. Strong candidates perform the arithmetic (revenue lift × AOV minus return cost increase × return processing cost) and demonstrate that the answer depends on quantities that must be measured, not assumed. Excellent candidates also flag the temporal dimension: a 3% return rate increase may erode user trust and reduce 30-day retention, meaning the 8% revenue lift may be partially borrowed from future sessions. The strongest answers decompose the return rate increase by return reason code—"didn't match description" implicates the LLM's factual accuracy and must be fixed, while "changed my mind" is normal e-commerce behavior and does not require product changes.
+
+---
+
+Q: How do you handle "Compare X vs Y" queries where the user names two specific products?
+
+**The Ideal Answer:** Bypass the retrieval pipeline entirely—directly fetch both products from the catalog service by name/ID matching. Assemble a structured comparison: extract shared attribute dimensions (price, specs, rating, reviews), identify key differentiators, and generate a side-by-side comparison. The LLM response uses ONLY verified catalog attributes—no hallucinated comparisons. Add personalization: "Based on your preference for long battery life, the Y is a better fit because..."
+
+**Deep Dive & Trade-offs:**
+- Entity linking: "AirPods Pro" could match AirPods Pro 1st gen or 2nd gen. Disambiguate with recency bias + clarifying question if ambiguous.
+- Attribute alignment: products in different categories may have incomparable specs. The LLM should note "these products serve different use cases" rather than force a comparison.
+- Bias risk: the system should not always favor the higher-margin product. Comparison must be factually neutral; personalization layer adds user-relevant weighting.
+
+**The Interviewer's Rubric:** The interviewer is checking two things simultaneously: the candidate's awareness that direct catalog lookup is more accurate and faster than embedding-based retrieval for known-entity queries, and the candidate's commitment to factual grounding when generating comparison responses. Candidates who run a vector search for "AirPods Pro vs Sony WF-1000XM5" miss the point—both product IDs can be resolved directly. The subtler skill tested is disambiguation: "AirPods Pro" is ambiguous across generations (1st gen vs 2nd gen vs Pro 2), and a production system must resolve this rather than silently returning the wrong product. Bonus points for identifying that personalized comparison ("based on your preference for long battery life") is only valid if the personalization signal matches a dimension that actually differs between the two products—adding spurious personalization where the products are identical on the relevant dimension is misleading.
+
+---
+
+Q: A product has 4.2 stars but mostly from paid reviews. How does your system handle review quality?
+
+**The Ideal Answer:** Review signals feed into the reranking model, not the LLM directly. Integrate a review quality score that downweights suspicious review patterns: sudden rating spikes, generic language (NLP-based), verified vs unverified purchase ratio, reviewer account age. The reranking model uses `adjusted_rating = raw_rating × review_quality_multiplier`. The LLM never cites specific review text unless from verified purchases. Disclose: "4.2 stars from 230 ratings (85% verified purchases)" rather than just "4.2 stars."
+
+**Deep Dive & Trade-offs:**
+- Review fraud detection is an entire system. The shopping assistant consumes its signals, doesn't build it.
+- Suppressing low-quality-review products too aggressively hurts new products with few reviews. Use a Bayesian prior (global average rating as prior, weighted by review count).
+- Legal/ethical: the assistant should not call out "fake reviews"—just quietly downweight in ranking.
+
+**The Interviewer's Rubric:** The interviewer is checking whether the candidate treats star ratings as a raw signal to be passed directly to the LLM or as a noisy, manipulable metric that requires quality adjustment before influencing recommendations. Strong candidates recognize that the shopping assistant is a downstream consumer of the review fraud detection system—it should not rebuild fraud detection from scratch, but it must integrate adjusted rating signals and communicate uncertainty to the user (verified purchase ratio, review count, rating trajectory). The Bayesian prior approach (shrinking ratings toward the global mean for low-review-count products) is the key insight that distinguishes candidates who understand statistical estimation from those who treat a 4.8-star product with 3 reviews as genuinely better than a 4.2-star product with 5,000 reviews. The ethical constraint—never explicitly accusing a seller of fake reviews in the LLM response—is a practical guardrail that strong candidates raise unprompted.
+
+---
+
+Q: The user asks "What's trending right now?" How does the personalization system handle a query with no specific product intent?
+
+**The Ideal Answer:** This is a discovery query. Dual-signal response: (1) Global trending: products with highest velocity (purchases/hour) in the last 24h, filtered by the user's historical category preferences. (2) Personalized trending: products popular among users in the same collaborative filtering cluster. Response: "Here's what's trending in categories you shop: [3 products from user's top categories] and trending overall: [2 products from global trending]." This blends personal relevance with social proof.
+
+**Deep Dive & Trade-offs:**
+- Pure global trending ignores user preferences (showing trending kids' toys to a single adult).
+- Pure personalized trending may show items the user already owns or has seen.
+- Time decay: trending signal uses exponential decay (half-life 6h) to capture recency.
+- Seasonality: "trending" in December is gift-oriented; adjust category weights by season.
+
+**The Interviewer's Rubric:** The interviewer is checking whether the candidate can design a retrieval strategy for queries that have no product-level intent signal—no category, no brand, no price range, no attributes. Strong candidates recognize this as a signal-switching problem: when query-level retrieval signals are absent, shift to session-level and user-level signals (category preferences from history, collaborative cluster trends). The dual-signal response design (global trending + personalized trending) is the key insight—pure global trending is impersonal and surface-level; pure personalized trending may surface items already owned or seen. Candidates who mention time decay and seasonality (trending in December is gifting-oriented) demonstrate production-level thinking about temporal dynamics that affect trending signal quality.
+
+---
+
+Q: How do you handle a query in the middle of a session where the user completely switches topics—from "laptop for video editing" to "birthday gift for my mom"?
+
+**The Ideal Answer:** The query understanding module detects a topic shift (intent + entity extraction shows zero overlap with session context). Two options: (1) start a new implicit sub-session—reset the session embedding and product context, but preserve explicit user preferences (budget, brand). (2) Maintain a session tree rather than a linear history—branch from the current point, allowing the user to return to "laptop" later. The LLM should acknowledge the shift naturally: "Let's look at birthday gifts! What does your mom enjoy?" rather than awkwardly connecting it to the laptop discussion.
+
+**Deep Dive & Trade-offs:**
+- Linear session history confuses the retrieval engine (laptop context pollutes gift search).
+- Conversation summarizer should mark the topic boundary and segment the preference state.
+- UX decision: some platforms offer explicit "new topic" buttons; others rely on detection.
+
+**The Interviewer's Rubric:** The interviewer is checking whether the candidate treats conversation state as a linear log (the naive implementation) or as a structured preference model that can be segmented and branched. Strong candidates identify that the root problem is retrieval contamination—if laptop embeddings from the first half of the session pollute the session vector, gift-related queries will retrieve irrelevant results. The session-tree approach (branching rather than linear replacement) is the sophisticated answer because it allows users to return to earlier topics without losing context, which is a common real shopping behavior ("actually, let's go back to the laptop"). Candidates who note the UX dimension—the assistant should acknowledge the topic switch explicitly rather than silently pivoting—demonstrate end-to-end thinking that goes beyond the retrieval mechanics.
+
+---
+
+Q: Your recommendation engine works great for English queries, but 30% of your users speak Spanish, Hindi, and Mandarin. How do you extend?
+
+**The Ideal Answer:** Three layers. (1) Query understanding: multilingual intent classifier and entity extractor (trained on translated query logs or using a multilingual LLM). (2) Retrieval: product embeddings generated from a multilingual encoder (e5-multilingual) so that a Spanish query retrieves English-cataloged products. Product titles/descriptions machine-translated and indexed alongside originals for BM25. (3) Response generation: multilingual LLM (or language-specific LoRA adapters) generates responses in the user's language. Product names kept in original language with translated descriptions.
+
+**Deep Dive & Trade-offs:**
+- Multilingual embedding models have ~5-10% lower retrieval accuracy than language-specific models.
+- Machine-translated product descriptions may contain errors. Surface original language for critical specs.
+- Regional catalog differences: products available in India may differ from US. Filter by region before retrieval.
+- Cost: multilingual models are typically same-size but require broader training data. LoRA per-language adds 3-5% overhead.
+
+**The Interviewer's Rubric:** The interviewer is checking whether the candidate can decompose a multilingual requirement into its three distinct layers—query understanding, retrieval, and response generation—and recognize that each layer has different accuracy/cost trade-offs for multilingual support. Candidates who answer "use a multilingual LLM" pass the surface check but miss the retrieval layer: a Spanish query embedding must be compatible with English product embeddings in the same vector space, which requires either a cross-lingual encoder trained on parallel corpora or a translation step before embedding. Strong candidates also raise the regional catalog dimension—the same assistant serving India and the US must not only respond in the right language but also retrieve from the right regional catalog, which may have entirely different product availability, pricing, and regulatory constraints. The LoRA adapter approach (language-specific fine-tuning layers on a shared base LLM) is the production-realistic answer for balancing multilingual quality against serving cost.
+
 ## Exercises
 
 ### Design Exercise 1: Flash Sale Inventory Architecture
@@ -953,3 +956,8 @@ After deploying a new personalization reranking model (cross-encoder trained on 
 - **Key takeaway:** A shopping assistant is a recommendation system that speaks. The hard problems are not in the LLM—they're in real-time profile-catalog fusion, business constraint enforcement, and measuring whether personalization actually drives revenue, not just engagement.
 - **What to practice:** Design the retrieval-to-reranking pipeline for a query like "wireless headphones under $100 with good bass" for a user who previously bought audiophile equipment. Trace every signal through the ranking function.
 - **Interview drill:** Given a 5% drop in click-through rate after deploying a new personalization model, decompose into retrieval quality, ranking quality, LLM response quality, and inventory freshness.
+
+---
+
+<!-- nav-footer -->
+[[chapter-11|← Chapter 11]] | [[README|Contents]] | [[chapter-13|Chapter 13 →]]

@@ -32,7 +32,15 @@ Each chapter applies the Part I foundations to a specific production use case. C
 
 ### Part III: Production Operations (Chapter 24)
 
-The final chapter consolidates lifecycle management across prompts, models, retrieval indexes, tools, evals, deployments, observability, and incident response.
+This chapter consolidates lifecycle management across prompts, models, retrieval indexes, tools, evals, deployments, observability, and incident response.
+
+### Part IV: Deep Foundations (Chapters 25–26)
+
+These chapters go deeper on two foundations that recur across the case studies: production prompt engineering and model fine-tuning/adaptation. Read them when a case study's depth on prompting or fine-tuning is not enough for your target system.
+
+### Part V: Advanced Operations (Chapters 27–31)
+
+The final five chapters cover the operational concerns that turn a working prototype into a production service: evaluation at scale, cost optimization, observability and incident response, privacy and compliance, and edge/on-device deployment. Each is independent — read the ones that match your current constraints.
 
 ## Chapter List
 
@@ -103,3 +111,5 @@ For engineers building tool-using assistants or agentic systems. Read [[chapter-
 ### Path 5: Learning Guide (Deep Understanding)
 
 For engineers who want to understand the *why* behind every architectural decision, not just what to say in an interview. Start with [[chapter-25|Chapter 25]] (prompt engineering) and [[chapter-26|Chapter 26]] (fine-tuning) as the adaptation layer, then [[chapter-27|Chapter 27]] (evaluation) to understand how to measure quality, [[chapter-28|Chapter 28]] (cost optimization) to understand economic constraints, [[chapter-29|Chapter 29]] (observability) for production operation, and [[chapter-30|Chapter 30]]–[[chapter-31|Chapter 31]] for compliance and edge deployment. The `> **Why:**` decision reasoning blocks throughout every chapter explain the reasoning behind each threshold, technology choice, and trade-off.
+
+> **Picking case studies:** The paths above name representative case studies, but Chapters 6–23 are independent and chosen by domain. Match your target to the closest case study: conversational/support ([[chapter-06|6]], [[chapter-13|13]]), search/retrieval ([[chapter-07|7]], [[chapter-15|15]], [[chapter-16|16]], [[chapter-17|17]]), content/generation ([[chapter-10|10]], [[chapter-12|12]]), real-time/latency-critical ([[chapter-14|14]], [[chapter-18|18]], [[chapter-19|19]]), or high-stakes/regulated ([[chapter-11|11]], [[chapter-20|20]]).

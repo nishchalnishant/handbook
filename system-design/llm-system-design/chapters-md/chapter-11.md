@@ -16,11 +16,11 @@ part: case-studies
 > - **Primary Concerns:** Digit transposition errors, cross-document bleed, arithmetic consistency, compliance audit trail
 > - **Cross-references:** [[chapter-07|Chapter 7]] (document parsing), [[chapter-17|Chapter 17]] (legal contracts), [[chapter-05|Chapter 5]] (guardrails)
 
-**Problem statement:** Design a production system that ingests millions of financial documents (invoices, bank statements, contracts, tax forms), extracts structured fields with >99.5% per-field accuracy, and outputs validated JSON—where a single hallucinated number can trigger regulatory violations or erroneous payments.
+**Problem statement:** Design a production system that ingests millions of financial documents (invoices, bank statements, contracts, tax forms), extracts structured fields with >99.5% per-field accuracy, and outputs validated JSON—where a single [[glossary#Hallucination (LLM)|hallucinated]] number can trigger regulatory violations or erroneous payments.
 
 ### Real-World Examples
 
-- A payments company processes 3M vendor invoices/day. Their regex-based extraction fails on 40% of non-standard layouts. An OCR-to-LLM pipeline with layout-aware table extraction and constrained JSON decoding achieves 99.7% field accuracy, reducing manual review from 45% to 3% of documents.
+- A payments company processes 3M vendor invoices/day. Their regex-based extraction fails on 40% of non-standard layouts. An OCR-to-LLM pipeline with layout-aware table extraction and [[glossary#Structured Output / Constrained Decoding|constrained JSON decoding]] achieves 99.7% field accuracy, reducing manual review from 45% to 3% of documents.
 - A bank's loan processing system extracts income figures from scanned tax returns. The LLM hallucinates "$85,000" as "$850,000" on a blurred document, approving a loan that defaults. Adding cross-field verification (income × tax rate ≈ reported tax) and confidence-gated human review catches the error class entirely.
 
 ---
@@ -50,11 +50,11 @@ part: case-studies
 - Extract document-type-specific fields into a predefined JSON schema per document class.
 - Detect and extract tables (line items, transaction histories) preserving row-column relationships.
 - Assign per-field confidence scores; route low-confidence documents to human review.
-- Support 50+ document templates with zero-shot generalization to unseen layouts.
+- Support 50+ document templates with [[glossary#Zero-Shot / Few-Shot Prompting|zero-shot]] generalization to unseen layouts.
 
 ### Non-Functional Requirements
 
-- **Accuracy:** 99.5%+ per-field extraction accuracy across all document types. 99.9%+ for monetary fields after validation.
+- **[[glossary#Accuracy|Accuracy]]:** 99.5%+ per-field extraction accuracy across all document types. 99.9%+ for monetary fields after validation.
 - **Latency:** End-to-end <5s per document (OCR + classification + extraction + validation).
 - **Throughput:** Sustain 2M documents/day (~23 docs/sec average, 100 docs/sec peak).
 - **Auditability:** Full provenance trail—every extracted value links to bounding box coordinates in the source document.
@@ -87,10 +87,10 @@ part: case-studies
 
 #### GPU Fleet Sizing
 
-- LLM extraction: 7B quantized model (INT4), ~120 tokens/sec/GPU
+- LLM extraction: 7B [[glossary#Quantization|quantized]] model (INT4), ~120 tokens/sec/GPU
 - Output tokens/doc: ~500
 - Time per doc per GPU: `500 / 120 ≈ 4.2s`
-- With continuous batching (6x efficiency): `~0.7s effective per doc`
+- With [[glossary#Continuous Batching|continuous batching]] (6x efficiency): `~0.7s effective per doc`
 - Peak demand: 92 docs/sec → `92 × 0.7 / 1 ≈ 65 GPU-equivalents`
 - Layout detection model: ~10 GPUs (lightweight object detection)
 - OCR: CPU-bound, ~200 CPU cores for peak scanned volume
@@ -112,43 +112,43 @@ part: case-studies
 
 - **Document Ingestion Service:** Accepts uploads (API, SFTP, email), normalizes format, assigns document ID, and queues for processing. This service is the sole entry point and must be idempotent—if a document is submitted twice (network retry, duplicate upload), exactly one processing job should be created, enforced via a content hash deduplication check before enqueue.
 
-> **Why:** Placing all ingestion behind a single service with a message queue decouples the upload rate from the processing rate. During invoice batch uploads at month-end, the queue absorbs spikes without back-pressure reaching the client; documents are never lost even if downstream workers restart.
+> **Why a single ingestion service fronted by a message queue:** Placing all ingestion behind a single service with a message queue decouples the upload rate from the processing rate. During invoice batch uploads at month-end, the queue absorbs spikes without back-pressure reaching the client; documents are never lost even if downstream workers restart.
 
-- **Document Classifier:** A lightweight CNN or vision transformer (e.g., LayoutLMv3 fine-tuned on 50+ document classes) classifies each document as invoice, bank statement, loan contract, or tax form, then selects the appropriate extraction schema for that class. Classification accuracy matters because schema mismatch causes all downstream field mappings to fail—a misclassified tax form treated as an invoice will produce zero valid fields.
+- **Document Classifier:** A lightweight CNN or vision transformer (e.g., LayoutLMv3 [[glossary#Fine-tuning|fine-tuned]] on 50+ document classes) classifies each document as invoice, bank statement, loan contract, or tax form, then selects the appropriate extraction schema for that class. Classification accuracy matters because schema mismatch causes all downstream field mappings to fail—a misclassified tax form treated as an invoice will produce zero valid fields.
 
-> **Why:** Using a dedicated classifier rather than prompting the LLM to infer document type separates concerns and saves tokens. A small vision classifier runs in <50ms and achieves >99% accuracy on trained classes; asking the LLM to classify adds ~200ms and consumes prompt budget that could be used for field extraction.
+> **Why a dedicated document classifier rather than prompting the LLM to infer document type:** Using a dedicated classifier rather than prompting the LLM to infer document type separates concerns and saves tokens. A small vision classifier runs in <50ms and achieves >99% accuracy on trained classes; asking the LLM to classify adds ~200ms and consumes prompt budget that could be used for field extraction.
 
 - **OCR Engine:** Layout-aware OCR (PaddleOCR or Tesseract with preprocessing) processes scanned documents and produces text tokens plus their bounding box coordinates (x, y, width, height) on the page. This stage is bypassed entirely for digital-native PDFs, where pdfplumber or PyMuPDF extracts the text layer and character-level coordinates directly from the PDF's internal structure at ~100ms per document.
 
-> **Why:** Bounding box coordinates are not optional metadata—they are the foundation of source grounding (Layer 1 of hallucination prevention). Without knowing precisely where on the page a value came from, you cannot re-verify it independently, and you cannot present it to a human reviewer with a visual highlight.
+> **Why OCR must emit bounding box coordinates, not just text:** Bounding box coordinates are not optional metadata—they are the foundation of source grounding (Layer 1 of hallucination prevention). Without knowing precisely where on the page a value came from, you cannot re-verify it independently, and you cannot present it to a human reviewer with a visual highlight.
 
 - **Layout Analyzer:** An object detection model (DETR or Faster R-CNN fine-tuned on financial document layouts) identifies structural regions—tables, key-value blocks, headers, footers, logos, and signature zones—and outputs their bounding boxes and semantic labels. The model is fine-tuned on a corpus of at least 100K annotated financial document pages to handle the wide variation in vendor templates.
 
-> **Why:** Raw OCR text loses spatial structure. A list of words in reading order cannot distinguish between a table cell containing "$1,250" in the "Total" column from the same number appearing in free text. Layout analysis recovers the two-dimensional structure that gives financial numbers their meaning.
+> **Why a dedicated layout analyzer on top of OCR:** Raw OCR text loses spatial structure. A list of words in reading order cannot distinguish between a table cell containing "$1,250" in the "Total" column from the same number appearing in free text. Layout analysis recovers the two-dimensional structure that gives financial numbers their meaning.
 
 - **Table Extractor:** A specialized Table Structure Recognition (TSR) module processes the regions flagged as tables by the layout analyzer, predicting row separators, column separators, and cell boundaries to reconstruct the full row-column grid. It handles complex layouts including merged header cells, borderless tables (where whitespace defines structure), multi-line cell content, and tables that span page boundaries.
 
-> **Why:** General OCR reads text in a single left-to-right, top-to-bottom pass and cannot reconstruct table structure. A dedicated TSR model—trained specifically on the two-dimensional prediction task—achieves 95%+ cell-level accuracy on financial tables, compared to 60-70% for naive spatial clustering of OCR words.
+> **Why a specialized Table Structure Recognition model rather than OCR alone:** General OCR reads text in a single left-to-right, top-to-bottom pass and cannot reconstruct table structure. A dedicated TSR model—trained specifically on the two-dimensional prediction task—achieves 95%+ cell-level accuracy on financial tables, compared to 60-70% for naive spatial clustering of OCR words.
 
 - **LLM Extraction Engine:** Takes the assembled prompt (OCR text, layout structure as serialized key-value and table blocks, and the target JSON schema) and generates structured JSON with per-field values. Inference uses a 7B quantized model with grammar-constrained decoding to guarantee that every token produced continues a parse-valid JSON sequence matching the schema, eliminating the possibility of malformed output.
 
-> **Why:** The LLM is the only component capable of zero-shot generalization to unseen vendor templates. Template-based or regex extraction requires a handcrafted rule per layout; the LLM's language understanding maps semantically equivalent labels ("Invoice Total", "Amount Due", "Grand Total") to the same schema field without explicit programming.
+> **Why an LLM for field extraction rather than template or regex rules:** The LLM is the only component capable of zero-shot generalization to unseen vendor templates. Template-based or regex extraction requires a handcrafted rule per layout; the LLM's language understanding maps semantically equivalent labels ("Invoice Total", "Amount Due", "Grand Total") to the same schema field without explicit programming.
 
 - **Validation Engine:** Applies three independent validation passes after extraction: (1) JSON schema conformance using jsonschema; (2) cross-field arithmetic checks (line item totals must sum to subtotal; subtotal plus tax must equal invoice total within rounding tolerance); (3) format and business-rule checks (dates must be parseable and logically ordered, account numbers must pass checksum algorithms, currencies must be in the allowed enum). Fields that fail validation are flagged with specific failure codes before confidence routing.
 
-> **Why:** Even with constrained decoding guaranteeing structural validity, a model can produce a structurally valid but arithmetically impossible output—a total that doesn't match its components. Independent arithmetic verification catches the entire class of digit transposition errors (~2-3% of monetary fields) that look syntactically correct but are semantically wrong.
+> **Why a separate validation engine with cross-field arithmetic checks:** Even with constrained decoding guaranteeing structural validity, a model can produce a structurally valid but arithmetically impossible output—a total that doesn't match its components. Independent arithmetic verification catches the entire class of digit transposition errors (~2-3% of monetary fields) that look syntactically correct but are semantically wrong.
 
 - **Confidence Router:** Aggregates per-field confidence scores (combining LLM token log-probabilities, OCR word confidence, and validation pass/fail signals) into a document-level confidence score, then routes each document to one of three queues: auto-accept (>0.95), human review (0.80–0.95), or full manual extraction (<0.80). The router also performs per-field routing for high-value documents—even a high-confidence document goes to human review if any monetary field has confidence below 0.90.
 
-> **Why:** A binary accept/reject decision is wasteful. At a 0.95 document-level threshold, approximately 85% of documents auto-accept—routing all of them to human review would require 10x the reviewer headcount. The routing triage concentrates human attention on the 12-15% of documents where it has the highest impact on accuracy.
+> **Why three-way confidence routing rather than a binary accept/reject:** A binary accept/reject decision is wasteful. At a 0.95 document-level threshold, approximately 85% of documents auto-accept—routing all of them to human review would require 10x the reviewer headcount. The routing triage concentrates human attention on the 12-15% of documents where it has the highest impact on accuracy.
 
 - **Human Review UI:** Displays the source document with bounding box overlays highlighted for every extracted field, shows the extracted value alongside the raw OCR text for that region, and indicates the confidence score and any validation failures per field. Reviewers correct individual fields without re-extracting the entire document, and corrections are stored with reviewer ID and timestamp for downstream fine-tuning.
 
-> **Why:** Showing reviewers only the extracted fields without the source document context forces them to mentally re-read the document to verify values—increasing review time from ~30 seconds to 3+ minutes per document. The bounding box overlay collapses verification to a glance, enabling reviewers to process 6-8x more documents per hour.
+> **Why the review UI overlays bounding boxes on the source document:** Showing reviewers only the extracted fields without the source document context forces them to mentally re-read the document to verify values—increasing review time from ~30 seconds to 3+ minutes per document. The bounding box overlay collapses verification to a glance, enabling reviewers to process 6-8x more documents per hour.
 
 - **Audit & Provenance Store:** An append-only store that links every extracted field value to its source bounding box coordinates, OCR confidence score, LLM model version, extraction timestamp, and (if applicable) the reviewer ID who confirmed or corrected the value. No records are ever deleted or modified; corrections are stored as new entries linked to the original extraction event.
 
-> **Why:** Financial regulators (e.g., under Sarbanes-Oxley, PSD2, or Basel III requirements) require complete audit trails for any automated financial data processing. The immutable provenance record answers the question "why did the system extract this specific value" in a way that can be presented to auditors—without it, the organization cannot demonstrate compliance with automated processing rules.
+> **Why an append-only audit and provenance store:** Financial regulators (e.g., under Sarbanes-Oxley, PSD2, or Basel III requirements) require complete audit trails for any automated financial data processing. The immutable provenance record answers the question "why did the system extract this specific value" in a way that can be presented to auditors—without it, the organization cannot demonstrate compliance with automated processing rules.
 
 ### Pipeline A: Document Processing Pipeline
 
@@ -254,7 +254,7 @@ Tables are the hardest structural element. Financial documents contain line item
 
 The prompt must convey document structure, not just raw text. The format:
 
-```
+```text
 Document Type: Invoice
 Schema: {invoice_number: string, date: date, vendor_name: string, ...}
 
@@ -408,163 +408,39 @@ In financial extraction, a hallucinated digit is not a minor quality issue—it'
   - Symptom: The same pipeline achieves 99% word-level accuracy on clean 300 DPI scans but drops to 88% on faxed documents or documents photographed with poor lighting — an 11-point gap that translates directly into extraction errors on monetary fields.
   - Mitigation: Assign a per-source quality score at ingestion by measuring the median OCR word confidence for a sample of that source's historical documents. Sources with median confidence below 0.85 automatically receive super-resolution preprocessing (Real-ESRGAN upscaling before OCR) and have all monetary fields routed to human review regardless of extraction confidence, effectively treating them as a lower-trust input class.
 
-> **Why:** A single OCR quality threshold applied uniformly to all sources either over-routes clean documents (expensive reviewer time) or under-routes degraded documents (accuracy violations). Per-source calibration adapts the confidence thresholds to the actual noise level of each input channel.
+> **Why per-source OCR confidence calibration rather than a single global threshold:** A single OCR quality threshold applied uniformly to all sources either over-routes clean documents (expensive reviewer time) or under-routes degraded documents (accuracy violations). Per-source calibration adapts the confidence thresholds to the actual noise level of each input channel.
 
 - **Table extraction failure on complex layouts**
   - Symptom: Merged header cells, nested tables within line items, or borderless tables that use only whitespace for column separation cause the TSR model to misalign rows and columns — a row of "$1,250 | 10 | $125" may be parsed as three separate single-cell rows, associating none of the values with the correct column header.
   - Mitigation: Ensemble two table detection approaches: the neural TSR model and a rule-based whitespace-alignment parser. When their outputs disagree on column count or cell boundaries, fall back to passing the table image directly to a VLM (e.g., GPT-4V) with a prompt asking for the table as a markdown grid. This fallback applies to fewer than 5% of tables but catches the cases where structural parsing fails most spectacularly.
 
-> **Why:** A neural TSR model trained on well-structured tables generalizes poorly to the adversarial long tail of financial document formats. The rule-based parser is brittle but correct for borderless tables where whitespace is consistent. Combining them and falling back to a VLM covers all three cases — clean tables (TSR), borderless tables (rules), and complex tables (VLM) — without a single model needing to handle all cases.
+> **Why ensemble TSR with a rule-based parser and VLM fallback:** A neural TSR model trained on well-structured tables generalizes poorly to the adversarial long tail of financial document formats. The rule-based parser is brittle but correct for borderless tables where whitespace is consistent. Combining them and falling back to a VLM covers all three cases — clean tables (TSR), borderless tables (rules), and complex tables (VLM) — without a single model needing to handle all cases.
 
 - **LLM context window overflow on multi-page documents**
   - Symptom: A 20-page loan contract with 300 words per page contains approximately 90K characters or ~22K tokens — exceeding the 8K context window of a 7B model. Fields mentioned only in the appendix (e.g., prepayment penalty clauses on page 19) are never seen by the extraction model, resulting in silently missed fields with no error or confidence signal.
   - Mitigation: Implement a two-level extraction strategy. First, use the document classifier's page-level segmentation to identify which pages contain which schema fields (trained on 10K annotated contracts). Second, run extraction independently on each relevant page or section, using only the sub-schema for that section. Third, merge the per-section JSON extractions, resolving conflicts (e.g., an interest rate mentioned on page 3 and page 47 must match) using a lightweight reconciliation prompt with only the conflicting fields.
 
-> **Why:** Naively chunking documents and running a single extraction pass per chunk loses cross-page field references and produces duplicate or conflicting values for fields mentioned in multiple sections. The segment-then-reconcile pattern preserves full-document coherence while respecting context window limits.
+> **Why a segment-then-reconcile strategy for multi-page documents:** Naively chunking documents and running a single extraction pass per chunk loses cross-page field references and produces duplicate or conflicting values for fields mentioned in multiple sections. The segment-then-reconcile pattern preserves full-document coherence while respecting context window limits.
 
 - **Cross-document contamination in batch processing**
   - Symptom: When multiple documents are processed in the same GPU worker process (a common optimization for throughput), the KV cache state from document N can influence the softmax attention weights for document N+1, particularly for rare tokens like specific account numbers or invoice IDs that appear in both documents' contexts — causing values from a previous document to appear in the current extraction.
   - Mitigation: Enforce document isolation at the inference level: clear the KV cache completely between documents and never include multiple documents in a single inference call. Use a dedicated process per document (process-level isolation) during high-accuracy mode, accepting the 15-20% throughput loss. Flag any extracted value (account number, invoice ID, vendor name) that also appears in the immediately preceding document's extraction as a potential contamination event for review.
 
-> **Why:** KV cache contamination is insidious because it produces plausible-looking extractions — the contaminating values are real financial data from a real document, just the wrong one. Source grounding (Layer 1) partially catches this because the contaminated value may not appear in the current document's OCR output, but only if the contaminating value is textually distinct from any string in the current document.
+> **Why enforce per-document KV cache isolation during batch processing:** KV cache contamination is insidious because it produces plausible-looking extractions — the contaminating values are real financial data from a real document, just the wrong one. Source grounding (Layer 1) partially catches this because the contaminated value may not appear in the current document's OCR output, but only if the contaminating value is textually distinct from any string in the current document.
 
 - **Schema evolution when new document types appear**
   - Symptom: A new vendor begins submitting invoices in an EDI 810 format with vendor-specific extension fields (e.g., a `project_code` field not in the standard invoice schema). The extraction model correctly extracts all schema-defined fields but silently ignores the project code — which the downstream payment system requires for cost center allocation, causing payment rejections.
   - Mitigation: Run zero-shot discovery mode on the first 100 documents from each new vendor or format: prompt the LLM to extract both the schema-mandated fields AND any additional key-value pairs it detects that are not in the schema. Human reviewers confirm which discovered fields should be promoted to schema-level fields. Discovered fields accumulate in a "candidate fields" registry; any candidate that appears in >80% of documents from a vendor triggers a schema update proposal.
 
-> **Why:** Purely schema-driven extraction creates a closed-world assumption — the system can only find what it's looking for. Discovery mode turns unknown-unknowns into known-unknowns by surfacing fields the schema designers didn't anticipate, enabling proactive schema evolution rather than reactive debugging of silent extraction failures.
+> **Why run zero-shot discovery mode on new document types:** Purely schema-driven extraction creates a closed-world assumption — the system can only find what it's looking for. Discovery mode turns unknown-unknowns into known-unknowns by surfacing fields the schema designers didn't anticipate, enabling proactive schema evolution rather than reactive debugging of silent extraction failures.
 
 - **Confidence calibration drift**
   - Symptom: At launch, the 0.95 confidence threshold auto-accepts 85% of documents with a 0.3% error rate. After three months, the same threshold auto-accepts only 70% of documents — a 15% increase in human review load with no corresponding increase in error rate. The model's confidence distribution has shifted rightward (lower confidence on average) due to changes in document quality, vendor mix, or model fine-tuning.
   - Mitigation: Weekly calibration using human review outcomes as ground truth. For each document reviewed by a human, record whether the extracted fields were correct. Fit a Platt scaling logistic regression that maps raw composite confidence scores to calibrated probabilities that equal the empirical accuracy rate. Recalibrate thresholds so that the 0.95 tier corresponds to documents with measured 95%+ accuracy — which may require a raw score of 0.92 or 0.97 depending on the current distribution.
 
-> **Why:** Confidence scores from LLM token log-probabilities are not naturally calibrated to accuracy percentages. A model that assigns 0.95 confidence to 70% of its outputs (regardless of their accuracy) will systematically flood the human review queue. Platt scaling is a lightweight, interpretable calibration method that adjusts the score-to-accuracy mapping without retraining the underlying model.
+> **Why weekly Platt scaling recalibration of confidence thresholds:** Confidence scores from LLM token log-probabilities are not naturally calibrated to accuracy percentages. A model that assigns 0.95 confidence to 70% of its outputs (regardless of their accuracy) will systematically flood the human review queue. Platt scaling is a lightweight, interpretable calibration method that adjusts the score-to-accuracy mapping without retraining the underlying model.
 
 ---
-
-## Step 4: Wrap Up
-
-### Final Design Summary
-
-The system chains OCR, layout analysis, table extraction, and LLM-based field mapping into a pipeline that treats accuracy as a safety constraint. Constrained decoding guarantees structural validity. Multi-layer hallucination prevention—source grounding, cross-field verification, confidence routing, and anomaly detection—pushes effective per-field accuracy past 99.5% while keeping human review load under 15%.
-
-### Wrap-Around Concerns
-
-- **Risk:** OCR errors on degraded scans propagate through the entire pipeline undetected. Mitigation: Per-source quality scoring, automatic re-OCR with enhanced preprocessing, confidence penalties for low-quality sources.
-- **Risk:** Constrained decoding forces structurally valid but semantically wrong output (model "guesses" a number that fits the schema when uncertain). Mitigation: Prefer high-entropy "null" fields over low-confidence guesses; route nulls to human review.
-- **Risk:** Adversarial documents (deliberately manipulated invoices) exploit the system's trust in OCR output. Mitigation: Tamper detection layer (check for pixel-level edits near amount fields), cross-reference against vendor master data.
-- **Risk:** Regulatory requirements vary by jurisdiction (EU invoicing directives vs US standards). Mitigation: Per-jurisdiction schema variants with region-specific validation rules.
-- **Risk:** Human reviewer fatigue degrades correction quality during high-volume periods. Mitigation: Review prioritization by dollar amount at risk; auto-distribute review load; quality audits on reviewer corrections.
-
----
-
-## Step 5: Interviewer Curveballs
-
-### Interviewer Follow-ups & Frequently Asked Questions (FAQ)
-
-Q: The system extracts "$12,500" from an invoice but the actual amount is "$1,250.00"—an extra zero. How does your system catch this?
-
-**The Ideal Answer:** Three independent checks fire. First, source grounding: re-OCR the bounding box region for the total amount field and compare character-by-character against the extracted value. Second, cross-field arithmetic: sum the line item totals and compare against the extracted total—if line items sum to $1,250 but the total says $12,500, flag the discrepancy. Third, statistical anomaly detection: compare against historical invoice totals from this vendor—a 10x deviation triggers review.
-
-**Deep Dive & Trade-offs:**
-- Source grounding catches OCR propagation errors but not cases where the source document itself is wrong.
-- Arithmetic checks catch ~80% of amount errors on invoices with line items but fail on single-total invoices.
-- Vendor history checks require sufficient historical data (cold-start problem for new vendors).
-
-**The Interviewer's Rubric:** Checking multi-layered defense thinking for financial data integrity.
-
----
-
-Q: A vendor sends invoices as photographed images taken with a phone camera. Quality is terrible. What do you do?
-
-**The Ideal Answer:** Apply a specialized pre-processing pipeline before any OCR: (1) perspective correction — detect the document's four corners using a document detection model (DocSeg or MobileNet-based), then apply a projective transform to warp the image to a rectangle with consistent margins; (2) shadow removal — apply a homomorphic filter or background subtraction to normalize uneven lighting across the document surface; (3) super-resolution upscaling — run Real-ESRGAN to upscale from an effective ~150 DPI to 300 DPI, recovering character edge detail needed for OCR; (4) adaptive binarization (Sauvola thresholding) — convert to black-and-white with locally adaptive thresholds that handle regions of different brightness in the same image. After preprocessing, route through TrOCR (a transformer-based OCR model) rather than Tesseract, because TrOCR's attention mechanism handles irregular character spacing and residual distortion far better than Tesseract's line-segmentation approach. Regardless of the resulting extraction confidence, automatically flag all monetary fields for human review — no matter how good the preprocessing, a photographed document is a lower-trust input class.
-
-**Deep Dive & Trade-offs:**
-- Super-resolution adds ~500ms to the preprocessing pipeline but improves TrOCR word accuracy from ~88% to ~94% on low-quality phone photographs, which translates directly to fewer OCR error propagations into field extraction.
-- TrOCR is approximately 2x slower than Tesseract per page (~1.5s vs ~0.7s), but TrOCR's per-word error rate on degraded input is approximately half of Tesseract's — the latency trade-off is strongly justified for monetary documents where an OCR error means a wrong payment.
-- The business decision is whether to absorb the extra per-document cost of preprocessing + human review (typically $0.50–$2.00 per document) or require the vendor to submit higher-quality scans, potentially with a contractual SLA for submission quality. Both are valid; the technical system must support the human review path regardless.
-
-**The Interviewer's Rubric:** Checking practical image preprocessing knowledge and graceful degradation strategy. Strong candidates mention specific preprocessing steps (not just "enhance the image") and explain why each step addresses a specific failure mode. Top candidates also address the business dimension — what to do when preprocessing is not enough.
-
----
-
-Q: How do you handle a 50-page loan contract where you need to extract fields scattered across different sections?
-
-**The Ideal Answer:** Three-phase approach. Phase 1: Document segmentation—classify each page into sections (terms, signatures, schedules, amendments) using a page-level classifier. Phase 2: Per-section extraction—run the LLM on each relevant section independently with section-specific schemas. Phase 3: Cross-section reconciliation—merge extracted fields, resolve conflicts (e.g., interest rate mentioned on page 3 and page 47 must match), and validate cross-references.
-
-**Deep Dive & Trade-offs:**
-- Per-page extraction avoids context window limits but loses cross-page references.
-- Full-document extraction with a 128K context model preserves references but is expensive (~15s for 50 pages) and accuracy degrades on long contexts.
-- Hybrid: extract per-section, then run a lightweight verification pass with key fields from all sections in a single prompt.
-
-**The Interviewer's Rubric:** Checking ability to decompose long-document problems without losing cross-document coherence. Strong candidates identify the two competing concerns (context window limits vs. cross-page references) and propose an architecture that addresses both. Top candidates quantify the costs of each approach — processing a 50-page contract as a single 22K-token prompt costs ~$0.30 per document at GPT-4 pricing vs. ~$0.08 for the segmented approach — and explain when the cost difference justifies each approach.
-
----
-
-Q: You need to support a new document type (e.g., customs declarations) with zero training data. How?
-
-**The Ideal Answer:** Zero-shot extraction using schema-driven prompting. Define the JSON schema for customs declarations (declaration number, HS codes, country of origin, declared value, etc.). Provide the schema and 2-3 synthetic examples in the system prompt. The LLM's general knowledge of financial document structure handles most field types. Monitor accuracy on the first 500 documents with 100% human review. Use corrections as few-shot examples, then fine-tune a LoRA adapter after accumulating 2K+ labeled documents.
-
-**Deep Dive & Trade-offs:**
-- Zero-shot accuracy for new doc types: typically 85-92% (sufficient for human-review-assisted launch).
-- Few-shot (5-10 examples in prompt): jumps to 92-96%.
-- Fine-tuned (2K+ examples): reaches 98%+ parity with established document types.
-- Cold-start cost: 100% human review for ~2 weeks → expensive but necessary for accuracy guarantees.
-
-**The Interviewer's Rubric:** Checking cold-start strategy and understanding of the accuracy-data flywheel. Strong candidates distinguish between zero-shot (schema only), few-shot (examples in prompt), and fine-tuned (LoRA) modes and know approximately when each is appropriate based on labeled data volume. Top candidates acknowledge the business cost of the cold-start period — 100% human review for 2 weeks on 2,000 documents per day means 28,000 manual reviews, roughly $14,000–$28,000 in reviewer cost — and frame this as an investment that enables a scalable, high-accuracy system rather than just a technical bootstrap problem.
-
----
-
-Q: Constrained decoding guarantees valid JSON, but the model fills in a plausible-looking but wrong account number. How do you detect this?
-
-**The Ideal Answer:** Constrained decoding only enforces structure, not semantics. Semantic correctness requires: (1) source grounding—verify the account number exists in the OCR text at the claimed bounding box; (2) format validation—check against known account number formats (routing numbers are 9 digits with a specific checksum algorithm, IBANs have country-specific formats with check digits); (3) entity resolution—if the vendor is known, check against the vendor master database for expected account numbers; (4) confidence thresholding—if the LLM's token log-probabilities for the account number tokens are low, route to review.
-
-**Deep Dive & Trade-offs:**
-- Checksum validation catches ~60% of fabricated account numbers (only works for formats with built-in checksums).
-- Vendor master lookup catches ~90% for known vendors but requires maintained database.
-- Source grounding is the strongest signal—if the value doesn't exist in the source text, it's hallucinated by definition.
-
-**The Interviewer's Rubric:** Checking understanding that structural validity and semantic correctness are orthogonal properties. Strong candidates immediately identify source grounding as the definitive check — a value that doesn't appear in the OCR text is, by construction, hallucinated. Top candidates layer at least two additional independent checks (checksum validation + vendor master lookup) and explain that no single check achieves complete coverage — checksums only work for formats with built-in verification, vendor master lookup only works for known vendors — so defense depth across multiple independent signals is necessary to approach 99.9% accuracy on account number fields.
-
----
-
-Q: How do you handle documents in 20 different languages?
-
-**The Ideal Answer:** Multilingual OCR (PaddleOCR supports 80+ languages). Language detection at the OCR stage (or from document metadata). LLM extraction uses a multilingual model (or language-specific LoRA adapters on a multilingual base). JSON schema field names remain in English (canonical); extracted values retain original language. Date and number format normalization is locale-aware (e.g., "1.250,00" in German = "1,250.00" in US format). Monetary amounts always normalize to a canonical (amount, currency) tuple.
-
-**Deep Dive & Trade-offs:**
-- Multilingual base model (e.g., Qwen2 series): good across languages but slightly weaker per-language than specialized models.
-- Per-language LoRA adapters: best accuracy but 20 adapters to maintain.
-- Number format ambiguity: "1,250" could be 1250 (US) or 1.25 (EU). Must resolve using document language and currency context.
-
-**The Interviewer's Rubric:** Checking awareness of locale-specific formatting challenges in financial data. Strong candidates immediately identify number format ambiguity (comma vs. period as decimal separator) as the most dangerous issue — silently misinterpreting "1,250" as 1.25 instead of 1250 introduces a 1000x error with no visible signal. Top candidates explain the resolution strategy: use the document's detected language and currency to select the locale, then apply locale-aware parsing. They also mention that when language detection is uncertain (e.g., a mixed-language document), the safest fallback is to route all monetary fields to human review rather than guess the locale and risk a catastrophic misparse.
-
----
-
-Q: Your human review queue is growing faster than reviewers can process it. What do you do?
-
-**The Ideal Answer:** Triage by business impact: prioritize documents by monetary amount × confidence gap (low confidence on a $500K invoice before high confidence on a $50 invoice). Reduce review scope: show reviewers only the flagged fields, not the entire document (reduces review time from 3 min to 30 sec). Active learning: use reviewer corrections to fine-tune the model weekly—each correction should reduce future review load. Adjust confidence thresholds: if the auto-accept threshold is too conservative, analyze the error rate in the 0.90-0.95 band—if errors are <0.1%, safely lower the review threshold to 0.90.
-
-**Deep Dive & Trade-offs:**
-- Lowering the review threshold increases auto-accept rate but increases undetected errors.
-- Quantify: at 0.95 threshold, 85% auto-accept with 0.3% error rate. At 0.90, 92% auto-accept with 0.8% error rate. Business decides acceptable error rate.
-- Long-term: model improvement should move the confidence distribution rightward, naturally reducing review volume.
-
-**The Interviewer's Rubric:** Checking operational maturity thinking — the human-in-the-loop system is itself a system that needs optimization, not just a safety valve. Strong candidates identify triage by business impact (dollar value × confidence gap) as the highest-leverage action — it reduces queue depth while protecting the highest-risk extractions. Top candidates close the active learning loop: they explain that every reviewer correction is a training signal that should reduce future review load, and they quantify the flywheel — 500 corrections per week feeding weekly fine-tuning should reduce the review routing rate by 1-2 percentage points per cycle, eventually stabilizing at a lower steady-state review volume. Weak candidates propose only "hire more reviewers," which scales cost linearly without addressing the root cause.
-
----
-
-Q: A competitor claims their end-to-end vision-language model (no OCR step) achieves 99% accuracy. Should you drop your OCR pipeline?
-
-**The Ideal Answer:** Not yet—and probably never fully. End-to-end VLMs (e.g., GPT-4V, Qwen-VL) achieve strong results on clean documents but degrade on low-quality scans, complex tables, and dense multi-page documents. The OCR pipeline provides: (1) explicit bounding box provenance (required for audit compliance); (2) deterministic text extraction for digital PDFs (why run a vision model on a text document?); (3) modular error isolation (you can identify whether an error is OCR-stage or extraction-stage). Best approach: use VLM as a fallback for documents where layout-based extraction fails, and as a verification channel for high-value documents.
-
-**Deep Dive & Trade-offs:**
-- VLMs: simpler pipeline, fewer error propagation points, but opaque (no bounding box provenance without extra work).
-- OCR pipeline: explicit provenance, modular debugging, but more moving parts.
-- Hybrid wins: OCR pipeline for 90% of documents (reliable, auditable), VLM for the 10% that defeat layout analysis (complex or unusual formats).
-- Cost: VLMs are 5-10x more expensive per document than OCR + 7B extraction model.
-
-**The Interviewer's Rubric:** Checking ability to evaluate pipeline architecture trade-offs against end-to-end alternatives without dogma in either direction. Strong candidates recognize the competitor's claim at face value — 99% on a benchmark does not mean 99% in production on the full document quality distribution — and identify specific failure modes for VLMs (low-quality scans, complex tables, provenance gaps) rather than dismissing the approach outright. Top candidates articulate a concrete hybrid strategy with a routing decision rule (e.g., "use OCR pipeline by default; fall back to VLM when layout confidence is below 0.7 or when the document fails structural validation") and acknowledge the 5-10x cost difference, framing VLM usage as a targeted fallback for the 10% of documents where it adds value, not a wholesale replacement.
 
 ## Practical Implementation
 
@@ -954,6 +830,133 @@ def verify_all_fields(
 
 ---
 
+
+---
+
+## Step 4: Wrap Up
+
+### Final Design Summary
+
+The system chains OCR, layout analysis, table extraction, and LLM-based field mapping into a pipeline that treats accuracy as a safety constraint. Constrained decoding guarantees structural validity. Multi-layer hallucination prevention—source grounding, cross-field verification, confidence routing, and anomaly detection—pushes effective per-field accuracy past 99.5% while keeping human review load under 15%.
+
+### Wrap-Around Concerns
+
+- **Risk:** OCR errors on degraded scans propagate through the entire pipeline undetected. Mitigation: Per-source quality scoring, automatic re-OCR with enhanced preprocessing, confidence penalties for low-quality sources.
+- **Risk:** Constrained decoding forces structurally valid but semantically wrong output (model "guesses" a number that fits the schema when uncertain). Mitigation: Prefer high-entropy "null" fields over low-confidence guesses; route nulls to human review.
+- **Risk:** Adversarial documents (deliberately manipulated invoices) exploit the system's trust in OCR output. Mitigation: Tamper detection layer (check for pixel-level edits near amount fields), cross-reference against vendor master data.
+- **Risk:** Regulatory requirements vary by jurisdiction (EU invoicing directives vs US standards). Mitigation: Per-jurisdiction schema variants with region-specific validation rules.
+- **Risk:** Human reviewer fatigue degrades correction quality during high-volume periods. Mitigation: Review prioritization by dollar amount at risk; auto-distribute review load; quality audits on reviewer corrections.
+
+---
+
+## Step 5: Interviewer Curveballs
+
+### Interviewer Follow-ups & Frequently Asked Questions (FAQ)
+
+Q: The system extracts "$12,500" from an invoice but the actual amount is "$1,250.00"—an extra zero. How does your system catch this?
+
+**The Ideal Answer:** Three independent checks fire. First, source grounding: re-OCR the bounding box region for the total amount field and compare character-by-character against the extracted value. Second, cross-field arithmetic: sum the line item totals and compare against the extracted total—if line items sum to $1,250 but the total says $12,500, flag the discrepancy. Third, statistical anomaly detection: compare against historical invoice totals from this vendor—a 10x deviation triggers review.
+
+**Deep Dive & Trade-offs:**
+- Source grounding catches OCR propagation errors but not cases where the source document itself is wrong.
+- Arithmetic checks catch ~80% of amount errors on invoices with line items but fail on single-total invoices.
+- Vendor history checks require sufficient historical data (cold-start problem for new vendors).
+
+**The Interviewer's Rubric:** Checking multi-layered defense thinking for financial data integrity.
+
+---
+
+Q: A vendor sends invoices as photographed images taken with a phone camera. Quality is terrible. What do you do?
+
+**The Ideal Answer:** Apply a specialized pre-processing pipeline before any OCR: (1) perspective correction — detect the document's four corners using a document detection model (DocSeg or MobileNet-based), then apply a projective transform to warp the image to a rectangle with consistent margins; (2) shadow removal — apply a homomorphic filter or background subtraction to normalize uneven lighting across the document surface; (3) super-resolution upscaling — run Real-ESRGAN to upscale from an effective ~150 DPI to 300 DPI, recovering character edge detail needed for OCR; (4) adaptive binarization (Sauvola thresholding) — convert to black-and-white with locally adaptive thresholds that handle regions of different brightness in the same image. After preprocessing, route through TrOCR (a transformer-based OCR model) rather than Tesseract, because TrOCR's attention mechanism handles irregular character spacing and residual distortion far better than Tesseract's line-segmentation approach. Regardless of the resulting extraction confidence, automatically flag all monetary fields for human review — no matter how good the preprocessing, a photographed document is a lower-trust input class.
+
+**Deep Dive & Trade-offs:**
+- Super-resolution adds ~500ms to the preprocessing pipeline but improves TrOCR word accuracy from ~88% to ~94% on low-quality phone photographs, which translates directly to fewer OCR error propagations into field extraction.
+- TrOCR is approximately 2x slower than Tesseract per page (~1.5s vs ~0.7s), but TrOCR's per-word error rate on degraded input is approximately half of Tesseract's — the latency trade-off is strongly justified for monetary documents where an OCR error means a wrong payment.
+- The business decision is whether to absorb the extra per-document cost of preprocessing + human review (typically $0.50–$2.00 per document) or require the vendor to submit higher-quality scans, potentially with a contractual SLA for submission quality. Both are valid; the technical system must support the human review path regardless.
+
+**The Interviewer's Rubric:** Checking practical image preprocessing knowledge and graceful degradation strategy. Strong candidates mention specific preprocessing steps (not just "enhance the image") and explain why each step addresses a specific failure mode. Top candidates also address the business dimension — what to do when preprocessing is not enough.
+
+---
+
+Q: How do you handle a 50-page loan contract where you need to extract fields scattered across different sections?
+
+**The Ideal Answer:** Three-phase approach. Phase 1: Document segmentation—classify each page into sections (terms, signatures, schedules, amendments) using a page-level classifier. Phase 2: Per-section extraction—run the LLM on each relevant section independently with section-specific schemas. Phase 3: Cross-section reconciliation—merge extracted fields, resolve conflicts (e.g., interest rate mentioned on page 3 and page 47 must match), and validate cross-references.
+
+**Deep Dive & Trade-offs:**
+- Per-page extraction avoids context window limits but loses cross-page references.
+- Full-document extraction with a 128K context model preserves references but is expensive (~15s for 50 pages) and accuracy degrades on long contexts.
+- Hybrid: extract per-section, then run a lightweight verification pass with key fields from all sections in a single prompt.
+
+**The Interviewer's Rubric:** Checking ability to decompose long-document problems without losing cross-document coherence. Strong candidates identify the two competing concerns (context window limits vs. cross-page references) and propose an architecture that addresses both. Top candidates quantify the costs of each approach — processing a 50-page contract as a single 22K-token prompt costs ~$0.30 per document at GPT-4 pricing vs. ~$0.08 for the segmented approach — and explain when the cost difference justifies each approach.
+
+---
+
+Q: You need to support a new document type (e.g., customs declarations) with zero training data. How?
+
+**The Ideal Answer:** Zero-shot extraction using schema-driven prompting. Define the JSON schema for customs declarations (declaration number, HS codes, country of origin, declared value, etc.). Provide the schema and 2-3 synthetic examples in the system prompt. The LLM's general knowledge of financial document structure handles most field types. Monitor accuracy on the first 500 documents with 100% human review. Use corrections as few-shot examples, then fine-tune a LoRA adapter after accumulating 2K+ labeled documents.
+
+**Deep Dive & Trade-offs:**
+- Zero-shot accuracy for new doc types: typically 85-92% (sufficient for human-review-assisted launch).
+- Few-shot (5-10 examples in prompt): jumps to 92-96%.
+- Fine-tuned (2K+ examples): reaches 98%+ parity with established document types.
+- Cold-start cost: 100% human review for ~2 weeks → expensive but necessary for accuracy guarantees.
+
+**The Interviewer's Rubric:** Checking cold-start strategy and understanding of the accuracy-data flywheel. Strong candidates distinguish between zero-shot (schema only), few-shot (examples in prompt), and fine-tuned (LoRA) modes and know approximately when each is appropriate based on labeled data volume. Top candidates acknowledge the business cost of the cold-start period — 100% human review for 2 weeks on 2,000 documents per day means 28,000 manual reviews, roughly $14,000–$28,000 in reviewer cost — and frame this as an investment that enables a scalable, high-accuracy system rather than just a technical bootstrap problem.
+
+---
+
+Q: Constrained decoding guarantees valid JSON, but the model fills in a plausible-looking but wrong account number. How do you detect this?
+
+**The Ideal Answer:** Constrained decoding only enforces structure, not semantics. Semantic correctness requires: (1) source grounding—verify the account number exists in the OCR text at the claimed bounding box; (2) format validation—check against known account number formats (routing numbers are 9 digits with a specific checksum algorithm, IBANs have country-specific formats with check digits); (3) entity resolution—if the vendor is known, check against the vendor master database for expected account numbers; (4) confidence thresholding—if the LLM's token log-probabilities for the account number tokens are low, route to review.
+
+**Deep Dive & Trade-offs:**
+- Checksum validation catches ~60% of fabricated account numbers (only works for formats with built-in checksums).
+- Vendor master lookup catches ~90% for known vendors but requires maintained database.
+- Source grounding is the strongest signal—if the value doesn't exist in the source text, it's hallucinated by definition.
+
+**The Interviewer's Rubric:** Checking understanding that structural validity and semantic correctness are orthogonal properties. Strong candidates immediately identify source grounding as the definitive check — a value that doesn't appear in the OCR text is, by construction, hallucinated. Top candidates layer at least two additional independent checks (checksum validation + vendor master lookup) and explain that no single check achieves complete coverage — checksums only work for formats with built-in verification, vendor master lookup only works for known vendors — so defense depth across multiple independent signals is necessary to approach 99.9% accuracy on account number fields.
+
+---
+
+Q: How do you handle documents in 20 different languages?
+
+**The Ideal Answer:** Multilingual OCR (PaddleOCR supports 80+ languages). Language detection at the OCR stage (or from document metadata). LLM extraction uses a multilingual model (or language-specific LoRA adapters on a multilingual base). JSON schema field names remain in English (canonical); extracted values retain original language. Date and number format normalization is locale-aware (e.g., "1.250,00" in German = "1,250.00" in US format). Monetary amounts always normalize to a canonical (amount, currency) tuple.
+
+**Deep Dive & Trade-offs:**
+- Multilingual base model (e.g., Qwen2 series): good across languages but slightly weaker per-language than specialized models.
+- Per-language LoRA adapters: best accuracy but 20 adapters to maintain.
+- Number format ambiguity: "1,250" could be 1250 (US) or 1.25 (EU). Must resolve using document language and currency context.
+
+**The Interviewer's Rubric:** Checking awareness of locale-specific formatting challenges in financial data. Strong candidates immediately identify number format ambiguity (comma vs. period as decimal separator) as the most dangerous issue — silently misinterpreting "1,250" as 1.25 instead of 1250 introduces a 1000x error with no visible signal. Top candidates explain the resolution strategy: use the document's detected language and currency to select the locale, then apply locale-aware parsing. They also mention that when language detection is uncertain (e.g., a mixed-language document), the safest fallback is to route all monetary fields to human review rather than guess the locale and risk a catastrophic misparse.
+
+---
+
+Q: Your human review queue is growing faster than reviewers can process it. What do you do?
+
+**The Ideal Answer:** Triage by business impact: prioritize documents by monetary amount × confidence gap (low confidence on a $500K invoice before high confidence on a $50 invoice). Reduce review scope: show reviewers only the flagged fields, not the entire document (reduces review time from 3 min to 30 sec). Active learning: use reviewer corrections to fine-tune the model weekly—each correction should reduce future review load. Adjust confidence thresholds: if the auto-accept threshold is too conservative, analyze the error rate in the 0.90-0.95 band—if errors are <0.1%, safely lower the review threshold to 0.90.
+
+**Deep Dive & Trade-offs:**
+- Lowering the review threshold increases auto-accept rate but increases undetected errors.
+- Quantify: at 0.95 threshold, 85% auto-accept with 0.3% error rate. At 0.90, 92% auto-accept with 0.8% error rate. Business decides acceptable error rate.
+- Long-term: model improvement should move the confidence distribution rightward, naturally reducing review volume.
+
+**The Interviewer's Rubric:** Checking operational maturity thinking — the human-in-the-loop system is itself a system that needs optimization, not just a safety valve. Strong candidates identify triage by business impact (dollar value × confidence gap) as the highest-leverage action — it reduces queue depth while protecting the highest-risk extractions. Top candidates close the active learning loop: they explain that every reviewer correction is a training signal that should reduce future review load, and they quantify the flywheel — 500 corrections per week feeding weekly fine-tuning should reduce the review routing rate by 1-2 percentage points per cycle, eventually stabilizing at a lower steady-state review volume. Weak candidates propose only "hire more reviewers," which scales cost linearly without addressing the root cause.
+
+---
+
+Q: A competitor claims their end-to-end vision-language model (no OCR step) achieves 99% accuracy. Should you drop your OCR pipeline?
+
+**The Ideal Answer:** Not yet—and probably never fully. End-to-end VLMs (e.g., GPT-4V, Qwen-VL) achieve strong results on clean documents but degrade on low-quality scans, complex tables, and dense multi-page documents. The OCR pipeline provides: (1) explicit bounding box provenance (required for audit compliance); (2) deterministic text extraction for digital PDFs (why run a vision model on a text document?); (3) modular error isolation (you can identify whether an error is OCR-stage or extraction-stage). Best approach: use VLM as a fallback for documents where layout-based extraction fails, and as a verification channel for high-value documents.
+
+**Deep Dive & Trade-offs:**
+- VLMs: simpler pipeline, fewer error propagation points, but opaque (no bounding box provenance without extra work).
+- OCR pipeline: explicit provenance, modular debugging, but more moving parts.
+- Hybrid wins: OCR pipeline for 90% of documents (reliable, auditable), VLM for the 10% that defeat layout analysis (complex or unusual formats).
+- Cost: VLMs are 5-10x more expensive per document than OCR + 7B extraction model.
+
+**The Interviewer's Rubric:** Checking ability to evaluate pipeline architecture trade-offs against end-to-end alternatives without dogma in either direction. Strong candidates recognize the competitor's claim at face value — 99% on a benchmark does not mean 99% in production on the full document quality distribution — and identify specific failure modes for VLMs (low-quality scans, complex tables, provenance gaps) rather than dismissing the approach outright. Top candidates articulate a concrete hybrid strategy with a routing decision rule (e.g., "use OCR pipeline by default; fall back to VLM when layout confidence is below 0.7 or when the document fails structural validation") and acknowledge the 5-10x cost difference, framing VLM usage as a targeted fallback for the 10% of documents where it adds value, not a wholesale replacement.
+
 ## Exercises
 
 ### Design Exercises
@@ -1018,3 +1021,8 @@ def arithmetic_validation_score(invoice: dict) -> float:
 - **Key takeaway:** Financial document extraction is an accuracy-critical pipeline where hallucination is a safety hazard. Multi-layer defense—source grounding, cross-field verification, constrained decoding, confidence routing—is non-negotiable. No single technique achieves 99.5%; the combination does.
 - **What to practice:** Trace a single document through the full pipeline (ingestion → OCR → layout → LLM → validation → routing) and identify where each error type is caught.
 - **Interview drill:** Given a hallucinated monetary amount, explain every layer of defense that should have caught it and why each layer alone is insufficient.
+
+---
+
+<!-- nav-footer -->
+[[chapter-10|← Chapter 10]] | [[README|Contents]] | [[chapter-12|Chapter 12 →]]

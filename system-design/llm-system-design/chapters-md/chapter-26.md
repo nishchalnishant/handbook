@@ -14,7 +14,7 @@ part: foundations
 > - **Scale:** Single GPU (A100 80GB) for 7B LoRA training; multi-GPU DDP for 70B; adapter multiplexing at serving time supports 10–100 adapters per base model replica
 > - **Key Techniques:** LoRA (low-rank adaptation), QLoRA (4-bit quantized LoRA), instruction tuning, DPO, ORPO, continual learning with EWC, adapter merging and hot-swap serving
 > - **Primary Concerns:** Training compute, dataset quality, catastrophic forgetting, serving overhead of adapter loading, evaluation regression against the base model
-> - **Cross-references:** [[chapter-02|Chapter 2]] (LLM stack patterns), [[chapter-05|Chapter 5]] (evaluation and guardrails), [[chapter-25|Chapter 25]] (prompt engineering — must precede fine-tuning decision), [[chapter-21|Chapter 21]] (RAG platform — alternative to fine-tuning for knowledge injection)
+> - **Cross-references:** [[chapter-02|Chapter 2]] (LLM stack patterns), [[chapter-05|Chapter 5]] (evaluation and guardrails), [[chapter-25|Chapter 25]] (prompt engineering — must precede fine-tuning decision), [[chapter-21|Chapter 21]] (RAG platform — alternative to fine-tuning for knowledge injection), [[chapter-04|Chapter 4]] (PagedAttention KV cache and continuous batching deep dive)
 
 **Problem statement:** Design a production fine-tuning and adaptation system that takes a pretrained base model and a domain-specific dataset, produces a task-specialized model that outperforms the base on target metrics, and serves it efficiently without duplicating base model weights across every adapter variant.
 
@@ -38,19 +38,19 @@ part: foundations
 **Candidate:** For the format-enforcement case — have they tried structured prompting and schema validation with retries?  
 **Interviewer:** Yes, they have 500-600 curated examples, and dynamic few-shot gets them to 84% compliance. Fine-tuning is being evaluated to close the remaining gap.
 
-**Candidate:** Good. 500–600 labeled examples is the practical minimum threshold for fine-tuning to outperform well-optimized prompting. That number also determines whether LoRA or full fine-tune is feasible. What is the model size and GPU availability?  
+**Candidate:** Good. 500–600 labeled examples is the practical minimum threshold for fine-tuning to outperform well-optimized prompting. That number also determines whether [[glossary#LoRA (Low-Rank Adaptation)|LoRA]] or full fine-tune is feasible. What is the model size and GPU availability?  
 **Interviewer:** They have access to 2–4 A100 80GB GPUs and want to fine-tune 7B and potentially 13B models.
 
-**Candidate:** At 7B parameters, full fine-tune with Adam optimizer states requires roughly 112GB GPU RAM — beyond a single A100. LoRA reduces trainable parameters from 7B to ~4M and fits in a single A100 in bfloat16. That is the direction I'd recommend. Are multiple tasks being trained simultaneously, or is this one model per task?  
+**Candidate:** At 7B parameters, full fine-tune with [[glossary#Adam (Adaptive Moment Estimation)|Adam]] optimizer states requires roughly 112GB GPU RAM — beyond a single A100. LoRA reduces trainable parameters from 7B to ~4M and fits in a single A100 in bfloat16. That is the direction I'd recommend. Are multiple tasks being trained simultaneously, or is this one model per task?  
 **Interviewer:** Multiple tasks — eventually 20–30 fine-tuned variants for different customers.
 
 **Candidate:** That changes the serving model. We cannot run 30 separate base model copies. We need adapter multiplexing — a single base model process with adapters hot-swapped or batched by adapter ID. How strict is the latency requirement?  
-**Interviewer:** Interactive product, p95 < 2 seconds time-to-first-token (TTFT).
+**Interviewer:** Interactive product, p95 < 2 seconds [[glossary#TTFT (Time To First Token)|time-to-first-token (TTFT)]].
 
 **Candidate:** Adapter hot-swap adds 10–30ms of adapter load latency. That is within budget at < 2s TTFT if adapters are cached in GPU memory. Last question: does the customer need the model to retain general capabilities, or is specialization-only acceptable?  
 **Interviewer:** Retain general capabilities — it is a customer-facing product where the model must handle off-topic questions gracefully.
 
-**Candidate:** Then we need a regularized training regime — LoRA inherently preserves base weights (only the adapter is trained), so catastrophic forgetting of general capabilities is mitigated by design. For alignment tuning we would use DPO rather than RLHF for this scale.
+**Candidate:** Then we need a regularized training regime — LoRA inherently preserves base weights (only the adapter is trained), so catastrophic forgetting of general capabilities is mitigated by design. For alignment tuning we would use [[glossary#DPO (Direct Preference Optimization)|DPO]] rather than [[glossary#RLHF (Reinforcement Learning from Human Feedback)|RLHF]] for this scale.
 
 ### Functional Requirements
 
@@ -124,7 +124,7 @@ Distillation path: **~$700 total vs $5,000 manual** — 7× cheaper, but require
 1. Raw dataset uploaded to the Dataset Curator. The upload triggers a content hash computation and a duplicate-run check against the registry — if a prior training run used the same dataset hash and LoRA config, the existing adapter is returned without re-training.
 2. Deduplication (MinHash, Jaccard threshold 0.85), format normalization to ChatML, length filter (discard examples > 4,096 tokens or response < 10 tokens), quality score filter using perplexity-based outlier removal (remove bottom 10th percentile by base model perplexity on the response).
 3. Training Orchestrator launches LoRA training job: injects rank-16 adapters into Q and V projections for all 32 attention layers, trains with AdamW at lr=2e-4 on a cosine schedule with 100-step linear warmup, for 3 epochs with gradient accumulation across 8 micro-batches for an effective batch size of 32.
-4. Checkpoint saved every 200 gradient steps to object storage (S3 or GCS); Eval Pipeline immediately runs the checkpoint against the held-out 10% eval split to detect overfitting (rising eval loss while train loss decreases) and enable early stopping.
+4. Checkpoint saved every 200 gradient steps to object storage (S3 or GCS); Eval Pipeline immediately runs the checkpoint against the held-out 10% eval split to detect [[glossary#Overfitting|overfitting]] (rising eval loss while train loss decreases) and enable [[glossary#Early Stopping|early stopping]].
 5. At training completion: full task benchmark evaluation and MMLU 10-subject delta check against the base model. Both results are recorded in the registry entry to enable historical quality trending across adapter versions.
 6. If both eval gates pass (task delta >= +5%, MMLU delta >= -2%): adapter artifact is registered in the Adapter Registry with status `canary` and the training data hash, hyperparameter config, and base model checkpoint reference stored as immutable metadata.
 7. 5% of production traffic for that customer is routed to the canary adapter; live quality metrics (task-specific accuracy, p95 latency, error rate) are tracked in a 24-hour monitoring window against the production baseline.
@@ -147,7 +147,7 @@ flowchart LR
   baseModel[BaseModelCheckpoint] --> trainOrchestrator
   loraConfig[LoRAConfig\nrank, alpha, target_modules] --> trainOrchestrator
 
-  trainOrchestrator --> evalPipeline[EvalPipeline\nMMRU delta + task metric]
+  trainOrchestrator --> evalPipeline[EvalPipeline\nMMLU delta + task metric]
   evalPipeline -->|"pass"| adapterRegistry[AdapterRegistry\nversioned artifacts]
   evalPipeline -->|"fail"| retrain[Retrain / HyperparamTune]
 
@@ -188,7 +188,7 @@ Focus areas for this chapter:
 
 LoRA (Hu et al., 2022) decomposes the weight update for a linear layer into two low-rank matrices:
 
-```
+```text
 W = W₀ + ΔW = W₀ + B × A
 ```
 
@@ -200,7 +200,7 @@ Where:
 
 During the forward pass, the output is:
 
-```
+```text
 h = W₀x + (B × A)x × (α / r)
 ```
 
@@ -335,7 +335,7 @@ Sources:
 
 The standard instruction tuning objective is supervised fine-tuning (SFT) on next-token prediction, with loss computed only on the response tokens (not the prompt tokens):
 
-```
+```text
 Loss = -Σ log P(y_t | y_<t, x)   for t in response_positions_only
 ```
 
@@ -369,7 +369,7 @@ Effective GPU requirement: **3–4× the base model size** in GPU memory simulta
 
 DPO (Rafailov et al., 2023) eliminates the reward model and RL loop entirely. It directly optimizes the policy using preference pairs (prompt, chosen, rejected) via a closed-form loss derived from the RLHF objective:
 
-```
+```text
 L_DPO(π_θ) = -E[(p,y_w,y_l)] [ log σ( β log(π_θ(y_w|p)/π_ref(y_w|p)) - β log(π_θ(y_l|p)/π_ref(y_l|p)) ) ]
 ```
 
@@ -389,7 +389,7 @@ Infrastructure requirements: **2 copies of the model** (active policy + frozen r
 
 ORPO (Hong et al., 2024) eliminates the reference model requirement. It combines SFT loss and preference optimization into a single loss:
 
-```
+```text
 L_ORPO = L_SFT + λ × L_OR
 L_OR = -E [ log σ( log(odds(y_w|p)) - log(odds(y_l|p)) ) ]
 odds(y|p) = P(y|p) / (1 - P(y|p))
@@ -458,7 +458,7 @@ GPU adapter cache management: LRU eviction with a configurable cache budget (e.g
 
 For adapters with very high traffic (e.g., top 3 adapters account for 80% of requests), the adapter delta can be merged permanently into the base weights:
 
-```
+```text
 W_merged = W₀ + B × A × (α / r)
 ```
 
@@ -479,7 +479,7 @@ When a new task dataset is used to further fine-tune a model that already has an
 
 EWC adds a regularization penalty proportional to the Fisher information of each parameter:
 
-```
+```text
 L_EWC = L_task + λ × Σᵢ Fᵢ × (θᵢ - θᵢ*)²
 ```
 
@@ -510,7 +510,7 @@ This enables composable specialization: a base adapter for domain vocabulary + a
 
 ### 1. Fine-Tuning Pipeline (Pseudocode)
 
-```
+```text
 FUNCTION run_finetuning_pipeline(
     base_model_id: str,
     raw_dataset_path: str,
@@ -1018,12 +1018,19 @@ def warmup(adapter_ids: list[str]) -> dict:
 
 ## Step 4: Wrap Up
 
-### Key Design Decisions
+### Final Design Summary
 
 - **LoRA over full fine-tune for 7B–70B models:** reduces trainable parameters from billions to millions, fitting training on a single A100 80GB. Base weights stay frozen, eliminating catastrophic forgetting risk and enabling adapter multiplexing at serving time. Full fine-tune is justified only at 100K+ labeled examples and maximum quality requirements.
 - **DPO over RLHF for production alignment:** DPO achieves 95–98% of RLHF quality at 1/3 the infrastructure — no reward model, no PPO loop, no value network. Use RLHF only when the task requires online exploration of novel behaviors not represented in the static preference dataset.
 - **Adapter multiplexing over separate model copies:** 30 LoRA adapters on a single base model require ~15GB GPU RAM vs 420GB for 30 separate full models. Serving cost is 5× lower with < 1ms added forward-pass overhead for homogeneous batches.
 - **Quality gate before production promotion:** fine-tuned adapters must pass MMLU delta >= -2% and task metric delta >= +5% relative to the base model before any production traffic. Without a gate, regressions ship silently. The gate catches underfitting (insufficient training data, wrong hyperparameters) and alignment failures (DPO divergence, reward hacking).
+
+### Wrap-Around Concerns
+
+- **Release engineering:** promote adapters through a canary + shadow path before they touch real traffic. A newly trained LoRA adapter must first clear the quality gate (MMLU delta >= -2%, task metric delta >= +5%) offline, then receive 1–5% of live traffic on the multiplexed base model while its quality and safety metrics are compared against the incumbent adapter. Because adapters are deltas atop a frozen base, rollback is a registry pointer swap — the prior adapter is re-attached in under a second with no model reload. The rollback trigger must be a pre-agreed threshold (e.g., "if task win-rate drops more than 5 points or refusal rate rises above baseline, revert automatically") rather than a manual call under incident pressure.
+- **Governance:** treat every adapter as a versioned, auditable artifact bound to its training inputs. Each adapter in the registry must record its base model version, LoRA rank/alpha, the DPO preference dataset version and its content hash, the hyperparameters, and the full quality-gate report, so any production behavior can be traced back to the exact data and config that produced it. Preference datasets and training corpora must be versioned and approval-gated, and dataset-contamination checks (13-gram overlap filtering against eval benchmarks) must be logged as part of the lineage so benchmark scores can be trusted. Approval to promote is a recorded decision, not an implicit side effect of training completing.
+- **Cost controls:** exploit adapter multiplexing and right-size the training fleet. Serving 30 adapters on one base model holds GPU cost ~5× below 30 separate full models, so the registry should consolidate adapters onto shared bases and reclaim idle ones rather than spinning up dedicated copies. Training cost is bounded by defaulting to single-A100-80GB LoRA jobs and reserving full fine-tunes for the 100K+ labeled-example, maximum-quality cases that justify them; per-job token and step budgets prevent a misconfigured run (wrong learning rate, too many epochs) from burning a fleet for days. Track break-even per adapter — a $500 fine-tune that saves $0.01/call breaks even at 50K calls — and retire adapters whose call volume never reaches it.
+- **Drift controls:** track quality per adapter and per base model version so regressions are attributable. Task win-rate, MMLU delta, and refusal/alignment-violation rates must be stored against each adapter version, since a new base model release or a re-trained adapter can re-introduce catastrophic forgetting or DPO divergence that the prior version had suppressed. Production quality signals should be compared continuously against the gate baseline; a sustained drop below the +5% task-metric margin or a creep in MMLU degradation past -2% triggers re-evaluation and, if needed, a retrain on a refreshed preference set with a general-instruction regularizer (5–10% FLAN/OpenHermes mix) to restore retained behavior.
 
 ---
 
@@ -1168,3 +1175,16 @@ Implement a dataset deduplication pipeline that: (1) extracts character-level 3-
 A production fine-tuned adapter for customer support classification achieves 96% accuracy in offline evaluation but only 78% accuracy in live production. The offline eval set has 1,000 examples; production handles 50,000 requests per day. Diagnose at least three distinct causes for this offline-online accuracy gap and for each: identify the observable signal that would confirm the hypothesis (what metric, log, or sample to look at), describe the minimum change to fix it, and explain whether the fix requires a data change, model change, or serving infrastructure change. At least one of your causes must involve the adapter caching and hot-swap mechanism.
 
 *Key considerations:* (1) Distribution shift is the most common cause of offline-online gap at this scale — 50,000 production requests per day contains a far richer and noisier input distribution than 1,000 curated eval examples. Sample 500 production requests, compare their text length distribution, vocabulary overlap with training data, and category distribution against the offline eval set; if the production inputs are structurally different, the fix is a data change (add production samples to the eval set and retraining set). (2) For the adapter caching hypothesis: if the serving engine evicts the adapter mid-session and cold-loads a different adapter checkpoint (e.g., due to a bug in the adapter ID lookup), the wrong adapter weights are applied for a subset of requests — producing random-quality outputs that drag average accuracy from 96% to 78%. The observable signal is a bimodal accuracy distribution in production logs: some requests score near 96% and others near chance level. Check the serving engine's cache eviction logs for unexpected evictions correlated with the accuracy drops. (3) Prompt format mismatch: if the offline eval examples were formatted in ChatML but production requests arrive in a different format (raw text, Alpaca-style, or missing system prompt), the model sees an input distribution it was never trained on. The fix is a serving infrastructure change — add a prompt normalization step before the adapter forward pass. (4) Tokenization edge cases at production scale: 50,000 requests expose tokenization edge cases (special characters, mixed languages, very long inputs that hit the 4,096 token limit and are silently truncated) that 1,000 curated examples did not. Log the input lengths and character distributions of the 22% failing cases and compare against passing cases to identify the boundary condition.
+
+---
+
+## End of Chapter
+
+- **Key takeaway:** Parameter-efficient fine-tuning decouples adaptation from the base model: LoRA/QLoRA train low-rank deltas (a rank-16 adapter on a 7B model is ~33MB versus 14GB of base weights), which makes it economical to serve hundreds of customer-specific adapters by hot-swapping deltas against one shared, cached base. Preference alignment (DPO/ORPO) often beats full RLHF in operational simplicity because it removes the separate reward model and PPO loop. The recurring trap is the offline-online gap—high eval accuracy collapsing in production from distribution shift, prompt-format mismatch, or adapter-cache bugs.
+- **What to practice:** Size a multi-tenant adapter-serving fleet: 500 customers, each with a rank-16 adapter (~33MB) on a 7B base, target p95 TTFT < 2s on A100 80GB. Compute the adapter memory budget against the 14GB base plus KV cache, the cold-start transfer time for a 50-adapter simultaneous miss over a ~15GB/s PCIe link if loads are pipelined, and the per-customer amortized cost difference between a 100-req/day and a 100,000-req/day tenant.
+- **Interview drill:** A fine-tuned support-classification adapter scores 96% on a 1,000-example offline set but only 78% in production at 50,000 requests/day. Walk through diagnosing at least three distinct causes—distribution shift, prompt-format mismatch, and an adapter cache/hot-swap eviction loading the wrong checkpoint—naming for each the observable signal (e.g., a bimodal production accuracy distribution pointing at cache eviction), the minimal fix, and whether that fix is a data, model, or serving-infrastructure change.
+
+---
+
+<!-- nav-footer -->
+[[chapter-25|← Chapter 25]] | [[README|Contents]] | [[chapter-27|Chapter 27 →]]

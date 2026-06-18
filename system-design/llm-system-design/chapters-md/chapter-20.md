@@ -14,7 +14,7 @@ part: case-studies
 > - **Scale:** 1M triage sessions/day, ~35 sessions/sec peak
 > - **Key Techniques:** 2-pass PHI de-identification (NER + regex, > 99.5% recall), deterministic red-flag engine (> 99.9% sensitivity), clinical safety validator, temperature=0, WORM audit trail
 > - **Primary Concerns:** Zero missed ESI 1-2 emergencies, HIPAA PHI protection, 7-year audit retention, regulatory defensibility
-> - **Cross-references:** [[chapter-05|Chapter 5]] (safety stack), [[chapter-11|Chapter 11]] (accuracy requirements), [[chapter-17|Chapter 17]] (audit trail patterns)
+> - **Cross-references:** [[chapter-05|Chapter 5]] (safety stack), [[chapter-11|Chapter 11]] (accuracy requirements), [[chapter-17|Chapter 17]] (audit trail patterns), [[chapter-30|Chapter 30]] (privacy, compliance, and HIPAA-aware retrieval)
 
 **Problem statement:** Design an LLM-powered healthcare triage system that conducts structured symptom interviews, assigns acuity levels, and provides preliminary diagnostic guidance—with zero tolerance for missed critical symptoms, strict HIPAA compliance (PHI must never reach LLM API endpoints), deterministic escalation to human clinicians, and a complete audit trail for regulatory review.
 
@@ -48,7 +48,7 @@ part: case-studies
 
 - **Conduct structured symptom interviews:** The system must ask adaptive follow-up questions that branch based on prior patient responses—a patient who mentions "chest pain" should be asked about radiation, diaphoresis, and onset duration, not about unrelated symptoms.
 - **Classify patients into ESI acuity levels 1-5 with confidence scores:** Every classification must emit a probability score alongside the level (e.g., ESI 3, confidence=0.87) so downstream components can trigger escalation when confidence is low, and so audit records reflect the uncertainty present at decision time.
-- **Detect critical symptoms (red flags) deterministically—independent of LLM output:** The red-flag engine must fire on its own signal, never waiting for or depending on the LLM's assessment; this architectural separation ensures that LLM failures, hallucinations, or latency spikes cannot delay a life-saving escalation.
+- **Detect critical symptoms (red flags) deterministically—independent of LLM output:** The red-flag engine must fire on its own signal, never waiting for or depending on the LLM's assessment; this architectural separation ensures that LLM failures, [[glossary#Hallucination (LLM)|hallucinations]], or latency spikes cannot delay a life-saving escalation.
 - **Escalate ESI 1-2 cases to human clinicians with structured handoff summaries:** Escalation is not a simple alert—it includes a machine-readable JSON summary with symptom timeline, vital-sign flags, and conversation transcript so the receiving clinician can act within seconds without reading a free-text wall.
 - **Provide preliminary diagnostic differentials for ESI 3-5 cases (informational only, not prescriptive):** Differentials are constrained to a curated list of ~500 ICD-10 codes validated for triage use; any LLM-generated code outside this list is stripped before display to prevent patients from acting on hallucinated rare diagnoses.
 - **De-identify all PHI before any text is sent to external LLM APIs:** The de-identification pipeline runs as a synchronous blocking step in the request path—no LLM call is initiated until the scrubbed text has been confirmed to contain zero detected PHI entities by both the NER model and the regex layer.
@@ -132,7 +132,7 @@ part: case-studies
 ### Core Architecture Components
 
 - **Patient Interface:** Web/mobile/tablet app with accessible UI (WCAG 2.1 AA). Supports text input and structured symptom selection. Displays NPC-style conversational triage flow. The interface is designed for symptomatic, anxious users: font size ≥ 16px, high-contrast mode, voice input for patients who struggle to type, and progressive disclosure of questions (one question at a time, not a wall of form fields) to reduce cognitive load and improve answer quality.
-- **API Gateway:** HIPAA-compliant gateway with TLS 1.3, mTLS for internal services, authentication (patient session token), rate limiting, and request routing. The gateway enforces strict payload size limits (max 4KB per turn) to prevent prompt injection via oversized inputs, and applies per-session rate limits (max 20 requests/minute) to block automated abuse while accommodating slow typists.
+- **API Gateway:** HIPAA-compliant gateway with TLS 1.3, mTLS for internal services, authentication (patient session token), rate limiting, and request routing. The gateway enforces strict payload size limits (max 4KB per turn) to prevent [[glossary#Prompt Injection|prompt injection]] via oversized inputs, and applies per-session rate limits (max 20 requests/minute) to block automated abuse while accommodating slow typists.
 - **PHI De-identification Service:** NER-based pipeline (fine-tuned clinical NER model) + regex patterns that strip all 18 HIPAA identifiers from patient input before it leaves the trust boundary. Replaces with deterministic typed placeholders (e.g., `[NAME_1]`, `[DOB_1]`). The service is synchronous and blocking—no downstream component receives unprocessed text; if the de-identification service is unavailable, the entire request fails safe (returns an error) rather than forwarding raw PHI.
 
 > **Why typed placeholders over generic `[REDACTED]`:** The LLM needs entity-type context to generate clinically coherent follow-up questions. A prompt containing `"[NAME_1], when did your [SYMPTOM_1] start?"` allows the model to understand it is addressing a person by name—`"[REDACTED], when did your [REDACTED] start?"` produces confused, lower-quality output and higher hallucination rates. Typed placeholders preserve syntactic and semantic structure while eliminating identifier content.
@@ -141,9 +141,9 @@ part: case-studies
 
 > **Why deterministic rules rather than relying on the LLM for red-flag detection:** LLMs are probabilistic—they can and do miss critical symptoms under token distribution pressure, attention dilution over long contexts, or subtle phrasing variations. A rule-based engine with 500 hard-coded clinical patterns has a bounded, auditable failure mode: it can only miss what no rule covers, and every miss is a candidate for a new rule. An LLM miss is silent, non-deterministic, and un-auditable without complete output logging. In healthcare, bounded failure modes are legally and clinically preferable to probabilistic ones.
 
-- **Triage LLM Service:** 7B medical-domain fine-tuned model for generating follow-up questions, interpreting symptoms in natural language, and producing acuity classifications. Receives ONLY de-identified text. The model runs with temperature=0 for all acuity classifications (deterministic greedy decoding) and temperature=0.3 for follow-up question generation (slight variation makes the conversation feel less robotic while not affecting safety-critical decisions).
+- **Triage LLM Service:** 7B medical-domain [[glossary#Fine-tuning|fine-tuned]] model for generating follow-up questions, interpreting symptoms in natural language, and producing acuity classifications. Receives ONLY de-identified text. The model runs with [[glossary#Temperature|temperature]]=0 for all acuity classifications (deterministic greedy decoding) and temperature=0.3 for follow-up question generation (slight variation makes the conversation feel less robotic while not affecting safety-critical decisions).
 
-> **Why a 7B fine-tuned model over a larger general-purpose model:** At 1M sessions/day with a 2-second total latency budget, a 7B INT4 model delivers ~150 output tokens in 300–400ms on a single A100 GPU and costs ~$0.0007/session. A 70B model requires 2,400ms for the same output, violates the latency SLO, and costs ~$0.007/session—a 10x penalty with no guarantee of proportional safety improvement on the narrow triage task. Medical fine-tuning on 7B matches or exceeds general 70B performance specifically on triage classification benchmarks (F1 92.3% vs 91.8% on ESI-5 classification on held-out telehealth data).
+> **Why a 7B fine-tuned model over a larger general-purpose model:** At 1M sessions/day with a 2-second total latency budget, a 7B INT4 model delivers ~150 output tokens in 300–400ms on a single A100 GPU and costs ~$0.0007/session. A 70B model requires 2,400ms for the same output, violates the latency SLO, and costs ~$0.007/session—a 10x penalty with no guarantee of proportional safety improvement on the narrow triage task. Medical fine-tuning on 7B matches or exceeds general 70B performance specifically on triage classification benchmarks ([[glossary#F1 Score|F1]] 92.3% vs 91.8% on ESI-5 classification on held-out telehealth data).
 
 - **Clinical Safety Validator:** Post-LLM output check that verifies: (1) recommended acuity level is consistent with detected symptoms, (2) no dangerous advice is present (e.g., "take aspirin" without allergy check), (3) differential diagnoses are within approved list, (4) escalation triggers are not suppressed. The validator runs as a separate lightweight classifier (500M params) fine-tuned specifically on clinical safety violations—it is not the same model as the triage LLM and cannot be "talked out of" a safety violation by the LLM's reasoning.
 
@@ -273,7 +273,7 @@ The pipeline uses a two-pass approach for maximum recall:
 
 **Placeholder strategy:**
 
-| Approach | How It Works | Pros | Cons | Recommended |
+| Approach | How It Works | Strengths | Weaknesses | Use When |
 |---|---|---|---|---|
 | Generic placeholder | Replace all PHI with `[REDACTED]` | Implementation is a simple string substitution requiring no mapping table or session state; zero risk of re-identification errors | The LLM loses entity-type context—"How old are you, [REDACTED]?" is grammatically and semantically broken, reducing follow-up question quality by ~18% in A/B testing and increasing hallucinated entity references | No |
 | Typed placeholder | Replace with `[NAME_1]`, `[DATE_1]` | The LLM understands entity types and generates grammatically coherent, contextually appropriate follow-up questions; re-identification is a simple lookup in the session-scoped mapping table | Slight information leakage: the cloud LLM API provider can infer that a name (or date, or location) existed even though the value is hidden; also, unusual entity counts (e.g., 7 distinct names in one session) could be quasi-identifying | **Yes—production default** |
@@ -356,7 +356,7 @@ The system uses a tiered escalation model based on acuity classification confide
 
 **Clinician handoff summary format:**
 
-```
+```text
 TRIAGE SUMMARY — Session ID: [SESSION_ID]
 Generated: [TIMESTAMP] | Model: triage-7b-v2.3 | Prompt: v1.7
 
@@ -1210,7 +1210,7 @@ A compliance audit of the cloud LLM provider's request logs (which the team rece
 
 The system prompt template (prompt version v1.3) includes a hardcoded few-shot example:
 
-```
+```text
 Example triage session:
 Patient: "My name is Sarah Johnson and I've been having chest pain for 2 hours."
 Assistant: "[NAME_1] has reported chest pain with 2-hour onset..."
@@ -1232,3 +1232,8 @@ Debug this issue:
 - **Key takeaway:** A healthcare triage system is a safety-critical pipeline where the LLM is the least trustworthy component. The deterministic red-flag engine, PHI de-identification pipeline, and audit trail are the system—the LLM is an advisory module that can be overridden, regenerated, or bypassed at any point. Design for the failure mode where the LLM is wrong, not the happy path where it's right.
 - **What to practice:** Walk through the PHI de-identification pipeline for a realistic patient input containing 5 different PHI types. Trace the decision flow when a patient describes ambiguous chest symptoms—which components fire, in what order, and what happens when they disagree.
 - **Interview drill:** Given a regulatory auditor asking "show me exactly how a specific session was triaged 18 months ago," walk through the audit trail reconstruction: session lookup, model version retrieval, prompt replay, output reproduction, and decision trace explanation. Identify every artifact that must be stored to make this possible.
+
+---
+
+<!-- nav-footer -->
+[[chapter-19|← Chapter 19]] | [[README|Contents]] | [[chapter-21|Chapter 21 →]]

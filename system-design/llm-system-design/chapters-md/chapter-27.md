@@ -32,7 +32,7 @@ part: operations
 **Interviewer:** Design an evaluation system for a production LLM platform. We ship model updates weekly and need confidence that quality hasn't regressed.  
 **Candidate:** Before proposing an architecture I want to understand what is being evaluated, at what scale, and what the current state of evaluation is.
 
-**Candidate:** What types of tasks does the model perform — classification, open-ended generation, code generation, RAG responses?  
+**Candidate:** What types of tasks does the model perform — classification, open-ended generation, code generation, [[glossary#RAG (Retrieval-Augmented Generation)|RAG]] responses?  
 **Interviewer:** All of the above. We have eight product lines with different task types.
 
 **Candidate:** How many evals do you need to run per model update, and how fast does the result need to be available?  
@@ -61,7 +61,7 @@ part: operations
 - Run automated evals on every pull request and every production model deployment.
 - Support multiple eval types: unit evals (single-turn, deterministic), integration evals (multi-turn, tool-use), and human evals (async, sampled).
 - Score responses on multiple dimensions: correctness, groundedness, safety, latency, and cost per request.
-- LLM-as-judge for open-ended quality scoring, calibrated against human labels.
+- LLM-as-judge for open-ended quality scoring, [[glossary#Calibration|calibrated]] against human labels.
 - Maintain a versioned golden dataset for regression testing, with coverage across task types and difficulty levels.
 - Detect regressions with statistical rigor — alert only when the drop is statistically significant at p < 0.01.
 - Support A/B testing between model versions with minimum detectable effect (MDE) guarantees.
@@ -161,7 +161,7 @@ For A/B testing between model versions:
 ### Mermaid Architecture Diagram
 
 ```mermaid
-flowchart TB
+flowchart LR
   ciTrigger[CI Trigger / PR Webhook] --> orchestrator[Eval Orchestrator]
   prodSampler[Production Traffic Sampler] --> orchestrator
 
@@ -225,7 +225,7 @@ The judge prompt has four mandatory sections:
 3. **Structured output schema:** require the judge to output JSON with `score` (int 1-5) and `rationale` (string, <= 100 words). No markdown wrapping.
 4. **Constraint against positional and verbosity bias:** explicitly instruct the judge not to prefer longer responses or the first option presented.
 
-```
+```text
 [JUDGE SYSTEM PROMPT]
 You are an expert LLM response evaluator. Score the response below on CORRECTNESS only.
 Do not reward longer responses. Do not penalize brevity. Judge only factual accuracy.
@@ -336,7 +336,7 @@ Decontamination procedure:
 
 #### Trade-off Table: Statistical Test Choices
 
-| Test | Assumption | Best For | Weakness |
+| Test | Assumption | Use When | Weaknesses |
 |---|---|---|---|
 | Welch's t-test | Approximate normality, which holds for n > 30 by the Central Limit Theorem even when individual scores are not normally distributed; does not assume equal variances between baseline and current | Continuous scores (1-5 correctness scale aggregated to means) where the primary regression signal is a shift in the mean; at n=500 evals per run, provides sufficient power to detect a 0.1-point shift at alpha=0.01 | Sensitive to outliers: a small number of catastrophically wrong responses (score=1 on a mostly 4-5 distribution) inflates variance and can both mask a real regression and reduce power, making a parallel p10 check advisable |
 | Mann-Whitney U | Non-parametric: makes no distributional assumption; works on ordinal data where the distance between scale points is not well-defined | Pass/fail rates and ordinal scores where the underlying distribution is clearly non-normal; also preferred when the MUT produces a bimodal score distribution (either fully correct or completely wrong) | Less statistical power than Welch's t-test at the same sample size — approximately 15-20% more samples are needed to achieve the same alpha/power combination, which matters when CI eval budgets limit run size |
@@ -1167,7 +1167,7 @@ if __name__ == "__main__":
 **Scenario:** You are building an eval pipeline for a legal document review assistant. The model reads contracts and flags clauses that may create liability. A missed high-risk clause is much worse than a false positive flag. Design the full eval architecture: what dimensions do you measure, how do you weight them, what does the golden dataset look like, and how do you set the regression alert thresholds asymmetrically to reflect the cost asymmetry between miss and false positive?
 
 **Key considerations:**
-- How do you represent "miss rate" (false negative) and "false positive rate" as separate eval dimensions rather than a single F1 score? Note that F1 collapses precision and recall into a single number, hiding the exact trade-off the business cares about — a legal team may accept a 15% false positive rate to ensure near-zero misses, a trade-off that F1 alone cannot represent or gate on.
+- How do you represent "miss rate" (false negative) and "false positive rate" as separate eval dimensions rather than a single [[glossary#F1 Score|F1 score]]? Note that F1 collapses [[glossary#Precision|precision]] and [[glossary#Recall|recall]] into a single number, hiding the exact trade-off the business cares about — a legal team may accept a 15% false positive rate to ensure near-zero misses, a trade-off that F1 alone cannot represent or gate on.
 - Given that human review of flagged clauses is the downstream cost of a false positive, and a missed high-risk clause could result in significant legal liability, how do you set the weight ratio between recall and precision in the composite score? Consider that in high-stakes domains, recall often warrants a 4:1 or higher weight advantage over precision — calculate the explicit cost ratio from the organization's risk tolerance before embedding it as a fixed weight.
 - What does the golden dataset difficulty stratification look like for a legal domain? A "hard" clause example may be one that contains qualifying language ("except in cases where...") that converts a normally risky clause into a benign one — the model must parse the full contextual qualifier, not pattern-match on surface keywords. Easy examples are clauses that any junior attorney would flag on sight; hard examples require understanding of cross-references within the same document, jurisdictional context, or interaction effects between clauses.
 - How do you handle the label quality problem in legal golden sets? Legal classification is not objective — two experienced attorneys may disagree on whether a clause creates liability, especially for edge cases. Consider multi-annotator labeling with majority vote and flag high-disagreement examples as "ambiguous" rather than forcing a binary label that misrepresents the ground truth.
@@ -1218,3 +1218,16 @@ For each cause: explain how to detect it from the eval registry logs, what the f
 - For cause 1 (dataset versioning bug): the eval registry stores `dataset_version` alongside every run result. The investigation starts by comparing the `dataset_version` fields of the baseline run and the current run. If they differ, compute the score distribution of the shared subset of examples that appear in both versions and re-run the regression test on only that shared subset — the p-value should drop to non-significant if the regression was caused by example replacement rather than model quality change. The process fix is a pre-flight validation in the orchestrator that refuses to schedule a regression comparison when `baseline.dataset_version != current.dataset_version`.
 - For cause 2 (silent judge model update): the registry stores `judge_model_id` but not the judge model's internal version, since providers do not expose a stable version identifier for non-pinned model deployments. The investigation step is to re-run the judge on the same 50 examples from the baseline run and compare scores — if the judge now scores them differently, that is evidence of a judge drift rather than MUT regression. The process fix is to always pin the judge to a specific model version string (`gpt-4o-2024-11-20` rather than `gpt-4o`) so that provider-side updates do not affect eval results without an explicit promotion.
 - For cause 3 (subgroup regression invisible in manual check): a 20-sample manual spot-check samples from the full distribution; at 5% representation of multi-step math, the expected number of multi-step math examples in 20 samples is 1. A single example is not sufficient to observe a pattern. The investigation step is to recompute the regression metric filtered to the multi-step math subgroup only — if the per-subgroup delta is 8-10pp while the aggregate delta is 3pp, the subgroup hypothesis is confirmed. The process fix is to add per-task-type regression monitoring to the regression detector and to require at least 200 examples per task type in the golden set to make per-type statistical testing viable.
+
+---
+
+## End of Chapter
+
+- **Key takeaway:** Evaluation at scale is a measurement-reliability problem before it is a quality problem: an LLM-as-judge is itself a model that must be calibrated against human labels and pinned to a specific version, golden sets must be versioned, and any reported regression must clear a statistical-significance bar rather than a single spot-check. The core insight is that the eval system needs the same rigor as the system it judges—pinned judge versions (`gpt-4o-2024-11-20`, not `gpt-4o`), dataset_version provenance on every run, and per-subgroup metrics—because silent judge drift and dataset-version mismatches produce phantom regressions, while real subgroup regressions hide inside an aggregate.
+- **What to practice:** Size an eval pipeline and its statistics: for a golden set, compute the minimum examples per task-type subgroup needed to detect an 8pp regression at p<0.05 with adequate power, then estimate the judge-inference cost and latency to score a full regression sweep on every PR in a tier-4 (model-code) change versus a tier-3 (prompt-only) change, and the CI budget impact of running it on every merge.
+- **Interview drill:** Your pipeline flags a statistically significant 3-point correctness regression (p=0.003) after a model update, but an engineer's manual spot-check of 20 responses sees no difference. Walk through diagnosing the three candidate causes—a dataset_version mismatch between baseline and current runs, a silent provider-side judge update, and a real regression concentrated in a 40%-of-golden-set / 5%-of-traffic subgroup invisible at 20 samples—explaining for each how to detect it from the eval registry logs, the fix, and the process change (pre-flight version checks, judge pinning, per-task-type regression monitoring) that prevents recurrence.
+
+---
+
+<!-- nav-footer -->
+[[chapter-26|← Chapter 26]] | [[README|Contents]] | [[chapter-28|Chapter 28 →]]

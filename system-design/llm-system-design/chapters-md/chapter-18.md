@@ -14,7 +14,7 @@ part: case-studies
 > - **Scale:** 50K concurrent voice sessions, 12M sessions/day
 > - **Key Techniques:** Streaming STT (Deepgram Nova-2) + self-hosted 8B LLM with speculative decoding + XTTS v2 TTS, barge-in handling (AEC + 2-stage detection), Silero VAD
 > - **Primary Concerns:** End-to-end < 500ms voice-to-voice latency, barge-in interruption handling, acoustic echo cancellation, graceful degradation
-> - **Cross-references:** [[chapter-04|Chapter 4]] (speculative decoding), [[chapter-14|Chapter 14]] (streaming STT), [[chapter-09|Chapter 9]] (agentic loop control)
+> - **Cross-references:** [[chapter-04|Chapter 4]] (speculative decoding), [[chapter-14|Chapter 14]] (streaming STT), [[chapter-09|Chapter 9]] (agentic loop control), [[chapter-19|Chapter 19]] (real-time NPC dialogue at high concurrency)
 
 **Problem statement:** Design a real-time voice agent that conducts natural conversations over phone or drive-thru intercom with sub-500ms voice-to-voice latency, handles interruptions gracefully, and maintains task state across multi-turn dialogues—processing 50K concurrent sessions with human-like responsiveness.
 
@@ -275,7 +275,7 @@ For <500ms voice-to-voice: managed streaming STT (Deepgram) provides the best la
 
 Drive-thru menus have domain-specific terms ("McFlurry," "Whopper," "venti"). STT systems misrecognize these. Fix:
 - **Hot-word boosting:** Deepgram/Google Cloud support keyword boosting—provide a list of menu item names with boosted recognition probability. +15% accuracy on menu items, zero latency impact.
-- **Fine-tuning:** fine-tune Whisper on 100 hours of drive-thru audio with transcripts. WER drops from 8.5% to 5.2% on domain vocab. Requires labeled training data.
+- **[[glossary#Fine-tuning|Fine-tuning]]:** fine-tune Whisper on 100 hours of drive-thru audio with transcripts. WER drops from 8.5% to 5.2% on domain vocab. Requires labeled training data.
 - **Post-correction:** after STT, run a fast string-matching pass to correct common misrecognitions: "large MacFlurry" → "large McFlurry." Adds <5ms.
 
 **Stage 3: LLM Generation — 150ms budget (to first token)**
@@ -290,9 +290,9 @@ The LLM must produce the first output token within 150ms of receiving the final 
 | Phi-3 3.8B (INT4) | 3.8B | 40ms | 5ms | 82% | 1× A10 | Budget option |
 | Mistral 7B (INT4) | 7B | 75ms | 7ms | 86% | 1× A100 | Good alternative |
 
-For voice agents, a self-hosted 8B model with speculative decoding is optimal: 80ms TTFT, 3ms TPOT, fitting the 150ms budget with headroom. API-based models add 50-100ms network latency that's hard to recover.
+For voice agents, a self-hosted 8B model with [[glossary#Speculative Decoding|speculative decoding]] is optimal: 80ms [[glossary#TTFT (Time To First Token)|TTFT]], 3ms [[glossary#TPOT (Time Per Output Token)|TPOT]], fitting the 150ms budget with headroom. API-based models add 50-100ms network latency that's hard to recover.
 
-> **Why Llama 3 8B INT4:** 8B at INT4 quantization achieves 80ms TTFT on a single A100 — within the 150ms budget — while maintaining 88% task completion rate. Phi-3 3.8B is faster (40ms TTFT) but drops task completion to 82%, which translates to 6% more escalations to human agents. GPT-4o-mini adds 50-100ms unavoidable network latency that cannot be recovered within the 500ms budget.
+> **Why Llama 3 8B INT4:** 8B at INT4 [[glossary#Quantization|quantization]] achieves 80ms TTFT on a single A100 — within the 150ms budget — while maintaining 88% task completion rate. Phi-3 3.8B is faster (40ms TTFT) but drops task completion to 82%, which translates to 6% more escalations to human agents. GPT-4o-mini adds 50-100ms unavoidable network latency that cannot be recovered within the 500ms budget.
 > **Why speculative decoding:** Speculative decoding with a 1B draft model reduces TPOT from 8ms to 3ms per token by proposing 4-6 tokens at a time that the 8B verifier accepts ~75% of the time. At 50 output tokens per turn, this saves approximately 250ms of decode time — enough to absorb STT or TTS latency overruns without breaking the 500ms budget.
 
 **Prompt design for voice agents:**
@@ -358,7 +358,7 @@ Humans interrupt each other constantly in conversation. A voice agent that can't
 
 **Turn-taking state machine:**
 
-```
+```text
 States: LISTENING → PROCESSING → SPEAKING → INTERRUPTED
 
 LISTENING: VAD monitors. On speech_onset → route to STT. On end_of_speech → transition to PROCESSING.
@@ -375,7 +375,7 @@ When the user interrupts, the dialogue manager must know:
 - Whether the interruption is a correction ("no, I said medium"), an addition ("and also a drink"), or a redirect ("actually, cancel that").
 
 Prompt augmentation after interruption:
-```
+```text
 [Previous agent response, spoken up to: "Your total comes to $12.50. Would you like to add—"]
 [User interrupted with: "Actually, remove the fries."]
 [Instruction: The user interrupted your response. Acknowledge the interruption, process their request, and continue.]
@@ -408,7 +408,7 @@ The traditional voice agent uses a cascade pipeline: STT → LLM → TTS. An eme
 
 **Pipeline architecture (STT → LLM → TTS):**
 
-```
+```text
 Audio In → STT → Text → LLM → Text → TTS → Audio Out
 ```
 
@@ -416,7 +416,7 @@ Each stage is independently optimizable and debuggable. STT, LLM, and TTS can be
 
 **Native multimodal architecture (Audio → Model → Audio):**
 
-```
+```text
 Audio In → Multimodal Model → Audio Out
 ```
 
@@ -442,7 +442,7 @@ Start with the pipeline architecture (STT→LLM→TTS) for production reliabilit
 
 **Hybrid architecture (emerging best practice):**
 
-```
+```text
 Audio In → STT → Text → LLM (text) → Text → TTS → Audio Out
                     ↓
               Audio In → Multimodal Model → Audio Out
@@ -492,148 +492,9 @@ Use the pipeline by default. If STT confidence drops below 70% (noisy environmen
 
 > **Why emotion detection:** Task completion rate is the primary metric, but CSAT is the business metric that determines whether customers return. An agent that detects frustration and gracefully hands off outperforms one that keeps trying and fails — even if the latter has a 5% higher task completion rate. Emotion detection also provides an early-warning signal for systematic failures: a spike in frustration scores across sessions at a specific location typically indicates a hardware issue (noisy intercom) or a menu configuration error rather than individual caller variability.
 
-- **Contextual pre-loading:** before the first caller utterance, the system pre-loads the session context into the LLM's KV cache. For a drive-thru, this includes the full current menu (items, prices, availability flags, active promotions, and item-level modifiers) plus the day-of-week and time-of-day context (breakfast vs. lunch menu). For phone agents, use caller ID lookup to pre-load the customer's account history, prior order preferences, and any open tickets. Pre-loading is triggered the moment the audio connection is established — roughly 300-500ms before the caller finishes their greeting utterance — so by the time the first transcript arrives, the LLM's KV cache already contains the full context and TTFT is reduced to prefill over just the new user turn rather than the full context, cutting per-turn LLM latency by 30-40ms at the context sizes typical for drive-thru menus (2,000-4,000 tokens).
+- **Contextual pre-loading:** before the first caller utterance, the system pre-loads the session context into the LLM's [[glossary#KV Cache|KV cache]]. For a drive-thru, this includes the full current menu (items, prices, availability flags, active promotions, and item-level modifiers) plus the day-of-week and time-of-day context (breakfast vs. lunch menu). For phone agents, use caller ID lookup to pre-load the customer's account history, prior order preferences, and any open tickets. Pre-loading is triggered the moment the audio connection is established — roughly 300-500ms before the caller finishes their greeting utterance — so by the time the first transcript arrives, the LLM's KV cache already contains the full context and TTFT is reduced to prefill over just the new user turn rather than the full context, cutting per-turn LLM latency by 30-40ms at the context sizes typical for drive-thru menus (2,000-4,000 tokens).
 
 ---
-
-## Step 4: Wrap Up
-
-### Final Design Summary
-
-The system achieves sub-500ms voice-to-voice latency through a fully streaming pipeline: Silero VAD for end-of-speech detection (50ms), streaming STT with domain-adapted vocabulary (100ms finalization), a self-hosted 8B LLM with speculative decoding (80ms TTFT), and self-hosted XTTS v2 for streaming TTS (80ms first chunk). Barge-in handling uses a two-stage detection strategy (volume reduction then full stop) that achieves 3% false positive rate while catching 98% of real interruptions. At 50K concurrent sessions, self-hosted STT and TTS at $0.002/minute is 23x cheaper than managed APIs. The architecture is pipeline-based (STT→LLM→TTS) for production maturity and debuggability, with a planned migration path to hybrid pipeline + native multimodal for noisy environments.
-
-### Wrap-Around Concerns
-
-- **Risk:** 500ms latency budget has zero slack. Any single stage regression (STT provider latency spike, GPU contention on LLM, TTS audio buffer underrun) breaks the SLO. Mitigation: per-stage latency monitoring with circuit breakers. If any stage exceeds 1.5x budget, degrade gracefully (shorter responses, skip speculative execution, use lower-quality but faster TTS).
-- **Risk:** Background noise in drive-thru environments degrades STT accuracy below 95%. Mitigation: domain-adapted STT model, hot-word boosting, and multimodal fallback for low-confidence transcripts.
-- **Risk:** Barge-in handling with AEC fails in novel acoustic environments (new intercom hardware, outdoor seating areas). Mitigation: per-location AEC calibration during installation. Monitor barge-in false-positive rate per location; alert if >10%.
-- **Risk:** Self-hosted TTS and STT require 900+ GPUs at peak, creating significant infrastructure operational burden. Mitigation: auto-scaling with spot instances for burst. Maintain 60% baseline on reserved instances, scale 40% on spot.
-- **Risk:** Dialogue state errors cause wrong orders (customer says "large" but system records "small"). Mitigation: explicit confirmation turns for high-value items. "Got it—one large combo number three. Is that correct?" Confirmation rate should be >95%.
-
----
-
-## Step 5: Interviewer Curveballs
-
-### Interviewer Follow-ups & Frequently Asked Questions (FAQ)
-
-Q: The customer says "I'd like a large number three with no pickles and a Coke—oh wait, make that a Sprite." Your system must handle this single utterance. Walk through exactly what happens.
-
-**The Ideal Answer:** This is a self-correction within a single turn — not a multi-turn dialogue issue. The STT transcribes the full utterance as one text segment because there is no natural end-of-speech pause that would trigger VAD. The LLM must parse the self-correction semantics rather than treating "Coke" and "Sprite" as two additive items. The system prompt instructs the LLM: "Customers may change their mind mid-sentence using phrases like 'oh wait,' 'actually,' or 'no, make that.' The LAST stated preference for any slot overrides all earlier preferences for that slot." The LLM parses the utterance into four slot fills: (1) item=combo #3, (2) size=large, (3) modifier=no pickles, (4) drink=Coke, then applies the self-correction signal ("oh wait, make that a Sprite") to override drink=Coke with drink=Sprite. Final extracted order: large #3, no pickles, Sprite. The dialogue manager commits this as a single atomic state update. The confirmation response is: "A large number three, no pickles, with a Sprite. Anything else?"
-
-**Deep Dive & Trade-offs:**
-- The LLM must have robust self-correction examples in its few-shot examples. Without at least 3-5 examples covering the patterns "oh wait, I meant X," "actually make that X," and "no, X instead," the LLM will treat self-corrections as additive modifications and produce a wrong order roughly 20% of the time on self-correction utterances.
-- If the user pauses for more than 300ms between "Coke" and "oh wait," VAD fires an end-of-speech event and the system processes "I'd like a large number three with no pickles and a Coke" as a complete turn, committing the Coke order. The subsequent "oh wait, make that a Sprite" arrives as a correction in the next turn — the dialogue manager handles it as an order modification. Both paths produce the correct final order, but the two-turn path adds one full 500ms round-trip and one confirmation cycle, adding 3-4 seconds to the session.
-- The "no pickles" negation is a separate pitfall: LLMs trained on general text sometimes treat "no pickles" as a positive modifier ("pickles: absent") but fail to propagate that correctly when the order schema expects `modifiers: [remove_pickle]`. Include explicit negation examples in few-shot and validate that the extracted order schema representation correctly reflects negations before any tool call commits the order.
-- Monitor the self-correction rate as a session-level metric: if a location shows more than 15% of turns containing self-correction signals, it usually indicates a slow or confusing confirmation flow that causes customers to correct themselves to speed up the interaction.
-
-**The Interviewer's Rubric:** Checking understanding of real-world speech patterns and how they map to dialogue management, including the distinction between single-turn self-corrections and multi-turn modifications, and awareness of LLM prompt design for edge cases in slot extraction.
-
----
-
-Q: Your STT transcribes "I'd like a four-piece nugget" but the customer actually said "forty-piece nugget." This is a real order—how do you prevent costly misrecognitions?
-
-**The Ideal Answer:** Numerals in noisy environments are the #1 STT failure mode. Defense layers: (1) **Hot-word boosting:** if the menu has "4-piece" and "40-piece" but no "forty-piece" as a string, STT may default to the more common "four-piece." Boost all menu item names including their numeric variants. (2) **Menu-aware post-processing:** after STT, validate the transcript against the actual menu. "Four-piece nugget" is a valid menu item but so is "forty-piece nugget." If ambiguous, use acoustic confidence scores on the numeral. (3) **Confirmation protocol:** for items where the quantity matters (and thus the price difference is large—$3 vs $12), always confirm: "Was that a four-piece or forty-piece nugget?" This adds one turn (~3 seconds) but prevents a wrong order. (4) **Cost-based confirmation threshold:** only confirm when the price difference between homophones exceeds $5. "Coke vs. Diet Coke" ($0 difference) → don't confirm. "4-piece vs. 40-piece" ($9 difference) → confirm.
-
-**Deep Dive & Trade-offs:**
-- Confirmation on every item creates a tedious experience. Cost-based thresholding limits confirmations to ~10% of items.
-- Alternative: use DTMF (keypad) input for quantities. "Press 4 for four-piece, press 0 for forty-piece." Works for phone; not for drive-thru.
-- Long-term: fine-tune STT on menu-specific audio (with emphasis on numeric terms) to reduce misrecognition rate.
-
-**The Interviewer's Rubric:** Checking awareness of domain-specific STT failure modes, the economics of confirmation thresholds (when to add friction vs. when to accept risk), and the layered defense strategy of hot-word boosting, post-correction, and confirmation as complementary rather than alternative tools.
-
----
-
-Q: Two people are talking at the drive-thru speaker simultaneously—one ordering, one commenting to their passenger. How does the system handle overlapping speakers?
-
-**The Ideal Answer:** Multi-speaker handling at drive-thru is a genuinely hard acoustic problem with no perfect software-only solution. The most effective solutions are layered: (1) **Hardware-first:** a cardioid directional microphone mounted at the driver-side order station and aimed at the speaker window provides 15-20 dB of rejection for off-axis sound sources (passengers, kitchen noise). This single hardware choice eliminates the majority of multi-speaker confusion before any software runs and adds zero latency. Most professional drive-thru headset installations use this approach already. (2) **Dominant speaker extraction:** for remaining cases, use audio energy combined with inter-channel level difference (if a two-mic array is available) to select the loudest/closest speaker's audio stream. This model-free approach processes in under 50ms and works correctly roughly 80% of the time. (3) **Speaker diarization:** if a two-mic array is not available, use a lightweight real-time diarization model (pyannote-audio with a streaming-capable configuration) to assign speaker labels to audio segments and route only the segment tagged as "driver-side primary speaker" to the STT pipeline. Modern streaming diarization adds 100-200ms of latency, which is tight against the 500ms budget. (4) **Coherence-based fallback:** if the STT output looks incoherent — two interwoven sentence fragments, pronoun-reference mismatch, syntactic non-sequiturs — the dialogue manager detects the likely multi-speaker contamination and prompts: "Sorry, I heard a couple of different things. Could you tell me just your order?" This adds one turn but recovers gracefully.
-
-**Deep Dive & Trade-offs:**
-- Real-time speaker diarization adds 100-200ms — if the pipeline is already at 450ms, this pushes p95 latency over 600ms. Only activate diarization when the microphone hardware does not provide sufficient speaker isolation.
-- Directional microphones solve 90% of the problem at hardware level with zero latency impact, which is why hardware-first is always the right recommendation rather than reaching for software complexity immediately.
-- For phone calls (not drive-thru), there is no directional mic. On a phone call, the caller's microphone picks up everything in the room equally. The best available options are noise-gated STT (only transcribe audio above a loudness threshold associated with someone speaking into the mic) and aggressive backchannel filtering. Accept that multi-speaker phone calls have a higher STT error rate and compensate with more confirmation turns.
-- Worst case: if no speaker isolation works and the STT produces an incoherent transcript, the confirmation step is the last line of defense. An incorrect order that reaches the POS but is confirmed by the customer before payment is the failure mode to avoid most aggressively — it causes food waste and CSAT damage simultaneously.
-
-**The Interviewer's Rubric:** Checking the understanding that voice pipeline challenges are frequently solved most effectively at the hardware/acoustic layer rather than purely in software, and that layering hardware, signal processing, and software fallbacks produces more robust systems than any single technique alone.
-
----
-
-Q: Your LLM generates a response but the TTS pronunciation is wrong—it says "live" (as in "alive") instead of "live" (as in "broadcast"). How do you control pronunciation?
-
-**The Ideal Answer:** TTS pronunciation errors on homographs ("live," "read," "lead," "wind") are common. Controls: (1) **SSML (Speech Synthesis Markup Language):** wrap ambiguous words with phoneme hints: `<phoneme alphabet="ipa" ph="laɪv">live</phoneme>`. This requires the LLM to generate SSML-annotated text, which is feasible with prompt engineering. (2) **Pronunciation dictionary:** the TTS system maintains a custom pronunciation dictionary mapping words to phonemes in context. "Live music" → /laɪv/, "live broadcast" → /laɪv/, "live animals" → /laɪv/. Context-dependent rules. (3) **Domain-specific TTS fine-tuning:** fine-tune the TTS model on domain-specific text-audio pairs. For a drive-thru, the vocabulary is limited; pronunciation errors are rare after fine-tuning on menu items. (4) **Post-synthesis verification (expensive):** run a lightweight STT on the generated audio and compare against the input text. If mismatched, re-synthesize. Adds ~200ms per turn.
-
-**Deep Dive & Trade-offs:**
-- SSML adds complexity to the LLM prompt and output parsing. Not all TTS systems fully support SSML.
-- Pronunciation dictionaries are effective for domain-specific terms but don't generalize to novel text.
-- TTS fine-tuning requires 5-10 hours of recorded audio in the target voice + domain text. ~1 week of effort.
-- In practice, for constrained domains (drive-thru, appointment scheduling), the vocabulary is small enough that a pronunciation dictionary covers 99% of cases.
-
-**The Interviewer's Rubric:** Checking awareness of TTS quality control beyond "plug in a TTS API," including knowledge of SSML as a programmatic pronunciation control layer, the trade-off between pronunciation dictionary specificity and coverage, and the practical consideration that constrained domains can achieve near-perfect pronunciation with a small, maintainable dictionary rather than expensive post-synthesis verification loops.
-
----
-
-Q: You need to deploy this system across 5,000 drive-thru locations worldwide. How do you handle the infrastructure?
-
-**The Ideal Answer:** Two architectural options: (1) **Cloud-centralized:** all audio streams back to regional cloud data centers. Pros: centralized GPU fleet, easy model updates, shared capacity. Cons: network latency from store to cloud (50-100ms RTT), bandwidth costs (32KB/s per stream × 5K locations), dependency on WAN. (2) **Edge deployment:** deploy a small compute node at each location (or per-cluster of locations). Run VAD + lightweight processing locally; stream only to STT/LLM in a regional data center. Pros: reduced network dependency, lower latency. Cons: 5,000 edge devices to manage, limited compute per location.
-
-**Recommended: Hybrid.** VAD runs on a local edge device (Raspberry Pi-class, $50 hardware). Audio streams to the nearest regional data center (8-12 regions globally) for STT→LLM→TTS processing. Audio transport over WebRTC with adaptive bitrate.
-
-Regional data center sizing: 5,000 locations / 10 regions = 500 locations per region. At peak (lunch rush): 500 locations × 3 concurrent orders = 1,500 concurrent sessions per region. GPU fleet per region: ~30 GPUs for STT, ~5 for LLM, ~15 for TTS = ~50 GPUs per region, 500 GPUs total.
-
-Network resilience: if WAN to cloud fails, the edge device plays pre-recorded prompts ("Our AI system is temporarily unavailable. A team member will take your order.") and escalates to human.
-
-**Deep Dive & Trade-offs:**
-- Edge VAD eliminates false triggers before audio leaves the premises, saving bandwidth.
-- Running full STT/LLM/TTS on-premise is theoretically possible (with a $5K GPU box per location) but operationally nightmarish at 5,000 locations.
-- Network quality varies by location. Rural locations with poor connectivity may need a larger edge compute footprint.
-- Model updates: push new model weights to regional data centers (trivial). Push new VAD models to edge devices (non-trivial—requires OTA update infrastructure).
-
-**The Interviewer's Rubric:** Checking infrastructure architecture thinking for geographically distributed real-time systems, specifically the judgment to push only VAD to the edge (cheap, low-latency) while keeping GPU-intensive compute centralized in regional data centers, and the operational discipline to plan for WAN failure modes rather than assuming always-on connectivity.
-
----
-
-Q: A customer has a heavy accent that drops STT accuracy to 70% WER. How do you handle graceful degradation?
-
-**The Ideal Answer:** Accent robustness is an equity and accessibility concern, not just a quality metric. Layers: (1) **Multi-model STT ensemble:** run two STT models in parallel (e.g., Deepgram + Whisper). Take the transcript with higher confidence. Different models have different accent strengths. (2) **Confidence-based clarification:** if STT confidence on any word drops below 60%, ask for clarification on that specific word rather than the whole utterance: "I got 'large number three'—was the drink a Coke or a Fanta?" (3) **Multimodal fallback:** if text-based understanding fails, route the audio to a native multimodal model (GPT-4o voice mode) that processes audio directly—it may understand accented speech that STT couldn't transcribe. (4) **Human escalation:** if confidence stays below threshold for 3 consecutive turns, offer: "Let me connect you with a team member who can help." Don't let the customer struggle. (5) **Long-term:** collect and label accent-diverse training data (with speaker consent). Fine-tune STT models to improve accuracy across accent groups. Monitor WER by demographic cohort (accent, age) to ensure equitable performance.
-
-**Deep Dive & Trade-offs:**
-- Multi-model STT doubles compute cost. Only activate for low-confidence sessions.
-- Clarification questions add friction. Limit to 1 clarification per turn.
-- Human escalation is the safety net but defeats the purpose of automation. Track escalation rate by accent group—if one group escalates 5x more, the model needs retraining for that accent.
-- Ethical consideration: if the system performs significantly worse for certain accent groups, it's discriminatory. Regular fairness audits on WER by accent are mandatory.
-
-**The Interviewer's Rubric:** Checking fairness and accessibility thinking in voice AI systems — specifically the recognition that disparate STT performance across accent groups is a discriminatory outcome, not merely a quality issue, and that the engineering response must include both technical mitigations (ensemble STT, multimodal fallback) and measurement accountability (WER by demographic cohort, escalation rate by accent group).
-
----
-
-Q: The restaurant changes its menu seasonally. How do you update the voice agent without downtime?
-
-**The Ideal Answer:** Menu updates propagate through three components: (1) **Dialogue context:** the system prompt and menu context (item names, prices, availability) are stored in a configuration database, not hardcoded in the model. Menu update = database record update, zero model changes. The LLM reads the current menu from context at the start of each session. (2) **STT hot-words:** the keyword boost list must be updated with new item names. Push new hot-word list to the STT service (API parameter, no model reload). (3) **TTS pronunciation dictionary:** add pronunciation entries for new menu items. Deploy as a config update to the TTS service.
-
-Deployment: blue-green deployment at the session level. New sessions use the updated config (new menu). Existing sessions continue with the old config until they end (max 5 minutes). No mid-session menu changes to avoid confusion. Zero downtime.
-
-Testing: before deployment, run the updated config through an automated test suite: 50 synthetic orders covering new menu items. Verify: STT recognizes new item names, LLM correctly adds them to orders, TTS pronounces them correctly, confirmation messages include correct prices.
-
-**Deep Dive & Trade-offs:**
-- Separating menu data from model weights is critical. If menu items were in the model's training data, updates would require model retraining.
-- Hot-word lists have limits (typically 100-500 terms). Seasonal menus fit easily; restaurants with 500+ items may need tiered boosting (boost seasonal items + top-50 by popularity).
-- The test suite should run in <5 minutes. Block deployment if any test fails.
-- Rollback: if the new menu config causes issues (wrong prices, unrecognized items), revert the database record. All new sessions immediately use the old menu. Rollback time: <1 minute.
-
-**The Interviewer's Rubric:** Checking operational maturity for configuration-driven updates in real-time systems — the key insight being that menu data must be externalised from model weights entirely so that a business-side menu change never requires an ML team to retrain or redeploy a model, and that blue-green session-level deployment gives a clean zero-downtime update path without the complexity of live session migration.
-
----
-
-Q: How do you measure whether the voice agent is actually good? What metrics matter beyond latency?
-
-**The Ideal Answer:** Voice agent quality is multi-dimensional. Metric stack: (1) **Task completion rate:** did the order get placed correctly / did the appointment get scheduled / did the issue get resolved? Ground truth: compare agent-recorded order vs. POS system receipt. Target: >90%. (2) **Order accuracy:** for drive-thru, exact match between what the agent understood and what the customer received. Track mismatches at the item and modifier level (wrong size, missing "no pickles"). (3) **Average handle time (AHT):** total session duration. Compare against human operator baseline. Target: within 20% of human AHT. (4) **Escalation rate:** % of sessions escalated to human. Target: <10%. (5) **Customer satisfaction (CSAT):** post-call survey or inferred from behavioral signals (repeat usage, abandonment). (6) **Utterance understanding rate:** % of user utterances that the system correctly interpreted (manual sampling of 500/week). (7) **Barge-in success rate:** when users interrupt, does the system correctly handle the interruption? (8) **Revenue per session:** for sales agents, compare average order value (AI agent vs. human). AI agents are consistent (always upsell) but may miss contextual cues.
-
-**Deep Dive & Trade-offs:**
-- Task completion rate is the ultimate metric but is expensive to measure (requires ground truth from the fulfillment system).
-- AHT is easy to measure but can be gamed (agent that confirms excessively has low error but high AHT).
-- CSAT surveys have low response rates (<5%). Infer satisfaction from behavioral signals: repeat usage, session duration, abandonment timing.
-- Weekly review of 500 sampled sessions by QA team provides qualitative insights that metrics miss.
-
-**The Interviewer's Rubric:** Checking holistic quality measurement beyond engineering metrics — specifically the distinction between leading indicators (latency, WER, barge-in success rate) that are cheap to measure in real-time and lagging business outcomes (task completion rate, order accuracy, revenue per session) that require integration with the POS system and periodic QA sampling, and the discipline to track both rather than optimizing only the metrics that are easy to instrument.
 
 ## Practical Implementation
 
@@ -1006,6 +867,148 @@ class DialogueManager:
 
 ---
 
+
+---
+
+## Step 4: Wrap Up
+
+### Final Design Summary
+
+The system achieves sub-500ms voice-to-voice latency through a fully streaming pipeline: Silero VAD for end-of-speech detection (50ms), streaming STT with domain-adapted vocabulary (100ms finalization), a self-hosted 8B LLM with speculative decoding (80ms TTFT), and self-hosted XTTS v2 for streaming TTS (80ms first chunk). Barge-in handling uses a two-stage detection strategy (volume reduction then full stop) that achieves 3% false positive rate while catching 98% of real interruptions. At 50K concurrent sessions, self-hosted STT and TTS at $0.002/minute is 23x cheaper than managed APIs. The architecture is pipeline-based (STT→LLM→TTS) for production maturity and debuggability, with a planned migration path to hybrid pipeline + native multimodal for noisy environments.
+
+### Wrap-Around Concerns
+
+- **Risk:** 500ms latency budget has zero slack. Any single stage regression (STT provider latency spike, GPU contention on LLM, TTS audio buffer underrun) breaks the SLO. Mitigation: per-stage latency monitoring with circuit breakers. If any stage exceeds 1.5x budget, degrade gracefully (shorter responses, skip speculative execution, use lower-quality but faster TTS).
+- **Risk:** Background noise in drive-thru environments degrades STT accuracy below 95%. Mitigation: domain-adapted STT model, hot-word boosting, and multimodal fallback for low-confidence transcripts.
+- **Risk:** Barge-in handling with AEC fails in novel acoustic environments (new intercom hardware, outdoor seating areas). Mitigation: per-location AEC calibration during installation. Monitor barge-in false-positive rate per location; alert if >10%.
+- **Risk:** Self-hosted TTS and STT require 900+ GPUs at peak, creating significant infrastructure operational burden. Mitigation: auto-scaling with spot instances for burst. Maintain 60% baseline on reserved instances, scale 40% on spot.
+- **Risk:** Dialogue state errors cause wrong orders (customer says "large" but system records "small"). Mitigation: explicit confirmation turns for high-value items. "Got it—one large combo number three. Is that correct?" Confirmation rate should be >95%.
+
+---
+
+## Step 5: Interviewer Curveballs
+
+### Interviewer Follow-ups & Frequently Asked Questions (FAQ)
+
+Q: The customer says "I'd like a large number three with no pickles and a Coke—oh wait, make that a Sprite." Your system must handle this single utterance. Walk through exactly what happens.
+
+**The Ideal Answer:** This is a self-correction within a single turn — not a multi-turn dialogue issue. The STT transcribes the full utterance as one text segment because there is no natural end-of-speech pause that would trigger VAD. The LLM must parse the self-correction semantics rather than treating "Coke" and "Sprite" as two additive items. The system prompt instructs the LLM: "Customers may change their mind mid-sentence using phrases like 'oh wait,' 'actually,' or 'no, make that.' The LAST stated preference for any slot overrides all earlier preferences for that slot." The LLM parses the utterance into four slot fills: (1) item=combo #3, (2) size=large, (3) modifier=no pickles, (4) drink=Coke, then applies the self-correction signal ("oh wait, make that a Sprite") to override drink=Coke with drink=Sprite. Final extracted order: large #3, no pickles, Sprite. The dialogue manager commits this as a single atomic state update. The confirmation response is: "A large number three, no pickles, with a Sprite. Anything else?"
+
+**Deep Dive & Trade-offs:**
+- The LLM must have robust self-correction examples in its few-shot examples. Without at least 3-5 examples covering the patterns "oh wait, I meant X," "actually make that X," and "no, X instead," the LLM will treat self-corrections as additive modifications and produce a wrong order roughly 20% of the time on self-correction utterances.
+- If the user pauses for more than 300ms between "Coke" and "oh wait," VAD fires an end-of-speech event and the system processes "I'd like a large number three with no pickles and a Coke" as a complete turn, committing the Coke order. The subsequent "oh wait, make that a Sprite" arrives as a correction in the next turn — the dialogue manager handles it as an order modification. Both paths produce the correct final order, but the two-turn path adds one full 500ms round-trip and one confirmation cycle, adding 3-4 seconds to the session.
+- The "no pickles" negation is a separate pitfall: LLMs trained on general text sometimes treat "no pickles" as a positive modifier ("pickles: absent") but fail to propagate that correctly when the order schema expects `modifiers: [remove_pickle]`. Include explicit negation examples in few-shot and validate that the extracted order schema representation correctly reflects negations before any tool call commits the order.
+- Monitor the self-correction rate as a session-level metric: if a location shows more than 15% of turns containing self-correction signals, it usually indicates a slow or confusing confirmation flow that causes customers to correct themselves to speed up the interaction.
+
+**The Interviewer's Rubric:** Checking understanding of real-world speech patterns and how they map to dialogue management, including the distinction between single-turn self-corrections and multi-turn modifications, and awareness of LLM prompt design for edge cases in slot extraction.
+
+---
+
+Q: Your STT transcribes "I'd like a four-piece nugget" but the customer actually said "forty-piece nugget." This is a real order—how do you prevent costly misrecognitions?
+
+**The Ideal Answer:** Numerals in noisy environments are the #1 STT failure mode. Defense layers: (1) **Hot-word boosting:** if the menu has "4-piece" and "40-piece" but no "forty-piece" as a string, STT may default to the more common "four-piece." Boost all menu item names including their numeric variants. (2) **Menu-aware post-processing:** after STT, validate the transcript against the actual menu. "Four-piece nugget" is a valid menu item but so is "forty-piece nugget." If ambiguous, use acoustic confidence scores on the numeral. (3) **Confirmation protocol:** for items where the quantity matters (and thus the price difference is large—$3 vs $12), always confirm: "Was that a four-piece or forty-piece nugget?" This adds one turn (~3 seconds) but prevents a wrong order. (4) **Cost-based confirmation threshold:** only confirm when the price difference between homophones exceeds $5. "Coke vs. Diet Coke" ($0 difference) → don't confirm. "4-piece vs. 40-piece" ($9 difference) → confirm.
+
+**Deep Dive & Trade-offs:**
+- Confirmation on every item creates a tedious experience. Cost-based thresholding limits confirmations to ~10% of items.
+- Alternative: use DTMF (keypad) input for quantities. "Press 4 for four-piece, press 0 for forty-piece." Works for phone; not for drive-thru.
+- Long-term: fine-tune STT on menu-specific audio (with emphasis on numeric terms) to reduce misrecognition rate.
+
+**The Interviewer's Rubric:** Checking awareness of domain-specific STT failure modes, the economics of confirmation thresholds (when to add friction vs. when to accept risk), and the layered defense strategy of hot-word boosting, post-correction, and confirmation as complementary rather than alternative tools.
+
+---
+
+Q: Two people are talking at the drive-thru speaker simultaneously—one ordering, one commenting to their passenger. How does the system handle overlapping speakers?
+
+**The Ideal Answer:** Multi-speaker handling at drive-thru is a genuinely hard acoustic problem with no perfect software-only solution. The most effective solutions are layered: (1) **Hardware-first:** a cardioid directional microphone mounted at the driver-side order station and aimed at the speaker window provides 15-20 dB of rejection for off-axis sound sources (passengers, kitchen noise). This single hardware choice eliminates the majority of multi-speaker confusion before any software runs and adds zero latency. Most professional drive-thru headset installations use this approach already. (2) **Dominant speaker extraction:** for remaining cases, use audio energy combined with inter-channel level difference (if a two-mic array is available) to select the loudest/closest speaker's audio stream. This model-free approach processes in under 50ms and works correctly roughly 80% of the time. (3) **Speaker diarization:** if a two-mic array is not available, use a lightweight real-time diarization model (pyannote-audio with a streaming-capable configuration) to assign speaker labels to audio segments and route only the segment tagged as "driver-side primary speaker" to the STT pipeline. Modern streaming diarization adds 100-200ms of latency, which is tight against the 500ms budget. (4) **Coherence-based fallback:** if the STT output looks incoherent — two interwoven sentence fragments, pronoun-reference mismatch, syntactic non-sequiturs — the dialogue manager detects the likely multi-speaker contamination and prompts: "Sorry, I heard a couple of different things. Could you tell me just your order?" This adds one turn but recovers gracefully.
+
+**Deep Dive & Trade-offs:**
+- Real-time speaker diarization adds 100-200ms — if the pipeline is already at 450ms, this pushes p95 latency over 600ms. Only activate diarization when the microphone hardware does not provide sufficient speaker isolation.
+- Directional microphones solve 90% of the problem at hardware level with zero latency impact, which is why hardware-first is always the right recommendation rather than reaching for software complexity immediately.
+- For phone calls (not drive-thru), there is no directional mic. On a phone call, the caller's microphone picks up everything in the room equally. The best available options are noise-gated STT (only transcribe audio above a loudness threshold associated with someone speaking into the mic) and aggressive backchannel filtering. Accept that multi-speaker phone calls have a higher STT error rate and compensate with more confirmation turns.
+- Worst case: if no speaker isolation works and the STT produces an incoherent transcript, the confirmation step is the last line of defense. An incorrect order that reaches the POS but is confirmed by the customer before payment is the failure mode to avoid most aggressively — it causes food waste and CSAT damage simultaneously.
+
+**The Interviewer's Rubric:** Checking the understanding that voice pipeline challenges are frequently solved most effectively at the hardware/acoustic layer rather than purely in software, and that layering hardware, signal processing, and software fallbacks produces more robust systems than any single technique alone.
+
+---
+
+Q: Your LLM generates a response but the TTS pronunciation is wrong—it says "live" (as in "alive") instead of "live" (as in "broadcast"). How do you control pronunciation?
+
+**The Ideal Answer:** TTS pronunciation errors on homographs ("live," "read," "lead," "wind") are common. Controls: (1) **SSML (Speech Synthesis Markup Language):** wrap ambiguous words with phoneme hints: `<phoneme alphabet="ipa" ph="laɪv">live</phoneme>`. This requires the LLM to generate SSML-annotated text, which is feasible with prompt engineering. (2) **Pronunciation dictionary:** the TTS system maintains a custom pronunciation dictionary mapping words to phonemes in context. "Live music" → /laɪv/, "live broadcast" → /laɪv/, "live animals" → /laɪv/. Context-dependent rules. (3) **Domain-specific TTS fine-tuning:** fine-tune the TTS model on domain-specific text-audio pairs. For a drive-thru, the vocabulary is limited; pronunciation errors are rare after fine-tuning on menu items. (4) **Post-synthesis verification (expensive):** run a lightweight STT on the generated audio and compare against the input text. If mismatched, re-synthesize. Adds ~200ms per turn.
+
+**Deep Dive & Trade-offs:**
+- SSML adds complexity to the LLM prompt and output parsing. Not all TTS systems fully support SSML.
+- Pronunciation dictionaries are effective for domain-specific terms but don't generalize to novel text.
+- TTS fine-tuning requires 5-10 hours of recorded audio in the target voice + domain text. ~1 week of effort.
+- In practice, for constrained domains (drive-thru, appointment scheduling), the vocabulary is small enough that a pronunciation dictionary covers 99% of cases.
+
+**The Interviewer's Rubric:** Checking awareness of TTS quality control beyond "plug in a TTS API," including knowledge of SSML as a programmatic pronunciation control layer, the trade-off between pronunciation dictionary specificity and coverage, and the practical consideration that constrained domains can achieve near-perfect pronunciation with a small, maintainable dictionary rather than expensive post-synthesis verification loops.
+
+---
+
+Q: You need to deploy this system across 5,000 drive-thru locations worldwide. How do you handle the infrastructure?
+
+**The Ideal Answer:** Two architectural options: (1) **Cloud-centralized:** all audio streams back to regional cloud data centers. Pros: centralized GPU fleet, easy model updates, shared capacity. Cons: network latency from store to cloud (50-100ms RTT), bandwidth costs (32KB/s per stream × 5K locations), dependency on WAN. (2) **Edge deployment:** deploy a small compute node at each location (or per-cluster of locations). Run VAD + lightweight processing locally; stream only to STT/LLM in a regional data center. Pros: reduced network dependency, lower latency. Cons: 5,000 edge devices to manage, limited compute per location.
+
+**Recommended: Hybrid.** VAD runs on a local edge device (Raspberry Pi-class, $50 hardware). Audio streams to the nearest regional data center (8-12 regions globally) for STT→LLM→TTS processing. Audio transport over WebRTC with adaptive bitrate.
+
+Regional data center sizing: 5,000 locations / 10 regions = 500 locations per region. At peak (lunch rush): 500 locations × 3 concurrent orders = 1,500 concurrent sessions per region. GPU fleet per region: ~30 GPUs for STT, ~5 for LLM, ~15 for TTS = ~50 GPUs per region, 500 GPUs total.
+
+Network resilience: if WAN to cloud fails, the edge device plays pre-recorded prompts ("Our AI system is temporarily unavailable. A team member will take your order.") and escalates to human.
+
+**Deep Dive & Trade-offs:**
+- Edge VAD eliminates false triggers before audio leaves the premises, saving bandwidth.
+- Running full STT/LLM/TTS on-premise is theoretically possible (with a $5K GPU box per location) but operationally nightmarish at 5,000 locations.
+- Network quality varies by location. Rural locations with poor connectivity may need a larger edge compute footprint.
+- Model updates: push new model weights to regional data centers (trivial). Push new VAD models to edge devices (non-trivial—requires OTA update infrastructure).
+
+**The Interviewer's Rubric:** Checking infrastructure architecture thinking for geographically distributed real-time systems, specifically the judgment to push only VAD to the edge (cheap, low-latency) while keeping GPU-intensive compute centralized in regional data centers, and the operational discipline to plan for WAN failure modes rather than assuming always-on connectivity.
+
+---
+
+Q: A customer has a heavy accent that drops STT accuracy to 70% WER. How do you handle graceful degradation?
+
+**The Ideal Answer:** Accent robustness is an equity and accessibility concern, not just a quality metric. Layers: (1) **Multi-model STT ensemble:** run two STT models in parallel (e.g., Deepgram + Whisper). Take the transcript with higher confidence. Different models have different accent strengths. (2) **Confidence-based clarification:** if STT confidence on any word drops below 60%, ask for clarification on that specific word rather than the whole utterance: "I got 'large number three'—was the drink a Coke or a Fanta?" (3) **Multimodal fallback:** if text-based understanding fails, route the audio to a native multimodal model (GPT-4o voice mode) that processes audio directly—it may understand accented speech that STT couldn't transcribe. (4) **Human escalation:** if confidence stays below threshold for 3 consecutive turns, offer: "Let me connect you with a team member who can help." Don't let the customer struggle. (5) **Long-term:** collect and label accent-diverse training data (with speaker consent). Fine-tune STT models to improve accuracy across accent groups. Monitor WER by demographic cohort (accent, age) to ensure equitable performance.
+
+**Deep Dive & Trade-offs:**
+- Multi-model STT doubles compute cost. Only activate for low-confidence sessions.
+- Clarification questions add friction. Limit to 1 clarification per turn.
+- Human escalation is the safety net but defeats the purpose of automation. Track escalation rate by accent group—if one group escalates 5x more, the model needs retraining for that accent.
+- Ethical consideration: if the system performs significantly worse for certain accent groups, it's discriminatory. Regular fairness audits on WER by accent are mandatory.
+
+**The Interviewer's Rubric:** Checking fairness and accessibility thinking in voice AI systems — specifically the recognition that disparate STT performance across accent groups is a discriminatory outcome, not merely a quality issue, and that the engineering response must include both technical mitigations (ensemble STT, multimodal fallback) and measurement accountability (WER by demographic cohort, escalation rate by accent group).
+
+---
+
+Q: The restaurant changes its menu seasonally. How do you update the voice agent without downtime?
+
+**The Ideal Answer:** Menu updates propagate through three components: (1) **Dialogue context:** the system prompt and menu context (item names, prices, availability) are stored in a configuration database, not hardcoded in the model. Menu update = database record update, zero model changes. The LLM reads the current menu from context at the start of each session. (2) **STT hot-words:** the keyword boost list must be updated with new item names. Push new hot-word list to the STT service (API parameter, no model reload). (3) **TTS pronunciation dictionary:** add pronunciation entries for new menu items. Deploy as a config update to the TTS service.
+
+Deployment: blue-green deployment at the session level. New sessions use the updated config (new menu). Existing sessions continue with the old config until they end (max 5 minutes). No mid-session menu changes to avoid confusion. Zero downtime.
+
+Testing: before deployment, run the updated config through an automated test suite: 50 synthetic orders covering new menu items. Verify: STT recognizes new item names, LLM correctly adds them to orders, TTS pronounces them correctly, confirmation messages include correct prices.
+
+**Deep Dive & Trade-offs:**
+- Separating menu data from model weights is critical. If menu items were in the model's training data, updates would require model retraining.
+- Hot-word lists have limits (typically 100-500 terms). Seasonal menus fit easily; restaurants with 500+ items may need tiered boosting (boost seasonal items + top-50 by popularity).
+- The test suite should run in <5 minutes. Block deployment if any test fails.
+- Rollback: if the new menu config causes issues (wrong prices, unrecognized items), revert the database record. All new sessions immediately use the old menu. Rollback time: <1 minute.
+
+**The Interviewer's Rubric:** Checking operational maturity for configuration-driven updates in real-time systems — the key insight being that menu data must be externalised from model weights entirely so that a business-side menu change never requires an ML team to retrain or redeploy a model, and that blue-green session-level deployment gives a clean zero-downtime update path without the complexity of live session migration.
+
+---
+
+Q: How do you measure whether the voice agent is actually good? What metrics matter beyond latency?
+
+**The Ideal Answer:** Voice agent quality is multi-dimensional. Metric stack: (1) **Task completion rate:** did the order get placed correctly / did the appointment get scheduled / did the issue get resolved? Ground truth: compare agent-recorded order vs. POS system receipt. Target: >90%. (2) **Order accuracy:** for drive-thru, exact match between what the agent understood and what the customer received. Track mismatches at the item and modifier level (wrong size, missing "no pickles"). (3) **Average handle time (AHT):** total session duration. Compare against human operator baseline. Target: within 20% of human AHT. (4) **Escalation rate:** % of sessions escalated to human. Target: <10%. (5) **Customer satisfaction (CSAT):** post-call survey or inferred from behavioral signals (repeat usage, abandonment). (6) **Utterance understanding rate:** % of user utterances that the system correctly interpreted (manual sampling of 500/week). (7) **Barge-in success rate:** when users interrupt, does the system correctly handle the interruption? (8) **Revenue per session:** for sales agents, compare average order value (AI agent vs. human). AI agents are consistent (always upsell) but may miss contextual cues.
+
+**Deep Dive & Trade-offs:**
+- Task completion rate is the ultimate metric but is expensive to measure (requires ground truth from the fulfillment system).
+- AHT is easy to measure but can be gamed (agent that confirms excessively has low error but high AHT).
+- CSAT surveys have low response rates (<5%). Infer satisfaction from behavioral signals: repeat usage, session duration, abandonment timing.
+- Weekly review of 500 sampled sessions by QA team provides qualitative insights that metrics miss.
+
+**The Interviewer's Rubric:** Checking holistic quality measurement beyond engineering metrics — specifically the distinction between leading indicators (latency, WER, barge-in success rate) that are cheap to measure in real-time and lagging business outcomes (task completion rate, order accuracy, revenue per session) that require integration with the POS system and periodic QA sampling, and the discipline to track both rather than optimizing only the metrics that are easy to instrument.
+
 ## Exercises
 
 ### Design Exercises
@@ -1051,3 +1054,8 @@ Diagnose the root cause. Explain why TTS p95 latency tripled while GPU utilizati
 - **Key takeaway:** Voice-first agents are latency-engineering problems first and AI problems second. The 500ms voice-to-voice budget requires streaming at every pipeline stage—STT, LLM, and TTS cannot operate in batch mode. Barge-in handling (interruption detection and response within 200ms) is the feature that separates usable voice agents from frustrating ones. At 50K concurrent sessions, self-hosted STT and TTS are 23x cheaper than managed APIs, making infrastructure architecture as critical as model selection.
 - **What to practice:** Draw the end-to-end latency waterfall from user speech → VAD → STT → LLM → TTS → audio playback, with millisecond budgets per stage. Identify which stage is the bottleneck and how to shave 50ms from it.
 - **Interview drill:** Walk through a barge-in scenario: the agent is saying "Your total comes to twelve dollars and fifty cents" and the customer interrupts at "twelve dollars." Trace every system action from VAD detection through TTS stop through STT transcription of the interruption through LLM re-generation through audio playback.
+
+---
+
+<!-- nav-footer -->
+[[chapter-17|← Chapter 17]] | [[README|Contents]] | [[chapter-19|Chapter 19 →]]

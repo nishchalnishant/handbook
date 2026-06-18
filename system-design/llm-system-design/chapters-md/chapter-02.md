@@ -104,7 +104,7 @@ Assume:
 
 #### VRAM Planning for Model Tiers (Order-of-Magnitude)
 
-- Fast route tier (7B quantized): ~16-24GB VRAM
+- Fast route tier (7B [[glossary#Quantization|quantized]]): ~16-24GB VRAM
 - Balanced route tier (13B-34B): ~40-80GB VRAM
 - Complex route tier (70B): >=160GB aggregate VRAM with multi-GPU parallelism
 
@@ -117,10 +117,10 @@ Assume:
 - **API Gateway + Policy Layer:** Handles authentication, per-tenant quota enforcement, and request classification before any model call occurs. Placing policy enforcement here rather than inside model runtimes means that rate-limit decisions, tenant isolation checks, and abuse detection add only 1–5ms of overhead and never require a model invocation—critical when blocking malformed or unauthorized traffic at the edge.
 - **Intent and Complexity Router:** Determines which of the three execution paths (prompt chain, RAG, or agentic) will handle the request, and at which model tier. This is the highest-leverage component in the stack—misclassification here cascades into quality failures, cost overruns, and latency violations across every downstream system.
 - **Prompt Runtime:** Manages template versioning, schema-constrained output generation (e.g., JSON mode or grammar-constrained decoding), and chain-step execution. Centralizing this in a dedicated runtime rather than ad hoc per-service code enables consistent rollback, A/B testing of prompt versions, and token-budget enforcement across all callers.
-- **Retrieval Runtime:** Combines sparse (BM25) and dense (embedding) retrieval, applies **cross-encoder reranking** to re-score the top candidates, and packs the highest-relevance chunks into the context window. Separating retrieval from the model serving layer allows independent scaling—retrieval throughput can scale horizontally on CPU, while model inference stays on GPU.
+- **Retrieval Runtime:** Combines sparse (BM25) and dense (embedding) retrieval, applies **[[glossary#Cross-Encoder Reranking|cross-encoder reranking]]** to re-score the top candidates, and packs the highest-relevance chunks into the context window. Separating retrieval from the model serving layer allows independent scaling—retrieval throughput can scale horizontally on CPU, while model inference stays on GPU.
 - **Agent Runtime:** Implements the planner/executor loop, maintains a tool registry with capability manifests, persists intermediate state across steps, and enforces hard step and token budgets. Without explicit step budgets and loop-detection logic, agentic workflows degrade into runaway tool-call chains that exhaust cost limits and never converge.
 - **Model Router:** Selects the appropriate provider and model tier for each request using a composite policy over SLO requirements, estimated token cost, provider health signals, and route-level risk class. This layer decouples execution patterns from specific model choices—swapping a model or provider requires only a config change here, not changes in the RAG or agent runtimes.
-- **Serving Runtime:** Handles response streaming, **continuous batching** to maximize GPU utilization, and prefix/KV cache management to reduce TTFT for repeated prompt prefixes. This layer translates high-level completion requests into optimized GPU kernel schedules and is where the majority of hardware efficiency is won or lost.
+- **Serving Runtime:** Handles response streaming, **[[glossary#Continuous Batching|continuous batching]]** to maximize GPU utilization, and prefix/[[glossary#KV Cache|KV cache]] management to reduce TTFT for repeated prompt prefixes. This layer translates high-level completion requests into optimized GPU kernel schedules and is where the majority of hardware efficiency is won or lost.
 - **Safety Runtime:** Executes input classifiers, runtime content policy checks, and output grounding validators before and after model generation. Running safety checks as a dedicated runtime rather than post-processing inside the serving layer allows independent scaling, independent failure handling, and audit logs decoupled from model outputs.
 - **Observability + Eval:** Collects TTFT/TPOT histograms per route, per-query cost breakdowns, quality scores, and safety violation rates. Feeding this telemetry back into the Intent Router (via the observability loop in the diagram) enables automated detection of router drift and route quality regressions without requiring manual log inspection.
 
@@ -217,7 +217,7 @@ High-quality chaining requires control-plane rigor:
 
 ### 3) Model Routing and Tiering
 
-| Routing Strategy | Pros | Cons | Recommended Use |
+| Routing Strategy | Strengths | Weaknesses | Use When |
 |---|---|---|---|
 | Static route map | Simplest possible implementation—a lookup table keyed on route name or regex pattern. Zero runtime overhead, no model calls, fully predictable in load tests. | Cannot adapt when query distributions shift; a product launch that changes query phrasing can misroute 15–30% of traffic overnight without any alert firing. | Suitable only for early MVP with a single known query type or an internal tool where the query distribution is fully controlled and rarely changes. |
 | Rule-based dynamic routing | Classification signals (token count, keyword match, intent class score) are human-readable and auditable. When a regression occurs, the rule that fired can be identified and corrected in minutes. Requires no labeled training data to deploy. | Rules require manual maintenance as query distributions evolve. Each new product feature may require new rules, and rule interactions can produce unexpected edge cases that take multiple on-call rotations to surface and fix. | The right default for most production systems. The combination of transparency, debuggability, and low deployment risk outweighs the manual tuning cost for the vast majority of LLM-serving use cases. |
@@ -236,7 +236,7 @@ Suggested route policy signals:
 
 Modern agentic systems increasingly need a standard way to discover tools, retrieve contextual resources, and reuse prompt workflows across applications. Without a protocol layer, every product team implements tool invocation differently—inconsistent schemas, no shared permission model, duplicated retry logic, and no unified audit surface. Treat this as a first-class architectural layer between the AI host and external systems, not as ad hoc function-calling code embedded inside each product's inference loop.
 
-The Model Context Protocol (MCP) is the most important pattern to know here:
+The [[glossary#Model Context Protocol (MCP)|Model Context Protocol (MCP)]] is the most important pattern to know here:
 
 - **Host:** The AI application that owns the conversation context, makes all model API calls, and manages the user-facing approval UX for sensitive tool actions. The host is responsible for deciding which tools are offered to the model and enforcing the permission boundaries—the model itself cannot self-authorize access to external systems.
 - **Client:** The host-side connection to a single MCP server. A host can maintain multiple clients simultaneously, one per external integration. The client handles transport-level concerns (connection lifecycle, retries, serialization) so the host's reasoning loop stays clean.
@@ -245,7 +245,7 @@ The Model Context Protocol (MCP) is the most important pattern to know here:
 - **Resources:** Contextual data blobs the model can read to enrich its reasoning—files, configuration schemas, live records, or documentation pages. Resources flow into the context window as read-only content; the model cannot modify them directly, which is a critical safety boundary.
 - **Prompts:** Reusable parameterized prompt templates or multi-step workflows exposed by a server. These allow organizations to centralize and version approved prompt patterns rather than letting individual engineers write ad hoc system prompts for each integration.
 
-> **Why:** Without a shared protocol like MCP, scaling from 5 tools to 50 tools requires rewriting discovery, invocation, and permission logic in every client. MCP's biggest architectural value is that adding a new integration requires only deploying a new MCP server—the host, router, and permission model remain unchanged.
+> **Why standardize tools, resources, and prompts behind MCP:** Without a shared protocol like MCP, scaling from 5 tools to 50 tools requires rewriting discovery, invocation, and permission logic in every client. MCP's biggest architectural value is that adding a new integration requires only deploying a new MCP server—the host, router, and permission model remain unchanged.
 
 System design implication: MCP standardizes discovery and invocation, but production still needs a server registry, permission model, approval gates, result sanitization, tool-call audit logs, and defenses against prompt injection through resources or tool descriptions. A malicious or poorly designed MCP server can expose tool descriptions or resource content that manipulates the model's reasoning—treating server output as trusted input is a security antipattern. See [[chapter-23|Chapter 23]] for the full platform design.
 
@@ -301,7 +301,7 @@ System design implication: MCP standardizes discovery and invocation, but produc
 - **Semantic caching** with freshness- and policy-aware invalidation. A semantic cache intercepts queries before the LLM call, encodes the query into an embedding, and performs approximate nearest-neighbor search against a cache index. Hits above a similarity threshold (typically 0.92–0.95) return the stored response directly. Invalidation must account for both TTL expiry and source-version changes—when a policy document is updated, all cache entries referencing queries that would have retrieved that document must be invalidated or the cache will serve stale answers.
 - **Cross-encoder reranking** for precision in RAG route. Bi-encoder retrieval (dense or sparse) ranks candidates by approximate similarity to the query, which optimizes for recall but not precision—many returned candidates are topically related but do not directly answer the question. A cross-encoder reranker processes each (query, candidate) pair jointly through a full attention pass, producing a precise relevance score that reorders the top-K candidates before context packing. This two-stage approach achieves 10–20% better answer quality (measured by citation precision) than bi-encoder retrieval alone at the cost of 50–150ms additional latency.
 - **Parent-child chunking** where large documents need both recall and precise citation. Document chunks are stored at two granularities: large parent chunks (500–2000 tokens) for retrieval recall and small child chunks (50–200 tokens) for precise attribution. Retrieval operates on the child chunks to find specific evidence, but the context window receives the surrounding parent chunk to give the model sufficient context to reason accurately. Without this, either recall suffers (too small chunks miss document-level context) or citations are imprecise (too large chunks make it impossible to attribute specific claims).
-- **LoRA adapters** for domain adaptation without full fine-tune overhead. Low-Rank Adaptation injects trainable rank-decomposed weight matrices into the attention layers of a frozen base model. A typical LoRA adapter for a 7B model is 10–50MB rather than the 14GB of full model weights, can be trained on 1,000–10,000 domain examples in hours on a single GPU, and can be swapped at serving time by hot-loading the adapter weights on top of the shared base. This enables per-tenant or per-domain specialization without maintaining a separate full model copy for each use case.
+- **[[glossary#LoRA (Low-Rank Adaptation)|LoRA adapters]]** for domain adaptation without full fine-tune overhead. Low-Rank Adaptation injects trainable rank-decomposed weight matrices into the attention layers of a frozen base model. A typical LoRA adapter for a 7B model is 10–50MB rather than the 14GB of full model weights, can be trained on 1,000–10,000 domain examples in hours on a single GPU, and can be swapped at serving time by hot-loading the adapter weights on top of the shared base. This enables per-tenant or per-domain specialization without maintaining a separate full model copy for each use case.
 
 ### Applied Stack Insights
 
@@ -359,7 +359,7 @@ def route(query: str, system_prompt: str) -> str:
     return resp.content[0].text
 ```
 
-```
+```text
 # Pseudocode: semantic cache lookup and write with TTL
 # Demonstrates: how to short-circuit LLM calls for repeated/similar queries
 
@@ -509,8 +509,32 @@ Q: What minimum weekly KPI pack proves this stack is healthy?
 
 **The Interviewer's Rubric:** The interviewer is checking multidimensional operational maturity—whether the candidate understands that LLM stack health cannot be reduced to a single latency or quality metric. A strong answer organizes the KPI pack into the three dimensions (serving, economics, quality/safety), explains why each dimension can degrade independently, and names a concrete change threshold (10% week-over-week) that triggers investigation. Weak answers list metrics without explaining what failure mode each metric detects or how the metrics relate to each other.
 
+## Exercises
+
+**[Design] Exercise 1: Pattern Selection for a Mixed-Intent Support Platform**
+You are designing the orchestration layer for a customer-support platform handling 16M requests/day across three intent classes: order-status lookups (knowledge baked into model weights, changes monthly), policy and product questions (corpus updated daily, citations required for compliance), and refund/dispute resolution (requires querying live billing APIs and triggering ticket-creation side effects). Decide which of prompt chaining, RAG, and agentic each intent maps to, and justify each choice against the escalation decision rule. Key considerations: which intent has a documented failure case that justifies escalating to the agentic path, and which would be over-engineered if pushed there? Given the per-pattern token profiles in this chapter, what is the cost ratio between the cheapest and most expensive intent per query, and how does that shape your routing budget guards? What is the failure mode if the router misclassifies a dispute-resolution query as a simple lookup, and vice versa?
+
+**[Design] Exercise 2: Design the Routing and Tiering Policy**
+For the same platform, design a model routing and tiering policy spanning a 7B fast tier, a 34B balanced tier, and a 70B complex tier. Choose a routing strategy (static map, rule-based dynamic, or learned router) and defend why the alternatives are worse given that the team has 30 days of production data and no offline eval harness yet. Key considerations: which of the four suggested route-policy signals (intent + complexity score, grounding strictness, provider health, remaining cost budget) is the primary signal, and why does relying on token count alone systematically misroute short-but-complex queries? How does a grounding-strictness flag prevent a low-complexity request in a regulated domain from bypassing the RAG path? When a per-route daily cost envelope hits 80% consumed, what does the router do, and why must this be enforced at the router rather than downstream?
+
+**[Implementation] Exercise 3: Implement a Rule-Based Dynamic Router**
+Implement a rule-based router that takes a request (intent class, token count, entity density, grounding-required flag, current per-route cost consumed, and a provider-health signal) and returns a target model tier plus whether to engage the RAG path. The router must combine intent and a derived complexity score rather than using token count alone. Edge cases to cover: a short query with high entity density and multi-hop keywords that must route up despite low token count; a grounding-required request that must force the RAG path regardless of complexity; a provider in degraded health that must be deprioritized before requests start failing; and a route at 80%+ of its cost budget that must automatically downgrade to a cheaper tier. Make every routing decision auditable by returning the specific rule that fired.
+
+**[Implementation] Exercise 4: Build a Prompt Chain with Step Contracts and Chain Guards**
+Implement a prompt-chaining executor that runs an ordered list of steps, where each step declares an input schema and an output schema validated by a cheap deterministic function (not a model call). The executor must enforce three independent chain-level guards: a maximum step count, a cumulative token budget across all steps, and a wall-clock timeout. Edge cases to cover: a step whose output fails schema validation must fail the chain fast with a structured error rather than passing malformed data to the next step; the token budget can be exhausted in two large steps or across many small ones (both must trip the guard); the wall-clock timeout must fire even if step and token budgets are unmet; and steps marked as classification/normalization must be routable to a small fast model while the synthesis step uses a larger one.
+
+**[Debug] Exercise 5: Diagnosing Silent Quality Drift Behind Healthy Latency Dashboards**
+Your serving dashboards show every request meeting TTFT and TPOT SLOs, yet a weekly audit reports citation precision has fallen from 85% to 60% over three weeks, and the agentic route's share of traffic has crept from 15% to 25% with no corresponding product launch. Formulate a systematic root-cause plan covering at least five distinct causes, ranked by likelihood and checking cost. Key considerations: your plan must separate router-misclassification causes (complex queries assigned to cheap tiers, or simple queries escalated to agentic) from retrieval-layer causes (index drift where the embedding index lags document updates) and from cost-driven causes (a cost-budget guard silently downgrading tiers). It must explain why latency-only dashboards are structurally blind to this class of regression, how cost-per-query-per-route and route-distribution drift each surface a different failure mode, and what the remediation would be for the two most likely causes.
+
+---
+
 ## End of Chapter
 
 - **Key takeaway:** Master the four core LLM patterns (direct/prompt-chain, RAG, tool-use, agentic) and know when each is the right default. Pattern selection is not a model capability question—it is an economic and reliability decision. Each step up the pattern hierarchy (prompt chain → RAG → agentic) multiplies per-query cost by 3–10x and introduces qualitatively different failure modes. Getting this decision right before architecture is committed saves months of re-engineering.
 - **What to practice:** Given a new product brief, classify it into a pattern within 60 seconds and justify why the alternatives are worse. A good classification exercise names the specific constraint that rules out each alternative—"RAG is unnecessary because the knowledge fits in a static prompt and changes less than once per week" is a stronger answer than "prompt chaining is simpler." Practice this on 10–15 real product descriptions before an interview.
 - **Interview drill:** Sketch a hybrid system that uses two patterns (e.g., RAG + agentic) and explain: (1) what signals the router uses to distinguish between the two paths, (2) what the failure mode is if the router misclassifies a query in each direction, (3) what the cost ratio between the two paths is under the traffic split in this chapter's scenario, and (4) how you would detect router quality regression in the first week after launch. A complete answer covers all four points and takes 8–12 minutes to walk through at interview pace.
+
+---
+
+<!-- nav-footer -->
+[[chapter-01|← Chapter 1]] | [[README|Contents]] | [[chapter-03|Chapter 3 →]]

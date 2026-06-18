@@ -20,8 +20,8 @@ part: foundations
 
 ### Real-World Examples
 
-- A global knowledge base with PDFs, wikis, and tickets sees recall drop after parser upgrades; chunking and index lifecycle become the real bottleneck.
-- A legal search product improves citation accuracy by moving from fixed chunks to parent-child chunking plus cross-encoder reranking.
+- A global knowledge base with PDFs, wikis, and tickets sees [[glossary#Recall|recall]] drop after parser upgrades; chunking and index lifecycle become the real bottleneck.
+- A legal search product improves citation accuracy by moving from fixed chunks to parent-child chunking plus [[glossary#Cross-Encoder Reranking|cross-encoder reranking]].
 
 ---
 
@@ -85,7 +85,7 @@ part: foundations
 - Per-query: BM25 lookup (~15ms) + ANN search (~25ms) + reranker on top-50 (~60ms) + ACL filter (~10ms)
 - p95 target: **< 120ms** end-to-end retrieval
 
-> **Why < 120ms retrieval p95:** The retrieval stage is one component within a larger inference pipeline that must hit a TTFT of 700–1,200ms for a RAG path. Allocating 120ms to retrieval leaves sufficient budget for gateway overhead (~80ms), model prefill, and post-processing; exceeding this budget forces trade-offs elsewhere, typically in reranker depth or context window size.
+> **Why < 120ms retrieval p95:** The retrieval stage is one component within a larger inference pipeline that must hit a TTFT of 700–1,200ms for a RAG path. Allocating 120ms to retrieval leaves sufficient budget for gateway overhead (~80ms), model prefill, and post-processing; exceeding this budget forces trade-offs elsewhere, typically in reranker depth or [[glossary#Context Window|context window]] size.
 
 #### Ingestion Throughput
 
@@ -106,7 +106,7 @@ The architecture separates concerns across two independent pipelines—ingestion
 - **Embedding Service:** Batched embedding generation that groups chunks into batches of 100–500 tokens total to maximize throughput per API call, with exponential backoff retry logic for rate limit errors and a dead-letter queue for chunks that fail after three retries. Enforces a daily cost circuit breaker that pauses the embedding queue if projected daily spend exceeds the $800 cap, alerting on-call before any cost overrun occurs.
 - **Index Manager:** Dual-write coordinator that sends each chunk's vector to the HNSW index and the raw text plus metadata to the BM25/Elasticsearch index atomically within the same pipeline step. Tracks write success for both destinations independently—a failure in either index triggers a retry and, if retries are exhausted, routes the chunk to the dead-letter queue rather than silently dropping it from one index but not the other (which would create a split-brain inconsistency between the two retrieval channels).
 
-> **Why HNSW for the vector index:** HNSW (Hierarchical Navigable Small World) builds a multi-layer proximity graph that achieves sub-linear query time at high recall, making it the dominant production ANN algorithm. The main alternative—IVF-PQ (inverted file with product quantization)—uses significantly less memory but requires a training pass and degrades recall as the index grows unless the number of clusters is carefully retuned. HNSW's recall-latency tradeoff is more predictable and requires fewer operational tuning decisions.
+> **Why HNSW for the vector index:** HNSW (Hierarchical Navigable Small World) builds a multi-layer proximity graph that achieves sub-linear query time at high recall, making it the dominant production [[glossary#Vector Database / ANN Index|ANN]] algorithm. The main alternative—IVF-PQ (inverted file with product [[glossary#Quantization|quantization]])—uses significantly less memory but requires a training pass and degrades recall as the index grows unless the number of clusters is carefully retuned. HNSW's recall-latency tradeoff is more predictable and requires fewer operational tuning decisions.
 - **Retrieval Service:** Hybrid search orchestrator that runs BM25 and ANN queries in parallel, applies RRF fusion, enforces ACL filtering, and invokes the cross-encoder reranker on the fused candidate set. The service exposes a single retrieval API with a pluggable strategy interface so that callers can request different retrieval configurations (e.g., BM25-only for exact-match queries, hybrid for semantic queries) without the caller needing to know which indexes are consulted.
 - **Index Lifecycle Controller:** Versioned index manager that assigns monotonically increasing version numbers to each index build, stores quality gate results alongside each version, manages the named alias that production traffic resolves against, and provides a one-call rollback API that re-points the alias to the previous version without any data movement. The controller also enforces the rule that no two index versions with different `embedding_model_version` values can be deployed to the same alias—preventing cross-model contamination at the infrastructure level.
 - **Observability:** Instrumentation layer tracking parser success rate per document type (alerting on > 2% failure), embedding API latency and cost per day (alerting on projection > $800), index freshness lag histogram (alerting on p95 > 30 minutes), and live retrieval Recall@K and MRR sampled from a held-out benchmark query set run hourly against the production index. These four signals together cover the end-to-end pipeline: if any one stage degrades silently, at least one of these metrics will catch it before users file a quality complaint.
@@ -509,3 +509,8 @@ Your weekly automated quality audit reports that Recall@10 on the benchmark quer
 - **Key takeaway:** Retrieval quality is a pipeline problem, not just a model problem. Parser fidelity, chunking strategy, hybrid fusion, and index lifecycle controls all compound.
 - **What to practice:** Walk through a full ingestion pipeline from raw document to indexed chunk, explaining each decision with trade-offs.
 - **Interview drill:** Given a Recall@10 regression, explain your debug workflow from symptom to root cause to rollback.
+
+---
+
+<!-- nav-footer -->
+[[chapter-02|← Chapter 2]] | [[README|Contents]] | [[chapter-04|Chapter 4 →]]

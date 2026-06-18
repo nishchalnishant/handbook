@@ -14,7 +14,7 @@ part: operations
 > - **Scale:** Cost pressure begins at ~$5K/month in API spend; architectural changes pay off at >= $20K/month
 > - **Key Techniques:** Semantic caching with cosine threshold, cascading model routing, LLMLingua prompt compression, output length control, continuous batching, INT8/INT4 quantization, speculative decoding, right-sizing GPU compute
 > - **Primary Concerns:** Cost per request, quality preservation, latency SLOs, cache freshness, routing accuracy
-> - **Cross-references:** [[chapter-02|Chapter 2]] (LLM stack patterns), [[chapter-05|Chapter 5]] (evaluation), [[chapter-21|Chapter 21]] (RAG platform), [[chapter-25|Chapter 25]] (prompt engineering — compression prerequisite)
+> - **Cross-references:** [[chapter-02|Chapter 2]] (LLM stack patterns), [[chapter-05|Chapter 5]] (evaluation), [[chapter-21|Chapter 21]] (RAG platform), [[chapter-25|Chapter 25]] (prompt engineering — compression prerequisite), [[chapter-04|Chapter 4]] (continuous batching deep dive), [[chapter-08|Chapter 8]] (speculative decoding deep dive), [[chapter-31|Chapter 31]] (quantization deep dive)
 
 **Problem statement:** Design a production LLM cost optimization system that treats inference spend as a first-class design constraint — reducing cost-per-request by 40-70% while preserving quality SLOs, maintaining p95 latency budgets, and providing per-team cost attribution for budget governance.
 
@@ -35,7 +35,7 @@ part: operations
 **Candidate:** Is this API-based inference, self-hosted, or a mix?  
 **Interviewer:** Primarily API-based (OpenAI, Anthropic), with some self-hosted models for internal workloads.
 
-**Candidate:** What is the breakdown of that spend — input tokens, output tokens, or is context window cost a factor?  
+**Candidate:** What is the breakdown of that spend — input tokens, output tokens, or is [[glossary#Context Window|context window]] cost a factor?  
 **Interviewer:** Roughly 65% input tokens, 30% output tokens, 5% other API fees. Average request is 2,000 input tokens and 350 output tokens.
 
 **Candidate:** What is the traffic pattern? Steady, bursty, or batch-heavy?  
@@ -65,7 +65,7 @@ part: operations
 - Compress prompts exceeding a configurable token threshold before API dispatch.
 - Control output length through per-route `max_tokens` caps and stop sequences.
 - Attribute cost per team, per route, and per model with real-time dashboards and budget alert thresholds.
-- Support batching of async workloads to take advantage of volume pricing and continuous batching efficiency.
+- Support batching of async workloads to take advantage of volume pricing and [[glossary#Continuous Batching|continuous batching]] efficiency.
 
 ### Non-Functional Requirements
 
@@ -123,7 +123,7 @@ Current traffic:
 
 ### Core Architecture Components
 
-- **Semantic Cache:** stores (embedding, response) pairs in a vector database; serves exact or near-duplicate queries without calling a model. At a 40% hit rate, this component eliminates 40% of all inference costs in a single hop — no model call, no token cost, and sub-20ms response latency. It is the highest-leverage single component in the entire pipeline.
+- **Semantic Cache:** stores ([[glossary#Embedding|embedding]], response) pairs in a [[glossary#Vector Database / ANN Index|vector database]]; serves exact or near-duplicate queries without calling a model. At a 40% hit rate, this component eliminates 40% of all inference costs in a single hop — no model call, no token cost, and sub-20ms response latency. It is the highest-leverage single component in the entire pipeline.
 - **Routing Classifier:** a lightweight ML classifier that predicts whether the current query can be handled by a small model at acceptable quality. Outputs a confidence score used to decide the routing path. Running on self-hosted CPU, it adds < 10ms of latency while enabling a 10-30x cost reduction on the queries it confidently routes to the small model.
 - **Prompt Compressor:** applies LLMLingua-style token pruning to reduce prompt length on cache misses where input token count exceeds the compression threshold. By eliminating low-information tokens from long retrieval-augmented contexts, it permanently reduces the per-request input token cost before any API call is made, without requiring any change to the downstream model.
 - **Small Model Endpoint:** a 7B–13B parameter model (self-hosted or cheaper API) for simple queries confirmed by the routing classifier. At $0.10-0.20/1M tokens vs. $3.00/1M tokens for frontier models, routing 60% of cache misses here reduces per-request cost by 10-30x on those queries — typically achieving 15-20% total cost reduction on top of caching savings.
@@ -157,7 +157,7 @@ Current traffic:
 ### Mermaid Architecture Diagram
 
 ```mermaid
-flowchart TD
+flowchart LR
   request[IncomingRequest] --> cacheCheck{SemanticCache\nLookup}
 
   cacheCheck -->|"hit cosine >= 0.92"| cacheHit[ReturnCachedResponse]
@@ -193,7 +193,7 @@ flowchart TD
   cacheInvalidator --> cacheCheck
 ```
 
-> **Why:** The pipeline is ordered from cheapest to most expensive resolution. Cache lookup costs ~1ms and a few CPU cycles. Routing classification costs < 10ms on CPU. Prompt compression saves tokens on every subsequent call. The small model costs 10-30x less than the frontier model. Only queries that clear all the cheap layers reach the expensive frontier model — making the frontier model the exception, not the default.
+> **Why order the pipeline from cheapest to most expensive resolution:** The pipeline is ordered from cheapest to most expensive resolution. Cache lookup costs ~1ms and a few CPU cycles. Routing classification costs < 10ms on CPU. Prompt compression saves tokens on every subsequent call. The small model costs 10-30x less than the frontier model. Only queries that clear all the cheap layers reach the expensive frontier model — making the frontier model the exception, not the default.
 
 ---
 
@@ -376,7 +376,7 @@ This is different from LLMLingua (which operates at inference time on arbitrary 
 
 #### Quantization for Self-Hosted Models
 
-Quantization reduces model weight precision from FP16 (16-bit) to INT8 or INT4, shrinking memory footprint and increasing throughput.
+[[glossary#Quantization|Quantization]] reduces model weight precision from FP16 (16-bit) to INT8 or INT4, shrinking memory footprint and increasing [[glossary#Throughput|throughput]].
 
 | Quantization | Memory Reduction | Throughput Gain | Quality Loss | Method |
 |---|---|---|---|---|
@@ -392,7 +392,7 @@ Quantization reduces model weight precision from FP16 (16-bit) to INT8 or INT4, 
 
 #### Speculative Decoding Economics
 
-Speculative decoding uses a small draft model to generate K candidate tokens speculatively, then verifies them in parallel with the large target model. When K tokens are accepted, throughput improves by approximately K/(verification_overhead). When tokens are rejected, the target model regenerates from the rejection point. The key economic insight is that verification of K tokens costs nearly the same as generating one token — a single target model forward pass can verify a batch of K draft tokens in parallel because the attention mask already contains all K positions. This means the cost of being right is K tokens of progress for the price of one verification pass, while the cost of being wrong is one wasted draft generation and one target model verification pass — a bounded penalty.
+[[glossary#Speculative Decoding|Speculative decoding]] uses a small draft model to generate K candidate tokens speculatively, then verifies them in parallel with the large target model. When K tokens are accepted, throughput improves by approximately K/(verification_overhead). When tokens are rejected, the target model regenerates from the rejection point. The key economic insight is that verification of K tokens costs nearly the same as generating one token — a single target model forward pass can verify a batch of K draft tokens in parallel because the attention mask already contains all K positions. This means the cost of being right is K tokens of progress for the price of one verification pass, while the cost of being wrong is one wasted draft generation and one target model verification pass — a bounded penalty.
 
 > **Why speculative decoding reduces latency without reducing token cost:** The target model still processes every output token because it verifies all draft tokens before accepting them. Token billing by API providers counts verified tokens, not draft tokens. So speculative decoding does not reduce API costs — it reduces wall-clock latency for self-hosted deployments where you pay for GPU-hours rather than per-token. The economic benefit is indirect: faster token generation allows serving the same QPS with fewer GPU-hours, or higher QPS with the same hardware. For API-billed workloads, speculative decoding has no direct cost benefit and should not be prioritized over batching or caching.
 
@@ -1303,3 +1303,8 @@ Identify the root cause, explain how the confidence distribution shift is connec
 - **What to practice:** Given a cost breakdown (input tokens, output tokens, cache hit rate, routing distribution), identify the single highest-leverage change and estimate its impact with token math. Do this in under 3 minutes — interviewers are checking whether cost intuition is fast or requires calculation.
 - **Interview drill:** A system spends $50K/month. The interviewer says "reduce it by 40% without degrading quality." Walk through the decision tree: (1) Is there a caching opportunity? Calculate hit rate potential. (2) Is there a routing opportunity? Estimate routeable query percentage. (3) Is there a compression opportunity? Estimate average prompt length vs. threshold. Reach $30K/month in under 5 minutes of structured reasoning.
 - **Prerequisite for:** advanced infrastructure chapters on serving optimization, multi-tenant LLM platforms, and FinOps governance for AI systems.
+
+---
+
+<!-- nav-footer -->
+[[chapter-27|← Chapter 27]] | [[README|Contents]] | [[chapter-29|Chapter 29 →]]

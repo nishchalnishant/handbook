@@ -16,12 +16,12 @@ part: foundations
 > - **Primary Concerns:** False-positive rate < 3%, latency overhead < 200ms, eval freshness
 > - **Cross-references:** [[chapter-01|Chapter 1]] (safety as first-class concern), [[chapter-11|Chapter 11]] (finance accuracy), [[chapter-20|Chapter 20]] (healthcare safety)
 
-**Problem statement:** Build evaluation and guardrail systems that reduce hallucinations, policy violations, and sensitive data leakage while preserving utility and maintaining acceptable latency overhead.
+**Problem statement:** Build evaluation and [[glossary#Safety Filter / Guardrails|guardrail]] systems that reduce [[glossary#Hallucination (LLM)|hallucinations]], policy violations, and sensitive data leakage while preserving utility and maintaining acceptable latency overhead.
 
 ### Real-World Examples
 
 - A banking assistant passes offline accuracy tests but fails red-team jailbreak testing in staging; layered guardrails with input/output classifiers catch policy bypass attempts.
-- A healthcare chatbot overblocks harmless prompts until threshold calibration is tuned with risk-weighted evaluation sets, improving utility by 35% without increasing policy violations.
+- A healthcare chatbot overblocks harmless prompts until threshold [[glossary#Calibration|calibration]] is tuned with risk-weighted evaluation sets, improving utility by 35% without increasing policy violations.
 
 ---
 
@@ -43,7 +43,7 @@ part: foundations
 
 ### Functional Requirements
 
-- Classify input risk level (prompt injection, PII, policy violation, off-topic) before model invocation.
+- Classify input risk level ([[glossary#Prompt Injection|prompt injection]], PII, policy violation, off-topic) before model invocation.
 - Validate output for hallucination, unsupported claims, policy compliance, and PII leakage.
 - Support configurable guardrail depth per risk tier (light for low-risk, heavy for high-risk).
 - Provide offline evaluation pipeline for model/prompt/retrieval changes with automated quality gates.
@@ -96,31 +96,31 @@ part: foundations
 
 - **Input Guard:** Sits at the entry point of every request and runs parallel sub-checks — prompt injection detector, PII scanner, topic classifier, and policy enforcer — before any token reaches the model. Placing it here avoids wasting GPU compute on requests that would be blocked downstream, and it is the first line of defense against jailbreak and data-exfiltration attempts.
 
-> **Why:** A single unified guard component keeps latency predictable and allows each sub-check to share the same request context (user tier, session ID, domain), which is required for risk-tiered decisions. Without this centralization, checks would run in isolated silos with no shared state, making it impossible to enforce compound policies (e.g., "flag if topic is medical AND confidence > 0.8").
+> **Why a single unified Input Guard rather than isolated checks:** A single unified guard component keeps latency predictable and allows each sub-check to share the same request context (user tier, session ID, domain), which is required for risk-tiered decisions. Without this centralization, checks would run in isolated silos with no shared state, making it impossible to enforce compound policies (e.g., "flag if topic is medical AND confidence > 0.8").
 
 - **Risk Tier Router:** Reads classification signals from the Input Guard and maps them to a guardrail depth profile — light (log-only), medium (soft block), or heavy (hard block + human escalation). This avoids applying expensive LLM-based output verification to low-risk internal Q&A traffic, which would add 80–150ms of unnecessary overhead to every response.
 
-> **Why:** Not all traffic carries equal risk. A flat guardrail stack forces a choice between under-securing high-risk routes or over-spending on low-risk ones. The router decouples security policy from compute cost, letting you meet both a < 3% false-positive budget and a < $200/day guardrail cost target simultaneously.
+> **Why a Risk Tier Router instead of a flat guardrail stack:** Not all traffic carries equal risk. A flat guardrail stack forces a choice between under-securing high-risk routes or over-spending on low-risk ones. The router decouples security policy from compute cost, letting you meet both a < 3% false-positive budget and a < $200/day guardrail cost target simultaneously.
 
 - **Output Guard:** Runs after model generation and applies groundedness checker, output PII scanner, and policy compliance checker before the response leaves the system. Unlike the Input Guard, it operates on the model's actual output, which means it catches failure modes that the model introduces — such as hallucinating unsupported claims or inadvertently echoing PII from retrieved documents.
 
-> **Why:** Input filtering alone cannot prevent hallucination. The model can produce incorrect or harmful content from a perfectly benign prompt, especially in RAG pipelines where the retrieved context is complex or contradictory. The Output Guard closes this gap at the cost of 80–150ms of added latency, which is acceptable on high-risk routes where a policy violation or fabricated medical claim carries regulatory and reputational risk.
+> **Why a separate Output Guard after generation:** Input filtering alone cannot prevent hallucination. The model can produce incorrect or harmful content from a perfectly benign prompt, especially in RAG pipelines where the retrieved context is complex or contradictory. The Output Guard closes this gap at the cost of 80–150ms of added latency, which is acceptable on high-risk routes where a policy violation or fabricated medical claim carries regulatory and reputational risk.
 
 - **Eval Pipeline:** Runs benchmark suites offline before every deployment, samples live traffic continuously for online evaluation, and executes adversarial red-team exercises on a quarterly cadence. All three modes feed the same quality-gate logic, which blocks promotion if any tracked metric regresses by more than 2% relative to the previous baseline.
 
-> **Why:** Relying solely on offline evaluation creates a systematic blind spot: benchmark datasets go stale, and distribution shift between synthetic queries and real user traffic is inevitable. The three-mode design ensures that (a) regressions are caught before they reach production, (b) emerging failure modes in live traffic surface within hours via online sampling, and (c) adversarial robustness is validated against real attack patterns, not just benign queries.
+> **Why a three-mode eval pipeline (offline, online, adversarial):** Relying solely on offline evaluation creates a systematic blind spot: benchmark datasets go stale, and distribution shift between synthetic queries and real user traffic is inevitable. The three-mode design ensures that (a) regressions are caught before they reach production, (b) emerging failure modes in live traffic surface within hours via online sampling, and (c) adversarial robustness is validated against real attack patterns, not just benign queries.
 
 - **Policy Engine:** Stores versioned policy rules (blocked topics, required disclaimers, threshold configs, routing tables) as code checked into Git and deployed atomically with the model version they govern. Each policy version is tagged with a semantic version number and an effective timestamp, enabling precise attribution when reviewing audit records.
 
-> **Why:** Policy rules change for regulatory, business, and security reasons at a different cadence than model weights. Decoupling them from the model binary means rules can be patched within minutes (e.g., an emergency topic block) without re-deploying the model. Version tracking is required for audit defensibility — in a regulated domain, you must be able to reconstruct exactly which policy was active at the moment a specific decision was made.
+> **Why decouple a versioned Policy Engine from the model binary:** Policy rules change for regulatory, business, and security reasons at a different cadence than model weights. Decoupling them from the model binary means rules can be patched within minutes (e.g., an emergency topic block) without re-deploying the model. Version tracking is required for audit defensibility — in a regulated domain, you must be able to reconstruct exactly which policy was active at the moment a specific decision was made.
 
 - **Audit Logger:** Writes an immutable, append-only record of every guardrail decision — block, flag, rewrite, or pass — tagged with trace ID, request timestamp, risk tier, classifier scores, policy version, and action taken. Records are written synchronously for high-risk routes and buffered-async for low-risk routes, keeping write latency under 5ms in the critical path.
 
-> **Why:** Audit logs are the evidentiary foundation for compliance, incident investigation, and classifier recalibration. Without them, you cannot answer "why was this request blocked?", "did the policy change cause the spike in block rate?", or "was PII exposed before the scanner was deployed?" Immutability (append-only, hash-chained where required) is non-negotiable in regulated domains such as healthcare and finance.
+> **Why an immutable append-only Audit Logger:** Audit logs are the evidentiary foundation for compliance, incident investigation, and classifier recalibration. Without them, you cannot answer "why was this request blocked?", "did the policy change cause the spike in block rate?", or "was PII exposed before the scanner was deployed?" Immutability (append-only, hash-chained where required) is non-negotiable in regulated domains such as healthcare and finance.
 
 - **Dashboard/Alerting:** Surfaces real-time metrics — violation rate, block rate, false-positive rate, and per-tier guardrail latency — with alerting thresholds that page on-call when block rate deviates by more than 1% from the 7-day rolling baseline or when p95 guard latency exceeds 200ms. The false-positive rate is computed against a held-out calibration set of known-benign requests to avoid gaming.
 
-> **Why:** Guardrail systems degrade silently: classifiers drift as input distribution shifts, thresholds become miscalibrated, and policy bugs can cause sudden block-rate spikes that surface as user-complaint tickets rather than engineering alerts. Proactive alerting on the key operational metrics — especially false-positive rate — allows teams to recalibrate before user experience degrades visibly.
+> **Why real-time dashboards and alerting on guardrail metrics:** Guardrail systems degrade silently: classifiers drift as input distribution shifts, thresholds become miscalibrated, and policy bugs can cause sudden block-rate spikes that surface as user-complaint tickets rather than engineering alerts. Proactive alerting on the key operational metrics — especially false-positive rate — allows teams to recalibrate before user experience degrades visibly.
 
 ### Pipeline A: Guardrail Pipeline (Request-Time)
 
@@ -234,7 +234,7 @@ Focus areas for this chapter:
 | Async output (log + review) | Zero additional latency in the request path because the output guard runs as a background job after the response has already been delivered to the user; review and remediation happen minutes to hours later. | Achieves theoretical full coverage — every response is eventually reviewed — but protection is retrospective, not preventive; a violating response is delivered and logged, not blocked; suitable only when "log and remediate" is an acceptable policy posture. | Requires a robust async pipeline (queue, workers, dead-letter handling) and a human or automated review workflow; operationally complex because remediation (follow-up messaging, account flags) must be tracked back to original requests. | Batch and async document generation workflows, offline report generation, or routes where latency constraints make synchronous output guarding impossible and the harm model allows post-hoc correction. |
 
 **Input guard components:**
-- **Prompt injection detector:** fine-tuned classifier (BERT-class) detecting instruction override attempts. Precision target: > 95%. Recall target: > 85%.
+- **Prompt injection detector:** fine-tuned classifier (BERT-class) detecting instruction override attempts. [[glossary#Precision|Precision]] target: > 95%. [[glossary#Recall|Recall]] target: > 85%.
 - **PII scanner:** regex patterns (SSN, credit card, email) + NER model for names/addresses. Runs in parallel with classifier.
 - **Topic classifier:** off-topic detection to prevent misuse (e.g., coding assistant asked for medical advice).
 - **Policy enforcer:** rule engine checking input against versioned policy (blocked topics, required disclaimers).
@@ -326,23 +326,69 @@ Design rule: never rely on the model to be the final security boundary. The poli
 
 - **LLM-as-judge with calibrated anchors:** Rather than asking a judge model to score responses freeform, provide it with a structured rubric and a set of anchor examples — scored reference responses at each quality level (1: hallucinated, 3: partially grounded, 5: fully supported with citations). Calibration against 200+ human-labeled examples brings judge-human agreement from kappa ≈ 0.5 (uncalibrated) to kappa ≈ 0.7–0.8, which is the threshold at which automated evaluation is defensible as a proxy for human judgment. Use a judge model that is different from the production model to avoid self-evaluation bias, where a model systematically rates its own outputs higher than human judges would.
 
-> **Why:** Without anchor calibration, judge scores drift based on prompt wording and exhibit position bias (favoring responses positioned first in comparison prompts). Calibrated anchors reduce within-session variance by ~30% and make the scoring scale consistent enough for regression detection across model versions.
+> **Why calibrate the LLM judge with scored anchor examples:** Without anchor calibration, judge scores drift based on prompt wording and exhibit position bias (favoring responses positioned first in comparison prompts). Calibrated anchors reduce within-session variance by ~30% and make the scoring scale consistent enough for regression detection across model versions.
 
 - **Policy-as-code guardrails:** Store all guardrail rules — blocked topics, required disclaimer templates, classifier thresholds, and routing tables — as versioned configuration files in Git, with CI/CD pipelines that validate, test, and deploy policy changes independently of model deployments. Each policy file carries a semantic version number (e.g., `finance-policy-v2.3.1`) and a changelogged diff that audit reviewers can inspect without accessing production systems.
 
-> **Why:** Policy requirements change at a much faster cadence than model weights. A regulatory update may require an emergency disclaimer change within hours — faster than any model redeployment cycle. Policy-as-code enables sub-hour policy patches, complete version history for audit, and automated regression testing that runs the updated policy against the full benchmark suite before promotion.
+> **Why store guardrail rules as versioned policy-as-code:** Policy requirements change at a much faster cadence than model weights. A regulatory update may require an emergency disclaimer change within hours — faster than any model redeployment cycle. Policy-as-code enables sub-hour policy patches, complete version history for audit, and automated regression testing that runs the updated policy against the full benchmark suite before promotion.
 
 - **Risk-tiered abstention:** When classifier confidence for a high-risk route falls below a configurable threshold (e.g., groundedness score < 0.6 on a finance query), the system returns a calibrated "I don't have sufficient information to answer that" response rather than generating a potentially hallucinated answer. The abstention threshold is set per risk tier and per metric — higher thresholds on safety-critical routes, lower on informational routes — and the abstention itself is logged with the confidence score for audit.
 
-> **Why:** Abstention is almost always safer than low-confidence generation in regulated domains. A healthcare triage assistant that says "I cannot determine the appropriate dosage from the provided information — please consult a clinician" is a categorically better failure mode than one that generates a plausible but incorrect dosage. Measuring abstention rate as a metric (target: < 5% on well-formed queries) prevents abstention from becoming a crutch that erodes utility.
+> **Why risk-tiered abstention below a confidence threshold:** Abstention is almost always safer than low-confidence generation in regulated domains. A healthcare triage assistant that says "I cannot determine the appropriate dosage from the provided information — please consult a clinician" is a categorically better failure mode than one that generates a plausible but incorrect dosage. Measuring abstention rate as a metric (target: < 5% on well-formed queries) prevents abstention from becoming a crutch that erodes utility.
 
 - **Constitutional AI principles as fine-tuning guardrails:** During RLHF or supervised fine-tuning, incorporate a set of explicit constitutional principles (e.g., "do not provide instructions for illegal activities", "acknowledge uncertainty rather than fabricating answers") as scoring criteria in the reward model. The reward model penalizes outputs that violate these principles, so the fine-tuned model develops an internal bias against generating violating content — reducing the load on runtime guardrails for common violation categories.
 
-> **Why:** Constitutional AI reduces runtime guardrail workload by training the model to self-censor common violations, but it cannot eliminate the need for runtime guards because (a) fine-tuning is imperfect and adversarial inputs still elicit violations, and (b) policy rules change faster than retraining cycles. The correct architecture uses both: constitutional fine-tuning as a first layer and runtime guardrails as the authoritative, auditable enforcement layer.
+> **Why combine constitutional fine-tuning with runtime guardrails:** Constitutional AI reduces runtime guardrail workload by training the model to self-censor common violations, but it cannot eliminate the need for runtime guards because (a) fine-tuning is imperfect and adversarial inputs still elicit violations, and (b) policy rules change faster than retraining cycles. The correct architecture uses both: constitutional fine-tuning as a first layer and runtime guardrails as the authoritative, auditable enforcement layer.
 
 - **Watermarking for audit and detection:** Embed a statistical watermark in the token probability distributions during generation, producing outputs that pass normal quality checks but carry a detectable signal when analyzed with the watermark key. Watermarks enable post-hoc detection of model-generated content in audit scenarios — for example, verifying whether a suspicious document submitted as human-written was generated by your platform.
 
-> **Why:** As LLM outputs propagate through downstream systems (documents, emails, reports), attribution becomes a forensic and compliance problem. Watermarking is the only scalable mechanism for proving provenance without storing every generated output. The practical limitation is that watermarks are typically destroyed by > 30% text editing, so they are effective for verbatim or lightly edited outputs but not for extensively rewritten content.
+> **Why watermark generated outputs for audit and provenance:** As LLM outputs propagate through downstream systems (documents, emails, reports), attribution becomes a forensic and compliance problem. Watermarking is the only scalable mechanism for proving provenance without storing every generated output. The practical limitation is that watermarks are typically destroyed by > 30% text editing, so they are effective for verbatim or lightly edited outputs but not for extensively rewritten content.
+
+---
+
+## Practical Implementation
+
+The guardrail pipeline from Step 3 is most naturally implemented as an ordered chain of checks that short-circuits on the first hard failure, so cheap deterministic filters run before expensive LLM-judge calls.
+
+**Layered guardrail pipeline:**
+
+```python
+from dataclasses import dataclass
+
+@dataclass
+class GuardResult:
+    allowed: bool
+    reason: str = ""
+
+def run_guardrails(text: str, context: dict) -> GuardResult:
+    # Ordered cheapest-first: regex/keyword -> classifier -> LLM judge.
+    # Each stage can hard-block; only survivors reach the next stage.
+    for guard in (keyword_blocklist, pii_classifier, toxicity_classifier, llm_policy_judge):
+        result = guard(text, context)
+        if not result.allowed:
+            return result          # short-circuit on first violation
+    return GuardResult(allowed=True)
+
+def keyword_blocklist(text, _ctx):
+    # ~1ms deterministic pass; catches known-bad strings before any model call.
+    return GuardResult(False, "blocklist") if BLOCKLIST_RE.search(text) else GuardResult(True)
+
+def llm_policy_judge(text, ctx):
+    # Most expensive stage (~200ms); only invoked on inputs that survived all cheap guards.
+    verdict = judge_model.classify(text, policy=ctx["policy"])
+    return GuardResult(verdict == "allow", verdict)
+```
+
+**Mapping stages to the design decisions:**
+
+| Stage | Cost | Catches | Deep-dive section |
+|---|---|---|---|
+| Keyword blocklist | ~1ms | Known-bad strings, banned terms | Guardrail Pipeline Design |
+| PII classifier | ~10ms | Emails, SSNs, secrets in output | Guardrail Pipeline Design |
+| Toxicity classifier | ~30ms | Harassment, hate, unsafe content | Safety Testing and Red-Teaming |
+| LLM policy judge | ~200ms | Nuanced policy violations, jailbreaks | Guardrail Pipeline Design |
+
+> **Why order guardrails cheapest-first with short-circuiting:** Most traffic is benign, so the expensive LLM judge should only see inputs that survive the deterministic and classifier layers. Ordering checks by ascending cost and stopping at the first hard block keeps median guardrail latency near the cheapest stage while still applying the full policy depth to ambiguous inputs.
 
 ---
 
@@ -478,3 +524,8 @@ At 14:00 on a Tuesday, your dashboard shows the input classifier block rate jump
 - **Key takeaway:** Safety is not a binary switch but a tunable system. Risk-tiered guardrails, calibrated thresholds, and evaluation loops make safety measurable and improvable.
 - **What to practice:** Design a guardrail pipeline with latency budget, specify which checks are synchronous vs async, and explain threshold calibration.
 - **Interview drill:** Given a 5% false-positive block rate on a high-risk route, walk through your diagnosis and calibration workflow.
+
+---
+
+<!-- nav-footer -->
+[[chapter-04|← Chapter 4]] | [[README|Contents]] | [[chapter-06|Chapter 6 →]]

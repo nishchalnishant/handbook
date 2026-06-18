@@ -101,7 +101,7 @@ Assume a representative production assistant:
 
 #### Self-hosted VRAM Planning (Order-of-Magnitude)
 
-- Small inference tier (7B class, quantized): ~16-24GB VRAM/GPU
+- Small inference tier (7B class, [[glossary#Quantization|quantized]]): ~16-24GB VRAM/GPU
 - Mid tier (13B-34B quantized/mixed): ~40-80GB VRAM/GPU
 - Large tier (70B class): multi-GPU (>=160GB aggregate VRAM) with tensor parallelism
 
@@ -114,12 +114,12 @@ Assume a representative production assistant:
 - **Client + Gateway:** auth, rate limits, tenant isolation, trace IDs. The gateway is the only component that sees 100% of traffic; it is the right place to enforce per-tenant quota, inject correlation IDs for distributed tracing, and shed load via token-bucket rate limiting before expensive downstream components are hit. Placing rate limiting deeper in the stack (e.g., at the model router) means already-paid retrieval and embedding costs are wasted on requests that will ultimately be rejected.
 - **Policy Layer:** prompt policy, data policy, risk class, output schema constraints. The policy layer translates business rules into machine-enforceable constraints: which data sources a tenant may access, which model capabilities are permitted (e.g., code execution disabled for certain risk classes), and what output schema the response must conform to. Centralizing this logic prevents individual route authors from implementing inconsistent or incomplete policy checks in application code.
 - **Orchestrator:** route selection (`direct`, `RAG`, `tool`, `agentic`). The orchestrator is the control-flow brain of the system; it classifies each request's complexity and intent, then dispatches to the cheapest execution mode that satisfies the SLO. A simple factual query routed to a direct LLM path costs ~10x less than the same query routed through RAG, so even a 60%-accurate complexity classifier meaningfully reduces token spend at scale.
-- **Retrieval Stack:** query rewrite, hybrid search, **cross-encoder reranking**.
+- **Retrieval Stack:** query rewrite, hybrid search, **[[glossary#Cross-Encoder Reranking|cross-encoder reranking]]**.
 
 > **Why cross-encoder reranking:** Bi-encoder (embedding) retrieval scores queries and documents independently, so the scores are not calibrated to the specific query-document pair. A cross-encoder takes the full `(query, document)` pair as input and produces a directly comparable relevance score, lifting Recall@5 by 5–12% over fusion-only approaches at the cost of ~60ms additional GPU latency.
 
 - **Model Router:** selects provider/model tier by complexity, SLO, and cost budget. A well-designed router applies a scoring function across candidate models that weights latency headroom, token cost, and task-match quality; for most production workloads, routing 70–80% of traffic to a small or mid-tier model and reserving the large tier for complex queries reduces serving cost by 50–70% with minimal quality regression on simple intents.
-- **Serving Runtime:** **continuous batching**, prefix/KV cache, streaming transport. The serving runtime is where raw model capacity is translated into actual throughput; continuous batching and KV caching are not optional performance tweaks but baseline requirements for economically viable self-hosted serving — without them, GPU utilization on real traffic patterns typically falls below 40%.
+- **Serving Runtime:** **[[glossary#Continuous Batching|continuous batching]]**, prefix/[[glossary#KV Cache|KV cache]], streaming transport. The serving runtime is where raw model capacity is translated into actual throughput; continuous batching and KV caching are not optional performance tweaks but baseline requirements for economically viable self-hosted serving — without them, GPU utilization on real traffic patterns typically falls below 40%.
 
 > **Why continuous batching:** Static batching holds a batch open until all sequences finish, which means short completions wait idle for the longest sequence in the batch. Continuous batching admits new requests at every decode step, raising GPU utilization from ~30–50% to 60–80% without adding hardware.
 
@@ -281,7 +281,7 @@ A high-signal interview answer starts with 6 non-negotiable clarifications:
 - **Semantic caching** with freshness-aware invalidation. A semantic cache stores query embeddings alongside cached responses and serves a cached answer when a new query's embedding exceeds a cosine similarity threshold; freshness-aware invalidation links each cache entry to the document versions it was grounded on, so that when source documents are updated, the corresponding cache entries are invalidated proactively rather than serving stale answers until TTL expiry.
 - **Cross-encoder reranking** for high-precision context selection. After bi-encoder retrieval produces a candidate set of 20–50 chunks, the cross-encoder scores each `(query, chunk)` pair jointly, producing a calibrated relevance score that the bi-encoder's independent embeddings cannot provide; this lifts Recall@5 by 5–12 percentage points, meaning the top chunks passed to the model contain the correct evidence more reliably, directly improving answer accuracy.
 - **Parent-child chunking** for large documents. Fine-grained child chunks (128–256 tokens) enable high-precision retrieval by keeping each indexed unit semantically tight, while the parent chunk (512–1024 tokens) provides the surrounding context needed for a complete answer; serving the parent to the model while indexing the child is the key insight that resolves the classic precision-vs-context tension in RAG systems.
-- **LoRA adapters** for domain specialization without full model fine-tuning. LoRA inserts small trainable rank-decomposition matrices into the attention layers of a frozen base model, updating only 0.1–1% of total parameters; this reduces training compute by 10–100x compared to full fine-tuning and allows multiple domain adapters to share a single base model checkpoint at serving time, making it economical to maintain separate adapters for finance, legal, and medical domains without multiplying GPU serving costs.
+- **[[glossary#LoRA (Low-Rank Adaptation)|LoRA adapters]]** for domain specialization without full model [[glossary#Fine-tuning|fine-tuning]]. LoRA inserts small trainable rank-decomposition matrices into the attention layers of a frozen base model, updating only 0.1–1% of total parameters; this reduces training compute by 10–100x compared to full fine-tuning and allows multiple domain adapters to share a single base model checkpoint at serving time, making it economical to maintain separate adapters for finance, legal, and medical domains without multiplying GPU serving costs.
 
 > **Why LoRA over full fine-tuning:** Full fine-tuning updates all model weights, requiring weeks of GPU time and GBs of storage per domain variant. LoRA inserts low-rank weight matrices into attention layers, training only those small matrices (typically 0.1–1% of total parameters); this cuts training compute by 10–100x and lets multiple adapters share a single base model in serving, reducing VRAM cost.
 
@@ -333,7 +333,7 @@ result = estimate_llm_system(
 #     'shards_per_replica': 2, 'est_cost_per_hour_usd': 28.0, 'p99_feasible': True}
 ```
 
-```
+```text
 # Pseudocode: 5-step interview framework as a decision tree
 # Demonstrates: how to sequence scoping, architecture, and trade-offs under time pressure
 
@@ -481,8 +481,32 @@ Q: Why include LoRA adapters in a system design interview at all?
 
 **The Interviewer's Rubric:** A strong answer explains the three-way trade-off between prompting, LoRA, and full fine-tuning (not just contrasting LoRA with full fine-tuning) and identifies a concrete use case where LoRA provides value that prompting cannot achieve. The rubric rewards candidates who address the lifecycle complexity — adapter versioning, base model upgrade compatibility, per-adapter rollback — rather than treating LoRA as a drop-in solution without operational overhead.
 
+## Exercises
+
+**[Design] Exercise 1: Apply the 5-Step Framework to a Cold Brief**
+You are handed a single-line interview prompt: "Design an internal engineering assistant that answers questions over a 12M-document codebase and design wiki for 8,000 engineers." Walk the full 5-step framework end to end as you would in a 45-minute interview, allocating roughly 5 minutes to scoping, 8 to high-level design, 20 to deep dive, and the remainder to wrap-up and curveballs. Key considerations: which clarifying questions in Step 1 most change the architecture (read-only vs. write-capable, freshness SLA, on-prem vs. cloud), and how do you justify cutting scope explicitly rather than designing for everything? Where in the deep dive do you spend your limited time, and what do you deliberately defer? How do you signal seniority by naming the metric each component improves rather than listing components additively?
+
+**[Design] Exercise 2: Defend a Default and a Fallback for Every Sub-Problem**
+For a production assistant sized at 18M requests/day with 65% RAG usage, produce a one-default-plus-one-fallback design for each of four sub-problems: retrieval strategy, model hosting, caching strategy, and safety controls. For each, state the single condition that would cause you to switch from the default to the fallback. Key considerations: for model hosting, at what daily token volume does self-hosting break even against managed APIs, and what operational maturity must the team have before that switch is defensible? For caching, what hit-rate assumption justifies a semantic cache and what concrete quality risk does a too-loose similarity threshold introduce? How do you express each switch condition as a measurable trigger an on-call engineer could evaluate, not a subjective judgment?
+
+**[Implementation] Exercise 3: Build the Back-of-the-Envelope Estimation Calculator**
+Implement an estimation function that takes RPS, average input/output tokens, model size in billions of parameters, GPU single-request throughput, and a p99 latency SLO, and returns GPUs needed (accounting for continuous batching uplift and tensor-parallel shards per replica), daily token volume, and an order-of-magnitude monthly cost. Cover these edge cases: a model too large to fit a single GPU (must shard and the GPU count must round up per replica), a fractional-GPU result that must be ceilinged to whole replicas, zero or negative inputs that should raise rather than silently return garbage, and a throughput target that cannot be met within the latency SLO at any economical GPU count (the function should flag this rather than emit an absurd number).
+
+**[Implementation] Exercise 4: KV-Cache Memory Budget Estimator**
+Implement a function that estimates KV-cache VRAM consumption for a serving deployment, given hidden dimension, number of layers, number of concurrent sequences, average sequence length, and dtype (fp16 vs. int8), then reports how much VRAM remains for active inference batches after a fixed model-weight footprint is reserved. Edge cases to cover: sequences whose combined KV-cache footprint exceeds available VRAM (the function must report the maximum concurrent sequences that fit rather than overcommit), the effect of prefix caching when a shared system prompt of N tokens is reused across all sequences (counted once, not per sequence), and a configuration where prefix caching is so aggressive it leaves insufficient VRAM for any active batch (which the function should detect and warn about).
+
+**[Debug] Exercise 5: Diagnosing a Gradual TTFT p95 Regression**
+Over three weeks, TTFT p95 has climbed from 900ms to 3.2s while average GPU utilization remains high and no deployment is recorded in the change log. Average-case load tests pass cleanly and cannot reproduce the regression. Formulate a systematic root-cause plan covering at least five distinct causes, ranked by likelihood and checking cost. Key considerations: your plan must distinguish queue saturation and head-of-line blocking (a few long requests occupying all batch slots) from genuine capacity shortfall, and must include checks for prefix-cache VRAM crowding out active batches, a creeping increase in average input-context length from retrieval, provider rate-limit throttling on a managed burst path, and metadata/ACL connection-pool wait time leaking into the pre-inference budget. For the two most likely causes, articulate how each would manifest differently across TTFT, TPOT, GPU-utilization, and queue-depth metrics, and what the remediation would be.
+
+---
+
 ## End of Chapter
 
 - **Key takeaway:** The strongest interview answers tie every architecture choice to a measurable SLO, cost budget, or safety outcome — not as an afterthought but as the primary justification. An answer that says "we add a cross-encoder reranker" is weaker than "we add a cross-encoder reranker because our Recall@5 target is 88% and hybrid retrieval alone only achieves 82%; the reranker closes that gap at the cost of 60ms, which fits within our 250ms retrieval budget." The difference between a senior and a principal-level interview answer is consistently this level of quantified specificity.
 - **What to practice:** Be able to defend one default design and one explicit fallback design for each major sub-problem (retrieval strategy, model hosting, caching strategy, safety controls), with a specific condition that would cause you to switch from the default to the fallback. Practicing the "when would you NOT use this approach?" question for each design choice builds the trade-off reasoning that distinguishes production experience from theoretical knowledge.
 - **Interview drill:** For any system you design, walk through three scenarios: (1) how you would detect a silent quality regression that is not reflected in latency or error-rate metrics; (2) how you would roll back a bad index or model deployment in under 5 minutes without downtime; and (3) how you would communicate the risk and resolution timeline to a non-technical stakeholder. All three require different skills — metric design, operational procedure, and communication — and strong candidates prepare explicitly for all three rather than focusing only on the architecture diagram.
+
+---
+
+<!-- nav-footer -->
+← Start | [[README|Contents]] | [[chapter-02|Chapter 2 →]]

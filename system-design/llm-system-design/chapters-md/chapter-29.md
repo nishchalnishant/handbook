@@ -20,8 +20,8 @@ part: operations
 
 ### Real-World Examples
 
-- A RAG-based customer support system shows a 40% increase in p95 latency. Without span-level tracing, the on-call engineer spends 45 minutes bisecting before discovering that the vector database query time tripled due to a missing index on a new embedding dimension. A retrieval span with a `db_query_ms` attribute would have surfaced this in the first dashboard view.
-- A code generation assistant starts producing responses with a 3x higher refusal rate after a silent model provider update. Because the system logs only final outputs (not intermediate reasoning), there is no signal to distinguish between: (a) user query distribution shifting toward policy-violating requests, (b) provider-side model update increasing refusal sensitivity, or (c) a system prompt injection in a recent deploy. Without per-component metrics, all three hypotheses take the same investigation path.
+- A [[glossary#RAG (Retrieval-Augmented Generation)|RAG]]-based customer support system shows a 40% increase in p95 latency. Without span-level tracing, the on-call engineer spends 45 minutes bisecting before discovering that the [[glossary#Vector Database / ANN Index|vector database]] query time tripled due to a missing index on a new [[glossary#Embedding|embedding]] dimension. A retrieval span with a `db_query_ms` attribute would have surfaced this in the first dashboard view.
+- A code generation assistant starts producing responses with a 3x higher refusal rate after a silent model provider update. Because the system logs only final outputs (not intermediate reasoning), there is no signal to distinguish between: (a) user query [[glossary#Distribution Shift|distribution shifting]] toward policy-violating requests, (b) provider-side model update increasing refusal sensitivity, or (c) a system prompt injection in a recent deploy. Without per-component metrics, all three hypotheses take the same investigation path.
 
 ---
 
@@ -36,7 +36,7 @@ part: operations
 **Interviewer:** All of the above. Some products are simple chat, some are RAG-based QA, some use tool-calling agents.
 
 **Candidate:** What does "incident" mean here — latency SLO breach, quality regression, safety violation, cost spike, or all four?  
-**Interviewer:** All four. We had a cost spike last quarter that took three days to trace back to a KV cache misconfiguration. That was unacceptable.
+**Interviewer:** All four. We had a cost spike last quarter that took three days to trace back to a [[glossary#KV Cache|KV cache]] misconfiguration. That was unacceptable.
 
 **Candidate:** Do you have any distributed tracing today, or are you starting from scratch?  
 **Interviewer:** We have basic request-level logs but no span-level tracing across pipeline components. Retrieval and generation are unobservable separately.
@@ -134,7 +134,7 @@ Assume full prompt/response logging at 5K QPS:
 ### Mermaid Architecture Diagram
 
 ```mermaid
-flowchart TB
+flowchart LR
   request[Incoming Request] --> sdk[Trace Instrumentation SDK\nOpenTelemetry]
 
   sdk --> retrievalSpan[Retrieval Span\nnum_results, top_score, db_query_ms]
@@ -362,7 +362,7 @@ Sampling rate selection involves a three-way tension: statistical validity (enou
 
 Sampling implementation:
 
-```
+```text
 sample_decision = hash(request_id) % 100 < sample_rate_pct
 ```
 
@@ -1061,62 +1061,133 @@ if __name__ == "__main__":
 
 ## Step 4: Wrap Up
 
-### Key Design Decisions
+### Final Design Summary
 
 - **Decompose pipeline spans into retrieval, reranking, generation, tool call, and guardrail spans — never use a unified "pipeline latency" span.** Root cause isolation during an incident depends on span-level granularity. A unified span makes retrieval failures and generation failures observationally identical; separate spans with per-kind attributes reduce mean time to diagnose from 45 minutes to under 15 minutes.
 - **Use SLO burn rate alerts instead of static threshold alerts, and treat alert fatigue as a first-class operational metric.** Burn rate alerts eliminate the false positives that static threshold alerts generate during traffic spikes and planned maintenance. Track pages-per-shift and false-positive-page-rate monthly; any alert with a false positive rate > 30% is revised or removed before the next on-call rotation.
 - **Sample prompt/response logs at 10% by default with forced inclusion of all errors and guardrail blocks, and scrub PII before first write.** Full logging at production QPS is economically untenable and creates GDPR liability. 10% sampling provides statistically valid quality signal at 1/10 the cost. PII-at-rest is a compliance incident waiting to happen; scrubbing at ingestion eliminates the risk permanently.
 - **Adapt post-mortem structure to explicitly enumerate hypotheses and accept "model-internal root cause is not accessible" as a valid finding.** LLM incidents involve a black-box model; asserting root cause without evidence creates false confidence. Enumerated hypotheses, each with supporting or refuting evidence, are both more honest and more useful for preventing recurrence than a single asserted root cause.
 
+### Wrap-Around Concerns
+
+- **Release engineering:** roll out instrumentation and SLO changes the same way you roll out the model — behind canary and shadow comparison. A new span schema, a changed sampling rule, or a revised SLO target must first run on a small slice of traffic so that span cardinality, ingestion cost, and burn-rate behavior can be validated before fleet-wide rollout, since a mis-specified attribute can explode cardinality and blow up the metrics backend. Burn-rate alert definitions are versioned config, and a new alert ships in "observe-only" mode for one on-call rotation before it is allowed to page, so a noisy rule is caught before it fatigues the team. Rollback of an alert or sampling change is a config revert, not a redeploy.
+- **Governance:** the trace and log pipeline is itself a compliance surface and must be governed as one. Prompt/response logs are PII-scrubbed at ingestion before the first write, and the scrubbing rules are versioned so any change to what is redacted has an approval and audit history; 10% default sampling with forced inclusion of all errors and guardrail blocks is policy, not an ad hoc tuning knob. Trace retention, access to raw logs, and the correlation-ID schema that links user input through retrieval, generation, and guardrail spans are documented controls reviewed for GDPR exposure. Post-mortems are governed artifacts that enumerate hypotheses with evidence rather than asserting unverifiable model-internal root causes.
+- **Cost controls:** observability cost is dominated by log volume and span cardinality, so both are budgeted explicitly. The 10% sampling default delivers a statistically valid quality signal at roughly 1/10 the cost of full logging, and high-volume span attributes (anything emitted at 100%, like per-token TBT series) are reviewed for cardinality before they ship. Ingestion and storage have monthly budget alarms, and any new span kind or attribute is cost-estimated against projected QPS before rollout so a single instrumentation change cannot silently multiply the metrics bill. Alert fatigue is tracked as a cost too — pages-per-shift and false-positive-page-rate are monitored monthly, and any alert above a 30% false-positive rate is revised or removed.
+- **Drift controls:** track signal quality per model, route, and region so degradation is attributable rather than discovered late. TTFT, TBT, and quality metrics are sliced by model and route version, because a model-provider change can shift TBT (compute throttling) independently of TTFT (cold start / KV cache), and conflating them hides intra-response stutter under a healthy dashboard. SLO burn rates and error budgets are evaluated per slice, so a regression isolated to one route or region pages on its own budget instead of being averaged away. Sampling-driven quality signals are periodically re-baselined to ensure the 10% sample still represents the live distribution as traffic mix evolves.
+
 ---
 
 ## Step 5: Interviewer Curveballs
 
-**Q: Your TTFT SLO is p95 < 1 second but users complain about stutter even when TTFT is fast. What is missing from your observability?**
+Q: Your TTFT SLO is p95 < 1 second but users complain about stutter even when TTFT is fast. What is missing from your observability?
 
 **The Ideal Answer:** Time-between-tokens (TBT) is not captured. TTFT measures when the user sees the first token; TBT measures the inter-token arrival time during streaming. A p95 TTFT of 600ms with a TBT p95 of 800ms produces a response that starts quickly then halts for seconds at a time — far worse user experience than a slow TTFT with smooth streaming. Add `gen.tbt_mean_ms` and `gen.tbt_p95_ms` as span attributes and define a separate TBT SLO (e.g., p95 TBT < 150ms). Track both in the SLO engine with independent error budgets; a TBT violation is operationally distinct from a TTFT violation — the latter is usually a cold-start or KV cache miss, while the former often indicates model-side compute throttling or network throughput issues between the model provider and your gateway.
 
+**Deep Dive & Trade-offs:**
+- TTFT and TBT are independent failure modes with independent root causes: TTFT regressions trace to cold starts or KV cache misses, while TBT regressions trace to model-side compute throttling or network throughput between the provider and the gateway, so they need separate SLOs and separate error budgets.
+- The perceived experience is dominated by the worse of the two: a fast 600ms TTFT followed by an 800ms p95 TBT reads to the user as a response that starts then stalls, which is worse than a slow-but-smooth stream.
+- Emit `gen.tbt_mean_ms` and `gen.tbt_p95_ms` as span attributes at 100% so that TBT can be sliced by route, model, and region — averaging TBT across a request hides intra-response stalls that the per-token series exposes.
+- A standalone TBT SLO (e.g., p95 < 150ms) lets streaming-stutter incidents page independently of TTFT, instead of being masked under a healthy TTFT dashboard.
+
+**The Interviewer's Rubric:** A strong answer identifies time-between-tokens as the missing streaming metric and defines it with its own SLO and error budget distinct from TTFT. The rubric penalizes answers that treat TTFT as a sufficient proxy for streaming quality, or that propose only a single end-to-end latency number that cannot distinguish a slow start from a stuttering stream.
+
 ---
 
-**Q: A model provider silently updates their model and your quality regresses. How do you detect it and what is your response?**
+Q: A model provider silently updates their model and your quality regresses. How do you detect it and what is your response?
 
 **The Ideal Answer:** Detection requires a canary set of golden prompts with known expected outputs, run every 5 minutes against the production endpoint. When the canary score drops, compare the deployment log — if no configuration change occurred on your side, the cause is likely a provider-side update. Response: (a) open an incident with the provider and request the previous model version or a stable alias; (b) failover to a secondary provider or a pinned model snapshot if available; (c) document in the post-mortem that root cause is external and not precisely attributable. Proactive mitigation: always use versioned model endpoints (e.g., `claude-sonnet-4-6` not `claude-sonnet-latest`), and establish a contractual SLA with the provider that prohibits silent model updates within a stable version alias.
 
+**Deep Dive & Trade-offs:**
+- A golden-prompt canary with known expected outputs run every 5 minutes against the live endpoint is the only signal that fires when nothing on your side changed; tying the canary drop to your deployment log is what isolates an external cause from a self-inflicted regression.
+- Pinning a versioned endpoint (`claude-sonnet-4-6`) instead of a moving alias (`...-latest`) is the cheap proactive control — it converts silent provider drift into an explicit, scheduled migration you choose to perform.
+- Failover options trade off against each other: a pinned snapshot preserves behavior exactly but ages out of support, while a secondary provider preserves availability but introduces behavior differences that your eval suite must re-validate before cutover.
+- Attribution honesty matters in the post-mortem — an externally-caused regression is often not precisely attributable, and the contractual SLA prohibiting silent updates within a stable alias is the durable fix rather than chasing root cause inside your own stack.
+
+**The Interviewer's Rubric:** A strong answer pairs a continuously-running golden-prompt canary with versioned endpoint pinning and a concrete failover plan, and correctly attributes root cause to the provider when no internal change occurred. The rubric penalizes answers that rely on user complaints for detection, use moving aliases in production, or claim precise root cause for a change that happened inside an opaque provider system.
+
 ---
 
-**Q: Your KV cache hit rate drops from 70% to 15% overnight. Walk through your investigation.**
+Q: Your KV cache hit rate drops from 70% to 15% overnight. Walk through your investigation.
 
 **The Ideal Answer:** A KV cache hit rate drop simultaneously causes TTFT to spike and cost to increase, since cached tokens are billed at a discount. Investigation: (1) check whether the system prompt or prompt prefix changed — KV cache is keyed on the prompt prefix; any change invalidates the cache for all sessions; (2) check whether the max context length was increased — expanding context shifts the cache key boundary; (3) check whether a new product line was onboarded with a different system prompt that does not share the cached prefix; (4) check provider-side documentation for any cache key invalidation notice. Mitigation: restore the previous prompt prefix; if context length was increased, restructure the prompt so the system prompt and static preamble remain in the cached prefix and only the user query follows. A 55-point drop in cache hit rate at 5K QPS increases TTFT by ~300ms and cost by ~20% simultaneously — this is a cost spike incident, not just a cache tuning issue.
 
+**Deep Dive & Trade-offs:**
+- KV cache is keyed on the prompt prefix, so the highest-probability causes are prefix-mutating changes: a system-prompt edit, a context-length increase that shifts the cache key boundary, or a new product line onboarded with a non-shared preamble — investigate these before suspecting provider infrastructure.
+- The blast radius depends on what changed: a system-prompt edit invalidates the cache for every session at once (a cliff), whereas a new product line only erodes the aggregate hit rate proportional to its traffic share (a slope), and the shape of the drop tells you which.
+- The fix is prompt layout, not just rollback: keep the system prompt and all static preamble first so they stay inside the cached prefix and let only the variable user query follow, which preserves cache hits even when context length grows.
+- Frame it as a cost incident, not a latency tuning task — at 5K QPS a 55-point hit-rate drop raises TTFT ~300ms and cost ~20% simultaneously because cached tokens are billed at a discount, so the incident severity is driven by spend as much as by latency.
+
+**The Interviewer's Rubric:** A strong answer recognizes that KV cache is prefix-keyed and walks an ordered investigation through prefix-mutating changes before external causes, then proposes a prompt-layout fix that keeps static content in the cached prefix. The rubric penalizes answers that treat the drop as pure cache tuning while ignoring the simultaneous cost impact, or that cannot name the specific changes that invalidate a prefix-keyed cache.
+
 ---
 
-**Q: You need to debug a quality regression that only affects 2% of requests. How do you find them?**
+Q: You need to debug a quality regression that only affects 2% of requests. How do you find them?
 
 **The Ideal Answer:** Rare-event debugging requires two mechanisms. First, forced logging: the 10% sampler must always include requests flagged by the anomaly detector or by a quality proxy signal (e.g., `retrieval.top_score < 0.5`, `gen.finish_reason == content_filter`, response length < 20 tokens for a query expecting a detailed answer). Second, trace search: the trace backend must support high-cardinality attribute search. Query for traces where `retrieval.top_score < 0.5` or `gen.finish_reason == length` in the last 24 hours. Retrieve the associated sampled logs for those traces. The combination of span-level attributes (which are collected at 100%) and forced logging of anomalous requests ensures that rare degraded requests appear in the observability data even at a 10% baseline sampling rate.
 
+**Deep Dive & Trade-offs:**
+- Uniform 10% sampling is the wrong tool for a 2% failure population — random sampling captures only ~10% of an already-rare event, so the fix is biased sampling: force-log any request flagged by an anomaly detector or quality proxy regardless of the sampler decision.
+- Span attributes collected at 100% (e.g., `retrieval.top_score`, `gen.finish_reason`) are the search index that lets you find the rare traces even when their full logs were sampled out; high-cardinality attribute search on the trace backend is what makes this practical.
+- The two mechanisms are complementary, not redundant: forced logging guarantees the payload exists for flagged requests, while attribute search lets you discover which requests to flag retroactively over a 24-hour window.
+- Choosing the proxy signals is a precision/recall trade-off — proxies like `top_score < 0.5`, `finish_reason == content_filter`, or implausibly short responses catch most degraded requests but will force-log some healthy ones, so the thresholds must be tuned to keep forced-log volume affordable.
+
+**The Interviewer's Rubric:** A strong answer rejects uniform sampling for rare events and combines 100%-collected span attributes with forced logging of proxy-flagged requests plus high-cardinality trace search. The rubric penalizes answers that propose simply raising the global sampling rate (expensive and still misses most of the 2%) or that lack a concrete set of anomaly proxies to trigger forced logging.
+
 ---
 
-**Q: How do you measure retrieval quality at runtime without ground truth labels?**
+Q: How do you measure retrieval quality at runtime without ground truth labels?
 
 **The Ideal Answer:** Use retrieval quality proxies — signals that correlate with retrieval quality without requiring ground truth. Three reliable proxies: (1) `retrieval.top_score` distribution — a downward shift in the similarity score of the top-ranked chunk indicates query-index misalignment, either from query distribution drift or index degradation; (2) answer self-containedness — a post-generation heuristic that checks whether the response references the retrieved context (high correlation: good retrieval) or introduces external facts (possible hallucination: bad retrieval); (3) refusal rate for retrieval-bound queries — if the model starts responding "I don't have information about this" at higher rates, it is a signal that retrieved chunks are not answering the queries. None of these is a perfect proxy, but tracking all three in combination provides a reliable early warning system that acts within minutes of retrieval degradation, compared to the hours or days it takes for user complaints to surface.
 
+**Deep Dive & Trade-offs:**
+- Without ground-truth labels you measure proxies that correlate with retrieval quality rather than quality directly: the top-chunk similarity-score distribution, answer self-containedness, and refusal rate for retrieval-bound queries each capture a different failure surface.
+- Each proxy has a characteristic blind spot — `top_score` drift catches query-index misalignment but not a well-scored-but-irrelevant chunk; self-containedness catches external-fact hallucination but misclassifies legitimately model-known answers; refusal rate is lagging and noisy — which is why no single proxy is trusted alone.
+- The payoff is latency of detection: proxies fire within minutes of retrieval degradation versus hours or days for user complaints, trading some precision for a dramatically faster signal.
+- A downward shift in `top_score` is ambiguous between query distribution drift and index degradation, so the proxy detects the problem but a follow-up diagnostic (compare query mix vs. index version) is still needed to localize the cause.
+
+**The Interviewer's Rubric:** A strong answer proposes multiple complementary proxies (score distribution, self-containedness, refusal rate), explains why each is individually imperfect, and justifies tracking them together for minutes-scale early warning. The rubric penalizes answers that claim a single proxy is sufficient, or that assume runtime retrieval quality can only be measured with labeled ground truth.
+
 ---
 
-**Q: The on-call engineer gets paged at 3 AM for a Sev-2 alert. The runbook says "check vector DB dashboards." What makes this runbook good or bad?**
+Q: The on-call engineer gets paged at 3 AM for a Sev-2 alert. The runbook says "check vector DB dashboards." What makes this runbook good or bad?
 
 **The Ideal Answer:** This runbook is too vague and therefore bad. A good runbook for a 3 AM page must be executable without deep context. The runbook should specify: (a) the exact dashboard URL, not "the vector DB dashboard"; (b) the specific metric to check and the threshold that indicates a problem (e.g., "if `retrieval.db_query_ms p95 > 200ms`, the DB is under load"); (c) the specific action to take for each diagnosis (e.g., "if load is high: check active queries; if an index scan is running, kill it with `SELECT pg_cancel_backend(<pid>)`"); (d) the escalation contact if the mitigation does not resolve the alert within 15 minutes. Runbook quality is a lagging indicator of operational maturity — if runbooks cannot be followed by an engineer who did not build the system, they are documentation, not runbooks.
 
+**Deep Dive & Trade-offs:**
+- The test of a 3 AM runbook is executability without context: "check the vector DB dashboard" fails it because it assumes the reader knows which dashboard, which metric, and what value is bad — a good runbook hard-codes the exact URL, the specific metric, and the threshold.
+- Each diagnosis must map to a concrete action, including the literal command (e.g., cancel a runaway index scan with `SELECT pg_cancel_backend(<pid>)`), so the on-call engineer acts rather than improvises under pressure.
+- A bounded escalation path is part of the runbook, not an afterthought: a named contact and a time box (e.g., escalate if unresolved in 15 minutes) prevents a junior responder from thrashing on an unfamiliar system.
+- There is a trade-off between specificity and staleness — hard-coded URLs and PIDs make the runbook executable but require maintenance as infrastructure changes, so runbook freshness must itself be owned and reviewed.
+
+**The Interviewer's Rubric:** A strong answer judges the runbook by whether an engineer who did not build the system can execute it cold, and rewrites it with exact dashboards, thresholds, per-diagnosis actions, and a time-boxed escalation contact. The rubric penalizes answers that accept vague pointers to dashboards or that omit the explicit actions and escalation path needed at 3 AM.
+
 ---
 
-**Q: How do you design observability for an agentic system where a single user request triggers 15+ tool calls across 4 external APIs?**
+Q: How do you design observability for an agentic system where a single user request triggers 15+ tool calls across 4 external APIs?
 
 **The Ideal Answer:** Each tool call gets its own span (`llm.tool_call`) as a child of the generation span. For external API calls within each tool, use an additional child span (`http.client` or `rpc.client`) so the full call chain is visible. The trace waterfall for an agentic request should show: root span → generation span → tool_call_1 span → external API span → tool_call_2 span → external API span → ... → final generation span. Critical attributes: `tool.call_count` on the root span (total tool invocations for the request), `tool.success` per tool span, cumulative `gen.cost_usd` across all generation turns. For alerting: define an agentic-specific SLO (e.g., p95 task completion time < 30 seconds, tool error rate < 5%) and track `max_tool_call_depth` as a signal for runaway agent loops. An agent that makes 50 tool calls instead of 15 is both a cost anomaly and a possible control failure.
 
+**Deep Dive & Trade-offs:**
+- Span hierarchy is the core decision: each tool call is a child of the generation span and each external API call is a further child span, so the trace waterfall reconstructs the full root → generation → tool_call → external-API chain instead of a flat list that hides causality.
+- High fan-out (15+ tool calls across 4 APIs) creates a span-volume cost trade-off — emitting a span per tool and per external call at 100% is expensive, so head-based sampling at the root must preserve whole traces rather than orphaning child spans.
+- Roll up cross-cutting signals onto the root span — `tool.call_count`, cumulative `gen.cost_usd` across all turns, and `max_tool_call_depth` — so a runaway-loop or cost anomaly is a single-span lookup rather than a manual sum over the waterfall.
+- Agentic systems need their own SLOs (e.g., p95 task completion < 30s, tool error rate < 5%) because per-call latency looks healthy even when a request makes 50 calls instead of 15, which is simultaneously a cost anomaly and a possible control failure.
+
+**The Interviewer's Rubric:** A strong answer designs a nested span hierarchy with per-tool and per-external-call spans, rolls up aggregate attributes (call count, cumulative cost, max depth) onto the root, and defines agentic-specific SLOs including runaway-loop detection. The rubric penalizes flat single-span traces that lose the call chain, or monitoring that watches per-call latency while missing request-level cost and loop anomalies.
+
 ---
 
-**Q: A cost spike alert fires at 2x the normal daily cost. Both token counts and request volume look normal. What else could cause this?**
+Q: A cost spike alert fires at 2x the normal daily cost. Both token counts and request volume look normal. What else could cause this?
 
 **The Ideal Answer:** Three non-obvious cost drivers beyond token counts and volume: (1) model tier escalation — a routing bug may have sent requests to a premium model (e.g., Opus at $15/M tokens vs. Haiku at $0.80/M tokens); check `model.id` label in the cost metric — a sudden appearance of a new model ID at high volume is the culprit; (2) KV cache hit rate drop — cached tokens are billed at a fraction of uncached tokens (e.g., Anthropic bills cached input at 10% of uncached rate); a 60-point drop in cache hit rate can double effective cost with identical token counts and volume; (3) output token inflation — the model started generating significantly longer responses (e.g., a system prompt change removed a response length constraint); check `gen.output_tokens p99` — a shift from 200 to 600 output tokens triples output cost with flat volume. Instrument all three as separate metrics in the cost attribution dashboard so these are a five-second lookup rather than a multi-hour investigation.
+
+**Deep Dive & Trade-offs:**
+- When token counts and volume are flat, cost can still double from three hidden drivers: model-tier escalation (a routing bug sending traffic to a premium model like Opus at $15/M vs. Haiku at $0.80/M), a KV cache hit-rate drop (cached input billed at ~10% of uncached, so a 60-point drop nearly doubles effective cost), and output-token inflation (a prompt change lifting p99 output from 200 to 600 tokens).
+- Each driver has a specific signal to instrument: a new `model.id` appearing at high volume, a fall in the cache-hit-rate metric, and a rise in `gen.output_tokens p99` — so the dashboard turns a multi-hour forensic into a five-second lookup.
+- "Token counts look normal" is ambiguous and hides two of these: aggregate input tokens can be flat while their cache-discount mix shifts, and total tokens can look normal while the output/input split moves — so you must separate input vs. output and cached vs. uncached, not just sum tokens.
+- Pre-instrumenting these three metrics is a cost trade-off — extra cardinality on the cost dashboard — paid in exchange for fast incident attribution, which is worthwhile precisely because cost spikes are high-severity and otherwise slow to diagnose.
+
+**The Interviewer's Rubric:** A strong answer goes beyond token count and volume to name model-tier escalation, cache-hit-rate drop, and output-token inflation as cost drivers, each with a concrete metric to check. The rubric penalizes answers that stop at "tokens and volume look fine" without decomposing cost into model tier, cache discount, and output length, or that propose a manual investigation instead of pre-instrumented attribution.
 
 ---
 
@@ -1186,3 +1257,16 @@ Key considerations for a complete answer:
 - **Missing attribute identification:** the answer to (b) should name specific attributes — `gen.tbt_mean_ms` and `gen.tbt_p95_ms` — and explain that a 2.8s span with 250ms TTFT and, say, 200 output tokens implies a mean TBT of ~12.75ms which is normal; but if output tokens was 2,000 (due to max_tokens misconfiguration), mean TBT of ~1.275ms with a p95 much higher would immediately flag the root cause as output length explosion, not model latency.
 - **Self-resolution conditions:** for (c), consider: (1) a brief traffic surge where slow requests entered the queue, were processed, and the queue drained — confirmed by `llm_token_throughput_tps` returning to baseline after the spike window; (2) a transient KV cache eviction event that cleared when a background cache warm-up job completed — confirmed by `llm_kv_cache_hit_rate` recovering to baseline without intervention; (3) a time-limited rate limit from the model provider that expired — confirmed by `gen.finish_reason == rate_limit_error` appearing and disappearing in the span data over the incident window.
 - **Process change for (d):** the answer must address both the diagnostic process (a structured internal checklist that exhausts all internal hypotheses before escalating externally) and the tooling (a pre-escalation dashboard that shows internal root cause indicators — deployment log, cache hit rate, model version — with explicit checkboxes that the on-call engineer must complete and clear before a provider ticket is opened, with an estimated 15-minute time box for internal investigation).
+
+---
+
+## End of Chapter
+
+- **Key takeaway:** Observability for LLM systems is not generic APM with token counts bolted on. The non-deterministic, multi-stage nature of RAG pipelines means you must trace every span (retrieval, rerank, generation, tool calls, guardrails) with LLM-specific attributes — TTFT and TBT as independent metrics, finish_reason, token counts, and cache hit rates — and you must scrub PII from prompt/response logs at sampling time, not query time. Alert on SLO burn rate, not raw thresholds, so a slow burn (1x) pages differently from a fast burn (14.4x consuming a month's error budget in an hour). The system that detects, attributes, and remediates an incident in minutes is the one whose spans already carry the attribute that names the root cause.
+- **What to practice:** Given a 99.9% availability SLO over a 30-day window, compute the total error budget in request-minutes, then derive the multi-window burn-rate alert thresholds (the Google SRE pair: 14.4x over 1h/5m short-window, 6x over 6h, 3x over 1d). Separately, given a 2.8s generation span with a 250ms TTFT and 200 output tokens, compute the mean TBT (~12.75ms) and show how the same span at 2,000 output tokens reframes the root cause as output-length explosion rather than model latency.
+- **Interview drill:** "Your p95 end-to-end latency just doubled from 1.4s to 2.9s and an SLO burn-rate alert fired at 14.4x. Walk me through how you localize the regression to a single span using distributed traces, which three span attributes you inspect first, how you distinguish a retrieval slowdown from a generation slowdown from a tool-call timeout, and how your runbook decides whether to roll back, shed load, or escalate to the model provider — and what gate prevents a false external escalation before internal hypotheses are exhausted."
+
+---
+
+<!-- nav-footer -->
+[[chapter-28|← Chapter 28]] | [[README|Contents]] | [[chapter-30|Chapter 30 →]]

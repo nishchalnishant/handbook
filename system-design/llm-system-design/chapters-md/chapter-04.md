@@ -20,7 +20,7 @@ part: foundations
 
 ### Real-World Examples
 
-- A coding assistant launch hits 12x expected traffic; continuous batching and KV caching reduce TTFT from 2.1s to 900ms without additional GPUs.
+- A coding assistant launch hits 12x expected traffic; [[glossary#Continuous Batching|continuous batching]] and [[glossary#KV Cache|KV caching]] reduce [[glossary#TTFT (Time To First Token)|TTFT]] from 2.1s to 900ms without additional GPUs.
 - A support assistant outage reveals retry storms from provider 429s; queue isolation and deterministic degrade modes restore stability within minutes.
 
 ---
@@ -52,7 +52,7 @@ part: foundations
 
 - **Latency:** TTFT p95 < 800ms (interactive), TPOT p95 < 40ms/token.
 
-> **Why 800ms TTFT and 40ms TPOT:** 800ms is the practical ceiling for interactive response before users perceive a noticeable pause. 40ms TPOT corresponds to approximately 25 tokens per second, which matches human reading speed for dense technical content; faster TPOT is perceptually indistinguishable at reading speed, while slower TPOT makes streaming feel choppy.
+> **Why 800ms TTFT and 40ms TPOT:** 800ms is the practical ceiling for interactive response before users perceive a noticeable pause. 40ms [[glossary#TPOT (Time Per Output Token)|TPOT]] corresponds to approximately 25 tokens per second, which matches human reading speed for dense technical content; faster TPOT is perceptually indistinguishable at reading speed, while slower TPOT makes streaming feel choppy.
 - **Throughput:** sustain 3,500 QPS peak with < 5% error rate.
 - **Cost:** self-hosted unit cost < 60% of equivalent managed API cost at steady state.
 
@@ -120,7 +120,7 @@ part: foundations
 1. Model artifact (weights + tokenizer + config) versioned in model registry.
 2. Quantization and optimization applied (GPTQ/AWQ for INT4/INT8, or FP16 for large tier).
 
-> **Why AWQ/GPTQ for quantization:** Both AWQ (Activation-aware Weight Quantization) and GPTQ apply calibration data to minimize the quality loss from reducing weights to INT4 or INT8 precision. AWQ preserves the most critical weights by identifying activation magnitude, typically achieving <0.3% quality degradation on benchmarks while halving VRAM requirements. FP16 is used on the largest tier (70B) where quantization artifacts are less acceptable and cost savings from quantization are less critical relative to quality.
+> **Why AWQ/GPTQ for quantization:** Both AWQ (Activation-aware Weight Quantization) and GPTQ apply calibration data to minimize the quality loss from reducing weights to INT4 or INT8 precision via [[glossary#Quantization|quantization]]. AWQ preserves the most critical weights by identifying activation magnitude, typically achieving <0.3% quality degradation on benchmarks while halving VRAM requirements. FP16 is used on the largest tier (70B) where quantization artifacts are less acceptable and cost savings from quantization are less critical relative to quality.
 3. Serving config generated: max batch size, max sequence length, KV cache budget per GPU.
 4. Canary deployment to shadow traffic (5% of production load).
 5. Quality gate: compare output quality, latency, and error rate against baseline.
@@ -289,25 +289,64 @@ The KV cache stores computed key/value attention states for previously processed
 
 ### Advanced Techniques
 
-- **Speculative decoding:** A small draft model (typically 1-7B parameters) generates a candidate sequence of k tokens, and the large verifier model processes all k candidates in a single forward pass to accept or reject each one. When the acceptance rate exceeds 70%—meaning the draft model's predictions match what the large model would have generated—wall-clock throughput improves by 2-3x because the expensive verifier model performs far fewer sequential decode steps. The technique is most effective for interactive use cases (coding assistants, chat) where the output vocabulary is predictable; it degrades or provides no benefit for highly creative or open-ended generation tasks where the draft model's acceptance rate falls below 50%.
+- **[[glossary#Speculative Decoding|Speculative decoding]]:** A small draft model (typically 1-7B parameters) generates a candidate sequence of k tokens, and the large verifier model processes all k candidates in a single forward pass to accept or reject each one. When the acceptance rate exceeds 70%—meaning the draft model's predictions match what the large model would have generated—wall-clock throughput improves by 2-3x because the expensive verifier model performs far fewer sequential decode steps. The technique is most effective for interactive use cases (coding assistants, chat) where the output vocabulary is predictable; it degrades or provides no benefit for highly creative or open-ended generation tasks where the draft model's acceptance rate falls below 50%.
 
-> **Why:** Autoregressive decode is fundamentally sequential and memory-bandwidth bound, not compute bound. Speculative decoding breaks the sequential bottleneck by parallelizing candidate verification across the large model's spare compute capacity, converting latency into throughput without changing the final output distribution.
+> **Why use speculative decoding with a small draft model:** Autoregressive decode is fundamentally sequential and memory-bandwidth bound, not compute bound. Speculative decoding breaks the sequential bottleneck by parallelizing candidate verification across the large model's spare compute capacity, converting latency into throughput without changing the final output distribution.
 
 - **Continuous batching with chunked prefill:** Rather than processing an entire prompt's prefill in one blocking pass before decode begins, chunked prefill breaks the prefill stage into fixed-size chunks (e.g., 512 or 1024 tokens per chunk) and interleaves them with decode steps for ongoing requests. This prevents a single 32K-token prompt from stalling the decode phase for all other concurrent requests—a problem that causes TTFT spikes of 500ms-2s in systems using naive continuous batching without chunking.
 
-> **Why:** In a naive continuous batching setup, a large prefill job temporarily saturates the GPU's compute capacity, causing decode iterations for all other batched requests to stall until the prefill completes. Chunked prefill bounds this stall to at most one chunk's worth of compute per iteration, keeping TTFT variance low even under mixed short/long prompt traffic.
+> **Why use chunked prefill in continuous batching:** In a naive continuous batching setup, a large prefill job temporarily saturates the GPU's compute capacity, causing decode iterations for all other batched requests to stall until the prefill completes. Chunked prefill bounds this stall to at most one chunk's worth of compute per iteration, keeping TTFT variance low even under mixed short/long prompt traffic.
 
-- **LoRA adapter serving:** The base model weights are loaded once per GPU and shared across all tenants. Per-request, a small adapter matrix (50-200MB for rank-16 to rank-64 adapters applied to Q/K/V/O projection layers) is loaded and applied on top of the base weights. Hot-swapping between adapters adds approximately 2-5ms per request switch, which is negligible relative to generation time. The key challenge arises with high adapter diversity: if 50 different tenants have 50 different adapters and batch sizes per adapter are small (1-2 requests), the adapter caching mechanism must evict and reload frequently, and the effective batching gains are reduced.
+- **[[glossary#LoRA (Low-Rank Adaptation)|LoRA adapter]] serving:** The base model weights are loaded once per GPU and shared across all tenants. Per-request, a small adapter matrix (50-200MB for rank-16 to rank-64 adapters applied to Q/K/V/O projection layers) is loaded and applied on top of the base weights. Hot-swapping between adapters adds approximately 2-5ms per request switch, which is negligible relative to generation time. The key challenge arises with high adapter diversity: if 50 different tenants have 50 different adapters and batch sizes per adapter are small (1-2 requests), the adapter caching mechanism must evict and reload frequently, and the effective batching gains are reduced.
 
-> **Why:** Running 50 separate fine-tuned model instances would require 50x the VRAM and operational overhead. LoRA serving allows a single GPU to serve a large number of tenant-specific models by treating the adapter as a lightweight request attribute rather than a model identity, enabling multi-tenant specialization without multi-tenant fleet multiplication.
+> **Why serve LoRA adapters on a shared base model:** Running 50 separate fine-tuned model instances would require 50x the VRAM and operational overhead. LoRA serving allows a single GPU to serve a large number of tenant-specific models by treating the adapter as a lightweight request attribute rather than a model identity, enabling multi-tenant specialization without multi-tenant fleet multiplication.
 
 - **Tensor parallelism:** Models exceeding single-GPU VRAM (typically 70B+ class in FP16 or 34B+ in FP16 without quantization) are sharded across multiple GPUs by splitting weight matrices along the tensor dimension. Each GPU holds a shard of every layer's weights and performs its shard's computation; results are all-reduced across GPUs after each layer. For a 70B model in FP16 requiring ~160GB, a 2xA100 (160GB total) configuration is the minimum; 4xA100 provides headroom for KV cache and larger batch sizes. Tensor parallelism introduces inter-GPU communication overhead (typically 5-15% latency overhead on NVLink), so it should not be applied unless single-GPU fitting is impossible after quantization.
 
-> **Why:** The alternative to tensor parallelism for over-VRAM models is pipeline parallelism (split layers across GPUs), which introduces pipeline bubbles and is generally slower for single-request latency. Tensor parallelism distributes each layer across GPUs, which is better suited for serving where low per-request latency is more important than batch throughput.
+> **Why tensor parallelism rather than pipeline parallelism for over-VRAM models:** The alternative to tensor parallelism for over-VRAM models is pipeline parallelism (split layers across GPUs), which introduces pipeline bubbles and is generally slower for single-request latency. Tensor parallelism distributes each layer across GPUs, which is better suited for serving where low per-request latency is more important than batch throughput.
 
 - **Quantized KV cache (INT8):** The KV cache tensors—which are intermediate activations, not model weights—are stored in INT8 precision rather than FP16. Because these tensors represent attention keys and values that are only read and written during a single forward pass, quantization artifacts do not accumulate across layers the way they might in weight quantization. Empirically, INT8 KV cache achieves less than 0.5% quality degradation on standard benchmarks while providing exactly 50% memory reduction, which directly translates to doubling the maximum concurrent batch size on the same GPU hardware.
 
-> **Why:** The KV cache is typically the dominant consumer of GPU VRAM in production serving (not the weights, which are static). For a 70B model serving 32 concurrent 4K-context requests, the KV cache alone consumes over 650GB—more than the weight storage. INT8 KV quantization is the highest-ROI memory optimization available because it targets the resource that most directly limits concurrency and throughput.
+> **Why quantize the KV cache to INT8:** The KV cache is typically the dominant consumer of GPU VRAM in production serving (not the weights, which are static). For a 70B model serving 32 concurrent 4K-context requests, the KV cache alone consumes over 650GB—more than the weight storage. INT8 KV quantization is the highest-ROI memory optimization available because it targets the resource that most directly limits concurrency and throughput.
+
+---
+
+## Practical Implementation
+
+The deep-dive trade-offs above map directly onto a small number of serving-engine flags. The example below uses vLLM, the most common reference implementation of continuous batching and paged KV cache.
+
+**Launching a continuous-batching server:**
+
+```python
+from vllm import LLM, SamplingParams
+
+# Continuous batching, paged KV cache, and tensor parallelism are
+# configured at engine construction time.
+llm = LLM(
+    model="meta-llama/Llama-3.1-70B-Instruct",
+    tensor_parallel_size=4,          # shard weights across 4 GPUs (TP)
+    gpu_memory_utilization=0.90,     # leave 10% headroom for activation spikes
+    max_num_seqs=64,                 # max concurrent requests in the running batch
+    max_model_len=8192,              # context window cap (bounds KV cache size)
+    kv_cache_dtype="fp8",            # quantized KV cache to raise concurrency
+    enable_chunked_prefill=True,     # interleave prefill with decode to protect TTFT
+)
+
+sampling = SamplingParams(temperature=0.7, max_tokens=512)
+outputs = llm.generate(["Summarize the design trade-offs of continuous batching."], sampling)
+```
+
+**Mapping flags to the design decisions:**
+
+| Flag | Controls | Deep-dive section |
+|---|---|---|
+| `max_num_seqs` | Max running-batch size; trades latency for throughput | Continuous Batching and Scheduling |
+| `gpu_memory_utilization` | KV-cache budget vs. OOM headroom | KV Cache Management |
+| `kv_cache_dtype` | INT8/FP8 KV quantization to double concurrency | KV Cache Management |
+| `enable_chunked_prefill` | Interleaving prefill and decode to bound TTFT | Continuous Batching and Scheduling |
+| `tensor_parallel_size` | Sharding over-VRAM models across GPUs | Multi-tenancy and parallelism |
+
+> **Why expose these as engine flags rather than per-request parameters:** Batch size, memory budget, and parallelism degree are fleet-level capacity decisions that determine the latency/throughput operating point for every request on the node. Per-request overrides would let a single caller destabilize the shared running batch; pinning them at engine construction makes the operating point a deliberate, observable deployment property.
 
 ---
 
@@ -449,3 +488,8 @@ Your production monitoring shows that TPOT p95 has risen from 28ms to 65ms over 
 - **Key takeaway:** LLM serving is memory-bound, not compute-bound. KV cache management, batching strategy, and overload protection determine whether your system hits latency SLOs at scale.
 - **What to practice:** Size a GPU fleet for a specific traffic profile with back-of-the-envelope math including VRAM, throughput, and cost.
 - **Interview drill:** Given a TTFT regression, walk through the full debug path from queue depth to cache hit rate to model routing to GPU utilization.
+
+---
+
+<!-- nav-footer -->
+[[chapter-03|← Chapter 3]] | [[README|Contents]] | [[chapter-05|Chapter 5 →]]

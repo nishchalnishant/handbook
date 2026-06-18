@@ -30,7 +30,7 @@ Each term uses this structure:
 - **How it works:** The system maintains state across iterations and stops when a goal, budget, or failure condition is reached.
 - **Why it matters:** Core control pattern behind autonomous agents and multi-agent workflows.
 - **Pitfalls:** Unbounded loops can create runaway cost, tool spam, and unsafe side effects.
-- **Related:** Tool Use, Multi-Agent Orchestration, Budget Controller, ReAct.
+- **Related:** [[glossary#Tool Use / Function Calling|Tool Use]], [[glossary#Multi-Agent Orchestration|Multi-Agent Orchestration]], Budget Controller, ReAct.
 
 ### Accuracy
 - **Definition:** Fraction of predictions that are correct over all predictions.
@@ -38,7 +38,7 @@ Each term uses this structure:
 - **How it works:** Compares predicted labels against ground truth and counts exact matches.
 - **Why it matters:** Useful as a quick baseline when classes are balanced and misclassification costs are symmetric.
 - **Pitfalls:** Can be dangerously misleading on imbalanced datasets (for example, 99% negative class).
-- **Related:** Precision, Recall, F1, PR-AUC, Confusion Matrix.
+- **Related:** [[glossary#Precision|Precision]], [[glossary#Recall|Recall]], F1, PR-AUC, Confusion Matrix.
 
 ### Activation Function
 - **Definition:** Non-linear transform applied to a neuron's pre-activation value.
@@ -46,7 +46,7 @@ Each term uses this structure:
 - **How it works:** Adds non-linearity so stacked layers can represent complex functions beyond linear maps.
 - **Why it matters:** Activation choice affects gradient flow, convergence speed, and final model quality.
 - **Pitfalls:** Saturating functions (sigmoid/tanh) can cause vanishing gradients in deep networks.
-- **Related:** Vanishing Gradient, ReLU, BatchNorm, Residual Connections.
+- **Related:** [[glossary#Vanishing Gradient|Vanishing Gradient]], ReLU, BatchNorm, Residual Connections.
 
 ### Adam (Adaptive Moment Estimation)
 - **Definition:** Optimizer that keeps exponential moving averages of gradients and squared gradients.
@@ -54,7 +54,7 @@ Each term uses this structure:
 - **How it works:** Combines momentum-like behavior with per-parameter adaptive step sizes.
 - **Why it matters:** Strong default for many deep learning workloads, especially sparse/noisy gradients.
 - **Pitfalls:** Can overfit or generalize worse than SGD+momentum in some fine-tuning regimes.
-- **Related:** SGD, Learning Rate Schedule, Weight Decay, AdamW.
+- **Related:** SGD, [[glossary#Learning Rate Schedule|Learning Rate Schedule]], [[glossary#Weight Decay|Weight Decay]], AdamW.
 
 ### Attention
 - **Definition:** Mechanism that computes context-aware weighted combinations of token representations.
@@ -62,7 +62,7 @@ Each term uses this structure:
 - **How it works:** Query-key similarity determines weights over value vectors, producing dynamic context mixing.
 - **Why it matters:** Core primitive behind Transformers and LLM quality.
 - **Pitfalls:** Quadratic complexity in sequence length for standard self-attention.
-- **Related:** Transformer, Multi-Head Attention, KV Cache, Context Window.
+- **Related:** [[glossary#Transformer|Transformer]], [[glossary#Multi-Head Attention|Multi-Head Attention]], [[glossary#KV Cache|KV Cache]], [[glossary#Context Window|Context Window]].
 
 ### AUC (ROC-AUC)
 - **Definition:** Area under ROC curve (TPR vs FPR across thresholds).
@@ -70,7 +70,7 @@ Each term uses this structure:
 - **How it works:** Threshold-independent ranking metric for binary classifiers.
 - **Why it matters:** Useful when class threshold is undecided and ranking quality is primary.
 - **Pitfalls:** Overly optimistic under heavy class imbalance compared with PR-AUC.
-- **Related:** ROC, PR-AUC, Precision, Recall.
+- **Related:** ROC, PR-AUC, [[glossary#Precision|Precision]], [[glossary#Recall|Recall]].
 
 ---
 
@@ -82,7 +82,7 @@ Each term uses this structure:
 - **How it works:** Forward pass computes activations and loss; backward pass propagates gradients layer-by-layer.
 - **Why it matters:** Makes training deep networks computationally tractable.
 - **Pitfalls:** Gradient explosion/vanishing without careful architecture and normalization choices.
-- **Related:** Gradient Descent, Autodiff, Vanishing Gradient, Gradient Clipping.
+- **Related:** Gradient Descent, Autodiff, [[glossary#Vanishing Gradient|Vanishing Gradient]], [[glossary#Gradient Clipping|Gradient Clipping]].
 
 ### Batch Normalization
 - **Definition:** Normalizes intermediate activations within mini-batches during training.
@@ -98,7 +98,7 @@ Each term uses this structure:
 - **How it works:** Simpler models reduce variance but increase bias; complex models do the opposite.
 - **Why it matters:** Guides model capacity, regularization strength, and dataset size decisions.
 - **Pitfalls:** Treated as a slogan rather than measured with proper validation strategy.
-- **Related:** Regularization, Cross-Validation, Overfitting, Underfitting.
+- **Related:** [[glossary#Regularization|Regularization]], [[glossary#Cross-Validation|Cross-Validation]], [[glossary#Overfitting|Overfitting]], [[glossary#Underfitting|Underfitting]].
 
 ---
 
@@ -118,7 +118,7 @@ Each term uses this structure:
 - **How it works:** Penalizes low predicted probability assigned to true class.
 - **Why it matters:** Optimizes probabilistic discrimination and pairs naturally with softmax outputs.
 - **Pitfalls:** Sensitive to mislabeled data; can encourage overconfident outputs.
-- **Related:** Softmax, Label Smoothing, NLL.
+- **Related:** Softmax, [[glossary#Label Smoothing|Label Smoothing]], [[glossary#Negative Log-Likelihood (NLL)|NLL]].
 
 ### Context Window
 - **Definition:** Maximum number of tokens a model can process at once (input plus sometimes output constraints by runtime).
@@ -126,7 +126,7 @@ Each term uses this structure:
 - **How it works:** Tokens beyond the limit are truncated, summarized, or moved to retrieval memory.
 - **Why it matters:** Governs RAG chunking strategy, prompt packing, and latency/cost behavior.
 - **Pitfalls:** Long context can degrade quality if relevant evidence is diluted.
-- **Related:** Tokenization, RAG, Positional Encoding, KV Cache.
+- **Related:** [[glossary#Tokenization|Tokenization]], [[glossary#RAG (Retrieval-Augmented Generation)|RAG]], [[glossary#Positional Encoding|Positional Encoding]], [[glossary#KV Cache|KV Cache]].
 
 ### Cross-Validation
 - **Definition:** Resampling method to estimate model generalization using repeated train/validation splits.
@@ -134,7 +134,7 @@ Each term uses this structure:
 - **How it works:** Rotate validation fold; train `k` models; aggregate mean and variance.
 - **Why it matters:** More robust estimate than a single split for limited data.
 - **Pitfalls:** Leakage if preprocessing is fit on full data instead of per-fold training data.
-- **Related:** Data Leakage, Stratification, Hyperparameter Tuning.
+- **Related:** [[glossary#Data Leakage|Data Leakage]], Stratification, Hyperparameter Tuning.
 
 ### Cross-Encoder Reranking
 - **Definition:** Reranking retrieved candidates by scoring query-document pairs jointly in one model forward pass.
@@ -142,7 +142,7 @@ Each term uses this structure:
 - **How it works:** Initial retriever returns top-K quickly; reranker reorders by deeper semantic matching.
 - **Why it matters:** Strong quality boost for RAG answer grounding.
 - **Pitfalls:** Computationally expensive; throughput bottleneck at high QPS.
-- **Related:** Bi-Encoder Embeddings, Hybrid Retrieval, Recall@K, MRR.
+- **Related:** Bi-Encoder [[glossary#Embedding|Embeddings]], Hybrid Retrieval, [[glossary#Recall|Recall@K]], MRR.
 
 ### Chain-of-Thought Prompting
 - **Definition:** Prompting technique that instructs the model to produce explicit intermediate reasoning steps before the final answer.
@@ -150,7 +150,7 @@ Each term uses this structure:
 - **How it works:** Decomposing a problem into smaller steps improves multi-hop and arithmetic reasoning by making intermediate computations visible in the context window.
 - **Why it matters:** Significantly improves accuracy on complex reasoning tasks; required technique for agentic planning and structured problem solving.
 - **Pitfalls:** Verbose reasoning inflates token cost and latency; reasoning chains can be wrong while sounding confident.
-- **Related:** In-Context Learning, Agentic Orchestration, Structured Output, Few-Shot Prompting.
+- **Related:** [[glossary#In-Context Learning|In-Context Learning]], Agentic Orchestration, [[glossary#Structured Output / Constrained Decoding|Structured Output]], [[glossary#Zero-Shot / Few-Shot Prompting|Few-Shot Prompting]].
 
 ### Continuous Batching
 - **Definition:** Serving strategy that continuously merges arriving decode requests into active batches.
@@ -158,7 +158,7 @@ Each term uses this structure:
 - **How it works:** Scheduler interleaves prefill/decode work and admits new requests without waiting for full batch boundaries.
 - **Why it matters:** Major production optimization for LLM latency-throughput trade-offs.
 - **Pitfalls:** Poor scheduler tuning can increase tail latency or starve long prompts.
-- **Related:** KV Cache, Throughput, Queueing, TTFT, TPOT.
+- **Related:** [[glossary#KV Cache|KV Cache]], [[glossary#Throughput|Throughput]], Queueing, [[glossary#TTFT (Time To First Token)|TTFT]], [[glossary#TPOT (Time Per Output Token)|TPOT]].
 
 ---
 
@@ -170,7 +170,7 @@ Each term uses this structure:
 - **How it works:** Common sources include target leakage, temporal leakage, and split contamination.
 - **Why it matters:** Produces brittle models and false confidence.
 - **Pitfalls:** Leakage hidden in feature engineering or preprocessing pipelines.
-- **Related:** Cross-Validation, Time-Series Split, Feature Store.
+- **Related:** [[glossary#Cross-Validation|Cross-Validation]], Time-Series Split, Feature Store.
 
 ### Distribution Shift
 - **Definition:** Difference between training data distribution and real-world serving distribution.
@@ -186,7 +186,7 @@ Each term uses this structure:
 - **How it works:** Prevents co-adaptation and encourages redundant robust feature learning.
 - **Why it matters:** Helps generalization in over-parameterized networks.
 - **Pitfalls:** Excessive dropout can underfit; interacts with normalization and architecture choices.
-- **Related:** Regularization, Early Stopping, Weight Decay.
+- **Related:** [[glossary#Regularization|Regularization]], [[glossary#Early Stopping|Early Stopping]], [[glossary#Weight Decay|Weight Decay]].
 
 ### DPO (Direct Preference Optimization)
 - **Definition:** Preference-learning objective for aligning LLM outputs to human/chosen preferences without full RL loop.
@@ -194,7 +194,7 @@ Each term uses this structure:
 - **How it works:** Uses pairwise preference data to directly shift policy toward preferred responses.
 - **Why it matters:** Lower operational complexity than PPO-based RLHF for many alignment tasks.
 - **Pitfalls:** Highly sensitive to preference data quality and diversity.
-- **Related:** RLHF, SFT, Reward Modeling, Alignment.
+- **Related:** [[glossary#RLHF (Reinforcement Learning from Human Feedback)|RLHF]], [[glossary#SFT (Supervised Fine-Tuning)|SFT]], Reward Modeling, Alignment.
 
 ---
 
@@ -206,7 +206,7 @@ Each term uses this structure:
 - **How it works:** Prevents overfitting by halting before memorization dominates.
 - **Why it matters:** Cheap and effective regularizer in practical pipelines.
 - **Pitfalls:** Noisy validation metrics can trigger premature stopping without smoothing.
-- **Related:** Regularization, Checkpointing, Learning Curves.
+- **Related:** [[glossary#Regularization|Regularization]], Checkpointing, Learning Curves.
 
 ### Embedding
 - **Definition:** Dense vector representation of items (tokens, sentences, documents, users, products).
@@ -214,7 +214,7 @@ Each term uses this structure:
 - **How it works:** Learned so semantically related items are geometrically close in vector space.
 - **Why it matters:** Foundation of retrieval, recommendation, clustering, and semantic search.
 - **Pitfalls:** Embedding drift after model upgrades can break nearest-neighbor assumptions.
-- **Related:** Vector Index, ANN Search, RAG, Bi-Encoder.
+- **Related:** Vector Index, ANN Search, [[glossary#RAG (Retrieval-Augmented Generation)|RAG]], Bi-Encoder.
 
 ### Epoch
 - **Definition:** One full pass through the training dataset.
@@ -222,7 +222,7 @@ Each term uses this structure:
 - **How it works:** Multiple epochs iteratively update parameters until convergence or stopping criteria.
 - **Why it matters:** Helps reason about optimization progress and compute budget.
 - **Pitfalls:** More epochs are not always better; can overfit if validation degrades.
-- **Related:** Batch Size, Iteration, Early Stopping.
+- **Related:** Batch Size, Iteration, [[glossary#Early Stopping|Early Stopping]].
 
 ---
 
@@ -234,7 +234,7 @@ Each term uses this structure:
 - **How it works:** Penalizes extreme imbalance between precision and recall.
 - **Why it matters:** Better summary metric than accuracy under class imbalance.
 - **Pitfalls:** Hides calibration quality and business-specific error asymmetry.
-- **Related:** Precision, Recall, PR-AUC.
+- **Related:** [[glossary#Precision|Precision]], [[glossary#Recall|Recall]], PR-AUC.
 
 ### Feature Engineering
 - **Definition:** Transforming raw data into informative model inputs.
@@ -242,7 +242,7 @@ Each term uses this structure:
 - **How it works:** Encodes domain structure and signal into model-friendly features.
 - **Why it matters:** Still decisive in classical ML and tabular systems.
 - **Pitfalls:** Leakage through future information or post-outcome fields.
-- **Related:** Data Leakage, Feature Store, Model Explainability.
+- **Related:** [[glossary#Data Leakage|Data Leakage]], Feature Store, Model Explainability.
 
 ### Fine-tuning
 - **Definition:** Continued training of a pretrained model on a target dataset/task.
@@ -250,7 +250,7 @@ Each term uses this structure:
 - **How it works:** Reuses broad representations from pretraining and adapts to domain/task style.
 - **Why it matters:** Faster and cheaper than full pretraining with strong downstream gains.
 - **Pitfalls:** Catastrophic forgetting and overfitting with narrow or low-quality data.
-- **Related:** Transfer Learning, LoRA, SFT, Domain Adaptation.
+- **Related:** Transfer Learning, [[glossary#LoRA (Low-Rank Adaptation)|LoRA]], [[glossary#SFT (Supervised Fine-Tuning)|SFT]], Domain Adaptation.
 
 ### Foundation Model
 - **Definition:** Large pretrained model broadly reusable across tasks via prompting or adaptation.
@@ -258,7 +258,7 @@ Each term uses this structure:
 - **How it works:** Learns general-purpose representations before specialization.
 - **Why it matters:** Core platform primitive behind modern LLM products.
 - **Pitfalls:** Hidden biases and capability gaps outside training distribution.
-- **Related:** Pretraining, Fine-tuning, Prompting, Alignment.
+- **Related:** [[glossary#Pretraining|Pretraining]], [[glossary#Fine-tuning|Fine-tuning]], Prompting, Alignment.
 
 ### Flash Attention
 - **Definition:** Memory-efficient attention algorithm that avoids materializing the full N×N attention matrix by tiling operations in SRAM.
@@ -266,7 +266,7 @@ Each term uses this structure:
 - **How it works:** Tiles Q, K, V into SRAM blocks; computes attention incrementally without storing the full intermediate matrix.
 - **Why it matters:** Reduces attention memory from O(N²) to O(N) for activations; enables longer contexts and higher throughput at the same VRAM budget.
 - **Pitfalls:** Requires specialized CUDA kernels; compatibility depends on hardware and model architecture.
-- **Related:** Attention, Context Window, KV Cache, Transformer.
+- **Related:** [[glossary#Attention|Attention]], [[glossary#Context Window|Context Window]], [[glossary#KV Cache|KV Cache]], [[glossary#Transformer|Transformer]].
 
 ---
 
@@ -278,7 +278,7 @@ Each term uses this structure:
 - **How it works:** Emerges from fit quality, regularization, data coverage, and optimization dynamics.
 - **Why it matters:** Production value comes from generalization, not memorized training performance.
 - **Pitfalls:** Benchmark overfitting via repeated evaluation on same test sets.
-- **Related:** Cross-Validation, Overfitting, Distribution Shift.
+- **Related:** [[glossary#Cross-Validation|Cross-Validation]], [[glossary#Overfitting|Overfitting]], [[glossary#Distribution Shift|Distribution Shift]].
 
 ### GraphRAG
 - **Definition:** Retrieval-augmented generation that uses an entity or knowledge graph alongside text/vector retrieval.
@@ -286,7 +286,7 @@ Each term uses this structure:
 - **How it works:** Extract entities and relationships from documents, retrieve graph neighborhoods, then pack supporting text evidence for generation.
 - **Why it matters:** Improves multi-hop questions where answers depend on relationships across documents.
 - **Pitfalls:** Poor entity resolution or stale graph edges can produce confident but wrong context.
-- **Related:** RAG, Entity Extraction, Hybrid Retrieval, Multi-Hop Retrieval.
+- **Related:** [[glossary#RAG (Retrieval-Augmented Generation)|RAG]], Entity Extraction, Hybrid Retrieval, Multi-Hop Retrieval.
 
 ### Gradient Clipping
 - **Definition:** Restricts gradient magnitude to improve numerical stability.
@@ -306,7 +306,7 @@ Each term uses this structure:
 - **How it works:** Arises from weak grounding, distribution mismatch, or decoding behavior.
 - **Why it matters:** Primary trust and safety failure mode in LLM applications.
 - **Pitfalls:** Treating hallucination as purely model issue; often retrieval/prompt/orchestration failures.
-- **Related:** RAG, Groundedness, Guardrails, Verification.
+- **Related:** [[glossary#RAG (Retrieval-Augmented Generation)|RAG]], Groundedness, [[glossary#Safety Filter / Guardrails|Guardrails]], Verification.
 
 ### Hyperparameter
 - **Definition:** Configuration value set before training (not directly learned).
@@ -314,7 +314,7 @@ Each term uses this structure:
 - **How it works:** Controls optimization behavior, model capacity, and regularization.
 - **Why it matters:** Often dominates final performance.
 - **Pitfalls:** Tuning on test set leaks information and inflates reported metrics.
-- **Related:** Cross-Validation, Bayesian Optimization, Reproducibility.
+- **Related:** [[glossary#Cross-Validation|Cross-Validation]], Bayesian Optimization, Reproducibility.
 
 ---
 
@@ -326,7 +326,7 @@ Each term uses this structure:
 - **How it works:** Prompt demonstrations induce task pattern following during inference.
 - **Why it matters:** Enables rapid iteration without retraining.
 - **Pitfalls:** Prompt sensitivity and context-length limitations.
-- **Related:** Few-Shot Prompting, Context Window, Prompt Engineering.
+- **Related:** [[glossary#Zero-Shot / Few-Shot Prompting|Few-Shot Prompting]], [[glossary#Context Window|Context Window]], Prompt Engineering.
 
 ### Inference-Time Compute
 - **Definition:** Compute budget spent at serving time (sampling params, reranking, self-consistency, tool calls).
@@ -334,7 +334,7 @@ Each term uses this structure:
 - **How it works:** Additional reasoning/verification can improve quality at higher cost and latency.
 - **Why it matters:** Key lever for quality-latency-cost trade-offs.
 - **Pitfalls:** Unbounded agent loops can blow SLO and budget.
-- **Related:** TTFT, TPOT, Rate Limiting, Budget Policies.
+- **Related:** [[glossary#TTFT (Time To First Token)|TTFT]], [[glossary#TPOT (Time Per Output Token)|TPOT]], Rate Limiting, Budget Policies.
 
 ---
 
@@ -346,7 +346,7 @@ Each term uses this structure:
 - **How it works:** Reuses prior attention states so each new token avoids recomputing full prefix.
 - **Why it matters:** Major throughput and latency optimization for long generations.
 - **Pitfalls:** Large contexts can exhaust GPU memory and reduce batch capacity.
-- **Related:** Attention, Continuous Batching, Context Window, Quantization.
+- **Related:** [[glossary#Attention|Attention]], [[glossary#Continuous Batching|Continuous Batching]], [[glossary#Context Window|Context Window]], [[glossary#Quantization|Quantization]].
 
 ---
 
@@ -358,7 +358,7 @@ Each term uses this structure:
 - **How it works:** Prevents overconfident logits and improves calibration/generalization.
 - **Why it matters:** Useful stabilization trick in classification and seq2seq training.
 - **Pitfalls:** Too much smoothing can hurt separability and confidence where needed.
-- **Related:** Cross-Entropy, Calibration, Overconfidence.
+- **Related:** Cross-Entropy, [[glossary#Calibration|Calibration]], Overconfidence.
 
 ### LLMOps
 - **Definition:** Operational discipline for versioning, evaluating, deploying, monitoring, and rolling back LLM system artifacts.
@@ -366,7 +366,7 @@ Each term uses this structure:
 - **How it works:** Treats prompts, models, retrieval indexes, tools, policies, and inference configs as governed production artifacts.
 - **Why it matters:** Prevents silent regressions and makes LLM behavior reproducible under audit.
 - **Pitfalls:** Monitoring only model metrics while ignoring prompt, tool, and retrieval changes.
-- **Related:** MLOps, Prompt Registry, Eval Gates, Trace Replay, Model Registry.
+- **Related:** MLOps, [[glossary#Prompt Registry|Prompt Registry]], Eval Gates, [[glossary#Trace Replay|Trace Replay]], Model Registry.
 
 ### Latency (TTFT, TPOT, Tail)
 - **Definition:** Response-time profile for generation systems.
@@ -374,7 +374,7 @@ Each term uses this structure:
 - **How it works:** TTFT captures first token delay; TPOT captures steady-state generation speed.
 - **Why it matters:** User experience and SLOs depend heavily on p95/p99 tail latency.
 - **Pitfalls:** Optimizing average latency while ignoring tail behavior under burst traffic.
-- **Related:** Throughput, Rate Limiting, Batching, Autoscaling.
+- **Related:** [[glossary#Throughput|Throughput]], Rate Limiting, Batching, Autoscaling.
 
 ### Learning Rate Schedule
 - **Definition:** Time-varying policy for optimizer step size.
@@ -390,7 +390,7 @@ Each term uses this structure:
 - **How it works:** Trains small adapter parameters while keeping most model parameters fixed.
 - **Why it matters:** Reduces VRAM, storage, and serving complexity for many domain adaptations.
 - **Pitfalls:** Poor rank/target-module choices can bottleneck quality.
-- **Related:** PEFT, Fine-tuning, Adapters, Quantized Training.
+- **Related:** PEFT, [[glossary#Fine-tuning|Fine-tuning]], Adapters, Quantized Training.
 
 ---
 
@@ -402,7 +402,7 @@ Each term uses this structure:
 - **How it works:** A supervisor, DAG scheduler, or workflow engine assigns tasks, manages dependencies, validates outputs, and resolves conflicts.
 - **Why it matters:** Enables complex work while keeping autonomy bounded and auditable.
 - **Pitfalls:** Free-form agent chat without typed state leads to conflicts, loops, and hard-to-debug behavior.
-- **Related:** Agentic Loop, Tool Use, Shared State, Human Approval.
+- **Related:** [[glossary#Agentic Loop|Agentic Loop]], [[glossary#Tool Use / Function Calling|Tool Use]], Shared State, Human Approval.
 
 ### Multi-Head Attention
 - **Definition:** Parallel attention heads learn different relational subspaces.
@@ -410,7 +410,7 @@ Each term uses this structure:
 - **How it works:** Multiple heads attend to different patterns (syntax, coreference, locality).
 - **Why it matters:** Increases representational flexibility without serial depth increase.
 - **Pitfalls:** Head redundancy can emerge; more heads do not guarantee better quality.
-- **Related:** Attention, Transformer, Positional Encoding.
+- **Related:** [[glossary#Attention|Attention]], [[glossary#Transformer|Transformer]], [[glossary#Positional Encoding|Positional Encoding]].
 
 ### Model Drift
 - **Definition:** Declining production performance due to changing data/task conditions.
@@ -418,7 +418,7 @@ Each term uses this structure:
 - **How it works:** Drift appears gradually or abruptly as user behavior/content changes.
 - **Why it matters:** Requires monitoring, retraining triggers, and safe rollback workflows.
 - **Pitfalls:** Monitoring only one global metric misses important cohort failures.
-- **Related:** Distribution Shift, Monitoring, Shadow Evaluation.
+- **Related:** [[glossary#Distribution Shift|Distribution Shift]], Monitoring, Shadow Evaluation.
 
 ### Model Context Protocol (MCP)
 - **Definition:** Open protocol for connecting AI applications to external tools, resources, and prompt workflows through a host-client-server architecture.
@@ -426,7 +426,7 @@ Each term uses this structure:
 - **How it works:** An AI host creates MCP clients that connect to MCP servers exposing capabilities such as tools, resources, and prompts.
 - **Why it matters:** Standardizes tool/data integration for agentic systems while allowing centralized governance.
 - **Pitfalls:** MCP does not replace permissioning, approval UX, result sanitization, or audit logging.
-- **Related:** Tool Use, Resources, Prompt Registry, Agentic Loop, MCP Server.
+- **Related:** [[glossary#Tool Use / Function Calling|Tool Use]], Resources, [[glossary#Prompt Registry|Prompt Registry]], [[glossary#Agentic Loop|Agentic Loop]], [[glossary#MCP Server|MCP Server]].
 
 ### MCP Server
 - **Definition:** Service that exposes MCP capabilities such as tools, resources, and prompts to an AI host.
@@ -434,7 +434,7 @@ Each term uses this structure:
 - **How it works:** The host connects through an MCP client, discovers capabilities, and invokes approved operations.
 - **Why it matters:** Encapsulates integrations in reusable, discoverable components.
 - **Pitfalls:** Unreviewed servers can introduce tool poisoning, data exfiltration, or prompt-injection risks.
-- **Related:** Model Context Protocol, Tool Gateway, Resources, OAuth.
+- **Related:** [[glossary#Model Context Protocol (MCP)|Model Context Protocol]], Tool Gateway, Resources, OAuth.
 
 ### Mixture of Experts (MoE)
 - **Definition:** Model architecture where each input token is routed to a sparse subset of "expert" feed-forward networks rather than a single dense FFN.
@@ -442,7 +442,7 @@ Each term uses this structure:
 - **How it works:** A learned router dispatches tokens to the most relevant experts; only a fraction of parameters activate per token.
 - **Why it matters:** Scales model parameter count without proportional compute increase; models like Mixtral and GPT-4 use MoE for efficiency.
 - **Pitfalls:** Load imbalance across experts; complex to serve efficiently; router collapse is a training failure mode.
-- **Related:** Transformer, Quantization, Throughput, Fine-tuning.
+- **Related:** [[glossary#Transformer|Transformer]], [[glossary#Quantization|Quantization]], [[glossary#Throughput|Throughput]], [[glossary#Fine-tuning|Fine-tuning]].
 
 ---
 
@@ -454,7 +454,7 @@ Each term uses this structure:
 - **How it works:** Encourages assigning higher probability to correct outputs.
 - **Why it matters:** Core objective in language modeling and many probabilistic models.
 - **Pitfalls:** Lower NLL does not always correlate with downstream task utility.
-- **Related:** Cross-Entropy, Perplexity, Calibration.
+- **Related:** Cross-Entropy, [[glossary#Perplexity|Perplexity]], [[glossary#Calibration|Calibration]].
 
 ### Normalization Layers
 - **Definition:** Layers that normalize activations to stabilize optimization.
@@ -474,7 +474,7 @@ Each term uses this structure:
 - **How it works:** Excess capacity or training duration without adequate regularization/data diversity.
 - **Why it matters:** Leads to poor real-world performance despite high train metrics.
 - **Pitfalls:** Mistaking data leakage or shift for pure overfitting.
-- **Related:** Regularization, Early Stopping, Data Augmentation.
+- **Related:** [[glossary#Regularization|Regularization]], [[glossary#Early Stopping|Early Stopping]], Data Augmentation.
 
 ---
 
@@ -486,7 +486,7 @@ Each term uses this structure:
 - **How it works:** Measures how surprised a model is by true token sequence.
 - **Why it matters:** Useful intrinsic metric for next-token prediction quality.
 - **Pitfalls:** Poor proxy for task-specific usefulness and factual correctness.
-- **Related:** NLL, Cross-Entropy, Task Evaluation.
+- **Related:** [[glossary#Negative Log-Likelihood (NLL)|NLL]], Cross-Entropy, Task Evaluation.
 
 ### Prompt Registry
 - **Definition:** Versioned store for prompt templates, variables, examples, owners, and deployment metadata.
@@ -494,7 +494,7 @@ Each term uses this structure:
 - **How it works:** Applications reference immutable prompt versions rather than editing live prompt strings directly.
 - **Why it matters:** Makes prompt changes reviewable, testable, reversible, and auditable.
 - **Pitfalls:** Treating prompts as informal config causes untraceable behavior changes.
-- **Related:** LLMOps, Eval Gates, Trace Replay, Prompt Engineering.
+- **Related:** [[glossary#LLMOps|LLMOps]], Eval Gates, [[glossary#Trace Replay|Trace Replay]], Prompt Engineering.
 
 ### Positional Encoding
 - **Definition:** Mechanism that injects token order information into attention-based models.
@@ -502,7 +502,7 @@ Each term uses this structure:
 - **How it works:** Distinguishes permutations of identical token sets by encoding position.
 - **Why it matters:** Sequence order is critical for language understanding and generation.
 - **Pitfalls:** Position extrapolation issues beyond training lengths.
-- **Related:** Transformer, Context Window, RoPE.
+- **Related:** [[glossary#Transformer|Transformer]], [[glossary#Context Window|Context Window]], RoPE.
 
 ### Precision
 - **Definition:** Fraction of predicted positives that are true positives.
@@ -510,7 +510,7 @@ Each term uses this structure:
 - **How it works:** Captures false-positive control.
 - **Why it matters:** Important when false alarms are expensive.
 - **Pitfalls:** Can look high while recall is poor.
-- **Related:** Recall, F1, PR Curve.
+- **Related:** [[glossary#Recall|Recall]], F1, PR Curve.
 
 ### Pretraining
 - **Definition:** Large-scale self-supervised training stage before task-specific adaptation.
@@ -518,7 +518,7 @@ Each term uses this structure:
 - **How it works:** Learns broad linguistic/world priors from massive corpora.
 - **Why it matters:** Determines baseline capability ceiling for downstream adaptation.
 - **Pitfalls:** Data contamination, licensing risk, and inherited biases.
-- **Related:** Fine-tuning, SFT, Foundation Model.
+- **Related:** [[glossary#Fine-tuning|Fine-tuning]], [[glossary#SFT (Supervised Fine-Tuning)|SFT]], [[glossary#Foundation Model|Foundation Model]].
 
 ### Prompt Injection
 - **Definition:** Adversarial input that manipulates LLM instructions or tool behavior.
@@ -526,7 +526,7 @@ Each term uses this structure:
 - **How it works:** Malicious tokens exploit model tendency to follow latest/local instructions.
 - **Why it matters:** Critical security risk in agentic and tool-using systems.
 - **Pitfalls:** Assuming system prompts alone provide complete protection.
-- **Related:** Guardrails, Tool Sandboxing, Policy Enforcement.
+- **Related:** [[glossary#Safety Filter / Guardrails|Guardrails]], Tool Sandboxing, Policy Enforcement.
 
 ---
 
@@ -538,7 +538,7 @@ Each term uses this structure:
 - **How it works:** Reduces memory bandwidth and storage; may improve inference throughput.
 - **Why it matters:** Key for cost-efficient LLM serving under VRAM constraints.
 - **Pitfalls:** Accuracy degradation if calibration/quantization scheme is poor.
-- **Related:** KV Cache, Throughput, Memory Bandwidth, QLoRA.
+- **Related:** [[glossary#KV Cache|KV Cache]], [[glossary#Throughput|Throughput]], Memory Bandwidth, QLoRA.
 
 ---
 
@@ -550,7 +550,7 @@ Each term uses this structure:
 - **How it works:** Query rewrite -> retrieval -> reranking -> context packing -> generation -> citation/verification.
 - **Why it matters:** Improves grounding, freshness, and domain specificity without full model retraining.
 - **Pitfalls:** Low recall retrieval or poor chunking causes confident but unsupported answers.
-- **Related:** Embeddings, Hybrid Search, Cross-Encoder, Groundedness.
+- **Related:** [[glossary#Embedding|Embeddings]], Hybrid Search, [[glossary#Cross-Encoder Reranking|Cross-Encoder]], Groundedness.
 
 ### RAG Evaluation
 - **Definition:** Measurement framework for retrieval, context quality, generation faithfulness, and citation correctness.
@@ -558,7 +558,7 @@ Each term uses this structure:
 - **How it works:** Evaluates each stage separately so wrong answers can be traced to ingestion, retrieval, packing, generation, or verification.
 - **Why it matters:** End-to-end answer quality alone does not reveal which subsystem failed.
 - **Pitfalls:** Measuring only final answer preference hides low recall and bad citations.
-- **Related:** RAG, Recall@K, LLM-as-Judge, Groundedness.
+- **Related:** [[glossary#RAG (Retrieval-Augmented Generation)|RAG]], Recall@K, LLM-as-Judge, Groundedness.
 
 ### Recall
 - **Definition:** Fraction of true positives captured among all actual positives.
@@ -566,7 +566,7 @@ Each term uses this structure:
 - **How it works:** Captures false-negative control.
 - **Why it matters:** Vital when misses are costly.
 - **Pitfalls:** High recall can come with unacceptable false-positive volume.
-- **Related:** Precision, F1, ROC/PR Curves.
+- **Related:** [[glossary#Precision|Precision]], F1, ROC/PR Curves.
 
 ### Regularization
 - **Definition:** Techniques that reduce overfitting by constraining effective model complexity.
@@ -574,7 +574,7 @@ Each term uses this structure:
 - **How it works:** Penalizes unstable or overly specific solutions.
 - **Why it matters:** Improves robustness and out-of-sample performance.
 - **Pitfalls:** Over-regularization can underfit and suppress useful signal.
-- **Related:** Bias-Variance Trade-off, Early Stopping, Weight Decay.
+- **Related:** [[glossary#Bias-Variance Trade-off|Bias-Variance Trade-off]], [[glossary#Early Stopping|Early Stopping]], [[glossary#Weight Decay|Weight Decay]].
 
 ### RLHF (Reinforcement Learning from Human Feedback)
 - **Definition:** Alignment approach using human preference data and RL optimization.
@@ -582,7 +582,7 @@ Each term uses this structure:
 - **How it works:** Collect preferences -> train reward model -> optimize policy.
 - **Why it matters:** Improves helpfulness/harmlessness relative to pure SFT in many settings.
 - **Pitfalls:** Reward hacking and preference dataset bias.
-- **Related:** DPO, SFT, Alignment, Reward Model.
+- **Related:** [[glossary#DPO (Direct Preference Optimization)|DPO]], [[glossary#SFT (Supervised Fine-Tuning)|SFT]], Alignment, Reward Model.
 
 ---
 
@@ -594,7 +594,7 @@ Each term uses this structure:
 - **How it works:** Input moderation, tool-use constraints, output checks, and refusal/rewrite flows.
 - **Why it matters:** Reduces policy violations and operational risk.
 - **Pitfalls:** Over-blocking harms utility; under-blocking harms trust/compliance.
-- **Related:** Prompt Injection, Red Teaming, Policy Engine.
+- **Related:** [[glossary#Prompt Injection|Prompt Injection]], Red Teaming, Policy Engine.
 
 ### Sampling Parameters
 - **Definition:** Decoding controls such as temperature, top-k, top-p, repetition penalties.
@@ -602,7 +602,7 @@ Each term uses this structure:
 - **How it works:** Shape randomness/diversity vs determinism in generated text.
 - **Why it matters:** Large effect on creativity, factuality, and consistency.
 - **Pitfalls:** Aggressive randomness increases hallucinations and unstable outputs.
-- **Related:** Beam Search, Deterministic Decoding, Hallucination.
+- **Related:** Beam Search, Deterministic Decoding, [[glossary#Hallucination (LLM)|Hallucination]].
 
 ### SFT (Supervised Fine-Tuning)
 - **Definition:** Fine-tuning on labeled prompt-response pairs to teach desired behavior.
@@ -610,7 +610,7 @@ Each term uses this structure:
 - **How it works:** Conditions base model toward task style and response format.
 - **Why it matters:** Usually first alignment stage before preference optimization.
 - **Pitfalls:** Narrow data causes over-specialization and brittle behavior.
-- **Related:** Pretraining, RLHF, DPO, Instruction Tuning.
+- **Related:** [[glossary#Pretraining|Pretraining]], [[glossary#RLHF (Reinforcement Learning from Human Feedback)|RLHF]], [[glossary#DPO (Direct Preference Optimization)|DPO]], Instruction Tuning.
 
 ### Structured Output / Constrained Decoding
 - **Definition:** Technique that restricts model token generation to comply with a predefined schema (JSON, regex, grammar, FSM).
@@ -618,7 +618,7 @@ Each term uses this structure:
 - **How it works:** A grammar or schema is compiled into token-level masks applied during greedy/sampling decoding.
 - **Why it matters:** Eliminates JSON parsing errors, format inconsistencies, and hallucinated field names in extraction pipelines.
 - **Pitfalls:** Overly strict schemas can force incorrect completions; grammar compilation overhead at high QPS.
-- **Related:** Hallucination, Guardrails, RAG, Fine-tuning, Constrained Generation.
+- **Related:** [[glossary#Hallucination (LLM)|Hallucination]], [[glossary#Safety Filter / Guardrails|Guardrails]], [[glossary#RAG (Retrieval-Augmented Generation)|RAG]], [[glossary#Fine-tuning|Fine-tuning]], Constrained Generation.
 
 ### Speculative Decoding
 - **Definition:** Inference acceleration where a small draft model proposes tokens and a larger model verifies them.
@@ -626,7 +626,7 @@ Each term uses this structure:
 - **How it works:** Accept verified token blocks; reject and backtrack when mismatch occurs.
 - **Why it matters:** Can significantly improve latency without equivalent quality loss.
 - **Pitfalls:** Low acceptance rates can erase benefits.
-- **Related:** TTFT, TPOT, Continuous Batching, Model Cascades.
+- **Related:** [[glossary#TTFT (Time To First Token)|TTFT]], [[glossary#TPOT (Time Per Output Token)|TPOT]], [[glossary#Continuous Batching|Continuous Batching]], Model Cascades.
 
 ---
 
@@ -638,7 +638,7 @@ Each term uses this structure:
 - **How it works:** Rescales logits before sampling.
 - **Why it matters:** Directly affects output diversity and determinism.
 - **Pitfalls:** High temperature can introduce incoherence in high-stakes tasks.
-- **Related:** Top-p, Top-k, Sampling Parameters.
+- **Related:** Top-p, Top-k, [[glossary#Sampling Parameters|Sampling Parameters]].
 
 ### Throughput
 - **Definition:** Work completed per unit time (for example requests/sec or tokens/sec).
@@ -646,7 +646,7 @@ Each term uses this structure:
 - **How it works:** Influenced by batching, model size, hardware, sequence lengths, and queueing.
 - **Why it matters:** Core capacity planning metric for SLA and cost.
 - **Pitfalls:** Maximizing throughput can degrade per-request latency.
-- **Related:** Latency, QPS, Autoscaling, Queueing.
+- **Related:** [[glossary#Latency (TTFT, TPOT, Tail)|Latency]], QPS, Autoscaling, Queueing.
 
 ### Tokenization
 - **Definition:** Process of splitting text into model-recognized token units.
@@ -654,7 +654,7 @@ Each term uses this structure:
 - **How it works:** Maps raw text to token IDs consumed by model embeddings.
 - **Why it matters:** Drives context usage, latency, and billing in LLM APIs.
 - **Pitfalls:** Different tokenizers produce materially different token counts and costs.
-- **Related:** Context Window, Prompt Budgeting, BPE.
+- **Related:** [[glossary#Context Window|Context Window]], Prompt Budgeting, BPE.
 
 ### Tool Use / Function Calling
 - **Definition:** Model capability to emit structured calls to external tools (APIs, databases, code interpreters) as part of generation.
@@ -662,7 +662,7 @@ Each term uses this structure:
 - **How it works:** The model generates a structured tool invocation; the runtime executes it and feeds the result back as context for the next generation step.
 - **Why it matters:** Enables agentic workflows: web search, code execution, database queries, and API orchestration without retrieval-only architectures.
 - **Pitfalls:** Hallucinated tool names or arguments; unbounded tool call loops; sandbox escapes in code execution.
-- **Related:** Agentic Orchestration, RAG, Prompt Injection, Structured Output, Sandboxing.
+- **Related:** Agentic Orchestration, [[glossary#RAG (Retrieval-Augmented Generation)|RAG]], [[glossary#Prompt Injection|Prompt Injection]], [[glossary#Structured Output / Constrained Decoding|Structured Output]], Sandboxing.
 
 ### Trace Replay
 - **Definition:** Re-running historical requests or workflows using stored inputs, artifact versions, retrieved context, and tool outputs.
@@ -670,7 +670,7 @@ Each term uses this structure:
 - **How it works:** Uses production traces to test prompt/model/index/policy changes before rollout or during incident analysis.
 - **Why it matters:** Makes regressions reproducible and supports audit investigations.
 - **Pitfalls:** Re-executing real side-effecting tools during replay unless tool outputs are mocked or frozen.
-- **Related:** LLMOps, Observability, Eval Gates, Incident Response.
+- **Related:** [[glossary#LLMOps|LLMOps]], Observability, Eval Gates, Incident Response.
 
 ### TPOT (Time Per Output Token)
 - **Definition:** Average latency to generate each token after first token.
@@ -678,7 +678,7 @@ Each term uses this structure:
 - **How it works:** Reflects steady-state decode efficiency.
 - **Why it matters:** Strong predictor of perceived streaming speed.
 - **Pitfalls:** Ignoring TPOT while optimizing only TTFT yields poor long-answer UX.
-- **Related:** TTFT, Latency, Throughput.
+- **Related:** [[glossary#TTFT (Time To First Token)|TTFT]], [[glossary#Latency (TTFT, TPOT, Tail)|Latency]], [[glossary#Throughput|Throughput]].
 
 ### TTFT (Time To First Token)
 - **Definition:** Latency from request acceptance to first generated token.
@@ -686,7 +686,7 @@ Each term uses this structure:
 - **How it works:** Captures startup overhead before user sees model response.
 - **Why it matters:** Primary driver of perceived responsiveness.
 - **Pitfalls:** Hidden queue time can dominate TTFT under burst load.
-- **Related:** TPOT, Queueing, Batching, Autoscaling.
+- **Related:** [[glossary#TPOT (Time Per Output Token)|TPOT]], Queueing, Batching, Autoscaling.
 
 ### Transformer
 - **Definition:** Neural architecture built around attention, feed-forward blocks, residual paths, and normalization.
@@ -694,7 +694,7 @@ Each term uses this structure:
 - **How it works:** Self-attention mixes token context globally; MLP layers transform features per position.
 - **Why it matters:** Foundation of modern LLMs and many state-of-the-art sequence models.
 - **Pitfalls:** Quadratic attention costs and memory pressure at long context lengths.
-- **Related:** Attention, Multi-Head Attention, Positional Encoding, KV Cache.
+- **Related:** [[glossary#Attention|Attention]], [[glossary#Multi-Head Attention|Multi-Head Attention]], [[glossary#Positional Encoding|Positional Encoding]], [[glossary#KV Cache|KV Cache]].
 
 ---
 
@@ -706,7 +706,7 @@ Each term uses this structure:
 - **How it works:** Model class or optimization budget is too weak for task complexity.
 - **Why it matters:** Wastes data and compute while delivering weak accuracy.
 - **Pitfalls:** Misdiagnosed as data-quality issue when model capacity is the root cause.
-- **Related:** Bias-Variance Trade-off, Model Capacity, Learning Curves.
+- **Related:** [[glossary#Bias-Variance Trade-off|Bias-Variance Trade-off]], Model Capacity, Learning Curves.
 
 ---
 
@@ -718,7 +718,7 @@ Each term uses this structure:
 - **How it works:** Index structures (HNSW, IVF-PQ, etc.) accelerate top-k vector retrieval.
 - **Why it matters:** Backbone of semantic retrieval and RAG at production scale.
 - **Pitfalls:** Stale embeddings and poor filtering/ACL integration degrade relevance and safety.
-- **Related:** Embeddings, Hybrid Search, RAG, Index Refresh.
+- **Related:** Embeddings, Hybrid Search, [[glossary#RAG (Retrieval-Augmented Generation)|RAG]], Index Refresh.
 
 ### Vanishing Gradient
 - **Definition:** Gradients shrink as they backpropagate through many layers/time steps.
@@ -738,7 +738,7 @@ Each term uses this structure:
 - **How it works:** Discourages large weights and improves generalization.
 - **Why it matters:** Standard default in modern deep learning training recipes.
 - **Pitfalls:** Confusing classic L2 penalty with decoupled weight decay in adaptive optimizers.
-- **Related:** Regularization, AdamW, Overfitting.
+- **Related:** [[glossary#Regularization|Regularization]], AdamW, [[glossary#Overfitting|Overfitting]].
 
 ---
 
@@ -750,7 +750,7 @@ Each term uses this structure:
 - **How it works:** Task instructions and exemplars steer output behavior.
 - **Why it matters:** Fastest way to ship prototypes and baseline capabilities.
 - **Pitfalls:** Brittle formatting and instruction ambiguity can cause high variance outputs.
-- **Related:** In-Context Learning, Prompt Engineering, Instruction Following.
+- **Related:** [[glossary#In-Context Learning|In-Context Learning]], Prompt Engineering, Instruction Following.
 
 ---
 

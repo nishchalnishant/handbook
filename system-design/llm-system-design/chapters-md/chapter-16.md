@@ -16,11 +16,11 @@ part: case-studies
 > - **Primary Concerns:** Schema grounding at scale, SQL injection prevention, query cost runaway, result correctness validation
 > - **Cross-references:** [[chapter-09|Chapter 9]] (agentic pattern), [[chapter-05|Chapter 5]] (guardrails), [[chapter-11|Chapter 11]] (structured output)
 
-**Problem statement:** Design a natural-language-to-SQL system that translates analyst questions into executable queries over enterprise data warehouses with hundreds of tables, executes them safely in a sandboxed environment, and autonomously repairs failed queries—all within interactive latency.
+**Problem statement:** Design a natural-language-to-SQL system that translates analyst questions into executable queries over enterprise data warehouses with hundreds of tables, executes them safely in a sandboxed environment, and autonomously repairs failed queries—all within interactive [[glossary#Latency (TTFT, TPOT, Tail)|latency]].
 
 ### Real-World Examples
 
-- A BI platform (Looker/Mode-class) serves 50K analysts across 200+ organizations. Analysts type questions like "What was the month-over-month revenue growth by region for Q3?" The system must resolve "revenue" to the correct column across 400-table schemas with ambiguous naming (e.g., `rev`, `total_revenue`, `gross_rev_usd`). Deploying embedding-based schema selection with few-shot SQL examples improves execution success from 62% to 87%.
+- A BI platform (Looker/Mode-class) serves 50K analysts across 200+ organizations. Analysts type questions like "What was the month-over-month revenue growth by region for Q3?" The system must resolve "revenue" to the correct column across 400-table schemas with ambiguous naming (e.g., `rev`, `total_revenue`, `gross_rev_usd`). Deploying [[glossary#Embedding|embedding]]-based schema selection with [[glossary#Zero-Shot / Few-Shot Prompting|few-shot]] SQL examples improves execution success from 62% to 87%.
 - An e-commerce analytics team has a 600-table Snowflake warehouse. Their text-to-SQL tool generates a query with a `LEFT JOIN` on the wrong foreign key, returning inflated revenue numbers. No one catches the error for 3 weeks because the numbers "look plausible." Adding a result-sanity-check layer that validates output cardinality and value ranges against historical baselines catches 94% of semantically incorrect but syntactically valid queries.
 
 ---
@@ -56,7 +56,7 @@ part: case-studies
 ### Non-Functional Requirements
 
 - **Latency:** p95 < 3s for simple queries (single table), p95 < 8s for complex queries (multi-join/subquery).
-- **Throughput:** 200K queries/day, peak ~7 QPS sustained.
+- **[[glossary#Throughput|Throughput]]:** 200K queries/day, peak ~7 QPS sustained.
 - **Accuracy:** >85% execution success, >70% semantic correctness on held-out eval set.
 - **Safety:** read-only execution, row limits, query cost caps, per-tenant data isolation.
 - **Availability:** 99.9% for query generation path.
@@ -130,7 +130,7 @@ part: case-studies
 
 - **Query Gateway:** Handles authentication, per-tenant rate limiting (default: 60 queries/minute/analyst), tenant identification from JWT claims, and upfront query classification into three tiers—simple (single table, no joins), complex (multi-join, subqueries, window functions), and exploration (schema-introspection questions). Classification determines which latency SLA applies and whether to pre-allocate a retry budget.
 - **Schema Registry:** A per-tenant metadata store (PostgreSQL-backed, Redis-cached) holding table/column names, data types, primary and foreign keys, human-authored descriptions, LLM-generated descriptions, sample values, cardinality statistics, and historical usage counts. Updated both on scheduled crawls (every 6 hours) and on DDL change webhook events, ensuring the embeddings and metadata used for schema selection are always within one crawl period of truth.
-- **Schema Selector:** An embedding-based retrieval component that encodes the analyst's question into a 768-dim vector and performs approximate nearest-neighbor search over the per-tenant HNSW table index. Returns a top-20 candidate list, reranks with a cross-encoder to a top-5-10 final set, and expands by one foreign-key hop to ensure join paths are included. This compression step is what makes 400-table schemas tractable within a ~2,000-token schema budget.
+- **Schema Selector:** An embedding-based retrieval component that encodes the analyst's question into a 768-dim vector and performs approximate nearest-neighbor search over the per-tenant HNSW table index. Returns a top-20 candidate list, reranks with a [[glossary#Cross-Encoder Reranking|cross-encoder]] to a top-5-10 final set, and expands by one foreign-key hop to ensure join paths are included. This compression step is what makes 400-table schemas tractable within a ~2,000-token schema budget.
 - **Prompt Assembler:** Constructs the full LLM prompt by combining: (1) a dialect-specific system prompt with SQL style rules and safety constraints; (2) compressed DDL for the selected tables; (3) 3 dynamically retrieved few-shot examples matched by question-similarity from the tenant's example pool; (4) the last 3 turns of conversation history (≤500 tokens); and (5) the analyst's current question. Enforces a hard token budget by truncating conversation history first, then compressing schema further if needed.
 - **SQL Generator (LLM):** Calls a GPT-4-class model to generate the SQL query and a brief plain-English explanation of what the query computes. Supports Snowflake SQL, BigQuery Standard SQL, and PostgreSQL dialects via dialect-specific prompts. Output is streamed so the analyst sees the first tokens (the `SELECT` clause) within ~500ms, reducing perceived latency even before the full query is ready.
 - **SQL Validator:** Performs static analysis on the generated SQL before execution by parsing the AST, checking that every referenced table and column exists in the selected schema, validating join condition types for compatibility, and flagging structural anti-patterns such as Cartesian products (`CROSS JOIN` on tables >10K rows) or aggregations without a `GROUP BY`. Catches ~40% of errors before any database round-trip.
@@ -219,7 +219,7 @@ Focus areas:
 
 A 400-table schema with full DDL is ~40K tokens—far exceeding the context window budget of ~2K tokens allocated for schema. The system must select and compress schema information to fit within budget while retaining all information the LLM needs to generate correct SQL.
 
-> **Why:** A 400-table schema with full DDL runs ~40,000 tokens—20x the allocated schema budget. The LLM cannot process all tables, and naively truncating produces random omissions that break join paths. Embedding-based selection ensures the LLM sees the 5-15 tables most semantically related to the question, yielding a 60-80% token reduction with a measured 82% precision on which tables the correct SQL actually uses.
+> **Why embedding-based schema selection rather than sending the full DDL:** A 400-table schema with full DDL runs ~40,000 tokens—20x the allocated schema budget. The LLM cannot process all tables, and naively truncating produces random omissions that break join paths. Embedding-based selection ensures the LLM sees the 5-15 tables most semantically related to the question, yielding a 60-80% token reduction with a measured 82% precision on which tables the correct SQL actually uses.
 
 **Schema selection pipeline (question → relevant tables):**
 
@@ -255,7 +255,7 @@ For 10 tables at 80 tokens each + FK graph at 100 tokens = ~900 tokens. Leaves h
 
 **Few-shot example selection:**
 
-> **Why:** Static, hardcoded few-shot examples waste ~800 tokens on patterns that may be irrelevant to the current query. A question about window functions benefits from a `ROW_NUMBER() OVER (PARTITION BY ...)` example, not a simple `GROUP BY` one. Dynamic retrieval improves SQL generation accuracy by ~8% by ensuring the model sees the most structurally similar examples rather than generic ones.
+> **Why dynamically retrieved few-shot examples rather than static hardcoded ones:** Static, hardcoded few-shot examples waste ~800 tokens on patterns that may be irrelevant to the current query. A question about window functions benefits from a `ROW_NUMBER() OVER (PARTITION BY ...)` example, not a simple `GROUP BY` one. Dynamic retrieval improves SQL generation accuracy by ~8% by ensuring the model sees the most structurally similar examples rather than generic ones.
 
 Static examples waste tokens on irrelevant patterns. Dynamic selection:
 1. Maintain a pool of 20-50 (question, SQL, result_summary) triples per tenant, seeded during onboarding and grown over time via analyst feedback.
@@ -265,7 +265,7 @@ Static examples waste tokens on irrelevant patterns. Dynamic selection:
 
 **Multi-turn context management:**
 
-> **Why:** Follow-up questions like "break that down by quarter" contain no schema-grounding information on their own—the pronoun "that" is unresolvable without the prior query. Without injecting prior SQL into the prompt, the LLM generates SQL for an entirely different interpretation of "that," and schema selection starts cold with only the follow-up question. Injecting the prior SQL gives the model the exact table and column choices already validated, so follow-up queries succeed at the same rate as first-turn queries (~85%) rather than dropping to ~40%.
+> **Why inject prior SQL into the prompt for multi-turn follow-ups:** Follow-up questions like "break that down by quarter" contain no schema-grounding information on their own—the pronoun "that" is unresolvable without the prior query. Without injecting prior SQL into the prompt, the LLM generates SQL for an entirely different interpretation of "that," and schema selection starts cold with only the follow-up question. Injecting the prior SQL gives the model the exact table and column choices already validated, so follow-up queries succeed at the same rate as first-turn queries (~85%) rather than dropping to ~40%.
 
 Follow-up questions like "break that down by quarter" require the system to resolve references to prior queries. Strategy:
 - Maintain a sliding window of last 3 (question, SQL, result_summary) turns. Three turns covers ~95% of follow-up chains in production (most analysts ask 1-2 follow-up questions before moving on).
@@ -284,13 +284,13 @@ Follow-up questions like "break that down by quarter" require the system to reso
 
 ### 2) Sandboxed SQL Execution
 
-> **Why:** LLM-generated SQL is untrusted code. Unlike a human analyst who understands the consequences of a query, the model has no awareness of data sensitivity, row counts, or warehouse credit costs. Without sandbox enforcement, a hallucinated `SELECT * FROM orders` on a 500M-row table in BigQuery can process terabytes and incur thousands of dollars in one query. The sandbox is not a best-effort guardrail—it is the sole barrier between the LLM output and production data infrastructure. Every control must be applied independently so that bypass of one layer (e.g., a prompt injection that crafts valid-looking DDL) is caught by another (AST-based rejection).
+> **Why a sandbox is mandatory for executing LLM-generated SQL:** LLM-generated SQL is untrusted code. Unlike a human analyst who understands the consequences of a query, the model has no awareness of data sensitivity, row counts, or warehouse credit costs. Without sandbox enforcement, a hallucinated `SELECT * FROM orders` on a 500M-row table in BigQuery can process terabytes and incur thousands of dollars in one query. The sandbox is not a best-effort guardrail—it is the sole barrier between the LLM output and production data infrastructure. Every control must be applied independently so that bypass of one layer (e.g., a prompt injection that crafts valid-looking DDL) is caught by another (AST-based rejection).
 
 Generated SQL executes against real production data. A single unrestricted query can exfiltrate data, crash a replica, or cost thousands in compute. The sandbox must enforce multiple layers of protection.
 
 **Sandbox architecture:**
 
-> **Why:** Defense-in-depth requires that no single control be the only barrier. The read-only replica ensures no writes reach the primary. The SELECT-only credential ensures even if the replica allows writes, the connection can't issue them. The AST check ensures even if the credential was misconfigured, the system never forwards DDL. The EXPLAIN cost gate ensures even a valid SELECT can't scan petabytes. Each layer assumes the layer above it has failed—because at scale (200K queries/day), every failure mode that can occur will occur.
+> **Why layer multiple independent sandbox controls rather than one:** Defense-in-depth requires that no single control be the only barrier. The read-only replica ensures no writes reach the primary. The SELECT-only credential ensures even if the replica allows writes, the connection can't issue them. The AST check ensures even if the credential was misconfigured, the system never forwards DDL. The EXPLAIN cost gate ensures even a valid SELECT can't scan petabytes. Each layer assumes the layer above it has failed—because at scale (200K queries/day), every failure mode that can occur will occur.
 
 1. **Read-only replicas:** All queries execute on dedicated read replicas, never the primary database. Connection credentials have `SELECT`-only grants. No `INSERT`, `UPDATE`, `DELETE`, `DROP`, `CREATE`, `ALTER`, `GRANT`, or `TRUNCATE`.
 2. **Static SQL analysis (pre-execution):**
@@ -307,7 +307,7 @@ Generated SQL executes against real production data. A single unrestricted query
 
 **Execution flow:**
 
-```
+```text
 SQL → AST Parse → Static Checks → EXPLAIN Cost Check → Execute with Timeout + Limit → Result Filtering → Return
 ```
 
@@ -334,7 +334,7 @@ SQL → AST Parse → Static Checks → EXPLAIN Cost Check → Execute with Time
 
 ### 3) Self-Healing Query Pipeline
 
-> **Why:** Blind retries (re-sending the identical prompt) recover only ~15% of failures because the LLM samples from the same distribution and is likely to generate the same error again. Error-class-specific repair prompts work because they inject deterministic information the model lacked: the exact error message from the database, the actual column list for the referenced table, or dialect-correct syntax rules. This converts a probabilistic retry into a targeted correction, raising recovery rate from 15% to 80% without increasing the retry count beyond 2. The taxonomy also enables targeted observability—tracking "column not found" errors per tenant reveals which tables have poor descriptions and need schema enrichment.
+> **Why error-class-specific repair prompts rather than blind retries:** Blind retries (re-sending the identical prompt) recover only ~15% of failures because the LLM samples from the same distribution and is likely to generate the same error again. Error-class-specific repair prompts work because they inject deterministic information the model lacked: the exact error message from the database, the actual column list for the referenced table, or dialect-correct syntax rules. This converts a probabilistic retry into a targeted correction, raising recovery rate from 15% to 80% without increasing the retry count beyond 2. The taxonomy also enables targeted observability—tracking "column not found" errors per tenant reveals which tables have poor descriptions and need schema enrichment.
 
 20-30% of generated SQL fails on first attempt. The self-healing engine classifies failures and selects targeted repair strategies instead of blindly retrying with the same prompt.
 
@@ -837,3 +837,8 @@ ORDER BY revenue DESC;
 - **Key takeaway:** Text-to-SQL accuracy is bottlenecked by schema grounding, not LLM capability. A 400-table schema cannot fit in a prompt; embedding-based table selection with FK-graph expansion compresses the schema to the relevant subset. Sandboxed execution with multi-layer guardrails prevents safety incidents. Self-healing with error-class-specific repair recovers 80% of first-attempt failures within the latency budget.
 - **What to practice:** Walk through the full lifecycle of a query against a 400-table schema: question → schema selection → prompt assembly → generation → validation → execution → error → repair → re-execution. Size the latency budget for each stage.
 - **Interview drill:** Given a "column not found" error after SQL generation, enumerate every possible root cause (hallucinated column, schema drift, wrong table selected, column pruned during compression) and the repair strategy for each.
+
+---
+
+<!-- nav-footer -->
+[[chapter-15|← Chapter 15]] | [[README|Contents]] | [[chapter-17|Chapter 17 →]]

@@ -16,7 +16,7 @@ part: case-studies
 > - **Primary Concerns:** Citation fabrication, digit transposition, OCR error propagation, 7-year audit trail (WORM)
 > - **Cross-references:** [[chapter-03|Chapter 3]] (chunking), [[chapter-11|Chapter 11]] (document extraction), [[chapter-05|Chapter 5]] (hallucination prevention)
 
-**Problem statement:** Design a system that reviews legal contracts at scale—extracting clauses, grounding every finding to exact source text, comparing against master templates, and producing structured risk assessments—while handling documents that routinely exceed 100K tokens and tolerating zero hallucinated legal language.
+**Problem statement:** Design a system that reviews legal contracts at scale—extracting clauses, grounding every finding to exact source text, comparing against master templates, and producing structured risk assessments—while handling documents that routinely exceed 100K tokens and tolerating zero [[glossary#Hallucination (LLM)|hallucinated]] legal language.
 
 ### Real-World Examples
 
@@ -120,7 +120,7 @@ part: case-studies
 - **Clause Extractor (LLM):** Issues a structured prompt to an LLM for each chunk, requesting verbatim extraction of the 50+ target clause types with start and end character offsets and a per-clause confidence score. Operates independently per chunk and feeds results to the cross-chunk deduplication step, which merges extractions that overlap by more than 50% of their character spans into a single canonical extraction with the higher confidence score retained.
 - **Citation Verifier:** The system's primary hallucination firewall. It takes each extracted clause's (text, start_offset, end_offset) triple and validates it against the source document through a five-stage cascade: exact match, Unicode-normalized match, fuzzy window search within ±500 characters, full-document text search, and final rejection. Any extraction not confirmed by at least one of these stages is flagged as hallucinated and routed to a recovery re-prompt before it can reach the attorney queue.
 - **Template Registry:** A versioned store of master contract templates, each pre-processed into per-clause records containing: canonical text, acceptable-variation rules (e.g., liability cap must fall between $1M and $10M), structured parameter schemas (amounts, durations, jurisdictions), and a severity classification (critical/high/medium/low) that drives risk scoring downstream. Multiple template versions coexist so that comparisons are always bound to a specific, auditable template version rather than whatever is currently "latest."
-- **Clause Comparator:** Receives the verified extraction list and the template clause set, then performs three complementary checks for each matched clause type: a token-level diff to surface exact insertions and deletions, cosine-similarity scoring against sentence embeddings (thresholds: >0.95 = substantially similar, 0.80–0.95 = modified, <0.80 = significantly different), and rule-based parameter comparison for structured fields (e.g., comparing extracted dollar amounts against the template's acceptable range). Missing clause types in the contract and added clause types absent from the template are reported separately.
+- **Clause Comparator:** Receives the verified extraction list and the template clause set, then performs three complementary checks for each matched clause type: a token-level diff to surface exact insertions and deletions, cosine-similarity scoring against sentence [[glossary#Embedding|embeddings]] (thresholds: >0.95 = substantially similar, 0.80–0.95 = modified, <0.80 = significantly different), and rule-based parameter comparison for structured fields (e.g., comparing extracted dollar amounts against the template's acceptable range). Missing clause types in the contract and added clause types absent from the template are reported separately.
 - **Risk Scorer:** Combines three inputs — clause severity (from the template definition), deviation magnitude (from the comparator's similarity score and parameter delta), and extraction confidence penalty (if extraction confidence < 0.8, the risk is multiplied by 1.5 to force human review) — into a per-clause risk score. The contract-level traffic-light summary (red/yellow/green) is driven by the maximum per-clause score, ensuring no single critical-severity deviation can be buried in an average.
 - **Review Queue:** An attorney-facing interface that presents each contract with inline text highlights mapped via the verified character offsets, per-clause deviation summaries with risk scores, the corresponding template clause for side-by-side comparison, and three actions (approve, reject, escalate). Every attorney action is logged with a timestamp and user ID to satisfy the 7-year audit trail requirement.
 - **Observability:** Tracks four primary metrics continuously: extraction accuracy sampled against attorney override decisions (weekly sampling of 2% of contracts), hallucination rate before and after citation verification, per-stage processing latency (targeting <150s for clause extraction, <30s for verification), and cost per contract with model/chunk-count breakdown. Dashboards alert on-call engineers when hallucination rate exceeds 10% or per-contract cost exceeds $1.90 (10% below the $2 budget ceiling).
@@ -338,7 +338,7 @@ Contract review often requires comparing a submitted contract against a master t
 
 **Structured extraction for parameterized clauses:**
 
-For clauses with extractable parameters (amounts, dates, durations, jurisdictions), use structured output:
+For clauses with extractable parameters (amounts, dates, durations, jurisdictions), use [[glossary#Structured Output / Constrained Decoding|structured output]]:
 
 ```json
 {
@@ -371,7 +371,7 @@ When comparing N contracts against a template (e.g., reviewing 100 vendor contra
 
 Each deviation receives a risk score:
 
-```
+```text
 risk_score = clause_severity × deviation_magnitude × confidence_penalty
 ```
 
@@ -414,7 +414,7 @@ Contract-level risk = max(clause_risks) for the traffic-light summary (red/yello
 
 ### Advanced Techniques
 
-- **Clause-level fine-tuning:** Fine-tune a smaller open-source model (8B–13B parameters, such as Llama-3-8B or Mistral-7B) specifically on legal clause extraction using a supervised dataset of 10K+ (contract_section, extracted_clause_json) pairs sourced from attorney-corrected review outputs. The fine-tuned model reaches 95%+ accuracy on the 35 standard clause types at approximately 1/10th the per-token cost of GPT-4-class APIs, enabling a two-tier architecture: fine-tuned model for standard clauses, GPT-4-class for the 15 critical clauses where the accuracy gap matters. At 10K contracts/day, this tier split saves roughly $8,000/day compared to using GPT-4-class for everything.
+- **Clause-level [[glossary#Fine-tuning|fine-tuning]]:** Fine-tune a smaller open-source model (8B–13B parameters, such as Llama-3-8B or Mistral-7B) specifically on legal clause extraction using a supervised dataset of 10K+ (contract_section, extracted_clause_json) pairs sourced from attorney-corrected review outputs. The fine-tuned model reaches 95%+ accuracy on the 35 standard clause types at approximately 1/10th the per-token cost of GPT-4-class APIs, enabling a two-tier architecture: fine-tuned model for standard clauses, GPT-4-class for the 15 critical clauses where the accuracy gap matters. At 10K contracts/day, this tier split saves roughly $8,000/day compared to using GPT-4-class for everything.
 - **Cross-reference resolution:** Legal contracts routinely defer clause definitions across sections ("as defined in Section 3.2(a)", "subject to the limitations in Exhibit B"). Without resolving these references, clause extraction sees incomplete text — an indemnification clause that says "shall indemnify for the Losses (as defined in Section 1.1)" is extracted without the loss definition, making parameter comparison impossible. Build a cross-reference graph during section detection: parse every reference pattern, resolve the target section, and inject the referenced text inline into the clause text before the LLM sees it. This requires a depth-limited resolver (max 3 hops) to avoid circular reference loops.
 - **Precedent-based risk scoring:** Train a gradient-boosted classifier on historical attorney decisions — approved, negotiated, escalated, rejected — for each (clause_type, deviation_type) combination. The classifier learns empirical risk weights: "governing law changed from Delaware to California" is approved 95% of the time (low effective risk), while "mutual indemnification replaced by unilateral" is escalated 100% of the time (critical risk regardless of the template's static severity rating). After accumulating 2K+ annotated decisions, the precedent model outperforms the static rule-based scorer by ~12 percentage points in predicting which deviations will require escalation, reducing unnecessary critical-flag interruptions for attorneys by ~30%.
 
@@ -480,7 +480,7 @@ Answer YES or NO and one sentence reason."""
 
 ### Hierarchical Long-Document Chunking vs. Single Long-Context Decision (Pseudocode)
 
-```
+```text
 # Decides whether to use hierarchical chunking+RAG or a single long-context call
 # based on document length, query type, and cost budget
 
@@ -741,7 +741,7 @@ Q: An attorney reports that the system flagged a clause as "missing" when it act
 
 Q: How do you ensure reproducibility? If the same contract is processed twice, it must produce identical results.
 
-**The Ideal Answer:** LLMs are non-deterministic by default (temperature > 0, sampling). For legal review, reproducibility is a compliance requirement. Enforcement: (1) **Temperature 0:** all LLM calls use temperature=0 and top_p=1.0 (greedy decoding). This is necessary but not sufficient—some APIs still show minor variation.
+**The Ideal Answer:** LLMs are non-deterministic by default ([[glossary#Temperature|temperature]] > 0, sampling). For legal review, reproducibility is a compliance requirement. Enforcement: (1) **Temperature 0:** all LLM calls use temperature=0 and top_p=1.0 (greedy decoding). This is necessary but not sufficient—some APIs still show minor variation.
 
 > **Why temperature=0:** Legal review is a retrieval and classification task, not a creative one. Higher temperatures introduce stochastic variation that means two identical contracts processed on different days produce different extraction outputs — a compliance violation. Temperature=0 enables the caching layer to function correctly: the cache key is (document_hash + template_version + model_version + prompt_version), and only deterministic outputs make this scheme valid. (2) **Deterministic seed:** if the API supports a seed parameter, set it to a deterministic hash of (document_id + template_version). (3) **Result caching:** after processing, store the full extraction result keyed by (document_hash + template_version + model_version + prompt_version). Subsequent requests for the same document return the cached result, not a new processing run. (4) **Version pinning:** pin model version, prompt version, and template version. Any change to these triggers a new processing run with a new version tag, not an in-place update. (5) **Audit trail:** every extraction includes a provenance record: model_id, prompt_hash, document_hash, timestamp, full extraction output.
 
@@ -801,3 +801,8 @@ You are on-call and receive an alert: extraction accuracy for the `termination` 
 - **Key takeaway:** Legal contract review is a precision-critical system where hallucinated text can cause direct financial harm — a fabricated indemnification clause can create $2M+ liability exposure before any attorney catches it. Citation verification with character-level grounding is therefore the single most important safety mechanism in the architecture, not an optimization. Long-context processing requires a hybrid strategy — hierarchical for the 15 critical clause types, chunked for the remaining 35+ standard types — because no single approach achieves 99%+ extraction recall across an entire 120K-token document; single-pass models degrade 15% in the middle third, and full chunked processing over-allocates compute to low-stakes clauses. Multi-document comparison transforms from a naive text-diff problem into a structured alignment problem only when clause-level extraction produces parameterized JSON outputs (amounts, durations, jurisdictions) that can be compared with rule-based logic rather than relying solely on embedding similarity, which cannot distinguish a $1M liability cap from a $10M one.
 - **What to practice:** Trace a single clause — an indemnification clause in section 8.1 spanning 600 words — through every stage of the pipeline: (1) document ingestion and character offset assignment, (2) section-aware chunking and which chunks capture it, (3) LLM clause extraction with verbatim instruction, (4) each of the five citation verification layers and what triggers a rejection, (5) template comparison computing both token diff and semantic similarity, (6) risk score calculation using the formula `clause_severity × deviation_magnitude × confidence_penalty`. At each stage, identify the specific failure mode that would cause the clause to be silently dropped or hallucinated.
 - **Interview drill:** Given a 200-page contract with an indemnification clause split across pages 45–46, with a table of exceptions embedded between the two paragraphs, walk through how the system detects, extracts, verifies, and compares this clause end-to-end. Specifically: which chunk boundaries does it straddle? How does the deduplication merge the two partial extractions? What happens when the citation verifier's exact-match check fails on the merged clause because the chunk overlap introduced a whitespace artifact? What does the recovery re-prompt contain and what is the expected success rate?
+
+---
+
+<!-- nav-footer -->
+[[chapter-16|← Chapter 16]] | [[README|Contents]] | [[chapter-18|Chapter 18 →]]

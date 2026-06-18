@@ -14,7 +14,7 @@ part: production-operations
 > - **Scale:** 50 product teams, 200 prompt/model deployments/week, 1B requests/month
 > - **Key Techniques:** prompt registry, model registry, eval gates, canaries, shadow traffic, trace replay, cost observability, incident response
 > - **Primary Concerns:** silent quality regressions, model drift, prompt sprawl, cost spikes, rollback, compliance
-> - **Cross-references:** [[chapter-04|Chapter 4]] (serving), [[chapter-05|Chapter 5]] (evaluation), [[chapter-08|Chapter 8]] (telemetry), [[chapter-20|Chapter 20]] (audit trail)
+> - **Cross-references:** [[chapter-04|Chapter 4]] (serving), [[chapter-05|Chapter 5]] (evaluation), [[chapter-08|Chapter 8]] (telemetry), [[chapter-20|Chapter 20]] (audit trail), [[chapter-26|Chapter 26]] (fine-tuning and adapter lifecycle), [[chapter-28|Chapter 28]] (cost optimization), [[chapter-29|Chapter 29]] (observability and incident response)
 
 **Problem statement:** Design the operational platform and lifecycle practices required to ship, monitor, evaluate, and safely evolve LLM-backed systems across an organization.
 
@@ -44,7 +44,7 @@ LLMOps should be framed as production change management for probabilistic system
 ### Simulated Dialogue
 
 **Interviewer:** Design LLMOps for a company with many LLM applications.  
-**Candidate:** I will manage prompts, models, retrieval indexes, eval datasets, deployment gates, runtime traces, and incident response as first-class production artifacts. LLMOps extends MLOps because prompts, tools, retrieved context, and model providers all change behavior.
+**Candidate:** I will manage prompts, models, retrieval indexes, eval datasets, deployment gates, runtime traces, and incident response as first-class production artifacts. [[glossary#LLMOps|LLMOps]] extends MLOps because prompts, tools, retrieved context, and model providers all change behavior.
 
 **Candidate:** What artifacts change frequently?  
 **Interviewer:** Prompt templates daily, retrieval indexes hourly, model/provider versions monthly, and guardrail policies weekly.
@@ -58,7 +58,7 @@ LLMOps should be framed as production change management for probabilistic system
 - **Run offline evals before deployment and online evals after release.** Offline evals catch regressions against curated golden sets before any user sees the change; online evals detect issues that only surface under real traffic distribution, including queries the golden set did not anticipate.
 - **Support shadow mode, canaries, A/B tests, and rollbacks.** Progressive delivery reduces blast radius: shadow mode validates behavior without user impact, canaries surface regressions on a small traffic slice, and A/B tests generate statistically valid quality and business-metric comparisons before full rollout.
 - **Attribute latency, cost, and quality to artifact versions.** Because multiple teams share provider APIs and retrieval infrastructure, attribution must be version-granular — otherwise a prompt change that doubles tool calls is invisible until a billing spike reaches finance.
-- **Detect drift, safety regressions, and cost anomalies.** Production inputs shift over time as user behavior evolves; a model or prompt that passed evals at launch can silently degrade as the real distribution diverges from the golden set distribution.
+- **Detect [[glossary#Model Drift|drift]], safety regressions, and cost anomalies.** Production inputs shift over time as user behavior evolves; a model or prompt that passed evals at launch can silently degrade as the real distribution diverges from the golden set distribution.
 - **Reproduce historical outputs for debugging and audits.** Regulated use cases (legal, financial, medical) require the ability to present the exact context the model received and the exact output it generated for any given request, even months after the fact.
 - **Provide governance workflows for high-risk domains.** Self-service velocity for low-risk changes must coexist with mandatory human review, approvals, and audit evidence for high-risk deployments — one set of controls cannot serve both needs.
 
@@ -86,7 +86,7 @@ LLMOps should be framed as production change management for probabilistic system
 
 ### Core Architecture Components
 
-- **Prompt Registry:** stores versioned templates, variable schemas, few-shot examples, owner contacts, and changelogs. Each commit is immutable and content-addressed so that a given version ID always refers to exactly the same bytes — making prompt versions as reliable as container image digests.
+- **[[glossary#Prompt Registry|Prompt Registry]]:** stores versioned templates, variable schemas, few-shot examples, owner contacts, and changelogs. Each commit is immutable and content-addressed so that a given version ID always refers to exactly the same bytes — making prompt versions as reliable as container image digests.
 - **Model Registry:** tracks provider, model ID, adapter checkpoint, tokenizer version, inference hyperparameters, and validation status. It also stores cost-per-token, context window, and capability tags so the Release Orchestrator can enforce compatibility checks when pairing a model with a prompt or tool schema.
 - **Index Registry:** manages retrieval index versions including the source document snapshot timestamp, embedding model ID, chunking strategy, and ACL policy revision. Because retrieval silently changes answers, index versions must be treated with the same rigor as model versions.
 - **Eval Store:** maintains golden task sets, adversarial injection cases, synthetic stress tests, rubric definitions, and judge-model calibration records. Calibration records are critical: they document how closely the judge model agrees with human raters so teams can trust automated gate decisions.
@@ -187,7 +187,7 @@ flowchart LR
 
 Every production response should be attributable to a complete artifact bundle. Partial attribution — knowing the code version but not the prompt version, or knowing the model but not the retrieval index — is the most common root cause of "we can't reproduce this incident" postmortems.
 
-> **Why:** LLM systems have multiple independent behavioral dimensions, each controlled by a different artifact. A code deployment does not capture a prompt edit; a model upgrade does not capture a retrieval index snapshot. Without versioning all dimensions, regression attribution becomes guesswork and rollbacks risk reverting unrelated changes along with the culprit.
+> **Why version every artifact dimension rather than just code:** LLM systems have multiple independent behavioral dimensions, each controlled by a different artifact. A code deployment does not capture a prompt edit; a model upgrade does not capture a retrieval index snapshot. Without versioning all dimensions, regression attribution becomes guesswork and rollbacks risk reverting unrelated changes along with the culprit.
 
 | Artifact | Version Fields | Why It Matters |
 |---|---|---|
@@ -202,7 +202,7 @@ Every production response should be attributable to a complete artifact bundle. 
 
 Evaluation should be layered by risk. A risk-tiered gate structure ensures that low-risk teams are not bottlenecked by heavyweight review processes while high-risk use cases are never allowed to bypass safety controls. The gates are cumulative: a change cannot skip an earlier gate by passing a later one.
 
-> **Why:** Flat eval requirements create perverse incentives — teams either over-engineer simple changes to meet heavyweight gates, or they route around the process entirely. Tiering gates by risk makes the safe path the fast path for the majority of changes while concentrating human review effort where consequences of failure are highest.
+> **Why tier evaluation gates by risk rather than apply flat requirements:** Flat eval requirements create perverse incentives — teams either over-engineer simple changes to meet heavyweight gates, or they route around the process entirely. Tiering gates by risk makes the safe path the fast path for the majority of changes while concentrating human review effort where consequences of failure are highest.
 
 | Gate | Low Risk | High Risk |
 |---|---|---|
@@ -217,7 +217,7 @@ Evaluation should be layered by risk. A risk-tiered gate structure ensures that 
 Metrics tracked at each gate:
 
 - **Task success rate:** the primary quality signal; measures whether the model completed the intended task as judged by automated rubric or human evaluator.
-- **Unsupported-claim rate:** fraction of responses that assert facts not present in the retrieved context or known model knowledge; critical for RAG workflows where hallucination directly misleads users.
+- **Unsupported-claim rate:** fraction of responses that assert facts not present in the retrieved context or known model knowledge; critical for [[glossary#RAG (Retrieval-Augmented Generation)|RAG]] workflows where [[glossary#Hallucination (LLM)|hallucination]] directly misleads users.
 - **Policy violation rate:** fraction of outputs flagged by the guardrail classifier; a regression here blocks promotion regardless of other metric improvements.
 - **Human preference win rate:** in pairwise comparisons between the new and old artifact bundle, the fraction of cases where human raters prefer the new output; a win rate below 50% relative to baseline is a regression signal even if absolute scores improve.
 - **Tool-call success rate:** for agentic workflows, the fraction of tool invocations that returned a valid result; a drop here often signals schema incompatibility or latent prompt change that altered tool-selection behavior.
@@ -228,7 +228,7 @@ Metrics tracked at each gate:
 
 A useful trace answers: what did the model know, what did it do, and why did the system allow it? Traces that capture only the final output are insufficient for production debugging — the trace must capture the full decision chain from request receipt through retrieval, prompt construction, model invocation, tool calls, guardrail evaluation, and response delivery.
 
-> **Why:** LLM bugs are often not bugs in the traditional sense — the code ran correctly, but the composition of artifacts produced an unintended result. Diagnosing these requires replaying the exact context the model received. Without traces that include retrieved chunk IDs, tool call arguments and results, and guardrail labels, engineers spend hours reconstructing context from logs that were never designed to support that use case.
+> **Why traces must capture the full decision chain, not just the final output:** LLM bugs are often not bugs in the traditional sense — the code ran correctly, but the composition of artifacts produced an unintended result. Diagnosing these requires replaying the exact context the model received. Without traces that include retrieved chunk IDs, tool call arguments and results, and guardrail labels, engineers spend hours reconstructing context from logs that were never designed to support that use case.
 
 Trace fields:
 
@@ -293,14 +293,38 @@ LLMOps turns prompts, models, indexes, tools, and policies into governed product
 
 ### Interviewer Follow-ups & Frequently Asked Questions (FAQ)
 
-**Q: How is LLMOps different from traditional MLOps?**  
+Q: How is LLMOps different from traditional MLOps?  
 **The Ideal Answer:** Traditional MLOps focuses heavily on datasets, model training pipelines, deployment packaging (containers, serving frameworks), and monitoring of model output distributions. The assumption is that behavior changes only when a new model artifact is produced through training. LLMOps extends this by treating prompts, retrieved context, tool schemas, inference parameters, guardrail policies, and external provider versions as independent behavior-changing artifacts, each of which can alter user-visible output without any code or model training change. A traditional MLOps system that only versions model checkpoints will miss regressions caused by a prompt edit or a retrieval index rebuild. Additionally, LLMOps must handle probabilistic, non-deterministic outputs where "the same input" produces different outputs, making regression detection a statistical problem rather than a deterministic pass/fail check. Strong answers also note that the eval loop in LLMOps is fundamentally more expensive because LLM-as-judge or human evaluation is required — a contrast to classical ML where accuracy on a labeled test set is cheap to compute.
 
-**Q: A model upgrade improves benchmark score but worsens production quality. What do you do?**  
+**Deep Dive & Trade-offs:**
+- Treat prompts, retrieval index versions, tool schemas, inference parameters, and guardrail policies as first-class versioned artifacts: a system that only versions model checkpoints will silently miss a regression introduced by a prompt edit or an index rebuild, because no model artifact changed.
+- Because outputs are non-deterministic, regression detection becomes statistical rather than a deterministic pass/fail diff — you compare distributions of quality scores across many samples, not a single expected output, which raises the cost and complexity of the eval gate.
+- Provider version drift is a behavior-changing event unique to LLMOps: a managed model can change under a moving alias without any deploy on your side, so the lifecycle must pin versioned endpoints and monitor for external drift.
+- The eval loop itself is expensive — LLM-as-judge or human review per candidate change at 200 deployments/week is a real cost center, so eval suites must be scoped by risk tier rather than run exhaustively on every change.
+
+**The Interviewer's Rubric:** A strong answer demonstrates that LLMOps generalizes MLOps to a wider set of behavior-changing artifacts (prompts, context, tools, policies, provider versions) and treats regression detection as a statistical problem over non-deterministic outputs. The rubric penalizes answers that reduce the difference to "LLMs are bigger models" or that assume model-checkpoint versioning alone is sufficient to catch production regressions.
+
+Q: A model upgrade improves benchmark score but worsens production quality. What do you do?  
 **The Ideal Answer:** Keep the old model live and immediately pause the canary or shadow promotion of the new model. Run domain-specific evals against the production query distribution rather than the benchmark distribution — benchmark improvements frequently do not generalize to narrow production query types, especially in legal, medical, or enterprise-domain workflows. Inspect the failing traces segment by segment: the regression may be concentrated in a specific language, query intent type, or context length range rather than uniformly distributed. Present the data to the model team with concrete examples from production traces showing where the new model underperforms, and negotiate a re-evaluation using the domain-specific golden set rather than the public benchmark. Promote only when domain-specific task-success rate and user-facing metrics (e.g., task completion rate from product analytics) meet or exceed the baseline from the old model. A strong answer also notes that benchmark gaming is a known phenomenon, and that a robust LLMOps practice requires maintaining a private, production-representative eval suite that cannot be over-fit by model providers.
 
-**Q: What is the minimum trace needed for auditability?**  
+**Deep Dive & Trade-offs:**
+- Keep the old model live and pause the canary or shadow promotion immediately: the upgrade is only a candidate until it passes the production-distribution gate, and reverting a not-yet-promoted change costs nothing while a promoted regression incurs user harm.
+- Segment the failing traces before concluding anything — the regression is often concentrated in one language, intent type, or context-length band rather than uniform, and that segmentation is the evidence you bring back to the model team.
+- Public benchmarks and the production query distribution are different distributions; benchmark gains routinely fail to transfer to narrow legal, medical, or enterprise workflows, which is exactly why a private golden set is the promotion criterion rather than the benchmark.
+- Gate promotion on domain task-success rate and product-analytics metrics (e.g., task completion rate) meeting or exceeding the old model, not on the benchmark delta.
+
+**The Interviewer's Rubric:** A strong answer separates benchmark distribution from production distribution and uses a private, production-representative golden set plus segment-level trace analysis as the promotion gate. The rubric penalizes candidates who promote on benchmark improvement alone, or who cannot localize a regression to a specific segment before escalating to the model team.
+
+Q: What is the minimum trace needed for auditability?  
 **The Ideal Answer:** The minimum viable audit trace includes: request ID (globally unique, used to join all downstream records), user and tenant identifiers with the policy context that was active at request time, prompt version ID and model version ID, inference parameters (temperature, max tokens, stop sequences), retrieval index version and the IDs of every retrieved chunk (not just the top-k selected for the prompt but all candidates considered), tool call records including arguments and return values for each invocation, guardrail classifier decisions with the specific rules triggered, a cryptographic hash of the final output so that content tampering can be detected, end-to-end latency and per-stage latency, cost in USD, and a UTC timestamp. Without the retrieved chunk IDs, the trace cannot reconstruct what the model knew. Without the tool call records, the trace cannot explain agent behavior. Without the output hash, the audit cannot verify that the stored response matches what was delivered. Strong answers note that the trace must be tamper-evident (written to an append-only store) and that its retention period must match the regulatory requirement for the use case, which for financial services is commonly 7 years.
+
+**Deep Dive & Trade-offs:**
+- Each omitted field disables a distinct audit capability: without retrieved chunk IDs you cannot reconstruct what the model knew; without tool call arguments and returns you cannot explain agent behavior; without the output hash you cannot prove the stored response matches what was delivered.
+- Capture all retrieved candidates, not just the selected top-k, plus the index version: an audit frequently needs to show why the relevant chunk was or was not surfaced, which requires the full candidate set and the index it came from.
+- Tamper-evidence is a storage-design requirement, not a field — the trace must land in an append-only store keyed by the globally unique request ID so all downstream records join and so no record can be silently rewritten.
+- Retention is set by the regulatory regime, not by engineering convenience: financial-services use cases commonly require 7-year retention, which drives the choice of cold-storage tiering and the cost model for the audit store.
+
+**The Interviewer's Rubric:** A strong answer enumerates the join key (request ID), the artifact versions (prompt, model, index), the full retrieval candidate set, tool call records, guardrail decisions, and an output hash, and explains which audit question each field answers. The rubric penalizes answers that list raw logs without tamper-evident append-only storage, omit the retrieved chunk IDs or output hash, or ignore the regulatory retention requirement.
 
 ---
 
@@ -695,3 +719,16 @@ Implement a shadow traffic harness that mirrors production requests to a candida
 
 **Exercise 5 — Silent Regression Root-Cause Drill**  
 You are on-call and receive an alert: the policy violation rate for the `legal-assistant` application has increased from 0.3% to 1.8% over the past 6 hours. The code has not been deployed. Using the LLMOps platform described in this chapter, walk through the complete incident investigation process: (a) identify which artifacts changed in the past 24 hours and how you narrow the candidate set; (b) explain how you use trace replay to reproduce the violation pattern on a sample of affected requests; (c) describe how you determine whether the root cause is a prompt change, a retrieval index update, a model provider infrastructure change, or a guardrail policy threshold change; (d) specify the exact rollback sequence if the root cause is an index rebuild that introduced stale policy documents into the knowledge base; (e) describe what you add to the regression eval suite to prevent this class of incident from reaching production again. Include the specific trace fields you would query and the eval cases you would generate from the failing traces.
+
+---
+
+## End of Chapter
+
+- **Key takeaway:** LLMOps treats every shippable thing—prompt, retrieval index, guardrail policy, model version—as an immutable, versioned artifact bundle that moves through eval gates before reaching production, and keeps moving through continuous monitoring after. The defining insight is that LLM regressions are usually *silent* and *codeless*: quality degrades with no deploy, because a prompt edit, an index rebuild, or a provider-side model change shifted behavior. Reproducible artifact lineage plus trace replay is what makes root-causing possible at all.
+- **What to practice:** Size a cost-attribution and observability pipeline for an agentic system: given 10M requests/day, a mean of 4 LLM calls per request (including nested sub-agent calls), and full trace retention, compute trace storage volume per day, the sampling rate needed to keep observability spend under a fixed budget, and the per-team/per-tenant aggregation cardinality. Then size audit-log retention cost for a 7-year regulated tier versus a 30-day consumer tier.
+- **Interview drill:** You are on-call. Policy-violation rate on a production app jumps from 0.3% to 1.8% over 6 hours with zero code deploys. Walk through the full investigation: enumerate which non-code artifacts changed in the window, use trace replay to reproduce the failure on affected request IDs, isolate whether the cause is a prompt change, an index rebuild that admitted stale documents, a guardrail threshold change, or provider drift, specify the exact tenant-scoped rollback sequence, and define the regression eval cases you mine from the failing traces to block recurrence.
+
+---
+
+<!-- nav-footer -->
+[[chapter-23|← Chapter 23]] | [[README|Contents]] | [[chapter-25|Chapter 25 →]]

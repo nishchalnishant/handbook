@@ -16,11 +16,11 @@ part: case-studies
 > - **Primary Concerns:** Cross-modal calibration, temporal precision for video, document rendering strategy, index freshness
 > - **Cross-references:** [[chapter-03|Chapter 3]] (vector infrastructure), [[chapter-07|Chapter 7]] (enterprise search), [[chapter-14|Chapter 14]] (audio/video signals)
 
-**Problem statement:** Design a search system that supports cross-modal queries (text→image, image→text, text→video, image→video) over 500M assets using joint embedding spaces, with sub-150ms retrieval latency and production-grade ranking.
+**Problem statement:** Design a search system that supports cross-modal queries (text→image, image→text, text→video, image→video) over 500M assets using joint [[glossary#Embedding|embedding]] spaces, with sub-150ms retrieval [[glossary#Latency (TTFT, TPOT, Tail)|latency]] and production-grade ranking.
 
 ### Real-World Examples
 
-- A stock media platform (Shutterstock/Getty-class) serves 10K QPS across 500M images and 50M video clips. When text queries like "sunset over mountain lake" return irrelevant results, user engagement drops 15% week-over-week. Deploying CLIP-based embeddings with a learned reranker improves nDCG@10 by 22% over BM25-on-metadata baselines.
+- A stock media platform (Shutterstock/Getty-class) serves 10K QPS across 500M images and 50M video clips. When text queries like "sunset over mountain lake" return irrelevant results, user engagement drops 15% week-over-week. Deploying CLIP-based embeddings with a learned [[glossary#Cross-Encoder Reranking|reranker]] improves nDCG@10 by 22% over BM25-on-metadata baselines.
 - An enterprise DAM (Digital Asset Management) system enables designers to search by uploading a reference image. The system retrieves visually similar assets across images and video keyframes in a unified embedding space. Without cross-modal retrieval, designers spend 40 minutes per search session manually browsing folders; with it, median search time drops to 3 minutes.
 
 ---
@@ -56,7 +56,7 @@ part: case-studies
 ### Non-Functional Requirements
 
 - **Latency:** p95 < 150ms end-to-end from query receipt to ranked results returned to the client. This budget covers query encoding (~15ms GPU), ANN search (~15ms across shards), reranking (~40ms GPU), and result assembly (~20ms), leaving 60ms headroom.
-- **Throughput:** 10K QPS sustained at peak, with burst capacity to 15K QPS during promotional events without SLO degradation. Requires horizontal scaling of both the GPU query-encoding pool and the ANN shard replicas.
+- **[[glossary#Throughput|Throughput]]:** 10K QPS sustained at peak, with burst capacity to 15K QPS during promotional events without SLO degradation. Requires horizontal scaling of both the GPU query-encoding pool and the ANN shard replicas.
 - **Corpus:** 500M assets at launch, growing 2M/week (~104M/year). Index architecture and capacity planning must accommodate 3–5 years of growth without full re-architecture, implying a target of ~1B assets before the next major design revision.
 - **Freshness:** New assets indexed within 5 minutes of upload completion. This requires streaming ingestion (not batch), micro-batch index updates every 30 seconds, and a brute-force sidecar index covering the most recent 5-minute upload window.
 - **Relevance:** nDCG@10 > 0.65 on human-judged cross-modal query sets. This is measured weekly on a held-out evaluation set of 10K (query, relevant-asset) pairs covering all modality combinations.
@@ -84,7 +84,7 @@ part: case-studies
   - Each shard: ~100M vectors, ~32 GB memory
 - Alternative: IVF-PQ index: smaller memory footprint (~150 GB) but requires nprobe tuning for recall
 
-> **Why HNSW as the primary index:** HNSW (Hierarchical Navigable Small World) achieves O(log N) search complexity with high recall (>95% R@10 at ef_search=128) and supports incremental inserts without full rebuild — critical for the 5-minute freshness SLO. IVF-PQ offers 3x lower memory at 1.62B vectors but requires periodic nlist/nprobe retuning as the corpus grows, and does not support incremental inserts without a coarse quantizer update that temporarily degrades recall. For a system where both freshness and high recall matter, HNSW's slightly higher memory cost is justified. PQ (Product Quantization) compression is applied to the stored vectors in both cases: it divides the 768-dim vector into 16 sub-vectors of 48 dimensions each, quantizing each sub-vector to one of 256 centroids. This compresses 3,072 bytes (FP32) to 16 bytes (16 × 8-bit indices), a 192x reduction with < 3% recall loss at R@10 for this embedding dimension.
+> **Why HNSW as the primary index:** HNSW (Hierarchical Navigable Small World) achieves O(log N) search complexity with high [[glossary#Recall|recall]] (>95% R@10 at ef_search=128) and supports incremental inserts without full rebuild — critical for the 5-minute freshness SLO. IVF-PQ offers 3x lower memory at 1.62B vectors but requires periodic nlist/nprobe retuning as the corpus grows, and does not support incremental inserts without a coarse quantizer update that temporarily degrades recall. For a system where both freshness and high recall matter, HNSW's slightly higher memory cost is justified. PQ (Product Quantization) compression is applied to the stored vectors in both cases: it divides the 768-dim vector into 16 sub-vectors of 48 dimensions each, quantizing each sub-vector to one of 256 centroids. This compresses 3,072 bytes (FP32) to 16 bytes (16 × 8-bit indices), a 192x reduction with < 3% recall loss at R@10 for this embedding dimension.
 
 #### Query Processing
 
@@ -270,7 +270,7 @@ The core architectural decision: should all modalities share one index, or shoul
 
 #### Index Architecture Trade-off Table
 
-| Architecture | How It Works | Pros | Cons | Best For |
+| Architecture | How It Works | Strengths | Weaknesses | Use When |
 |---|---|---|---|---|
 | Unified index | All modalities in one HNSW index; query vector searches all assets | Simplest ops; natural cross-modal retrieval; one search call | Modality bias (images dominate because there are more); hard to tune per-modality relevance | Small corpus (<50M), single-modality dominant |
 | Separate indexes per modality | Image index, video index, document index; query hits all, results merged | Per-modality tuning; independent scaling; easier to debug | Fan-out latency; complex merge logic; score calibration across indexes | **Production default for mixed corpus** |
@@ -293,7 +293,7 @@ Score calibration across indexes: raw cosine similarity from different indexes i
 
 **Reciprocal Rank Fusion (RRF) for late fusion:**
 
-```
+```text
 RRF_score(d) = Σ 1 / (k + rank_i(d))
 ```
 
@@ -338,7 +338,7 @@ Each video clip is represented as a set of (keyframe_embedding, timestamp) pairs
 
 **Video indexing data model:**
 
-```
+```text
 Video {
   clip_id: string
   duration_sec: float
@@ -474,7 +474,7 @@ def fuse_results(text_hits, image_hits, alpha: float = 0.5) -> list[dict]:
 
 ### Video Keyframe Extraction Pipeline (Pseudocode)
 
-```
+```text
 # Selects semantically representative keyframes for indexing — avoids duplicates
 
 function extract_keyframes(video_path, target_fps=1) -> list[frame]:
@@ -524,7 +524,6 @@ function index_video(video_path, weaviate_client):
 from typing import List, Dict
 import numpy as np
 
-
 def reciprocal_rank_fusion(
     result_lists: List[List[Dict]],  # each list: [{"id": str, "score": float}, ...]
     k: int = 60,
@@ -543,7 +542,6 @@ def reciprocal_rank_fusion(
     merged = [{"id": doc_id, "score": score}
               for doc_id, score in rrf_scores.items()]
     return sorted(merged, key=lambda x: x["score"], reverse=True)
-
 
 def maximal_marginal_relevance(
     candidates: List[Dict],         # each item has "id", "score", "embedding" (np.ndarray)
@@ -580,7 +578,6 @@ def maximal_marginal_relevance(
 
     return selected
 
-
 # --- Example usage ---
 if __name__ == "__main__":
     # Simulate two modality result lists (image index + video index)
@@ -598,36 +595,6 @@ if __name__ == "__main__":
     diverse = maximal_marginal_relevance(merged[:20], top_k=10, lambda_diversity=0.7)
     print("Top-10 after MMR:", [r["id"] for r in diverse])
 ```
-
----
-
-## Exercises
-
-### Design
-
-**1. Design a multimodal search system for a fashion e-commerce platform with 50M product images.**
-
-The platform supports "shop the look" queries where a user uploads a photo of an outfit and retrieves similar purchasable items. The catalog is updated with 50K new products daily. Design the end-to-end system covering: (a) the embedding model and fine-tuning strategy using the platform's purchase-signal data, (b) the index architecture (unified vs separate for category sub-types: tops, bottoms, shoes, accessories), (c) attribute-based filtering integration (color, size, price range) without breaking ANN recall, and (d) the cold-start strategy for new products before they accumulate user engagement signals. Discuss how you would ensure that results respect regional availability constraints (a product available in Germany must not appear in US search results).
-
-**2. Design a video highlight extraction system that surfaces the "best moments" within long-form content (30–90 minute videos).**
-
-A media company wants to auto-generate 30-second highlight clips for 2-hour sporting events for social media. Design: (a) the keyframe sampling strategy for long videos where uniform 0.5fps produces 3,600 frames per event, (b) how to identify "highlight-worthy" moments (score peaks, crowd noise, replays) using multimodal signals, (c) the temporal indexing architecture to enable both clip-level search ("find a basketball dunk") and moment-level retrieval ("the exact frame of the dunk"), and (d) the pipeline to generate the highlight clip preview (seek offset, duration, thumbnail) as part of the search result payload.
-
-### Implementation
-
-**3. Implement a hybrid query handler that accepts both a text string and an optional reference image, encodes each with CLIP, and returns a fused query vector with a user-adjustable α parameter.**
-
-The implementation should: (a) handle the text-only, image-only, and hybrid cases in a single code path, (b) normalize both embeddings to unit vectors before combining to prevent one modality from dominating due to magnitude differences, (c) validate that α ∈ [0, 1] and produce a meaningful error if the user sets α=0.5 but provides no reference image, and (d) expose the fused vector as a NumPy array ready for ANN search. Add a test that verifies the fused vector is a unit vector for all three input combinations.
-
-**4. Implement a per-modality score normalization pipeline that takes raw cosine similarity scores from three separate ANN indexes (image, video, document), normalizes each modality's scores independently using z-score normalization, and merges the results using Reciprocal Rank Fusion.**
-
-The implementation should: (a) accept a dictionary mapping modality names to lists of `{"id": str, "score": float}` dicts, (b) compute z-score normalization per modality using numpy (handle the edge case where a modality returns only one result, producing a standard deviation of zero), (c) apply RRF with k=60 across the three normalized lists, and (d) return the merged list sorted by descending RRF score. Write a unit test verifying that the output contains at most one entry per unique asset ID, even when the same asset appears in multiple modality result lists.
-
-### Debug
-
-**5. Your cross-modal search system shows nDCG@10 of 0.71 for text→image queries but only 0.41 for image→image queries, despite both using the same CLIP image encoder for embedding. Diagnose and fix the issue.**
-
-Start by examining the distribution of cosine similarity scores for the two query types — look for evidence that image query embeddings occupy a different region of the CLIP embedding space than text query embeddings (CLIP is trained on (text, image) pairs, so text and image embeddings are aligned differently). Check whether the image→image recall drop is uniform across query image types or concentrated in specific categories (photos vs illustrations vs screenshots). Investigate whether the normalization step after `model.get_image_features()` is being applied consistently to both query images and indexed images — a missing L2 normalization on either side collapses cosine similarity to dot-product with magnitude bias. Finally, consider that CLIP's training objective aligns text and image modalities globally but image→image nearest neighbors may require a different retrieval strategy: DINOv2 or a self-supervised visual model fine-tuned on the platform's image catalog often outperforms CLIP for pure visual similarity tasks where no text query is involved. Propose a remediation that preserves the unified index architecture while improving image→image recall to > 0.65 nDCG@10.
 
 ---
 
@@ -757,8 +724,43 @@ Q: You need to support a new modality—3D models. How do you extend the system?
 
 **The Interviewer's Rubric:** Checking modality-extensible architecture thinking and practical integration strategy.
 
+## Exercises
+
+### Design
+
+**1. Design a multimodal search system for a fashion e-commerce platform with 50M product images.**
+
+The platform supports "shop the look" queries where a user uploads a photo of an outfit and retrieves similar purchasable items. The catalog is updated with 50K new products daily. Design the end-to-end system covering: (a) the embedding model and fine-tuning strategy using the platform's purchase-signal data, (b) the index architecture (unified vs separate for category sub-types: tops, bottoms, shoes, accessories), (c) attribute-based filtering integration (color, size, price range) without breaking ANN recall, and (d) the cold-start strategy for new products before they accumulate user engagement signals. Discuss how you would ensure that results respect regional availability constraints (a product available in Germany must not appear in US search results).
+
+**2. Design a video highlight extraction system that surfaces the "best moments" within long-form content (30–90 minute videos).**
+
+A media company wants to auto-generate 30-second highlight clips for 2-hour sporting events for social media. Design: (a) the keyframe sampling strategy for long videos where uniform 0.5fps produces 3,600 frames per event, (b) how to identify "highlight-worthy" moments (score peaks, crowd noise, replays) using multimodal signals, (c) the temporal indexing architecture to enable both clip-level search ("find a basketball dunk") and moment-level retrieval ("the exact frame of the dunk"), and (d) the pipeline to generate the highlight clip preview (seek offset, duration, thumbnail) as part of the search result payload.
+
+### Implementation
+
+**3. Implement a hybrid query handler that accepts both a text string and an optional reference image, encodes each with CLIP, and returns a fused query vector with a user-adjustable α parameter.**
+
+The implementation should: (a) handle the text-only, image-only, and hybrid cases in a single code path, (b) normalize both embeddings to unit vectors before combining to prevent one modality from dominating due to magnitude differences, (c) validate that α ∈ [0, 1] and produce a meaningful error if the user sets α=0.5 but provides no reference image, and (d) expose the fused vector as a NumPy array ready for ANN search. Add a test that verifies the fused vector is a unit vector for all three input combinations.
+
+**4. Implement a per-modality score normalization pipeline that takes raw cosine similarity scores from three separate ANN indexes (image, video, document), normalizes each modality's scores independently using z-score normalization, and merges the results using Reciprocal Rank Fusion.**
+
+The implementation should: (a) accept a dictionary mapping modality names to lists of `{"id": str, "score": float}` dicts, (b) compute z-score normalization per modality using numpy (handle the edge case where a modality returns only one result, producing a standard deviation of zero), (c) apply RRF with k=60 across the three normalized lists, and (d) return the merged list sorted by descending RRF score. Write a unit test verifying that the output contains at most one entry per unique asset ID, even when the same asset appears in multiple modality result lists.
+
+### Debug
+
+**5. Your cross-modal search system shows nDCG@10 of 0.71 for text→image queries but only 0.41 for image→image queries, despite both using the same CLIP image encoder for embedding. Diagnose and fix the issue.**
+
+Start by examining the distribution of cosine similarity scores for the two query types — look for evidence that image query embeddings occupy a different region of the CLIP embedding space than text query embeddings (CLIP is trained on (text, image) pairs, so text and image embeddings are aligned differently). Check whether the image→image recall drop is uniform across query image types or concentrated in specific categories (photos vs illustrations vs screenshots). Investigate whether the normalization step after `model.get_image_features()` is being applied consistently to both query images and indexed images — a missing L2 normalization on either side collapses cosine similarity to dot-product with magnitude bias. Finally, consider that CLIP's training objective aligns text and image modalities globally but image→image nearest neighbors may require a different retrieval strategy: DINOv2 or a self-supervised visual model fine-tuned on the platform's image catalog often outperforms CLIP for pure visual similarity tasks where no text query is involved. Propose a remediation that preserves the unified index architecture while improving image→image recall to > 0.65 nDCG@10.
+
+---
+
 ## End of Chapter
 
 - **Key takeaway:** Multimodal search is an embedding quality problem first and an infrastructure scaling problem second. CLIP-family models provide the shared embedding space; the system's value comes from index architecture (unified vs separate), score calibration across modalities, and reranking with diversity controls. Video search requires hierarchical temporal indexing—a single embedding per clip loses temporal precision.
 - **What to practice:** Size an HNSW index for 1B+ vectors: compute memory, shard count, fan-out QPS, and replication factor. Calculate end-to-end query latency from embedding inference through ANN search to reranking.
 - **Interview drill:** Given a new modality (audio clips, 3D models, code snippets), walk through the full integration: embedding strategy, ingestion pipeline changes, index sharding, query fusion, and score calibration.
+
+---
+
+<!-- nav-footer -->
+[[chapter-14|← Chapter 14]] | [[README|Contents]] | [[chapter-16|Chapter 16 →]]

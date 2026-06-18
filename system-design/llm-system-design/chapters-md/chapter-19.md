@@ -14,7 +14,7 @@ part: case-studies
 > - **Scale:** 500K CCU, 75K concurrent dialogue sessions
 > - **Key Techniques:** Three-tier memory (short-term/episodic/world state), importance-weighted LRU eviction, 4-layer persona consistency enforcement, 2-tier model routing (3B/1.5B)
 > - **Primary Concerns:** Memory eviction under CCU, lore consistency, edge deployment latency, graceful fallback to scripted responses
-> - **Cross-references:** [[chapter-06|Chapter 6]] (memory management), [[chapter-02|Chapter 2]] (model routing), [[chapter-05|Chapter 5]] (content safety)
+> - **Cross-references:** [[chapter-06|Chapter 6]] (memory management), [[chapter-02|Chapter 2]] (model routing), [[chapter-05|Chapter 5]] (content safety), [[chapter-04|Chapter 4]] (continuous batching deep dive), [[chapter-08|Chapter 8]] (speculative decoding deep dive)
 
 **Problem statement:** Design a real-time AI NPC dialogue engine for a multiplayer game that delivers contextually aware, personality-consistent, lore-grounded dialogue at sub-500ms latency across 500K concurrent users interacting with 200 NPC archetypes, with persistent memory across sessions and zero lore contradictions.
 
@@ -225,7 +225,7 @@ Memory is what transforms an LLM NPC from a chatbot into a character. Without me
 
 The buffer stores the last N turns as structured entries:
 
-```
+```text
 Turn {
   turn_id: int
   speaker: "player" | "npc"
@@ -242,7 +242,7 @@ Ring buffer with N=12 capacity. When full, oldest turn is evicted. Total token b
 
 Each memory entry is a compressed summary of a past interaction:
 
-```
+```text
 MemoryEntry {
   entry_id: uuid
   npc_archetype_id: string
@@ -258,11 +258,11 @@ MemoryEntry {
 
 Storage per entry: ~1.6KB (100 tokens × 4 bytes + 384 × 4 bytes embedding + metadata). 16KB limit per pair ≈ 10 memory entries. Retrieval: embed the current player input, cosine similarity against stored memory embeddings, return top-3 most relevant entries. This ensures the NPC references relevant past interactions, not just the most recent.
 
-> **Why:** Recency-based retrieval (always use the last 3 entries) fails when a player brings up a topic from a session three weeks ago—the relevant memory is buried beneath more recent but topically irrelevant entries. Vector similarity retrieval selects memories by semantic relevance to the current conversation turn, not by age. With only 10 entries in the store, the cosine similarity search is a 10-way dot product (trivially fast at < 0.1ms)—the embedding cost dominates at ~2ms using MiniLM-L6. This is the same mechanism used in RAG systems but applied to a per-player-per-NPC private memory store rather than a shared knowledge base.
+> **Why vector-similarity memory retrieval rather than recency-based retrieval:** Recency-based retrieval (always use the last 3 entries) fails when a player brings up a topic from a session three weeks ago—the relevant memory is buried beneath more recent but topically irrelevant entries. Vector similarity retrieval selects memories by semantic relevance to the current conversation turn, not by age. With only 10 entries in the store, the cosine similarity search is a 10-way dot product (trivially fast at < 0.1ms)—the embedding cost dominates at ~2ms using MiniLM-L6. This is the same mechanism used in [[glossary#RAG (Retrieval-Augmented Generation)|RAG]] systems but applied to a per-player-per-NPC private memory store rather than a shared knowledge base.
 
 **Memory eviction strategy:**
 
-| Strategy | Pros | Cons | Best For |
+| Strategy | Strengths | Weaknesses | Use When |
 |---|---|---|---|
 | Pure LRU (oldest out) | Zero configuration required; O(1) eviction with a doubly-linked list + hash map | Blindly evicts high-importance old events: the NPC's memory of the player saving their life 3 months ago is lost before a trivial "player asked about weather" from yesterday | Never recommended for narrative games; acceptable only for ambient, stateless NPCs |
 | Importance-weighted LRU | Preserves emotionally and narratively significant moments; eviction score = `importance × (1 / log(1 + days_since))` so very high-importance entries never fall off | Requires a reliable importance scorer trained on labeled data; a miscalibrated scorer can permanently protect trivial memories while evicting important ones | Production default for any NPC with a persistent narrative role |
@@ -285,7 +285,7 @@ The game server publishes state changes via an event bus (Kafka or game-engine-n
 
 World state is injected as structured tokens in the prompt:
 
-```
+```text
 [World State]
 - Quest: Dragon Slayer Act 2 COMPLETE
 - Faction: Merchants Guild (Revered)
@@ -312,7 +312,7 @@ A single lore contradiction destroys immersion. An NPC who forgets their own bac
 
 Each NPC archetype has a structured persona definition (500 tokens):
 
-```
+```text
 [NPC Persona: Grimbold the Blacksmith]
 Race: Dwarf. Age: 187. Faction: Ironforge Clan.
 Personality: Gruff, taciturn, secretly sentimental. Speaks in short sentences. Never uses flowery language. Swears by Moradin.
@@ -399,13 +399,13 @@ At inference time:
 
 1. Generate 500K high-quality NPC dialogues using LLaMA-70B with full lore context (offline, no latency constraint).
 2. Filter for quality: keep dialogues with zero lore contradictions and high persona consistency (scored by the 100M classifier).
-3. Fine-tune 3B base model on this dataset. Loss: cross-entropy + persona consistency reward (RL from the classifier as reward model).
+3. [[glossary#Fine-tuning|Fine-tune]] 3B base model on this dataset. Loss: cross-entropy + persona consistency reward (RL from the classifier as reward model).
 4. Distill further to 1.5B for Tier 2 NPCs. Teacher: the fine-tuned 3B. Student: 1.5B with KL divergence loss.
 5. Evaluate: human raters score 1,000 blind A/B comparisons (3B vs 1.5B). Accept if win rate delta < 10%.
 
 **Speculative decoding for game dialogue:**
 
-> **Why:** Standard autoregressive decoding generates one token at a time, with each forward pass through the full 3B model taking ~1.5ms. For 60 tokens, that is ~90ms of sequential compute with the GPU underutilized at each step because the key-value cache lookups dominate memory bandwidth. Speculative decoding parallelizes this by having a cheap 300M draft model generate K candidate tokens at once, then verifying all K tokens in a single pass of the 3B target model. When most tokens are accepted (as they are for predictable NPC speech), the effective throughput is 3-4× higher at identical output quality. This is the single largest latency optimization available without reducing model size.
+> **Why speculative decoding for game dialogue generation:** Standard autoregressive decoding generates one token at a time, with each forward pass through the full 3B model taking ~1.5ms. For 60 tokens, that is ~90ms of sequential compute with the GPU underutilized at each step because the key-value cache lookups dominate memory bandwidth. [[glossary#Speculative Decoding|Speculative decoding]] parallelizes this by having a cheap 300M draft model generate K candidate tokens at once, then verifying all K tokens in a single pass of the 3B target model. When most tokens are accepted (as they are for predictable NPC speech), the effective [[glossary#Throughput|throughput]] is 3-4× higher at identical output quality. This is the single largest latency optimization available without reducing model size.
 
 Game dialogue is highly predictable—NPCs have restricted vocabulary and speech patterns. Speculative decoding exploits this:
 
@@ -418,7 +418,7 @@ Game dialogue is highly predictable—NPCs have restricted vocabulary and speech
 
 **Prefix KV cache per archetype:**
 
-> **Why:** Every dialogue request for a given NPC archetype includes the same 200-token persona system prompt at the start of the context. Without prefix caching, the model re-computes the key-value attention tensors for those 200 tokens on every single request—at 5,000 requests/sec, that is 5,000 redundant identical prefill operations per second. Caching the KV tensors for these 200 tokens per archetype eliminates this redundant work entirely. The savings compound: 200 tokens × 5,000 req/sec × 4 bytes × 32 layers ≈ 1.28 GB/sec of memory bandwidth reclaimed, which directly translates to reduced prefill latency (~20ms saved per request) and increased batch throughput.
+> **Why a prefix KV cache per NPC archetype:** Every dialogue request for a given NPC archetype includes the same 200-token persona system prompt at the start of the context. Without prefix caching, the model re-computes the key-value attention tensors for those 200 tokens on every single request—at 5,000 requests/sec, that is 5,000 redundant identical prefill operations per second. Caching the [[glossary#KV Cache|KV]] tensors for these 200 tokens per archetype eliminates this redundant work entirely. The savings compound: 200 tokens × 5,000 req/sec × 4 bytes × 32 layers ≈ 1.28 GB/sec of memory bandwidth reclaimed, which directly translates to reduced prefill latency (~20ms saved per request) and increased batch throughput.
 
 Each NPC archetype has a fixed system prompt (~200 tokens). With 200 archetypes:
 - Cache 200 prefix KV states.
@@ -438,9 +438,9 @@ Priority-aware batching: Tier 1 NPC requests (main quest NPCs) get priority admi
 
 **Edge deployment topology:**
 
-> **Why:** A centralized cloud model serving cluster in US-East would impose 80-150ms of round-trip network latency for players in Asia and Europe before generation even begins. With a 450ms total generation budget and 50ms network budget, a centralized design has already burned 60-70% of the latency budget on wire time alone. Edge deployment co-locates the model serving fleet with the game servers in each region, keeping dialogue requests on the same physical or logically adjacent infrastructure as the game server. Network RTT drops to 5-20ms, restoring ~100ms of generation headroom. Additionally, regional isolation means a GPU fleet failure in EU-West does not affect players in Asia-East—regional faults stay regional.
+> **Why edge deployment of the model fleet rather than a centralized cluster:** A centralized cloud model serving cluster in US-East would impose 80-150ms of round-trip network latency for players in Asia and Europe before generation even begins. With a 450ms total generation budget and 50ms network budget, a centralized design has already burned 60-70% of the latency budget on wire time alone. Edge deployment co-locates the model serving fleet with the game servers in each region, keeping dialogue requests on the same physical or logically adjacent infrastructure as the game server. Network RTT drops to 5-20ms, restoring ~100ms of generation headroom. Additionally, regional isolation means a GPU fleet failure in EU-West does not affect players in Asia-East—regional faults stay regional.
 
-```
+```text
 6 Edge Regions:
 ├── US-East:  25 GPUs (A10G) → 100K output tok/sec
 ├── US-West:  25 GPUs
@@ -498,15 +498,15 @@ In many game deployments, GPU clusters already exist for physics simulation and 
 
 - **Emotion state machine:** Track NPC emotional state as a finite state machine (neutral → annoyed → angry → hostile) updated by player actions and dialogue sentiment. Inject current emotional state as a structured token into the persona prompt: `[Emotion: hostile, cause: player_threatened_npc]`. Without an explicit state machine, the LLM interprets each turn in isolation—an NPC who was furious two turns ago may inexplicably return to friendly within a single generation. Keeping a discrete state prevents jarring emotional resets and allows the game engine to trigger gameplay consequences (e.g., a guard NPC transitioning to "hostile" state can simultaneously flag the player for combat AI).
 
-> **Why:** LLMs do not maintain state between calls—they only see the last N tokens of context. An emotion state machine externalizes the NPC's mood as structured data so it persists reliably, independent of whether the earlier turns that caused the emotion are still in the sliding context window.
+> **Why an explicit emotion state machine for NPC mood:** LLMs do not maintain state between calls—they only see the last N tokens of context. An emotion state machine externalizes the NPC's mood as structured data so it persists reliably, independent of whether the earlier turns that caused the emotion are still in the sliding context window.
 
 - **Hierarchical memory:** Compress old episodic memories into "chapter summaries" (e.g., "In Chapter 1, the player helped Grimbold find rare ore and earned his trust") once the episodic store reaches 70% capacity. Summaries are generated by the 3B model in a low-priority background job and stored at a dedicated "arc" slot separate from the 16KB per-pair budget. This preserves the shape of a long-running narrative without consuming retrieval slots with fine-grained but stale details—"player asked about armor prices on Tuesday" is useless after a month, but "player saved Grimbold's apprentice from the mines" defines the relationship anchor indefinitely.
 
-> **Why:** Vector similarity retrieval over 10 fine-grained memory entries is less robust than having 1-2 arc summaries that always appear in context. A summary condenses signal while discarding noise, reducing the chance that the retrieval step returns irrelevant old details over important ones.
+> **Why hierarchical arc summaries on top of episodic memory:** Vector similarity retrieval over 10 fine-grained memory entries is less robust than having 1-2 arc summaries that always appear in context. A summary condenses signal while discarding noise, reducing the chance that the retrieval step returns irrelevant old details over important ones.
 
 - **Player modeling:** After 10+ interactions with any NPC archetype, build a lightweight player preference vector: 3 float dimensions representing preference for combat-focused dialogue, lore exposition, and humor respectively (e.g., `[0.2, 0.8, 0.1]` for a lore-heavy player). Update via exponential moving average: `pref = 0.9 × pref + 0.1 × turn_signal` where `turn_signal` is extracted from the player's choice of dialogue option or free-text topic. Store alongside memory. The context assembly service appends a 10-token directive to the persona prompt: `[Player prefers: lore > combat > humor. Favor lore exposition when multiple framings are available]`. This costs 10 tokens of context budget but demonstrably improves engagement—players who receive preference-matched dialogue show 18% longer conversation chains.
 
-> **Why:** Different players want different things from the same NPC. A uniform response style optimizes for an average player and satisfies no one fully. Preference modeling is cheap (3 floats, negligible compute), requires no user-facing configuration, and degrades gracefully to neutral behavior when data is sparse.
+> **Why per-player preference modeling for dialogue style:** Different players want different things from the same NPC. A uniform response style optimizes for an average player and satisfies no one fully. Preference modeling is cheap (3 floats, negligible compute), requires no user-facing configuration, and degrades gracefully to neutral behavior when data is sparse.
 
 - **Parallel NPC-NPC dialogue:** When two NPCs are within proximity range in the game world, generate ambient NPC-NPC conversations using a shared context window containing both NPCs' personas and the current world state. Generated at low priority (batch queue, no latency SLO) during GPU idle cycles—these conversations are not interactive, so latency tolerances are in the 2-5 second range. The output is stored as short audio-less text snippets delivered to nearby players as overhead chat bubbles or environmental chatter. Players overhearing guards discuss recent bandit activity or merchants arguing over trade prices reinforces world-building without any player action. Rate-limited to 1 NPC-NPC exchange per NPC pair per 90 seconds to avoid ambient chatter overwhelming the GPU budget.
 
@@ -589,7 +589,7 @@ Q: Your 3B model occasionally generates modern slang ("that's fire, bro") in a m
 
 Q: The game launches a new expansion with 50 new NPCs. How do you onboard them without retraining the model?
 
-**The Ideal Answer:** New NPCs require zero model retraining. The persona-driven architecture decouples NPC identity from model weights. Steps: (1) Write 500-token persona definitions for each new archetype. (2) Pre-compute lore chunk relevance for each new archetype (offline, < 1 hour). (3) Generate prefix KV cache for each new archetype's system prompt (~2MB each, 50 × 2MB = 100MB total). (4) Deploy new persona definitions to the persona cache (hot reload, no restart). (5) Validate with automated testing: generate 100 sample dialogues per new NPC, run through contradiction classifier, and human-review a sample. (6) If a new NPC archetype has a speech pattern significantly different from training data (e.g., a rhyming bard), generate 5K synthetic dialogues with GPT-4 in that style and run a lightweight LoRA adapter. Cost: < 1 GPU-hour, deployable as a LoRA hot-swap.
+**The Ideal Answer:** New NPCs require zero model retraining. The persona-driven architecture decouples NPC identity from model weights. Steps: (1) Write 500-token persona definitions for each new archetype. (2) Pre-compute lore chunk relevance for each new archetype (offline, < 1 hour). (3) Generate prefix KV cache for each new archetype's system prompt (~2MB each, 50 × 2MB = 100MB total). (4) Deploy new persona definitions to the persona cache (hot reload, no restart). (5) Validate with automated testing: generate 100 sample dialogues per new NPC, run through contradiction classifier, and human-review a sample. (6) If a new NPC archetype has a speech pattern significantly different from training data (e.g., a rhyming bard), generate 5K synthetic dialogues with GPT-4 in that style and run a lightweight [[glossary#LoRA (Low-Rank Adaptation)|LoRA]] adapter. Cost: < 1 GPU-hour, deployable as a LoRA hot-swap.
 
 **Deep Dive & Trade-offs:**
 - The prompt-driven approach means NPC quality is bounded by the base model's ability to follow persona instructions. For radical departures from training distribution (an NPC who speaks only in haiku), LoRA adapters are necessary.
@@ -1028,3 +1028,8 @@ Walk through the following diagnostic steps in sequence: (1) Why would a game co
 - **Key takeaway:** An AI NPC engine is a memory-and-constraint system first, a language model second. The model generates tokens; the memory architecture, persona enforcement, and contradiction detection layers make those tokens feel like a character. Sub-500ms latency at game scale requires aggressive model distillation, speculative decoding with domain-specific draft models, edge deployment, and graceful fallback to scripted dialogue.
 - **What to practice:** Size the GPU fleet for 75K concurrent dialogue sessions with a latency breakdown from context assembly through decode to post-processing. Design the memory eviction policy for a 16KB-per-pair budget with importance scoring.
 - **Interview drill:** Given a new NPC archetype with extreme personality constraints (a compulsive liar, a pacifist in a combat game, an NPC who speaks only in riddles), walk through how the persona prompt, constrained decoding, and contradiction classifier would need to adapt—and identify which constraints are enforceable at inference time vs which require fine-tuning.
+
+---
+
+<!-- nav-footer -->
+[[chapter-18|← Chapter 18]] | [[README|Contents]] | [[chapter-20|Chapter 20 →]]

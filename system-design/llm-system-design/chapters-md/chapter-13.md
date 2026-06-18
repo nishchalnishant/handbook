@@ -14,9 +14,9 @@ part: case-studies
 > - **Scale:** 5M student users, 3M sessions/day
 > - **Key Techniques:** Socratic state machine (answer withholding), BKT adaptive difficulty, COPPA-compliant safety stack, multimodal math OCR
 > - **Primary Concerns:** Answer-withholding enforcement, age-appropriate safety, accessibility, adaptive difficulty calibration
-> - **Cross-references:** [[chapter-05|Chapter 5]] (guardrails), [[chapter-13|Chapter 13]] (multimodal in context), [[chapter-20|Chapter 20]] (regulated domain)
+> - **Cross-references:** [[chapter-05|Chapter 5]] (guardrails), [[chapter-20|Chapter 20]] (regulated domain)
 
-**Problem statement:** Design an AI tutoring system for K-12 and college students that teaches through Socratic questioning—guiding students to answers rather than giving them directly—while enforcing zero-tolerance safety guardrails for minors and supporting multimodal inputs including photos of handwritten homework.
+**Problem statement:** Design an AI tutoring system for K-12 and college students that teaches through Socratic questioning—guiding students to answers rather than giving them directly—while enforcing zero-tolerance [[glossary#Safety Filter / Guardrails|safety guardrails]] for minors and supporting multimodal inputs including photos of handwritten homework.
 
 ### Real-World Examples
 
@@ -58,7 +58,7 @@ part: case-studies
 - **Safety:** Zero inappropriate content for minors. COPPA/FERPA compliant. All conversations logged and auditable by parents/teachers.
 - **Latency:** TTFT < 2s (students are less latency-sensitive than adults, but long waits lose attention). Image processing < 3s additional.
 - **Throughput:** 5M users, ~20% concurrent during peak hours (3-6 PM local time). Peak: 1M concurrent sessions × 1 message/30s = ~33K QPS.
-- **Accuracy:** Math solutions must be correct (verifiable). Science explanations must be factually accurate. No hallucinated formulas, dates, or facts.
+- **Accuracy:** Math solutions must be correct (verifiable). Science explanations must be factually accurate. No [[glossary#Hallucination (LLM)|hallucinated]] formulas, dates, or facts.
 - **Availability:** 99.9% during school hours (8 AM - 10 PM local time). Maintenance windows allowed 2-6 AM.
 - **Privacy:** Student data encrypted at rest and in transit. No student data used for model training without explicit parental consent. Data deletion on account closure within 30 days.
 
@@ -117,10 +117,10 @@ part: case-studies
 
 - **Student Client (Web/Mobile):** Renders a multi-modal chat interface with image-upload affordance, client-side LaTeX rendering (via MathJax or KaTeX) for equations, and an optional drawing canvas for diagrams. Client-side image quality checks (blur score, brightness histogram) reject poor-quality photos before they consume server bandwidth.
 - **API Gateway:** Handles per-student authentication (JWT + session token), per-IP and per-account rate limiting (max 2 messages/second, 500 messages/day for students), request routing to the correct regional cluster, and WebSocket upgrade for streaming responses. Abuse detection runs at this layer to catch scripted bots before traffic reaches the LLM.
-- **Safety Layer (Pre-filter):** Classifies incoming text and images for inappropriate content, self-harm signals, jailbreak attempts, and PII exposure before the message ever reaches the LLM. Running safety checks here—before inference—saves ~1,200ms of LLM latency on blocked requests and prevents sensitive content from contaminating the model's context window.
+- **Safety Layer (Pre-filter):** Classifies incoming text and images for inappropriate content, self-harm signals, [[glossary#Prompt Injection|jailbreak]] attempts, and PII exposure before the message ever reaches the LLM. Running safety checks here—before inference—saves ~1,200ms of LLM latency on blocked requests and prevents sensitive content from contaminating the model's [[glossary#Context Window|context window]].
 - **Image Processing Pipeline:** Converts raw image uploads (JPEG/PNG, up to 10MB) into structured text through a four-stage pipeline: preprocessing → content classification → specialized OCR or diagram model → LaTeX/structured-text output. Runs asynchronously so the student sees a "reading your photo…" indicator rather than a frozen screen.
 - **Pedagogical Engine:** The core Socratic decision-maker—given the student's current proficiency, the number of hints already given for this problem, and the conversation history, it selects which pedagogical state to enter (INITIAL_PROBE, HINT_LEVEL_1, SCAFFOLD, etc.) and embeds that decision in the assembled prompt. This keeps pedagogical logic out of the LLM's stochastic outputs and under deterministic control.
-- **LLM Inference Service:** Hosts a 13B instruction-tuned model (INT4-quantized) for grades 6–12 and a faster 7B model for grades K–5. Receives fully-assembled prompts from the Pedagogical Engine and returns streaming tokens directly to the post-filter and then the client. Continuous batching at batch size 32 keeps GPU utilization above 85% during peak hours.
+- **LLM Inference Service:** Hosts a 13B instruction-tuned model (INT4-[[glossary#Quantization|quantized]]) for grades 6–12 and a faster 7B model for grades K–5. Receives fully-assembled prompts from the Pedagogical Engine and returns streaming tokens directly to the post-filter and then the client. [[glossary#Continuous Batching|Continuous batching]] at batch size 32 keeps GPU utilization above 85% during peak hours.
 - **Safety Layer (Post-filter):** Screens every LLM output token sequence for age-inappropriate content, pedagogical violations (direct answer detection), and factual errors before the response reaches the student. This is the last line of automated defense; its false-negative rate must be below 0.1% even at the cost of a higher false-positive rate (blocking a safe response is far preferable to surfacing an unsafe one).
 - **Math Verification Service:** An independent SymPy-based symbolic solver that receives the same problem as the LLM and computes the verified solution path. Results are injected into the LLM's hidden context (not shown to the student) to anchor hints toward a correct approach, and then used to cross-check the LLM's output for correctness. Discrepancies trigger regeneration rather than surfacing a potentially wrong hint.
 - **Student Profile Service:** Persists per-student state in a low-latency store (Redis for hot data, PostgreSQL for cold): grade level, BKT mastery estimates per topic/skill, known misconceptions, learning pace, accessibility flags, and session history. Reads on every request (~30ms p99) and writes asynchronously after each response.
@@ -200,7 +200,7 @@ The Socratic method requires the tutor to never simply tell the answer. Instead,
 
 Each problem interaction follows a state progression:
 
-```
+```text
 PROBLEM_PRESENTED → INITIAL_PROBE → HINT_LEVEL_1 → HINT_LEVEL_2 → SCAFFOLD → GUIDED_SOLUTION → REFLECTION
 ```
 
@@ -216,7 +216,7 @@ PROBLEM_PRESENTED → INITIAL_PROBE → HINT_LEVEL_1 → HINT_LEVEL_2 → SCAFFO
 
 **System prompt structure (grade-adapted):**
 
-```
+```text
 You are a Socratic math tutor for a {grade_level} student.
 
 CRITICAL RULES:
@@ -353,7 +353,7 @@ In education, false positives (blocking a safe response) are far preferable to f
 
 **Image processing pipeline:**
 
-```
+```text
 Image Upload → Preprocessing → Classification → Specialized Processor → Structured Output → LLM
 ```
 
@@ -482,7 +482,7 @@ reply = socratic_tutor(
 
 ### Bayesian Knowledge Tracing (BKT) Difficulty Update (Pseudocode)
 
-```
+```text
 # Updates per-skill mastery probability after each student response
 # State: P(mastery) per (student_id, skill_id) stored in Redis
 
@@ -780,3 +780,8 @@ After tracing the failure, propose a single architectural change that would have
 - **Key takeaway:** An AI tutor for education inverts the normal LLM optimization target: the goal is NOT to answer the user's question but to guide them to answer it themselves. This requires a pedagogical state machine, multi-layer answer-withholding enforcement, and effectiveness measurement based on learning outcomes—not engagement. Safety guardrails for minors are non-negotiable and must be defense-in-depth.
 - **What to practice:** Design the Socratic state machine for a specific problem type (e.g., solving quadratic equations). Define each state's behavior, transition conditions, and the system prompt at each stage.
 - **Interview drill:** A student uploads a photo of a math problem, the OCR misreads a digit, the LLM gives hints based on the wrong problem, and the student gets confused. Trace the failure through every pipeline stage and explain where each check should have caught it.
+
+---
+
+<!-- nav-footer -->
+[[chapter-12|← Chapter 12]] | [[README|Contents]] | [[chapter-14|Chapter 14 →]]

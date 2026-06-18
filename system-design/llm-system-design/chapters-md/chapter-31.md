@@ -20,8 +20,8 @@ part: advanced
 
 ### Real-World Examples
 
-- A healthcare app wants to run a medical summarization assistant on a physician's iPhone. Patient notes must not leave the device for HIPAA compliance. A full Llama-3-8B at FP16 requires 16GB of VRAM — far beyond mobile RAM. With INT4 quantization (GGUF Q4_K_M), a Phi-3-mini-3.8B model fits in 2.4GB, runs at 12 tokens/second on the Apple A17 Neural Engine via Core ML, and never transmits any patient data.
-- A code autocomplete tool inside an IDE (similar to GitHub Copilot's offline mode) requires sub-100ms first-token latency to feel responsive. A cloud-based model adds 150-300ms network round-trip. Running a quantized Gemma-2B locally via llama.cpp with Metal acceleration on an M-series MacBook delivers first tokens in 40-60ms with zero network dependency, enabling offline operation on flights and in restricted-network enterprise environments.
+- A healthcare app wants to run a medical summarization assistant on a physician's iPhone. Patient notes must not leave the device for HIPAA compliance. A full Llama-3-8B at FP16 requires 16GB of VRAM — far beyond mobile RAM. With INT4 [[glossary#Quantization|quantization]] (GGUF Q4_K_M), a Phi-3-mini-3.8B model fits in 2.4GB, runs at 12 tokens/second on the Apple A17 Neural Engine via Core ML, and never transmits any patient data.
+- A code autocomplete tool inside an IDE (similar to GitHub Copilot's offline mode) requires sub-100ms first-token [[glossary#Latency (TTFT, TPOT, Tail)|latency]] to feel responsive. A cloud-based model adds 150-300ms network round-trip. Running a quantized Gemma-2B locally via llama.cpp with Metal acceleration on an M-series MacBook delivers first tokens in 40-60ms with zero network dependency, enabling offline operation on flights and in restricted-network enterprise environments.
 
 ---
 
@@ -68,10 +68,10 @@ part: advanced
 
 ### Non-Functional Requirements
 
-- **RAM:** on-device model + KV cache + runtime overhead must stay within 60% of available device RAM (leaving headroom for the OS and other apps). Target: <= 3GB total for a 6GB device, <= 5GB for an 8GB device.
+- **RAM:** on-device model + [[glossary#KV Cache|KV cache]] + runtime overhead must stay within 60% of available device RAM (leaving headroom for the OS and other apps). Target: <= 3GB total for a 6GB device, <= 5GB for an 8GB device.
 - **Battery:** on-device inference must not exceed 10% battery drain per 30-minute active session under normal use.
 - **Thermal:** inference must throttle or stop if device temperature exceeds thermal threshold (typically 40°C skin temperature on mobile).
-- **Latency:** first token <= 500ms; throughput >= 8 tokens/second on target devices.
+- **Latency:** first token <= 500ms; [[glossary#Throughput|throughput]] >= 8 tokens/second on target devices.
 - **Update bandwidth:** monthly model delta <= 200MB; full model download <= 800MB (on first install, Wi-Fi recommended).
 - **Privacy:** zero user content transmitted to cloud unless user explicitly approves routing to cloud for a specific query.
 - **Availability:** on-device inference must be available regardless of network connectivity for queries within the model's capability envelope.
@@ -82,7 +82,7 @@ part: advanced
 
 A model's memory footprint depends on parameter count and quantization precision:
 
-```
+```text
 memory_bytes = num_parameters * bytes_per_parameter
 ```
 
@@ -106,13 +106,13 @@ For a 3B parameter model (Phi-3-mini, Gemma-2B range):
 
 **KV cache sizing for 2K context window:**
 
-```
+```text
 kv_cache_bytes = 2 * num_layers * num_kv_heads * head_dim * context_length * bytes_per_element
 ```
 
 For Phi-3-mini (32 layers, 32 KV heads, 96 head_dim, 2048 context, INT8):
 
-```
+```text
 kv = 2 * 32 * 32 * 96 * 2048 * 1 byte = 2 * 32 * 32 * 96 * 2048
    = 402,653,184 bytes ≈ 384 MB
 ```
@@ -154,7 +154,7 @@ Delta update strategy: monthly, update only changed weight tensors (fine-tune de
 ### Mermaid Architecture Diagram
 
 ```mermaid
-flowchart TB
+flowchart LR
   userQuery[User Query] --> routingClassifier[On-Device Routing Classifier\n<5MB model, <10ms inference]
 
   routingClassifier -->|"simple / private"| docRetrieval[Document Retrieval Layer\non-device FAISS/SQLite-vec]
@@ -186,7 +186,7 @@ flowchart TB
 
 ### 1) Quantization for Edge
 
-The fundamental tension in edge quantization is compression ratio vs quality retention. Every bit reduction cuts model size but degrades perplexity. Quantization maps the continuous distribution of FP16 weight values (each representable to one part in 65,536) onto a much coarser discrete grid — at INT4, only 16 distinct values are available per weight. The reconstruction error from this mapping accumulates across layers: each layer's output is slightly wrong, and that error is the input to the next layer. Quantization-aware training (QAT) bakes this error into the forward pass during training so the model learns to compensate, but QAT requires retraining from scratch. Post-training quantization (PTQ) methods like GPTQ and AWQ minimize reconstruction error layer-by-layer using a small calibration dataset — achieving near-QAT quality without retraining, which is the only practical option for large pre-trained models. The key practical insight is that quantization sensitivity is non-uniform across a model's layers: aggressive quantization of the right 70% of layers can achieve the same perplexity delta as uniform quantization of 40% of layers, meaning careful layer selection is worth engineering effort.
+The fundamental tension in edge quantization is compression ratio vs quality retention. Every bit reduction cuts model size but degrades [[glossary#Perplexity|perplexity]]. Quantization maps the continuous distribution of FP16 weight values (each representable to one part in 65,536) onto a much coarser discrete grid — at INT4, only 16 distinct values are available per weight. The reconstruction error from this mapping accumulates across layers: each layer's output is slightly wrong, and that error is the input to the next layer. Quantization-aware training (QAT) bakes this error into the forward pass during training so the model learns to compensate, but QAT requires retraining from scratch. Post-training quantization (PTQ) methods like GPTQ and AWQ minimize reconstruction error layer-by-layer using a small calibration dataset — achieving near-QAT quality without retraining, which is the only practical option for large pre-trained models. The key practical insight is that quantization sensitivity is non-uniform across a model's layers: aggressive quantization of the right 70% of layers can achieve the same perplexity delta as uniform quantization of 40% of layers, meaning careful layer selection is worth engineering effort.
 
 #### Quantization Format Comparison: GGUF Q4_K_M vs Q8_0
 
@@ -253,7 +253,7 @@ The runtime determines which hardware backends are used, which quantization form
 
 #### Runtime Selection Decision Tree
 
-```
+```text
 Is the target device Apple (iPhone/Mac)?
   → Yes + ANE performance is priority → Core ML
   → Yes + cross-platform code sharing needed → llama.cpp with Metal backend
@@ -293,7 +293,7 @@ Classifier features (computed locally, no LLM needed):
 
 Routing decision logic (pseudocode):
 
-```
+```text
 function route_query(query, user_preference):
     if user_preference == ALWAYS_LOCAL:
         return LOCAL
@@ -889,12 +889,19 @@ if __name__ == "__main__":
 
 ## Step 4: Wrap Up
 
-### Key Design Decisions
+### Final Design Summary
 
 - **Use GGUF Q4_K_M quantization via llama.cpp as the default for mobile, with Q8_0 for laptop deployments.** Q4_K_M delivers the best quality-to-size ratio for 3-7B models on 4-8GB mobile devices, retaining 95-97% of FP16 perplexity. Q8_0 is appropriate for laptops with 8GB+ VRAM where the additional 1.8GB overhead is acceptable in exchange for near-lossless quality.
 - **Use Core ML for iOS production builds, llama.cpp for cross-platform development.** Core ML routes to the Apple Neural Engine on A15+ chips, achieving 2-4x throughput over CPU-only inference. During development and for Android/Windows targets, llama.cpp provides a single codebase with Metal, Vulkan, CUDA, and CPU backends.
 - **Implement hybrid routing with an on-device TF-IDF + logistic regression classifier, not a neural routing model.** A sub-1MB TF-IDF + LR classifier achieves 80-87% routing accuracy at <3ms inference time. A neural classifier improves accuracy to 90-93% but costs 14MB and 5-15ms — acceptable for v2 if routing errors are causing user-visible quality issues. Always enforce privacy hard constraints and context length hard constraints before the classifier score.
 - **Deliver model updates as LoRA adapter deltas (50-200MB) rather than full weight re-downloads (2-5GB).** Monthly full model downloads would cause user churn and fail on metered data connections. LoRA adapter updates apply a delta atop the frozen base model weights, delivering behavior improvements at 5-10% of the full download size, with atomic apply and 7-day rollback support.
+
+### Wrap-Around Concerns
+
+- **Release engineering:** on-device releases decouple the thin app binary (<100MB runtime, tokenizer, routing classifier) from the model weights and adapters delivered as CDN assets, so a model update is a delta download rather than an app-store review cycle. LoRA adapter deltas (50-200MB) are applied atomically atop the frozen base weights with 7-day rollback support, and updates are staged behind a phased rollout so a regression is caught on a small device cohort before reaching the fleet. Because the rollback is a local revert to the prior adapter, a bad update recovers without a re-download, and downloads are scheduled Wi-Fi-first (iOS `isDiscretionary`, Android `NETWORK_WIFI`) with resumable, cloud-only-mode fallback so a failed apply never bricks the app.
+- **Governance:** model artifacts and routing policy are versioned and auditable across the fleet. Each base model version, its quantization format (Q4_K_M for mobile, Q8_0 for laptop), and every LoRA adapter delta is tracked with a content hash so any device's behavior can be tied to the exact weights and adapter it is running. The on-device router's privacy hard constraints — which always keep designated-sensitive queries local and out of any cloud path before the classifier score is even consulted — are governed policy, not tunable heuristics, and changes to them are approved and version-stamped. Telemetry returned from devices is consented and minimized, consistent with the on-device-first privacy posture.
+- **Cost controls:** the architecture pushes inference cost onto the device and minimizes network spend. Hybrid routing keeps 80-87% of queries on-device via the sub-1MB TF-IDF + LR classifier (<3ms), so cloud inference is reserved for the genuinely hard or long-context cases, directly bounding server-side token cost. Update economics are controlled by shipping adapter deltas at 5-10% of a full re-download, avoiding the churn and data-cost of monthly 2-5GB pulls, and by excluding the model directory from device backup so reproducible weights are not re-shipped through iCloud/backup storage. The decision to defer the 14MB neural router to v2 keeps the default footprint small unless routing errors justify the added size and latency.
+- **Drift controls:** quality is tracked per model version, quantization level, and device class, since on-device behavior varies with hardware. Routing accuracy (the 80-87% target) is monitored for regression, because a drop pushes more traffic to cloud or, worse, mis-routes privacy-sensitive queries; a sustained decline is the trigger to retrain the classifier or escalate to the neural router. Quantization quality is re-validated whenever a base model changes — Q4_K_M is expected to hold 95-97% of FP16 perplexity, and a new model that fails that bar is not promoted. Adapter deltas are evaluated against the prior version on representative device tiers (Core ML / ANE on A15+, Metal/Vulkan/CPU elsewhere) so a delta that regresses on one backend is caught before fleet rollout.
 
 ---
 
@@ -902,37 +909,93 @@ if __name__ == "__main__":
 
 ### Interviewer Follow-ups and Frequently Asked Questions
 
-**Q: The App Store has a 4GB binary size limit. Your quantized model is 2.3GB. How do you ship the app?**
+Q: The App Store has a 4GB binary size limit. Your quantized model is 2.3GB. How do you ship the app?
 
 **The Ideal Answer:** The model weights are not bundled inside the app binary — they are downloaded on first launch as a separate asset from a CDN. The app ships with a <100MB download (runtime, tokenizer, routing classifier) and triggers a one-time 2.3GB model download on first open, preferably on Wi-Fi. On iOS, use `URLSession` with `isDiscretionary = true` to schedule downloads on Wi-Fi only. Show a progress bar and allow the app to be used in "cloud-only mode" until the download completes. On Android, use `DownloadManager` with `NETWORK_WIFI`. The model directory is excluded from iCloud backup (`URLResourceKey.isExcludedFromBackupKey = true`) to avoid re-downloading after a device restore.
 
-**Q: A user's phone runs out of RAM mid-inference and the OS kills your app process. How do you handle this?**
+**Deep Dive & Trade-offs:**
+- Bundling the weights in the binary is a non-starter not only because of the 4GB App Store cap but because app updates would re-ship the full 2.3GB on every release; shipping a thin <100MB binary and downloading weights as a CDN asset decouples model versioning from app versioning, so a model update is a delta download rather than a store review cycle.
+- The first-launch download must be designed for failure: `isDiscretionary = true` and `NETWORK_WIFI` defer to Wi-Fi to avoid burning cellular data, but the download can be interrupted by app backgrounding or connectivity loss, so it must be resumable and the app must remain usable in cloud-only mode until the local model is present.
+- Excluding the model directory from iCloud/backup is both a correctness and a cost decision: weights are reproducible from the CDN and re-downloading is cheaper than bloating every device backup by 2.3GB, and it avoids the failure mode where a restored device ships stale weights that no longer match the current model version.
+
+**The Interviewer's Rubric:** A strong answer separates the thin binary from the on-demand weight download, names the platform-specific Wi-Fi-preferring download APIs, and treats cloud-only mode as the graceful state during download. The rubric penalizes answers that try to compress the model under 4GB to fit the binary (missing the update-cost and versioning problems) or that assume the download always succeeds without a resumable, cloud-fallback path.
+
+Q: A user's phone runs out of RAM mid-inference and the OS kills your app process. How do you handle this?
 
 **The Ideal Answer:** The KV cache state is lost when the process is killed — there is no way to resume mid-generation. Design the inference as a stateless request-response: if the process is killed, the user sees an interrupted response and can re-submit. Mitigate by monitoring available system RAM before starting inference (`os_proc_available_memory` on iOS, `ActivityManager.MemoryInfo` on Android). If available RAM falls below a safety threshold (e.g., < 500MB free), truncate the context window, reduce `max_tokens`, or defer inference with a user-visible "low memory" warning. The KV cache is the primary adjustable RAM consumer — reducing context from 4096 to 1024 tokens cuts KV cache size by 75%. A rubric for full credit: (a) correctly identifies that KV cache, not model weights, is the primary variable to shrink under memory pressure; (b) mentions OS-level memory pressure APIs (not just polling free RAM) — iOS sends `didReceiveMemoryWarning` before OOM kill, which is the last chance to release the KV cache buffer before the OS terminates the process; (c) discusses graceful UX: the partial response should be surfaced to the user with an explanation rather than vanishing silently; (d) addresses proactive mitigation — a pre-inference RAM check that blocks the inference call rather than letting the OS kill the process mid-generation is strictly better than reactive recovery.
 
-**Q: How do you validate that the quantized on-device model produces safe outputs, given that safety alignment can degrade under aggressive quantization?**
+**Deep Dive & Trade-offs:**
+- Treat inference as stateless request-response: the KV cache holds the only in-flight generation state and cannot be checkpointed and resumed across a process kill, so the recovery contract is that an interrupted response is surfaced as a partial result and the user can re-submit, not silently retried in a way that hides the OOM.
+- The KV cache, not the model weights, is the adjustable RAM lever — weights are a fixed resident cost, while the cache scales with context length, so reducing context from 4096 to 1024 tokens cuts cache size roughly 75% and is the fastest way to fit inference into a constrained memory envelope.
+- Reactive and proactive controls compose: subscribe to OS memory-pressure signals (iOS `didReceiveMemoryWarning`) to release the cache as a last resort before an OOM kill, but prefer a pre-inference RAM check (`os_proc_available_memory`, `ActivityManager.MemoryInfo`) that truncates context, lowers `max_tokens`, or defers with a "low memory" warning before any compute is scheduled.
+
+**The Interviewer's Rubric:** A strong answer identifies the KV cache (not model weights) as the variable to shrink under memory pressure, uses OS memory-pressure callbacks rather than only polling free RAM, and prefers a proactive pre-inference check over reactive mid-generation recovery while surfacing partial output gracefully. The rubric penalizes answers that try to resume generation across a process kill (impossible — the KV state is gone) or that let the OS terminate the process silently instead of degrading the request in advance.
+
+Q: How do you validate that the quantized on-device model produces safe outputs, given that safety alignment can degrade under aggressive quantization?
 
 **The Ideal Answer:** Safety alignment is a property of the model's learned weights, not the quantization format. INT4 quantization at perplexity delta < 0.5 does not meaningfully change the model's refusal behavior — the safety-relevant weights are in attention heads and specific FFN neurons that are not disproportionately harmed by 4-bit quantization. Validate by running the model's safety eval suite (red-team prompts, jailbreak attempts, harmful content probes) against both the FP16 baseline and the quantized version before release, and require that the safety refusal rate not regress by more than 0.5 percentage points. For models where safety is non-negotiable, apply importance-weighted quantization (AWQ) to protect safety-critical attention layers, or keep those layers at 6-8 bit while quantizing FFN layers at 4 bit.
 
-**Q: The model is 2.3GB on disk but users on Android report it using 4GB of RAM. Why?**
+**Deep Dive & Trade-offs:**
+- The core claim is that safety is a property of the learned weights, not the serialization format: at INT4 with a perplexity delta < 0.5 the refusal behavior is largely preserved because the safety-relevant capacity lives in attention heads and specific FFN neurons that 4-bit quantization does not disproportionately damage — so quantization is not assumed safe, it is measured safe.
+- Validation must be empirical and gated: run the full safety eval suite (red-team prompts, jailbreak attempts, harmful-content probes) against both the FP16 baseline and the quantized build, and treat a refusal-rate regression beyond ~0.5 percentage points as a release blocker rather than shipping on the assumption that quantization is behavior-neutral.
+- When safety is non-negotiable there is a precision-budget trade-off: importance-weighted schemes like AWQ protect safety-critical attention layers, or mixed precision keeps those layers at 6-8 bit while FFN layers run at 4 bit — buying back alignment robustness at a modest size cost rather than uniformly quantizing everything.
+
+**The Interviewer's Rubric:** A strong answer establishes that safety lives in the weights and then proves it with a before/after eval comparison gated on a numeric refusal-rate threshold, rather than reasoning about quantization in the abstract. The rubric penalizes answers that assume aggressive quantization automatically breaks safety (without measuring) or that assume it is automatically safe (without a regression gate), and rewards naming mixed-precision/AWQ protection of safety-critical layers as the mitigation.
+
+Q: The model is 2.3GB on disk but users on Android report it using 4GB of RAM. Why?
 
 **The Ideal Answer:** Three causes. First, llama.cpp memory-maps the GGUF file (mmap), so the 2.3GB file is mapped into the process's virtual address space — but physical RAM usage depends on which pages are accessed, not the total file size. If all model layers are accessed during inference (they are), the full 2.3GB is resident. Second, the KV cache adds 300-800MB depending on context length and quantization. Third, llama.cpp maintains scratch buffers for intermediate computations — typically 200-400MB for a 3B model. Total: 2.3GB (weights) + 0.5GB (KV cache at 2K ctx) + 0.3GB (scratch) ≈ 3.1GB — the remainder is Android's memory allocator fragmentation and Dalvik/ART heap overhead. Fix by reducing N_CTX from 4096 to 2048, enabling KV cache quantization (INT8 KV), and using `use_mlock=False` to allow the OS to page out cold weight pages.
 
-**Q: A competitor ships the same Phi-3-mini model but claims 3x faster inference on Android than your llama.cpp implementation. How do you investigate and close the gap?**
+**Deep Dive & Trade-offs:**
+- On-disk size and resident RAM diverge because llama.cpp mmaps the GGUF file: the 2.3GB maps into virtual address space, but physical residency depends on which pages are touched — and since inference touches every layer, effectively the full 2.3GB becomes resident, so "disk size" is a floor, not the total.
+- The overhead beyond weights is itemizable: a 300-800MB KV cache (context-length and KV-quantization dependent) plus 200-400MB of scratch buffers for intermediate activations bring a 3B model to roughly 3.1GB, and the gap to the reported 4GB is Android allocator fragmentation and ART/Dalvik heap overhead rather than a leak.
+- The fixes target each contributor: lowering N_CTX from 4096 to 2048 shrinks the KV cache, INT8 KV-cache quantization halves its footprint, and `use_mlock=False` lets the OS page out cold weight pages under pressure — each trades a little latency or quality for headroom, so the right combination depends on how tight the device's memory budget is.
+
+**The Interviewer's Rubric:** A strong answer explains the mmap distinction between file size and resident pages, then decomposes the excess RAM into KV cache, scratch buffers, and allocator/runtime overhead with rough magnitudes before proposing targeted fixes. The rubric penalizes answers that treat 4GB RAM for a 2.3GB model as a bug or memory leak, or that propose a single fix without identifying which RAM consumer it addresses.
+
+Q: A competitor ships the same Phi-3-mini model but claims 3x faster inference on Android than your llama.cpp implementation. How do you investigate and close the gap?
 
 **The Ideal Answer:** First, validate the benchmark methodology — is the competitor measuring first-token latency, sustained throughput, or batch size > 1? These give very different numbers. If the comparison is valid, the likely gap is hardware backend utilization. llama.cpp on Android defaults to CPU with ARM NEON; the competitor may be using MLC-LLM with Vulkan GPU compute or a custom NNAPI backend. Profile with Android's GPU profiler (Mali Graphics Debugger or Adreno Profiler) to identify whether inference is CPU-bound or memory-bandwidth-bound. If GPU is underutilized, rebuild llama.cpp with Vulkan backend enabled and benchmark again. For models optimized for specific SoCs (e.g., Snapdragon 8 Gen 3's Hexagon NPU), Qualcomm's AI Engine Direct SDK can provide an additional 2-4x speedup over generic Vulkan by using the NPU's matrix multiplication units directly.
 
-**Q: How do you handle a model that needs to be updated because a security vulnerability was found in the base model's weights (a "jailbreak" that bypasses all safety training)?**
+**Deep Dive & Trade-offs:**
+- Before chasing the gap, validate the benchmark: first-token latency, sustained throughput, and batch>1 throughput produce very different numbers, so a "3x faster" claim is often a methodology mismatch rather than a real backend advantage — establishing apples-to-apples measurement is the first deliverable.
+- If the comparison is fair, the most likely cause is backend utilization: llama.cpp on Android defaults to CPU with ARM NEON, while a competitor may use MLC-LLM with Vulkan GPU compute or an NNAPI backend, so profiling with a GPU profiler to determine whether inference is CPU-bound or memory-bandwidth-bound tells you whether moving to GPU will actually help.
+- Closing the gap is a ladder of increasing specificity and cost: rebuild llama.cpp with the Vulkan backend for generic GPU acceleration, and for specific SoCs go further to vendor NPU paths (Qualcomm AI Engine Direct on Hexagon) for an additional 2-4x — but each step trades portability and engineering effort for per-device speed, so the gain must justify maintaining SoC-specific build variants.
+
+**The Interviewer's Rubric:** A strong answer validates benchmark methodology before conceding a gap, then uses profiling to localize the bottleneck to a hardware backend rather than guessing, and proposes Vulkan/NPU acceleration with awareness of the portability cost. The rubric penalizes answers that immediately assume the competitor is faster and start optimizing without confirming the comparison is valid or identifying whether the workload is CPU- or bandwidth-bound.
+
+Q: How do you handle a model that needs to be updated because a security vulnerability was found in the base model's weights (a "jailbreak" that bypasses all safety training)?
 
 **The Ideal Answer:** A weights-level jailbreak cannot be patched without retraining or fine-tuning — quantization or system prompts alone cannot close a weights-level vulnerability. The response is an emergency delta update: (1) immediately disable the affected model via a server-side kill switch that the app checks on startup (a simple version blacklist endpoint); (2) fall back to cloud-only mode until the patched model is downloaded; (3) expedite the release of a fine-tuned model that closes the jailbreak, quantize it, and push a priority update through the model update pipeline. The kill switch is a critical component of the update architecture — without it, you cannot remotely disable a compromised on-device model. A rubric for full credit: (a) distinguishes between system-prompt-level mitigations (adding refusal instructions to the system prompt — these are bypassed by a weights-level jailbreak) versus fine-tune-level fixes (actually closing the jailbreak, which requires a new model release); (b) correctly identifies that the kill switch must be checked on every app launch, not just on model update check — devices that are offline for weeks must still hit the blacklist endpoint before being allowed to run the compromised model; (c) discusses the kill switch fail-safe behavior: if the kill switch endpoint is unreachable, fail closed (block inference) rather than fail open, especially in a healthcare context where harmful outputs carry liability; (d) mentions the timeline pressure: fine-tuning and re-quantizing a patched model takes 1-3 days, during which cloud-only mode is the only safe option for all affected devices.
 
-**Q: Your on-device model is a fine-tune of Llama-3.2-3B. The user claims the model gave them harmful medical advice. How do you investigate and attribute responsibility?**
+**Deep Dive & Trade-offs:**
+- The vulnerability class determines the fix class: a weights-level jailbreak cannot be closed by quantization changes or system-prompt refusal instructions, because those operate above the weights — only fine-tuning or retraining actually removes the behavior, so system-prompt mitigations are at best a stopgap that a determined attacker bypasses.
+- The kill switch is the load-bearing control and must be checked on every app launch, not only during the model-update check, so a device that has been offline for weeks still hits the blacklist endpoint before it is permitted to run a compromised model — the revocation must reach devices that are not actively updating.
+- Fail-safe direction matters: if the kill-switch endpoint is unreachable the system should fail closed (block local inference, fall back to cloud-only) rather than fail open, especially in a healthcare context where a harmful output carries liability — and the timeline reality is that fine-tuning and re-quantizing a patched model takes 1-3 days, making cloud-only the only safe operating mode in the interim.
+
+**The Interviewer's Rubric:** A strong answer distinguishes system-prompt mitigations (bypassed by a weights-level jailbreak) from fine-tune-level fixes, mandates a per-launch kill-switch check that even long-offline devices must pass, and specifies fail-closed behavior when the endpoint is unreachable. The rubric penalizes answers that try to patch a weights-level vulnerability with prompt instructions, that check the kill switch only on update, or that fail open and let a compromised model keep running when revocation cannot be confirmed.
+
+Q: Your on-device model is a fine-tune of Llama-3.2-3B. The user claims the model gave them harmful medical advice. How do you investigate and attribute responsibility?
 
 **The Ideal Answer:** On-device inference means the full conversation is local — there is no server-side log. Investigation relies on: (1) client-side conversation logs if the app stores them (with user consent under the privacy policy); (2) the specific model version identifier stored in the app; (3) reproduction of the claim using the same model version and prompt. Attribution requires showing that the model version the user had installed at the time of the incident produced the harmful output when given the reported prompt. This is why model version identifiers (stored in the app's local state) and reproducible quantization pipelines (same GGUF file hash for all users on the same version) are critical. Mitigation: add the triggering prompt pattern to the safety eval suite and require a safety regression check before any future model update ships.
 
-**Q: The team wants to run a 13B parameter model on the same mobile devices. How do you approach this?**
+**Deep Dive & Trade-offs:**
+- On-device inference removes the server-side log that cloud systems rely on for investigation, so attribution shifts to client-side evidence: locally stored conversation logs (only if captured with consent under the privacy policy), the model version identifier in the app's local state, and reproduction using that exact version and prompt.
+- Reproducibility is what makes attribution defensible: because all users on a given version share the same GGUF file hash, you can reconstruct the precise model the user ran and demonstrate whether it produced the reported output for the reported prompt — without a deterministic, hash-pinned quantization pipeline, you cannot prove which artifact was actually on the device.
+- The privacy/forensics tension is real: storing conversation logs locally aids investigation but is itself a data-collection decision that must be disclosed and consented to, so the design choice is to log minimally and with consent rather than assume server-side visibility that does not exist; the closing mitigation is to add the triggering prompt to the safety eval suite so a regression gate prevents the same failure in future releases.
+
+**The Interviewer's Rubric:** A strong answer recognizes that on-device inference means no server log and pivots to client-side version identifiers, hash-pinned reproducibility, and consented local logs for attribution. The rubric penalizes answers that assume a server-side transcript exists, that cannot tie the user's installed version to a reproducible artifact, or that ignore the consent constraints on storing conversations locally.
+
+Q: The team wants to run a 13B parameter model on the same mobile devices. How do you approach this?
 
 **The Ideal Answer:** A 13B model at Q4_K_M is approximately 7.9GB — exceeding the available RAM on any phone (8GB total, ~5-6GB available to apps). Three approaches: (1) Layer-offloading: keep the first N transformer layers in device RAM and stream remaining layers from flash storage. llama.cpp supports `n_gpu_layers` partial offloading. Flash read speed on modern phones (NVMe-equivalent, ~1-2 GB/s) means streaming 4GB from storage adds ~2-4 seconds per inference pass — too slow for interactive use. (2) Speculative decoding with a small draft model: run the 3B model as a draft, verify tokens with a 13B model on cloud. Achieves near-13B quality at 3B latency for most tokens. (3) Mixture-of-Experts (MoE) models: a Mixtral-style architecture activates only 2 of 8 expert FFN layers per token — a "13B" MoE has 13B total parameters but only 2-3B active parameters per forward pass, making it 4B-equivalent in RAM and compute. This is the most viable long-term path for large models on mobile.
+
+**Deep Dive & Trade-offs:**
+- The hard constraint is RAM: a 13B model at Q4_K_M is roughly 7.9GB, which exceeds the ~5-6GB available to apps on an 8GB phone, so the question is not "how to quantize harder" but "how to avoid holding all 13B of weights resident at once."
+- Layer-offloading (stream remaining transformer layers from flash via `n_gpu_layers`-style partial offload) is technically possible but throughput-bound: even at ~1-2 GB/s flash, streaming ~4GB per forward pass adds 2-4 seconds of latency, which is acceptable for batch jobs but breaks interactive use — a clear latency-for-capacity trade.
+- The two viable paths trade differently: speculative decoding uses the local 3B as a draft and verifies with a cloud 13B, achieving near-13B quality at near-3B local latency but reintroducing a network dependency; MoE (Mixtral-style, 2-of-8 experts active) keeps 13B total parameters but only 2-3B active per token, making it ~4B-equivalent in RAM and compute and the most viable fully-on-device long-term path.
+
+**The Interviewer's Rubric:** A strong answer leads with the RAM constraint (13B Q4 exceeds app-available memory), then evaluates layer-offloading, cloud-verified speculative decoding, and MoE against latency, quality, and connectivity rather than picking one blindly. The rubric penalizes answers that claim a 13B model fits with "more aggressive quantization" or that ignore the flash-streaming latency penalty that makes naive offloading unusable for interactive inference.
 
 ---
 
@@ -971,3 +1034,16 @@ A user reports that your on-device assistant crashes with an OOM error after a l
 3. The document retrieval layer is inserting the full 3000-token document into every turn's context rather than caching the document tokens in the KV cache once and reusing them across turns.
 
 *Key considerations:* For root cause 1, explain the specific llama.cpp log line that reveals upfront KV allocation (look for `llama_kv_cache_init: kv self size = X MB` in verbose output) and show the config change (`n_ctx=1024` at load time, then `llama_kv_cache_seq_rm` for dynamic management). For root cause 2, explain that the fix requires implementing a sliding-window context eviction policy — but note that naively dropping the oldest KV entries breaks coherence if those entries contain the system prompt; the correct approach is to evict from turn boundaries (always keep the system prompt) and to use `llama_kv_cache_seq_shift` rather than a full context clear. For root cause 3, the fix (prefix caching / prompt caching for the static document portion) requires that the document tokens always appear at the same position in every prompt — if the retrieval layer re-ranks chunks between turns, the prefix changes and the cached KV entries are invalidated, defeating the optimization. Address how you would write a regression test that detects KV cache growth: instrument `estimate_ram_usage_mb()` to assert that RAM usage does not grow by more than 100MB between conversation turn 5 and turn 20 under normal operation.
+
+---
+
+## End of Chapter
+
+- **Key takeaway:** On-device LLM deployment is a memory- and thermal-budget problem before it is a quality problem. INT4 (GGUF Q4_K_M) quantization is what makes a 3B model fit in roughly 2.2GB on a 6GB phone, but the model weights are only part of the footprint — the KV cache scales with n_ctx and can dominate peak RAM, so you size n_ctx to the real conversation length and manage it dynamically rather than pre-allocating the full 4096. Pick the runtime for the silicon (llama.cpp with Metal/NEON on-device, bitsandbytes only where CUDA exists), route hard or long queries to the cloud with a sub-1MB on-device classifier, and treat OTA model updates, battery drain, and thermal throttling as first-class constraints the architecture must respect.
+- **What to practice:** Compute the on-device RAM budget for a Q4_K_M 3B model at n_ctx=4096: add the ~2.2GB quantized weights to the KV cache size, where KV bytes ≈ 2 (K and V) × n_layers × n_ctx × n_kv_heads × head_dim × bytes_per_element, and show how dropping n_ctx to 1024 frees enough headroom to avoid OOM on a 6GB device. Then estimate the daily energy cost of N on-device inferences at a given tokens/sec and battery capacity, and find the query-length threshold at which cloud routing becomes cheaper on the energy budget.
+- **Interview drill:** "Design an offline-capable mobile assistant that must answer within 2s on a mid-range phone with no network. Walk me through quantization choice and the accuracy/size trade-off, runtime selection, how you size and dynamically evict the KV cache so a 20-turn conversation doesn't OOM (sliding-window eviction that preserves the system prompt, prefix caching for static retrieved documents), how the hybrid router decides on-device vs. cloud, and how you deliver model updates over the air without draining the battery or thermally throttling the device mid-generation."
+
+---
+
+<!-- nav-footer -->
+[[chapter-30|← Chapter 30]] | [[README|Contents]] | End →

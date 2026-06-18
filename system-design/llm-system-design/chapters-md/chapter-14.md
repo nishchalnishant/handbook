@@ -21,7 +21,7 @@ part: case-studies
 ### Real-World Examples
 
 - A videoconferencing platform (Zoom AI Companion-class) serves 100K concurrent meetings. A 3-second STT lag causes the incremental summary to drift out of sync with the conversation, and participants lose trust. Switching from batch Whisper transcription to a streaming Conformer model with 200ms chunk processing restores real-time parity.
-- An enterprise meeting assistant attributes action items to the wrong speaker because diarization fails when two participants have similar vocal profiles over a VoIP codec. Adding embedding-based speaker enrollment at meeting start (3-second voice sample per participant) raises attribution accuracy from 78% to 94%.
+- An enterprise meeting assistant attributes action items to the wrong speaker because diarization fails when two participants have similar vocal profiles over a VoIP codec. Adding [[glossary#Embedding|embedding]]-based speaker enrollment at meeting start (3-second voice sample per participant) raises attribution accuracy from 78% to 94%.
 
 ---
 
@@ -39,7 +39,7 @@ part: case-studies
 **Interviewer:** Transcript must appear within 2 seconds of utterance. Running summary must update every 30 seconds. Final polished summary within 10 seconds of meeting end.
 
 **Candidate:** What accuracy targets for STT and diarization?  
-**Interviewer:** Word Error Rate (WER) < 12% for English across accents. Speaker diarization accuracy > 90% (DER < 10%). Action item extraction precision > 85%.
+**Interviewer:** Word Error Rate (WER) < 12% for English across accents. Speaker diarization accuracy > 90% (DER < 10%). Action item extraction [[glossary#Precision|precision]] > 85%.
 
 **Candidate:** Multi-language support?  
 **Interviewer:** English first. Design extensibility for top-10 languages by meeting volume.
@@ -53,17 +53,17 @@ part: case-studies
 - Final polished summary generated within 10 seconds of meeting end. Participants check their email or the meeting UI immediately after hanging up; a 10-minute delay means they have already moved on.
 - Searchable transcript archive with speaker-labeled segments. Organizations need post-meeting audit trails for compliance and dispute resolution; raw unsegmented audio is insufficient.
 
-> **Why:** All six requirements are latency- or attribution-driven because the entire value proposition of a meeting summarizer collapses if output arrives too late or is attributed to the wrong person. A technically perfect summary delivered 30 minutes after meeting end provides almost no value over a human taking notes.
+> **Why the functional requirements are framed around latency and speaker attribution:** All six requirements are latency- or attribution-driven because the entire value proposition of a meeting summarizer collapses if output arrives too late or is attributed to the wrong person. A technically perfect summary delivered 30 minutes after meeting end provides almost no value over a human taking notes.
 
 ### Non-Functional Requirements
 
-- **Latency:** STT utterance-to-text < 2s. Summary update cycle ≤ 30s. Final summary < 10s after meeting end. These three budgets are independent: STT latency is dominated by model inference time and chunk size, while summary update latency is dominated by LLM throughput and prompt length.
+- **Latency:** STT utterance-to-text < 2s. Summary update cycle ≤ 30s. Final summary < 10s after meeting end. These three budgets are independent: STT latency is dominated by model inference time and chunk size, while summary update [[glossary#Latency (TTFT, TPOT, Tail)|latency]] is dominated by LLM [[glossary#Throughput|throughput]] and prompt length.
 - **Scale:** 100K concurrent meetings, average 6 participants per meeting → 600K concurrent audio streams. This scale means even a 0.1% infrastructure failure affects 600 streams simultaneously, making fault isolation per-meeting critical.
 - **Accuracy:** WER < 12%, DER < 10%, action item precision > 85%. These targets are tightly coupled: a WER spike to 20% on a single speaker's utterance will produce garbled input to the diarization service, degrading DER for that segment and potentially corrupting the extracted action items downstream.
 - **Availability:** 99.95% uptime for STT path; summarization can degrade gracefully. At 99.95%, planned downtime allowance is ~26 minutes per month—enough for rolling GPU driver upgrades but not full cluster restarts.
 - **Cost:** < $0.02 per meeting-minute at scale (inclusive of STT + diarization + LLM summarization). This is a hard commercial constraint: at $0.02/min on 48M meeting-minutes/day, the daily cost ceiling is $960K, which must cover GPU amortization, networking, and storage.
 
-> **Why:** These NFRs exist in tension with each other. Higher accuracy (lower WER) requires larger models and longer context, which increases latency and cost. The design must explicitly allocate the latency budget across the pipeline components—STT gets 400ms, diarization gets 800ms, assembly and routing get 400ms, and the remaining 400ms covers network and display—rather than treating latency as a single end-to-end number.
+> **Why explicitly allocate the latency budget across pipeline components:** These NFRs exist in tension with each other. Higher accuracy (lower WER) requires larger models and longer context, which increases latency and cost. The design must explicitly allocate the latency budget across the pipeline components—STT gets 400ms, diarization gets 800ms, assembly and routing get 400ms, and the remaining 400ms covers network and display—rather than treating latency as a single end-to-end number.
 
 ### Back-of-the-Envelope Estimation
 
@@ -102,7 +102,7 @@ part: case-studies
 
 - Summary update every 30s per meeting: `100K / 30 ≈ 3,333 summarization requests/sec`
 - Input: rolling transcript window ~2K tokens, output: ~200 tokens per update
-- 7B quantized model: ~120 tok/sec/GPU, batch of 8 → ~960 tok/sec effective
+- 7B [[glossary#Quantization|quantized]] model: ~120 tok/sec/GPU, batch of 8 → ~960 tok/sec effective
 - Output tokens/sec demand: `3,333 * 200 = 666K tok/sec`
 - GPUs for summarization: `666K / 960 ≈ 694 GPUs` → ~700-900 GPUs
 
@@ -137,7 +137,7 @@ The system is organized into eight loosely coupled services, each with a distinc
 - **Storage Layer:** Three separate stores with different characteristics—a time-series transcript store (Apache Cassandra, partitioned by `meeting_id`, ordered by `timestamp`) for fast segment reads; a document store (Elasticsearch) for full-text transcript search; and an in-memory enrollment cache (Redis) for session-scoped speaker voiceprints.
 - **Observability:** Real-time dashboards track WER (sampled against human-labeled reference utterances, 0.1% sampling rate), DER (computed offline against post-meeting diarization ground truth), P99 STT latency per region, and GPU utilization per service fleet. Alerts fire when WER exceeds 15% (2× the steady-state budget) or P99 STT latency exceeds 1.8s (90% of the 2s SLA).
 
-> **Why:** Each component is independently deployable and scalable because the system's three subsystems—STT, diarization, and summarization—have vastly different resource profiles. STT is GPU-bound and latency-sensitive; diarization is compute-moderate but state-sensitive; summarization is GPU-bound but latency-tolerant. Co-locating them on the same fleet would force all three to scale to the most demanding subsystem's requirements, tripling infrastructure cost.
+> **Why decompose into independently deployable and scalable services:** Each component is independently deployable and scalable because the system's three subsystems—STT, diarization, and summarization—have vastly different resource profiles. STT is GPU-bound and latency-sensitive; diarization is compute-moderate but state-sensitive; summarization is GPU-bound but latency-tolerant. Co-locating them on the same fleet would force all three to scale to the most demanding subsystem's requirements, tripling infrastructure cost.
 
 ### Pipeline A: Audio Ingestion and Transcription Pipeline
 
@@ -292,7 +292,7 @@ Summarizing a 45-minute meeting is not a single inference at meeting end—it is
 
 **Prompt template for incremental update:**
 
-```
+```text
 <system>You are a meeting summarizer. Update the running summary with new transcript content. Preserve all prior decisions and action items. Identify topic transitions. Extract new action items in format: [ACTION] Speaker: Task.</system>
 
 <previous_summary>{S_prev}</previous_summary>
@@ -405,7 +405,7 @@ for chunk in transcript_chunks:
 
 ### Speaker Diarization Pipeline (Pseudocode)
 
-```
+```text
 # Assigns transcript words to speaker IDs using audio embeddings
 
 function diarize(audio_file) -> segments:
@@ -692,6 +692,13 @@ You deploy a new version of the ECAPA-TDNN speaker embedding model (v2) and obse
 
 ---
 
+## End of Chapter
+
 - **Key takeaway:** Real-time meeting summarization is a pipeline coordination problem. The STT subsystem dominates both latency budget and GPU cost. Diarization accuracy determines whether summaries are trusted. Incremental summarization must be architected as a hierarchical stateful process, not a single LLM call at meeting end.
 - **What to practice:** Size the STT GPU fleet for a given concurrent meeting count, accounting for VAD gating, batching efficiency, and mixed narrowband/wideband streams. Draw the latency budget from utterance to displayed text.
 - **Interview drill:** Given a 3-hour meeting with 15 participants, walk through how the transcript, diarization, and summary systems interact—including failure recovery when a worker dies at the 90-minute mark.
+
+---
+
+<!-- nav-footer -->
+[[chapter-13|← Chapter 13]] | [[README|Contents]] | [[chapter-15|Chapter 15 →]]

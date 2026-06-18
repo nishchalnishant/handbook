@@ -1,0 +1,23 @@
+# OS
+.DS_Store
+
+# Obsidian UI state (per-machine, churns every session)
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache
+
+# Local tool state
+.claude/settings.local.json
+
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.bbl
+*.blg
+chapters-tex/*.pdf
+book.pdf
