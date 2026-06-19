@@ -14,7 +14,7 @@ part: case-studies
 > - **Scale:** 50K enterprise users, 2K MCP servers, 100K tool calls/hour peak
 > - **Key Techniques:** host-client-server architecture, tools/resources/prompts, roots, OAuth, approval UX, server trust tiers, result sanitization
 > - **Primary Concerns:** tool safety, prompt injection, confused deputy attacks, data exfiltration, server lifecycle, observability
-> - **Cross-references:** [[chapter-02|Chapter 2]] (tool patterns), [[chapter-05|Chapter 5]] (guardrails), [[chapter-09|Chapter 9]] (agent tools), [[chapter-22|Chapter 22]] (multi-agent orchestration)
+> - **Cross-references:** [[Chapter 2 - The LLM Stack and Core Patterns|Chapter 2]] (tool patterns), [[Chapter 5 - Evaluation, Guardrails, and Safety|Chapter 5]] (guardrails), [[Chapter 9 - Design an Autonomous Research Agent|Chapter 9]] (agent tools), [[Chapter 22 - Design a Multi-Agent Workflow Orchestrator|Chapter 22]] (multi-agent orchestration)
 
 **Problem statement:** Design an enterprise platform that lets AI applications connect to internal and third-party tools through MCP while preserving security, user control, auditability, and reliable developer operations.
 
@@ -678,4 +678,4 @@ A production incident report describes the following behavior: users report seei
 ---
 
 <!-- nav-footer -->
-[[chapter-22|← Chapter 22]] | [[README|Contents]] | [[chapter-24|Chapter 24 →]]
+[[Chapter 22 - Design a Multi-Agent Workflow Orchestrator|← Chapter 22]] | [[README|Contents]] | [[Chapter 24 - LLMOps and Production Lifecycle Management|Chapter 24 →]]

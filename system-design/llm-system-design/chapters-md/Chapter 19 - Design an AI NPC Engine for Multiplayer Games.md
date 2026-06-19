@@ -14,7 +14,7 @@ part: case-studies
 > - **Scale:** 500K CCU, 75K concurrent dialogue sessions
 > - **Key Techniques:** Three-tier memory (short-term/episodic/world state), importance-weighted LRU eviction, 4-layer persona consistency enforcement, 2-tier model routing (3B/1.5B)
 > - **Primary Concerns:** Memory eviction under CCU, lore consistency, edge deployment latency, graceful fallback to scripted responses
-> - **Cross-references:** [[chapter-06|Chapter 6]] (memory management), [[chapter-02|Chapter 2]] (model routing), [[chapter-05|Chapter 5]] (content safety), [[chapter-04|Chapter 4]] (continuous batching deep dive), [[chapter-08|Chapter 8]] (speculative decoding deep dive)
+> - **Cross-references:** [[Chapter 6 - Design a Customer Support Chatbot|Chapter 6]] (memory management), [[Chapter 2 - The LLM Stack and Core Patterns|Chapter 2]] (model routing), [[Chapter 5 - Evaluation, Guardrails, and Safety|Chapter 5]] (content safety), [[Chapter 4 - Serving, Scaling, and Optimizing LLMs|Chapter 4]] (continuous batching deep dive), [[Chapter 8 - Design an AI Coding Assistant|Chapter 8]] (speculative decoding deep dive)
 
 **Problem statement:** Design a real-time AI NPC dialogue engine for a multiplayer game that delivers contextually aware, personality-consistent, lore-grounded dialogue at sub-500ms latency across 500K concurrent users interacting with 200 NPC archetypes, with persistent memory across sessions and zero lore contradictions.
 
@@ -1032,4 +1032,4 @@ Walk through the following diagnostic steps in sequence: (1) Why would a game co
 ---
 
 <!-- nav-footer -->
-[[chapter-18|← Chapter 18]] | [[README|Contents]] | [[chapter-20|Chapter 20 →]]
+[[Chapter 18 - Design a Voice-First Real-Time Agent|← Chapter 18]] | [[README|Contents]] | [[Chapter 20 - Design a Healthcare Triage and Diagnostic Assistant|Chapter 20 →]]

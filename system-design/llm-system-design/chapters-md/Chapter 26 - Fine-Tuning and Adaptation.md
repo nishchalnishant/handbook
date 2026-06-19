@@ -14,7 +14,7 @@ part: foundations
 > - **Scale:** Single GPU (A100 80GB) for 7B LoRA training; multi-GPU DDP for 70B; adapter multiplexing at serving time supports 10–100 adapters per base model replica
 > - **Key Techniques:** LoRA (low-rank adaptation), QLoRA (4-bit quantized LoRA), instruction tuning, DPO, ORPO, continual learning with EWC, adapter merging and hot-swap serving
 > - **Primary Concerns:** Training compute, dataset quality, catastrophic forgetting, serving overhead of adapter loading, evaluation regression against the base model
-> - **Cross-references:** [[chapter-02|Chapter 2]] (LLM stack patterns), [[chapter-05|Chapter 5]] (evaluation and guardrails), [[chapter-25|Chapter 25]] (prompt engineering — must precede fine-tuning decision), [[chapter-21|Chapter 21]] (RAG platform — alternative to fine-tuning for knowledge injection), [[chapter-04|Chapter 4]] (PagedAttention KV cache and continuous batching deep dive)
+> - **Cross-references:** [[Chapter 2 - The LLM Stack and Core Patterns|Chapter 2]] (LLM stack patterns), [[Chapter 5 - Evaluation, Guardrails, and Safety|Chapter 5]] (evaluation and guardrails), [[Chapter 25 - Prompt Engineering in Depth|Chapter 25]] (prompt engineering — must precede fine-tuning decision), [[Chapter 21 - Design an Advanced RAG Platform|Chapter 21]] (RAG platform — alternative to fine-tuning for knowledge injection), [[Chapter 4 - Serving, Scaling, and Optimizing LLMs|Chapter 4]] (PagedAttention KV cache and continuous batching deep dive)
 
 **Problem statement:** Design a production fine-tuning and adaptation system that takes a pretrained base model and a domain-specific dataset, produces a task-specialized model that outperforms the base on target metrics, and serves it efficiently without duplicating base model weights across every adapter variant.
 
@@ -1187,4 +1187,4 @@ A production fine-tuned adapter for customer support classification achieves 96%
 ---
 
 <!-- nav-footer -->
-[[chapter-25|← Chapter 25]] | [[README|Contents]] | [[chapter-27|Chapter 27 →]]
+[[Chapter 25 - Prompt Engineering in Depth|← Chapter 25]] | [[README|Contents]] | [[Chapter 27 - Evaluation at Scale|Chapter 27 →]]

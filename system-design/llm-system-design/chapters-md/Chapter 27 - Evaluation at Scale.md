@@ -14,7 +14,7 @@ part: operations
 > - **Scale:** Applies to any production LLM system; complexity compounds at >= 10K evals/day or >= 5 model dimensions tracked
 > - **Key Techniques:** Eval pyramid (unit → integration → human), LLM-as-judge with calibration, benchmark selection, dataset curation with decontamination, regression golden sets, A/B testing with statistical power, continuous eval in CI/CD, multi-dimensional weighted scoring
 > - **Primary Concerns:** Judge quality, dataset contamination, false regression alerts, eval latency/cost, metric coverage vs observability overhead
-> - **Cross-references:** [[chapter-02|Chapter 2]] (LLM stack patterns), [[chapter-05|Chapter 5]] (guardrails), [[chapter-25|Chapter 25]] (prompt engineering), [[chapter-22|Chapter 22]] (agentic systems — eval surfaces multiply)
+> - **Cross-references:** [[Chapter 2 - The LLM Stack and Core Patterns|Chapter 2]] (LLM stack patterns), [[Chapter 5 - Evaluation, Guardrails, and Safety|Chapter 5]] (guardrails), [[Chapter 25 - Prompt Engineering in Depth|Chapter 25]] (prompt engineering), [[Chapter 22 - Design a Multi-Agent Workflow Orchestrator|Chapter 22]] (agentic systems — eval surfaces multiply)
 
 **Problem statement:** Design an automated evaluation pipeline for a production LLM system that continuously measures output quality, safety, and reliability across model updates — at a cost and latency that makes running evals on every code change feasible, with alerting thresholds calibrated to minimize false positives while catching genuine regressions before they reach users.
 
@@ -1230,4 +1230,4 @@ For each cause: explain how to detect it from the eval registry logs, what the f
 ---
 
 <!-- nav-footer -->
-[[chapter-26|← Chapter 26]] | [[README|Contents]] | [[chapter-28|Chapter 28 →]]
+[[Chapter 26 - Fine-Tuning and Adaptation|← Chapter 26]] | [[README|Contents]] | [[Chapter 28 - Cost Optimization as a Design Concern|Chapter 28 →]]

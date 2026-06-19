@@ -14,7 +14,7 @@ part: foundations
 > - **Scale:** 5M documents, 300M+ chunks, 500 QPS retrieval
 > - **Key Techniques:** Parent-child chunking, BM25 + dense hybrid, cross-encoder reranking, blue-green index swap
 > - **Primary Concerns:** Recall@K targets, embedding freshness, ACL enforcement, index lifecycle
-> - **Cross-references:** [[chapter-02|Chapter 2]] (RAG pattern), [[chapter-05|Chapter 5]] (eval), [[chapter-07|Chapter 7]] (enterprise search case study)
+> - **Cross-references:** [[Chapter 2 - The LLM Stack and Core Patterns|Chapter 2]] (RAG pattern), [[Chapter 5 - Evaluation, Guardrails, and Safety|Chapter 5]] (eval), [[Chapter 7 - Design an Enterprise Semantic Search Engine|Chapter 7]] (enterprise search case study)
 
 **Problem statement:** Design scalable ingestion, embedding, indexing, and hybrid retrieval infrastructure that preserves relevance under fast-changing enterprise corpora.
 
@@ -513,4 +513,4 @@ Your weekly automated quality audit reports that Recall@10 on the benchmark quer
 ---
 
 <!-- nav-footer -->
-[[chapter-02|← Chapter 2]] | [[README|Contents]] | [[chapter-04|Chapter 4 →]]
+[[Chapter 2 - The LLM Stack and Core Patterns|← Chapter 2]] | [[README|Contents]] | [[Chapter 4 - Serving, Scaling, and Optimizing LLMs|Chapter 4 →]]

@@ -14,7 +14,7 @@ part: case-studies
 > - **Scale:** 2M documents/day, < 5s latency, 99.5%+ per-field accuracy
 > - **Key Techniques:** Layout detection (DETR), table structure recognition, constrained decoding, 5-layer hallucination prevention
 > - **Primary Concerns:** Digit transposition errors, cross-document bleed, arithmetic consistency, compliance audit trail
-> - **Cross-references:** [[chapter-07|Chapter 7]] (document parsing), [[chapter-17|Chapter 17]] (legal contracts), [[chapter-05|Chapter 5]] (guardrails)
+> - **Cross-references:** [[Chapter 7 - Design an Enterprise Semantic Search Engine|Chapter 7]] (document parsing), [[Chapter 17 - Design a Legal Contract Review System|Chapter 17]] (legal contracts), [[Chapter 5 - Evaluation, Guardrails, and Safety|Chapter 5]] (guardrails)
 
 **Problem statement:** Design a production system that ingests millions of financial documents (invoices, bank statements, contracts, tax forms), extracts structured fields with >99.5% per-field accuracy, and outputs validated JSON—where a single [[glossary#Hallucination (LLM)|hallucinated]] number can trigger regulatory violations or erroneous payments.
 
@@ -1025,4 +1025,4 @@ def arithmetic_validation_score(invoice: dict) -> float:
 ---
 
 <!-- nav-footer -->
-[[chapter-10|← Chapter 10]] | [[README|Contents]] | [[chapter-12|Chapter 12 →]]
+[[Chapter 10 - Design an Automated Content Generation Pipeline|← Chapter 10]] | [[README|Contents]] | [[Chapter 12 - Design a Personalized E-commerce Shopping Assistant|Chapter 12 →]]

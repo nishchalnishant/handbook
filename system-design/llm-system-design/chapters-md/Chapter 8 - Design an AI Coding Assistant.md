@@ -14,7 +14,7 @@ part: case-studies
 > - **Scale:** 200M completions/day, 20M chat turns/day
 > - **Key Techniques:** FIM prompting, speculative decoding (1B draft model), prefix KV caching, token budget assembly
 > - **Primary Concerns:** < 300ms TTFT for autocomplete, acceptance rate telemetry, context window management
-> - **Cross-references:** [[chapter-04|Chapter 4]] (serving optimization), [[chapter-09|Chapter 9]] (agentic path for complex edits)
+> - **Cross-references:** [[Chapter 4 - Serving, Scaling, and Optimizing LLMs|Chapter 4]] (serving optimization), [[Chapter 9 - Design an Autonomous Research Agent|Chapter 9]] (agentic path for complex edits)
 
 **Problem statement:** Design an IDE-integrated coding assistant (GitHub Copilot-class) that delivers sub-300ms inline completions, multi-turn chat, and repo-aware suggestions—while managing extreme sensitivity to latency, context assembly correctness, and suggestion acceptance rate.
 
@@ -829,4 +829,4 @@ After deploying a new version of the context assembly service, TTFT p95 jumps fr
 ---
 
 <!-- nav-footer -->
-[[chapter-07|← Chapter 7]] | [[README|Contents]] | [[chapter-09|Chapter 9 →]]
+[[Chapter 7 - Design an Enterprise Semantic Search Engine|← Chapter 7]] | [[README|Contents]] | [[Chapter 9 - Design an Autonomous Research Agent|Chapter 9 →]]

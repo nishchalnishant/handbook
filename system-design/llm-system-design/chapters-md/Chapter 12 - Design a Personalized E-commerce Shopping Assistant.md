@@ -14,7 +14,7 @@ part: case-studies
 > - **Scale:** 50M product catalog, real-time inventory cache (30s TTL)
 > - **Key Techniques:** Long-term + short-term user profile fusion, hybrid retrieval (semantic + BM25 + structured), business constraint layers
 > - **Primary Concerns:** Inventory staleness, margin target enforcement, cold-start users, A/B revenue attribution
-> - **Cross-references:** [[chapter-03|Chapter 3]] (hybrid retrieval), [[chapter-02|Chapter 2]] (RAG pattern)
+> - **Cross-references:** [[Chapter 3 - Data Pipelines and Vector Infrastructure|Chapter 3]] (hybrid retrieval), [[Chapter 2 - The LLM Stack and Core Patterns|Chapter 2]] (RAG pattern)
 
 **Problem statement:** Design a conversational shopping assistant that merges real-time user behavior, purchase history, and a 50M-product catalog to deliver personalized, inventory-aware product recommendations through natural language—while optimizing for revenue per session, not just answer quality.
 
@@ -960,4 +960,4 @@ After deploying a new personalization reranking model (cross-encoder trained on 
 ---
 
 <!-- nav-footer -->
-[[chapter-11|← Chapter 11]] | [[README|Contents]] | [[chapter-13|Chapter 13 →]]
+[[Chapter 11 - Design a Financial Document Extraction System|← Chapter 11]] | [[README|Contents]] | [[Chapter 13 - Design an AI Tutor for Education|Chapter 13 →]]

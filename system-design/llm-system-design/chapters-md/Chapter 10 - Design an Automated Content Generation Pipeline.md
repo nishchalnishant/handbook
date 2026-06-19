@@ -14,7 +14,7 @@ part: case-studies
 > - **Scale:** High-volume content operations with HITL review
 > - **Key Techniques:** Outline→draft→polish→format DAG (Temporal.io), quality scoring, 15% HITL routing, prompt A/B testing
 > - **Primary Concerns:** Brand voice consistency, quality gate thresholds, pipeline observability, HITL latency
-> - **Cross-references:** [[chapter-02|Chapter 2]] (prompt chaining), [[chapter-05|Chapter 5]] (output evaluation)
+> - **Cross-references:** [[Chapter 2 - The LLM Stack and Core Patterns|Chapter 2]] (prompt chaining), [[Chapter 5 - Evaluation, Guardrails, and Safety|Chapter 5]] (output evaluation)
 
 **Problem statement:** Design a high-throughput asynchronous content generation pipeline that processes 200K+ pieces per day through multi-stage prompt chains, automated quality scoring, and human-in-the-loop (HITL) review—optimizing for throughput and consistency over latency.
 
@@ -911,4 +911,4 @@ A new blog draft prompt template (v4) was deployed at 10% traffic three days ago
 ---
 
 <!-- nav-footer -->
-[[chapter-09|← Chapter 9]] | [[README|Contents]] | [[chapter-11|Chapter 11 →]]
+[[Chapter 9 - Design an Autonomous Research Agent|← Chapter 9]] | [[README|Contents]] | [[Chapter 11 - Design a Financial Document Extraction System|Chapter 11 →]]

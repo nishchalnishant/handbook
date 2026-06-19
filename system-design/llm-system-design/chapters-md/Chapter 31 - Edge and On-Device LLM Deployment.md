@@ -14,7 +14,7 @@ part: advanced
 > - **Scale:** Applies to any LLM feature where privacy, latency, or offline operation matter; architecture complexity scales with device heterogeneity and fleet size
 > - **Key Techniques:** INT4/INT8 quantization (GGUF, GPTQ, AWQ), inference runtime selection (llama.cpp, MLC-LLM, Core ML, ExecuTorch), hybrid edge-cloud confidence routing, delta model update delivery, KV cache sizing for constrained RAM, battery and thermal throttle management
 > - **Primary Concerns:** RAM budget per device class, quantization perplexity loss vs compression ratio, runtime portability vs performance, model update bandwidth, thermal and battery impact of continuous inference
-> - **Cross-references:** [[chapter-02|Chapter 2]] (LLM stack patterns), [[chapter-05|Chapter 5]] (guardrails), [[chapter-21|Chapter 21]] (inference optimization), [[chapter-22|Chapter 22]] (agentic systems), [[chapter-25|Chapter 25]] (prompt engineering)
+> - **Cross-references:** [[Chapter 2 - The LLM Stack and Core Patterns|Chapter 2]] (LLM stack patterns), [[Chapter 5 - Evaluation, Guardrails, and Safety|Chapter 5]] (guardrails), [[Chapter 21 - Design an Advanced RAG Platform|Chapter 21]] (inference optimization), [[Chapter 22 - Design a Multi-Agent Workflow Orchestrator|Chapter 22]] (agentic systems), [[Chapter 25 - Prompt Engineering in Depth|Chapter 25]] (prompt engineering)
 
 **Problem statement:** Design an end-to-end system that deploys a large language model directly on user devices — mobile phones, laptops, and embedded hardware — while satisfying hard RAM, battery, and thermal constraints, preserving user privacy by keeping data on-device, and gracefully routing to the cloud when the query complexity exceeds local capability.
 
@@ -1046,4 +1046,4 @@ A user reports that your on-device assistant crashes with an OOM error after a l
 ---
 
 <!-- nav-footer -->
-[[chapter-30|← Chapter 30]] | [[README|Contents]] | End →
+[[Chapter 30 - Privacy, Compliance, and Data Governance for LLM Systems|← Chapter 30]] | [[README|Contents]] | End →

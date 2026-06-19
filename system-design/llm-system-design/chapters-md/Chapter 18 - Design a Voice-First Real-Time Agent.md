@@ -14,7 +14,7 @@ part: case-studies
 > - **Scale:** 50K concurrent voice sessions, 12M sessions/day
 > - **Key Techniques:** Streaming STT (Deepgram Nova-2) + self-hosted 8B LLM with speculative decoding + XTTS v2 TTS, barge-in handling (AEC + 2-stage detection), Silero VAD
 > - **Primary Concerns:** End-to-end < 500ms voice-to-voice latency, barge-in interruption handling, acoustic echo cancellation, graceful degradation
-> - **Cross-references:** [[chapter-04|Chapter 4]] (speculative decoding), [[chapter-14|Chapter 14]] (streaming STT), [[chapter-09|Chapter 9]] (agentic loop control), [[chapter-19|Chapter 19]] (real-time NPC dialogue at high concurrency)
+> - **Cross-references:** [[Chapter 4 - Serving, Scaling, and Optimizing LLMs|Chapter 4]] (speculative decoding), [[Chapter 14 - Design a Real-Time Meeting Summarizer|Chapter 14]] (streaming STT), [[Chapter 9 - Design an Autonomous Research Agent|Chapter 9]] (agentic loop control), [[Chapter 19 - Design an AI NPC Engine for Multiplayer Games|Chapter 19]] (real-time NPC dialogue at high concurrency)
 
 **Problem statement:** Design a real-time voice agent that conducts natural conversations over phone or drive-thru intercom with sub-500ms voice-to-voice latency, handles interruptions gracefully, and maintains task state across multi-turn dialogues—processing 50K concurrent sessions with human-like responsiveness.
 
@@ -1058,4 +1058,4 @@ Diagnose the root cause. Explain why TTS p95 latency tripled while GPU utilizati
 ---
 
 <!-- nav-footer -->
-[[chapter-17|← Chapter 17]] | [[README|Contents]] | [[chapter-19|Chapter 19 →]]
+[[Chapter 17 - Design a Legal Contract Review System|← Chapter 17]] | [[README|Contents]] | [[Chapter 19 - Design an AI NPC Engine for Multiplayer Games|Chapter 19 →]]

@@ -14,7 +14,7 @@ part: case-studies
 > - **Scale:** 200K workflows/day, 5-50 agent steps/workflow, p95 workflow completion < 10 minutes
 > - **Key Techniques:** task decomposition, DAG scheduling, typed handoffs, tool sandboxing, state store, approval gates, trace replay
 > - **Primary Concerns:** runaway loops, conflicting agents, tool safety, observability, cost, deterministic recovery
-> - **Cross-references:** [[chapter-09|Chapter 9]] (autonomous research agent), [[chapter-10|Chapter 10]] (DAG orchestration), [[chapter-16|Chapter 16]] (sandboxed execution)
+> - **Cross-references:** [[Chapter 9 - Design an Autonomous Research Agent|Chapter 9]] (autonomous research agent), [[Chapter 10 - Design an Automated Content Generation Pipeline|Chapter 10]] (DAG orchestration), [[Chapter 16 - Design an AI Data Analyst (Text-to-SQL and Insights)|Chapter 16]] (sandboxed execution)
 
 **Problem statement:** Design a platform where multiple specialized agents collaborate on complex enterprise workflows such as incident response, sales research, code migration, or compliance review.
 
@@ -701,4 +701,4 @@ Given this evidence, identify at least three distinct failure hypotheses ordered
 ---
 
 <!-- nav-footer -->
-[[chapter-21|← Chapter 21]] | [[README|Contents]] | [[chapter-23|Chapter 23 →]]
+[[Chapter 21 - Design an Advanced RAG Platform|← Chapter 21]] | [[README|Contents]] | [[Chapter 23 - Design an MCP-Based Tool Integration Platform|Chapter 23 →]]

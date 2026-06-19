@@ -14,7 +14,7 @@ part: case-studies
 > - **Scale:** 500K tasks/day, $0.50/task budget
 > - **Key Techniques:** Plan-then-ReAct, sandboxed tool execution (gVisor), loop detection (5 signal types), budget hierarchy
 > - **Primary Concerns:** Loop termination, cost runaway, sandbox security, task budget enforcement
-> - **Cross-references:** [[chapter-02|Chapter 2]] (agentic pattern), [[chapter-05|Chapter 5]] (safety), [[chapter-16|Chapter 16]] (SQL agent)
+> - **Cross-references:** [[Chapter 2 - The LLM Stack and Core Patterns|Chapter 2]] (agentic pattern), [[Chapter 5 - Evaluation, Guardrails, and Safety|Chapter 5]] (safety), [[Chapter 16 - Design an AI Data Analyst (Text-to-SQL and Insights)|Chapter 16]] (SQL agent)
 
 **Problem statement:** Design a production-grade autonomous research agent that decomposes complex questions into sub-tasks, selects and executes [[glossary#Tool Use / Function Calling|tools]] (web search, APIs, code execution), synthesizes findings with citations—while preventing infinite loops, [[glossary#Hallucination (LLM)|hallucinated]] sources, and runaway costs.
 
@@ -763,4 +763,4 @@ A production agent has spent $2.50 on a single task — exactly 5x the $0.50 bud
 ---
 
 <!-- nav-footer -->
-[[chapter-08|← Chapter 8]] | [[README|Contents]] | [[chapter-10|Chapter 10 →]]
+[[Chapter 8 - Design an AI Coding Assistant|← Chapter 8]] | [[README|Contents]] | [[Chapter 10 - Design an Automated Content Generation Pipeline|Chapter 10 →]]

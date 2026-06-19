@@ -14,7 +14,7 @@ part: operations
 > - **Scale:** Applies to any production LLM system handling personal data; required for regulated industries (healthcare, finance, legal) from day one; complexity compounds when using external API providers
 > - **Key Techniques:** NER-based PII detection with confidence thresholds, pseudonymization with entity-consistent substitution, SISA training for machine unlearning, tombstoning in vector stores, right-to-erasure pipelines, ACL-filtered retrieval (query-time vs. index-time), immutable audit logging, vendor DPA/BAA assessment
 > - **Primary Concerns:** PHI/PII leakage to API providers, right-to-deletion in fine-tuned model weights, data residency enforcement, over-redaction breaking LLM reasoning, audit log completeness, ACL bypass through indirect prompt injection
-> - **Cross-references:** [[chapter-02|Chapter 2]] (LLM stack patterns), [[chapter-05|Chapter 5]] (guardrails and safety), [[chapter-22|Chapter 22]] (agentic systems — attack surface multiplies), [[chapter-27|Chapter 27]] (evaluation — compliance of eval pipelines), [[chapter-24|Chapter 24]] (RAG architecture — retrieval trust boundaries)
+> - **Cross-references:** [[Chapter 2 - The LLM Stack and Core Patterns|Chapter 2]] (LLM stack patterns), [[Chapter 5 - Evaluation, Guardrails, and Safety|Chapter 5]] (guardrails and safety), [[Chapter 22 - Design a Multi-Agent Workflow Orchestrator|Chapter 22]] (agentic systems — attack surface multiplies), [[Chapter 27 - Evaluation at Scale|Chapter 27]] (evaluation — compliance of eval pipelines), [[Chapter 24 - LLMOps and Production Lifecycle Management|Chapter 24]] (RAG architecture — retrieval trust boundaries)
 
 **Problem statement:** Design a privacy and compliance layer for a production LLM system that handles personal data — including PHI, PII, and user-generated content subject to GDPR and CCPA — ensuring that personal data is detected and de-identified before it reaches external model APIs, that users can exercise their right to erasure without requiring full model retraining, that retrieval is gated by access controls, and that every data access is captured in an immutable audit log sufficient to satisfy regulatory inquiry.
 
@@ -1233,4 +1233,4 @@ Your nightly audit reconciliation job reports that over a 3-day period, 14 retri
 ---
 
 <!-- nav-footer -->
-[[chapter-29|← Chapter 29]] | [[README|Contents]] | [[chapter-31|Chapter 31 →]]
+[[Chapter 29 - Observability and Incident Response for LLM Systems|← Chapter 29]] | [[README|Contents]] | [[Chapter 31 - Edge and On-Device LLM Deployment|Chapter 31 →]]

@@ -14,7 +14,7 @@ part: case-studies
 > - **Scale:** 5M student users, 3M sessions/day
 > - **Key Techniques:** Socratic state machine (answer withholding), BKT adaptive difficulty, COPPA-compliant safety stack, multimodal math OCR
 > - **Primary Concerns:** Answer-withholding enforcement, age-appropriate safety, accessibility, adaptive difficulty calibration
-> - **Cross-references:** [[chapter-05|Chapter 5]] (guardrails), [[chapter-20|Chapter 20]] (regulated domain)
+> - **Cross-references:** [[Chapter 5 - Evaluation, Guardrails, and Safety|Chapter 5]] (guardrails), [[Chapter 20 - Design a Healthcare Triage and Diagnostic Assistant|Chapter 20]] (regulated domain)
 
 **Problem statement:** Design an AI tutoring system for K-12 and college students that teaches through Socratic questioning—guiding students to answers rather than giving them directly—while enforcing zero-tolerance [[glossary#Safety Filter / Guardrails|safety guardrails]] for minors and supporting multimodal inputs including photos of handwritten homework.
 
@@ -784,4 +784,4 @@ After tracing the failure, propose a single architectural change that would have
 ---
 
 <!-- nav-footer -->
-[[chapter-12|← Chapter 12]] | [[README|Contents]] | [[chapter-14|Chapter 14 →]]
+[[Chapter 12 - Design a Personalized E-commerce Shopping Assistant|← Chapter 12]] | [[README|Contents]] | [[Chapter 14 - Design a Real-Time Meeting Summarizer|Chapter 14 →]]

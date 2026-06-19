@@ -14,7 +14,7 @@ part: foundations
 > - **Scale:** Applies to any production LLM endpoint; token and latency sensitivity increases at >= 100 QPS
 > - **Key Techniques:** Role prompting, XML/JSON structured output, chain-of-thought, embedding-based few-shot retrieval, hard negative mining, prompt registry, A/B testing, prompt injection defense
 > - **Primary Concerns:** Output consistency, hallucination rate, latency/cost, prompt injection risk, production drift
-> - **Cross-references:** [[chapter-02|Chapter 2]] (LLM stack patterns), [[chapter-05|Chapter 5]] (evaluation and guardrails), [[chapter-21|Chapter 21]] (RAG platform — complex prompting prerequisite), [[chapter-22|Chapter 22]] (agentic systems — CoT prerequisite)
+> - **Cross-references:** [[Chapter 2 - The LLM Stack and Core Patterns|Chapter 2]] (LLM stack patterns), [[Chapter 5 - Evaluation, Guardrails, and Safety|Chapter 5]] (evaluation and guardrails), [[Chapter 21 - Design an Advanced RAG Platform|Chapter 21]] (RAG platform — complex prompting prerequisite), [[Chapter 22 - Design a Multi-Agent Workflow Orchestrator|Chapter 22]] (agentic systems — CoT prerequisite)
 
 **Problem statement:** Design a production-grade prompt engineering system that delivers consistent, high-quality outputs across changing inputs, model updates, and team members — with versioning, safety, and measurable quality gates.
 
@@ -1022,9 +1022,9 @@ Q: How do you version and deploy prompt changes with the same rigor as code?
 - **Key takeaway:** Prompt engineering at production scale is a systems problem: structure reduces variance, versioning enables rollback, dynamic selection improves quality on diverse inputs, and injection detection closes the security surface that opens whenever user content reaches model context.
 - **What to practice:** Given a task specification, design the full prompt structure in 5 minutes: system constraints, CoT or not, output schema, injection defense, retry policy, and validation gate. Justify every choice with a failure mode it prevents.
 - **Interview drill:** Take a prompt that returns inconsistent JSON 10% of the time. Walk through the diagnosis — which of the three common failure modes (type confusion, markdown wrapping, extra fields) applies — and explain the minimum change at each layer (prompt, validator, retry) needed to reach < 1% failure rate.
-- **Prerequisite for:** [[chapter-21|Chapter 21]] (Advanced RAG Platform), [[chapter-22|Chapter 22]] (Agentic Systems), any case study requiring structured model output or complex multi-step prompting.
+- **Prerequisite for:** [[Chapter 21 - Design an Advanced RAG Platform|Chapter 21]] (Advanced RAG Platform), [[Chapter 22 - Design a Multi-Agent Workflow Orchestrator|Chapter 22]] (Agentic Systems), any case study requiring structured model output or complex multi-step prompting.
 
 ---
 
 <!-- nav-footer -->
-[[chapter-24|← Chapter 24]] | [[README|Contents]] | [[chapter-26|Chapter 26 →]]
+[[Chapter 24 - LLMOps and Production Lifecycle Management|← Chapter 24]] | [[README|Contents]] | [[Chapter 26 - Fine-Tuning and Adaptation|Chapter 26 →]]

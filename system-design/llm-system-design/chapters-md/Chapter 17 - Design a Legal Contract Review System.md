@@ -14,7 +14,7 @@ part: case-studies
 > - **Scale:** 10K contracts/day, avg 80 pages (~120K tokens)
 > - **Key Techniques:** Hierarchical chunking (coarse + fine extraction), 5-layer citation verification, clause alignment algorithm, temperature=0 for reproducibility
 > - **Primary Concerns:** Citation fabrication, digit transposition, OCR error propagation, 7-year audit trail (WORM)
-> - **Cross-references:** [[chapter-03|Chapter 3]] (chunking), [[chapter-11|Chapter 11]] (document extraction), [[chapter-05|Chapter 5]] (hallucination prevention)
+> - **Cross-references:** [[Chapter 3 - Data Pipelines and Vector Infrastructure|Chapter 3]] (chunking), [[Chapter 11 - Design a Financial Document Extraction System|Chapter 11]] (document extraction), [[Chapter 5 - Evaluation, Guardrails, and Safety|Chapter 5]] (hallucination prevention)
 
 **Problem statement:** Design a system that reviews legal contracts at scale—extracting clauses, grounding every finding to exact source text, comparing against master templates, and producing structured risk assessments—while handling documents that routinely exceed 100K tokens and tolerating zero [[glossary#Hallucination (LLM)|hallucinated]] legal language.
 
@@ -805,4 +805,4 @@ You are on-call and receive an alert: extraction accuracy for the `termination` 
 ---
 
 <!-- nav-footer -->
-[[chapter-16|← Chapter 16]] | [[README|Contents]] | [[chapter-18|Chapter 18 →]]
+[[Chapter 16 - Design an AI Data Analyst (Text-to-SQL and Insights)|← Chapter 16]] | [[README|Contents]] | [[Chapter 18 - Design a Voice-First Real-Time Agent|Chapter 18 →]]

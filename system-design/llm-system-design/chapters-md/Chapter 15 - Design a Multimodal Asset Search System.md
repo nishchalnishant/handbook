@@ -14,7 +14,7 @@ part: case-studies
 > - **Scale:** Large multi-modal asset corpus with real-time indexing
 > - **Key Techniques:** CLIP/SigLIP shared embedding space, modality-specific indexes with score normalization, video keyframe extraction (TransNetV2 + uniform sampling), multimodal score fusion
 > - **Primary Concerns:** Cross-modal calibration, temporal precision for video, document rendering strategy, index freshness
-> - **Cross-references:** [[chapter-03|Chapter 3]] (vector infrastructure), [[chapter-07|Chapter 7]] (enterprise search), [[chapter-14|Chapter 14]] (audio/video signals)
+> - **Cross-references:** [[Chapter 3 - Data Pipelines and Vector Infrastructure|Chapter 3]] (vector infrastructure), [[Chapter 7 - Design an Enterprise Semantic Search Engine|Chapter 7]] (enterprise search), [[Chapter 14 - Design a Real-Time Meeting Summarizer|Chapter 14]] (audio/video signals)
 
 **Problem statement:** Design a search system that supports cross-modal queries (text→image, image→text, text→video, image→video) over 500M assets using joint [[glossary#Embedding|embedding]] spaces, with sub-150ms retrieval [[glossary#Latency (TTFT, TPOT, Tail)|latency]] and production-grade ranking.
 
@@ -763,4 +763,4 @@ Start by examining the distribution of cosine similarity scores for the two quer
 ---
 
 <!-- nav-footer -->
-[[chapter-14|← Chapter 14]] | [[README|Contents]] | [[chapter-16|Chapter 16 →]]
+[[Chapter 14 - Design a Real-Time Meeting Summarizer|← Chapter 14]] | [[README|Contents]] | [[Chapter 16 - Design an AI Data Analyst (Text-to-SQL and Insights)|Chapter 16 →]]

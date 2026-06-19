@@ -14,7 +14,7 @@ part: operations
 > - **Scale:** Cost pressure begins at ~$5K/month in API spend; architectural changes pay off at >= $20K/month
 > - **Key Techniques:** Semantic caching with cosine threshold, cascading model routing, LLMLingua prompt compression, output length control, continuous batching, INT8/INT4 quantization, speculative decoding, right-sizing GPU compute
 > - **Primary Concerns:** Cost per request, quality preservation, latency SLOs, cache freshness, routing accuracy
-> - **Cross-references:** [[chapter-02|Chapter 2]] (LLM stack patterns), [[chapter-05|Chapter 5]] (evaluation), [[chapter-21|Chapter 21]] (RAG platform), [[chapter-25|Chapter 25]] (prompt engineering — compression prerequisite), [[chapter-04|Chapter 4]] (continuous batching deep dive), [[chapter-08|Chapter 8]] (speculative decoding deep dive), [[chapter-31|Chapter 31]] (quantization deep dive)
+> - **Cross-references:** [[Chapter 2 - The LLM Stack and Core Patterns|Chapter 2]] (LLM stack patterns), [[Chapter 5 - Evaluation, Guardrails, and Safety|Chapter 5]] (evaluation), [[Chapter 21 - Design an Advanced RAG Platform|Chapter 21]] (RAG platform), [[Chapter 25 - Prompt Engineering in Depth|Chapter 25]] (prompt engineering — compression prerequisite), [[Chapter 4 - Serving, Scaling, and Optimizing LLMs|Chapter 4]] (continuous batching deep dive), [[Chapter 8 - Design an AI Coding Assistant|Chapter 8]] (speculative decoding deep dive), [[Chapter 31 - Edge and On-Device LLM Deployment|Chapter 31]] (quantization deep dive)
 
 **Problem statement:** Design a production LLM cost optimization system that treats inference spend as a first-class design constraint — reducing cost-per-request by 40-70% while preserving quality SLOs, maintaining p95 latency budgets, and providing per-team cost attribution for budget governance.
 
@@ -1307,4 +1307,4 @@ Identify the root cause, explain how the confidence distribution shift is connec
 ---
 
 <!-- nav-footer -->
-[[chapter-27|← Chapter 27]] | [[README|Contents]] | [[chapter-29|Chapter 29 →]]
+[[Chapter 27 - Evaluation at Scale|← Chapter 27]] | [[README|Contents]] | [[Chapter 29 - Observability and Incident Response for LLM Systems|Chapter 29 →]]

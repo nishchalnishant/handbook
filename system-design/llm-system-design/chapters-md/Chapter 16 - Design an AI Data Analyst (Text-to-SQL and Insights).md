@@ -14,7 +14,7 @@ part: case-studies
 > - **Scale:** 50K analysts, 200K queries/day, target < $0.05/query
 > - **Key Techniques:** Embedding-based schema compression (400+ tables → 5-15), sandboxed SQL execution, 7-type error classification with self-repair, result validation heuristics
 > - **Primary Concerns:** Schema grounding at scale, SQL injection prevention, query cost runaway, result correctness validation
-> - **Cross-references:** [[chapter-09|Chapter 9]] (agentic pattern), [[chapter-05|Chapter 5]] (guardrails), [[chapter-11|Chapter 11]] (structured output)
+> - **Cross-references:** [[Chapter 9 - Design an Autonomous Research Agent|Chapter 9]] (agentic pattern), [[Chapter 5 - Evaluation, Guardrails, and Safety|Chapter 5]] (guardrails), [[Chapter 11 - Design a Financial Document Extraction System|Chapter 11]] (structured output)
 
 **Problem statement:** Design a natural-language-to-SQL system that translates analyst questions into executable queries over enterprise data warehouses with hundreds of tables, executes them safely in a sandboxed environment, and autonomously repairs failed queries—all within interactive [[glossary#Latency (TTFT, TPOT, Tail)|latency]].
 
@@ -841,4 +841,4 @@ ORDER BY revenue DESC;
 ---
 
 <!-- nav-footer -->
-[[chapter-15|← Chapter 15]] | [[README|Contents]] | [[chapter-17|Chapter 17 →]]
+[[Chapter 15 - Design a Multimodal Asset Search System|← Chapter 15]] | [[README|Contents]] | [[Chapter 17 - Design a Legal Contract Review System|Chapter 17 →]]

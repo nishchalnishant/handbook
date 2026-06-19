@@ -14,7 +14,7 @@ part: case-studies
 > - **Scale:** 100M documents, 1B chunks, 20M queries/day, p95 < 2.5s for answer generation
 > - **Key Techniques:** query rewriting, parent-child retrieval, BM25 + dense + graph retrieval, cross-encoder reranking, citation verification, freshness and ACL enforcement
 > - **Primary Concerns:** retrieval recall, answer faithfulness, latency, access control, index freshness, cost
-> - **Cross-references:** [[chapter-03|Chapter 3]] (vector infrastructure), [[chapter-05|Chapter 5]] (evaluation), [[chapter-07|Chapter 7]] (enterprise search), [[chapter-17|Chapter 17]] (grounding)
+> - **Cross-references:** [[Chapter 3 - Data Pipelines and Vector Infrastructure|Chapter 3]] (vector infrastructure), [[Chapter 5 - Evaluation, Guardrails, and Safety|Chapter 5]] (evaluation), [[Chapter 7 - Design an Enterprise Semantic Search Engine|Chapter 7]] (enterprise search), [[Chapter 17 - Design a Legal Contract Review System|Chapter 17]] (grounding)
 
 **Problem statement:** Design a reusable RAG platform that multiple product teams can use to answer questions over large, permissioned, frequently changing enterprise corpora with citations and measurable faithfulness.
 
@@ -794,4 +794,4 @@ Your weekly evaluation run shows that the platform's unsupported-claim rate jump
 ---
 
 <!-- nav-footer -->
-[[chapter-20|← Chapter 20]] | [[README|Contents]] | [[chapter-22|Chapter 22 →]]
+[[Chapter 20 - Design a Healthcare Triage and Diagnostic Assistant|← Chapter 20]] | [[README|Contents]] | [[Chapter 22 - Design a Multi-Agent Workflow Orchestrator|Chapter 22 →]]

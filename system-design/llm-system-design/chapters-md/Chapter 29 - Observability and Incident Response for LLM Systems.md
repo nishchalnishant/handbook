@@ -14,7 +14,7 @@ part: operations
 > - **Scale:** Applies at >= 100 QPS where manual inspection breaks down; essential at >= 1K QPS where cost and quality drift become invisible without instrumentation
 > - **Key Techniques:** Span decomposition (retrieval, reranking, generation, tool call), SLO burn rate alerting, sampled prompt logging with PII scrubbing, retention tiering, anomaly detection on LLM-specific signals, post-mortem frameworks for black-box models
 > - **Primary Concerns:** Non-determinism makes baseline drift ambiguous; token billing ties observability cost to request volume; quality is a metric with no ground truth at runtime; black-box model internals make root cause identification probabilistic not deterministic
-> - **Cross-references:** [[chapter-02|Chapter 2]] (LLM stack patterns), [[chapter-05|Chapter 5]] (guardrails), [[chapter-22|Chapter 22]] (agentic systems — trace depth multiplies), [[chapter-27|Chapter 27]] (evaluation at scale — offline quality signal complements online observability)
+> - **Cross-references:** [[Chapter 2 - The LLM Stack and Core Patterns|Chapter 2]] (LLM stack patterns), [[Chapter 5 - Evaluation, Guardrails, and Safety|Chapter 5]] (guardrails), [[Chapter 22 - Design a Multi-Agent Workflow Orchestrator|Chapter 22]] (agentic systems — trace depth multiplies), [[Chapter 27 - Evaluation at Scale|Chapter 27]] (evaluation at scale — offline quality signal complements online observability)
 
 **Problem statement:** Design a complete observability and incident response system for a production LLM platform serving 5,000 QPS across multiple product surfaces — covering distributed tracing, metrics collection, prompt/response logging, anomaly detection, alerting, and structured incident runbooks — such that any latency regression, quality regression, safety incident, or cost spike is detected within 5 minutes and root cause is isolatable to a specific pipeline component within 15 minutes.
 
@@ -1269,4 +1269,4 @@ Key considerations for a complete answer:
 ---
 
 <!-- nav-footer -->
-[[chapter-28|← Chapter 28]] | [[README|Contents]] | [[chapter-30|Chapter 30 →]]
+[[Chapter 28 - Cost Optimization as a Design Concern|← Chapter 28]] | [[README|Contents]] | [[Chapter 30 - Privacy, Compliance, and Data Governance for LLM Systems|Chapter 30 →]]

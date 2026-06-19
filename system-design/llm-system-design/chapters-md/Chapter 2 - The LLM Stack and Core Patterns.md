@@ -14,7 +14,7 @@ part: foundations
 > - **Scale:** 16M requests/day, pattern split 50/35/15%
 > - **Key Techniques:** Intent routing, model tiering, continuous batching, semantic caching
 > - **Primary Concerns:** Pattern selection, managed vs self-hosted, router drift
-> - **Cross-references:** [[chapter-01|Chapter 1]] (framework), [[chapter-03|Chapter 3]] (retrieval), [[chapter-04|Chapter 4]] (serving)
+> - **Cross-references:** [[Chapter 1 - A Framework for LLM System Design Interviews|Chapter 1]] (framework), [[Chapter 3 - Data Pipelines and Vector Infrastructure|Chapter 3]] (retrieval), [[Chapter 4 - Serving, Scaling, and Optimizing LLMs|Chapter 4]] (serving)
 
 **Problem statement:** Design a production LLM stack and decision framework for choosing between **prompt chaining**, **RAG**, and **agentic orchestration** under strict latency, cost, and safety constraints.
 
@@ -247,7 +247,7 @@ The [[glossary#Model Context Protocol (MCP)|Model Context Protocol (MCP)]] is th
 
 > **Why standardize tools, resources, and prompts behind MCP:** Without a shared protocol like MCP, scaling from 5 tools to 50 tools requires rewriting discovery, invocation, and permission logic in every client. MCP's biggest architectural value is that adding a new integration requires only deploying a new MCP server—the host, router, and permission model remain unchanged.
 
-System design implication: MCP standardizes discovery and invocation, but production still needs a server registry, permission model, approval gates, result sanitization, tool-call audit logs, and defenses against prompt injection through resources or tool descriptions. A malicious or poorly designed MCP server can expose tool descriptions or resource content that manipulates the model's reasoning—treating server output as trusted input is a security antipattern. See [[chapter-23|Chapter 23]] for the full platform design.
+System design implication: MCP standardizes discovery and invocation, but production still needs a server registry, permission model, approval gates, result sanitization, tool-call audit logs, and defenses against prompt injection through resources or tool descriptions. A malicious or poorly designed MCP server can expose tool descriptions or resource content that manipulates the model's reasoning—treating server output as trusted input is a security antipattern. See [[Chapter 23 - Design an MCP-Based Tool Integration Platform|Chapter 23]] for the full platform design.
 
 ### Additional Trade-offs
 
@@ -537,4 +537,4 @@ Your serving dashboards show every request meeting TTFT and TPOT SLOs, yet a wee
 ---
 
 <!-- nav-footer -->
-[[chapter-01|← Chapter 1]] | [[README|Contents]] | [[chapter-03|Chapter 3 →]]
+[[Chapter 1 - A Framework for LLM System Design Interviews|← Chapter 1]] | [[README|Contents]] | [[Chapter 3 - Data Pipelines and Vector Infrastructure|Chapter 3 →]]

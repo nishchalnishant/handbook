@@ -14,7 +14,7 @@ part: case-studies
 > - **Scale:** 100K concurrent meetings, 600K concurrent audio streams
 > - **Key Techniques:** Streaming STT (RNN-T), speaker diarization (enrollment + online clustering), hierarchical incremental summarization, Silero VAD
 > - **Primary Concerns:** < 2s utterance-to-text latency, speaker accuracy > 90%, summary drift prevention, action item extraction
-> - **Cross-references:** [[chapter-04|Chapter 4]] (serving), [[chapter-18|Chapter 18]] (voice agent), [[chapter-15|Chapter 15]] (multimodal)
+> - **Cross-references:** [[Chapter 4 - Serving, Scaling, and Optimizing LLMs|Chapter 4]] (serving), [[Chapter 18 - Design a Voice-First Real-Time Agent|Chapter 18]] (voice agent), [[Chapter 15 - Design a Multimodal Asset Search System|Chapter 15]] (multimodal)
 
 **Problem statement:** Design a system that ingests live audio from concurrent meetings, performs real-time speech-to-text with speaker diarization, and produces streaming incremental summaries with action item extraction—all within seconds of utterance.
 
@@ -701,4 +701,4 @@ You deploy a new version of the ECAPA-TDNN speaker embedding model (v2) and obse
 ---
 
 <!-- nav-footer -->
-[[chapter-13|← Chapter 13]] | [[README|Contents]] | [[chapter-15|Chapter 15 →]]
+[[Chapter 13 - Design an AI Tutor for Education|← Chapter 13]] | [[README|Contents]] | [[Chapter 15 - Design a Multimodal Asset Search System|Chapter 15 →]]

@@ -14,7 +14,7 @@ part: production-operations
 > - **Scale:** 50 product teams, 200 prompt/model deployments/week, 1B requests/month
 > - **Key Techniques:** prompt registry, model registry, eval gates, canaries, shadow traffic, trace replay, cost observability, incident response
 > - **Primary Concerns:** silent quality regressions, model drift, prompt sprawl, cost spikes, rollback, compliance
-> - **Cross-references:** [[chapter-04|Chapter 4]] (serving), [[chapter-05|Chapter 5]] (evaluation), [[chapter-08|Chapter 8]] (telemetry), [[chapter-20|Chapter 20]] (audit trail), [[chapter-26|Chapter 26]] (fine-tuning and adapter lifecycle), [[chapter-28|Chapter 28]] (cost optimization), [[chapter-29|Chapter 29]] (observability and incident response)
+> - **Cross-references:** [[Chapter 4 - Serving, Scaling, and Optimizing LLMs|Chapter 4]] (serving), [[Chapter 5 - Evaluation, Guardrails, and Safety|Chapter 5]] (evaluation), [[Chapter 8 - Design an AI Coding Assistant|Chapter 8]] (telemetry), [[Chapter 20 - Design a Healthcare Triage and Diagnostic Assistant|Chapter 20]] (audit trail), [[Chapter 26 - Fine-Tuning and Adaptation|Chapter 26]] (fine-tuning and adapter lifecycle), [[Chapter 28 - Cost Optimization as a Design Concern|Chapter 28]] (cost optimization), [[Chapter 29 - Observability and Incident Response for LLM Systems|Chapter 29]] (observability and incident response)
 
 **Problem statement:** Design the operational platform and lifecycle practices required to ship, monitor, evaluate, and safely evolve LLM-backed systems across an organization.
 
@@ -731,4 +731,4 @@ You are on-call and receive an alert: the policy violation rate for the `legal-a
 ---
 
 <!-- nav-footer -->
-[[chapter-23|← Chapter 23]] | [[README|Contents]] | [[chapter-25|Chapter 25 →]]
+[[Chapter 23 - Design an MCP-Based Tool Integration Platform|← Chapter 23]] | [[README|Contents]] | [[Chapter 25 - Prompt Engineering in Depth|Chapter 25 →]]

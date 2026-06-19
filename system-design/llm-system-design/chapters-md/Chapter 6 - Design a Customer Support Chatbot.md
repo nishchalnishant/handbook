@@ -14,7 +14,7 @@ part: case-studies
 > - **Scale:** 500K tickets/day, 6-turn avg conversation
 > - **Key Techniques:** Sliding window memory + rolling summary, webhook-triggered re-indexing, sentiment-based escalation fusion
 > - **Primary Concerns:** Memory freshness, hallucination on policy changes, escalation precision/recall
-> - **Cross-references:** [[chapter-03|Chapter 3]] (retrieval), [[chapter-05|Chapter 5]] (guardrails), [[chapter-07|Chapter 7]] (enterprise search), [[chapter-13|Chapter 13]] (adaptive tutoring dialogue)
+> - **Cross-references:** [[Chapter 3 - Data Pipelines and Vector Infrastructure|Chapter 3]] (retrieval), [[Chapter 5 - Evaluation, Guardrails, and Safety|Chapter 5]] (guardrails), [[Chapter 7 - Design an Enterprise Semantic Search Engine|Chapter 7]] (enterprise search), [[Chapter 13 - Design an AI Tutor for Education|Chapter 13]] (adaptive tutoring dialogue)
 
 **Problem statement:** Design a production customer support chatbot that maintains multi-turn conversational memory, retrieves grounded answers from a knowledge base via [[glossary#RAG (Retrieval-Augmented Generation)|RAG]], detects sentiment to calibrate tone, and escalates to human agents with full context when confidence is low or risk is high.
 
@@ -1088,4 +1088,4 @@ After a deployment on a Monday morning, the chatbot's weekly containment rate dr
 ---
 
 <!-- nav-footer -->
-[[chapter-05|← Chapter 5]] | [[README|Contents]] | [[chapter-07|Chapter 7 →]]
+[[Chapter 5 - Evaluation, Guardrails, and Safety|← Chapter 5]] | [[README|Contents]] | [[Chapter 7 - Design an Enterprise Semantic Search Engine|Chapter 7 →]]

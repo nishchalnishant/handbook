@@ -14,7 +14,7 @@ part: foundations
 > - **Scale:** 1.5M DAU, 18M requests/day
 > - **Key Techniques:** 5-step framework, back-of-envelope estimation, trade-off tables
 > - **Primary Concerns:** Scope discipline, cost-latency-safety balance, rollback design
-> - **Cross-references:** [[chapter-02|Chapter 2]] (pattern selection), [[chapter-03|Chapter 3]] (retrieval), [[chapter-05|Chapter 5]] (safety)
+> - **Cross-references:** [[Chapter 2 - The LLM Stack and Core Patterns|Chapter 2]] (pattern selection), [[Chapter 3 - Data Pipelines and Vector Infrastructure|Chapter 3]] (retrieval), [[Chapter 5 - Evaluation, Guardrails, and Safety|Chapter 5]] (safety)
 
 **Problem statement:** Build a repeatable framework for answering any LLM system design interview question with production-grade technical depth in 40-45 minutes.
 
@@ -509,4 +509,4 @@ Over three weeks, TTFT p95 has climbed from 900ms to 3.2s while average GPU util
 ---
 
 <!-- nav-footer -->
-← Start | [[README|Contents]] | [[chapter-02|Chapter 2 →]]
+← Start | [[README|Contents]] | [[Chapter 2 - The LLM Stack and Core Patterns|Chapter 2 →]]

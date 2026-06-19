@@ -14,7 +14,7 @@ part: foundations
 > - **Scale:** 20M requests/day, 7B/34B/70B model tiers
 > - **Key Techniques:** Continuous batching, speculative decoding, KV/prefix caching, quantization (INT4/INT8)
 > - **Primary Concerns:** TTFT/TPOT budgets, GPU OOM, autoscaling, tail latency
-> - **Cross-references:** [[chapter-02|Chapter 2]] (model routing), [[chapter-08|Chapter 8]] (coding assistant serving), [[chapter-18|Chapter 18]] (voice agent latency)
+> - **Cross-references:** [[Chapter 2 - The LLM Stack and Core Patterns|Chapter 2]] (model routing), [[Chapter 8 - Design an AI Coding Assistant|Chapter 8]] (coding assistant serving), [[Chapter 18 - Design a Voice-First Real-Time Agent|Chapter 18]] (voice agent latency)
 
 **Problem statement:** Engineer low-latency, high-throughput LLM serving with predictable TTFT/TPOT, bounded cost/query, and graceful degradation under traffic spikes.
 
@@ -492,4 +492,4 @@ Your production monitoring shows that TPOT p95 has risen from 28ms to 65ms over 
 ---
 
 <!-- nav-footer -->
-[[chapter-03|← Chapter 3]] | [[README|Contents]] | [[chapter-05|Chapter 5 →]]
+[[Chapter 3 - Data Pipelines and Vector Infrastructure|← Chapter 3]] | [[README|Contents]] | [[Chapter 5 - Evaluation, Guardrails, and Safety|Chapter 5 →]]

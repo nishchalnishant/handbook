@@ -14,7 +14,7 @@ part: foundations
 > - **Scale:** 500 avg / 5,000 peak QPS, risk-tiered depth
 > - **Key Techniques:** Input/output classifiers, LLM-as-judge, red-teaming, risk-tiered depth, calibration
 > - **Primary Concerns:** False-positive rate < 3%, latency overhead < 200ms, eval freshness
-> - **Cross-references:** [[chapter-01|Chapter 1]] (safety as first-class concern), [[chapter-11|Chapter 11]] (finance accuracy), [[chapter-20|Chapter 20]] (healthcare safety)
+> - **Cross-references:** [[Chapter 1 - A Framework for LLM System Design Interviews|Chapter 1]] (safety as first-class concern), [[Chapter 11 - Design a Financial Document Extraction System|Chapter 11]] (finance accuracy), [[Chapter 20 - Design a Healthcare Triage and Diagnostic Assistant|Chapter 20]] (healthcare safety)
 
 **Problem statement:** Build evaluation and [[glossary#Safety Filter / Guardrails|guardrail]] systems that reduce [[glossary#Hallucination (LLM)|hallucinations]], policy violations, and sensitive data leakage while preserving utility and maintaining acceptable latency overhead.
 
@@ -528,4 +528,4 @@ At 14:00 on a Tuesday, your dashboard shows the input classifier block rate jump
 ---
 
 <!-- nav-footer -->
-[[chapter-04|← Chapter 4]] | [[README|Contents]] | [[chapter-06|Chapter 6 →]]
+[[Chapter 4 - Serving, Scaling, and Optimizing LLMs|← Chapter 4]] | [[README|Contents]] | [[Chapter 6 - Design a Customer Support Chatbot|Chapter 6 →]]

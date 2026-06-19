@@ -14,7 +14,7 @@ part: case-studies
 > - **Scale:** 50M documents, 2M searches/day
 > - **Key Techniques:** ACL pre-filter, layout-aware parsing, table extraction, HNSW + Elasticsearch dual index
 > - **Primary Concerns:** ACL correctness, parser failures on PDFs/XLSX, query latency at scale
-> - **Cross-references:** [[chapter-03|Chapter 3]] (vector infrastructure), [[chapter-11|Chapter 11]] (financial document extraction), [[chapter-01|Chapter 1]] (hybrid retrieval and RRF deep dive), [[chapter-12|Chapter 12]] (cross-encoder reranking deep dive)
+> - **Cross-references:** [[Chapter 3 - Data Pipelines and Vector Infrastructure|Chapter 3]] (vector infrastructure), [[Chapter 11 - Design a Financial Document Extraction System|Chapter 11]] (financial document extraction), [[Chapter 1 - A Framework for LLM System Design Interviews|Chapter 1]] (hybrid retrieval and RRF deep dive), [[Chapter 12 - Design a Personalized E-commerce Shopping Assistant|Chapter 12]] (cross-encoder reranking deep dive)
 
 **Problem statement:** Design a semantic search engine over a 50M-document enterprise corpus with heterogeneous document types (PDFs, HTML, spreadsheets), strict document-level access control (ACLs) enforced at query time, and sub-200ms latency at scale—while maintaining [[glossary#Recall|recall]] above 0.85.
 
@@ -876,4 +876,4 @@ You upgrade `pdfplumber` from version 0.9.0 to 0.11.0 to fix a memory leak. Two 
 ---
 
 <!-- nav-footer -->
-[[chapter-06|← Chapter 6]] | [[README|Contents]] | [[chapter-08|Chapter 8 →]]
+[[Chapter 6 - Design a Customer Support Chatbot|← Chapter 6]] | [[README|Contents]] | [[Chapter 8 - Design an AI Coding Assistant|Chapter 8 →]]

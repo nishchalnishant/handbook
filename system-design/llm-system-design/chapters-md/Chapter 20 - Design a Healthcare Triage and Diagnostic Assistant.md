@@ -14,7 +14,7 @@ part: case-studies
 > - **Scale:** 1M triage sessions/day, ~35 sessions/sec peak
 > - **Key Techniques:** 2-pass PHI de-identification (NER + regex, > 99.5% recall), deterministic red-flag engine (> 99.9% sensitivity), clinical safety validator, temperature=0, WORM audit trail
 > - **Primary Concerns:** Zero missed ESI 1-2 emergencies, HIPAA PHI protection, 7-year audit retention, regulatory defensibility
-> - **Cross-references:** [[chapter-05|Chapter 5]] (safety stack), [[chapter-11|Chapter 11]] (accuracy requirements), [[chapter-17|Chapter 17]] (audit trail patterns), [[chapter-30|Chapter 30]] (privacy, compliance, and HIPAA-aware retrieval)
+> - **Cross-references:** [[Chapter 5 - Evaluation, Guardrails, and Safety|Chapter 5]] (safety stack), [[Chapter 11 - Design a Financial Document Extraction System|Chapter 11]] (accuracy requirements), [[Chapter 17 - Design a Legal Contract Review System|Chapter 17]] (audit trail patterns), [[Chapter 30 - Privacy, Compliance, and Data Governance for LLM Systems|Chapter 30]] (privacy, compliance, and HIPAA-aware retrieval)
 
 **Problem statement:** Design an LLM-powered healthcare triage system that conducts structured symptom interviews, assigns acuity levels, and provides preliminary diagnostic guidance—with zero tolerance for missed critical symptoms, strict HIPAA compliance (PHI must never reach LLM API endpoints), deterministic escalation to human clinicians, and a complete audit trail for regulatory review.
 
@@ -1236,4 +1236,4 @@ Debug this issue:
 ---
 
 <!-- nav-footer -->
-[[chapter-19|← Chapter 19]] | [[README|Contents]] | [[chapter-21|Chapter 21 →]]
+[[Chapter 19 - Design an AI NPC Engine for Multiplayer Games|← Chapter 19]] | [[README|Contents]] | [[Chapter 21 - Design an Advanced RAG Platform|Chapter 21 →]]
