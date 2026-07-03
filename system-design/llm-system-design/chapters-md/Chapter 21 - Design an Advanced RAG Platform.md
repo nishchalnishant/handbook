@@ -14,7 +14,7 @@ part: case-studies
 > - **Scale:** 100M documents, 1B chunks, 20M queries/day, p95 < 2.5s for answer generation
 > - **Key Techniques:** query rewriting, parent-child retrieval, BM25 + dense + graph retrieval, cross-encoder reranking, citation verification, freshness and ACL enforcement
 > - **Primary Concerns:** retrieval recall, answer faithfulness, latency, access control, index freshness, cost
-> - **Cross-references:** [[Chapter 3 - Data Pipelines and Vector Infrastructure|Chapter 3]] (vector infrastructure), [[Chapter 5 - Evaluation, Guardrails, and Safety|Chapter 5]] (evaluation), [[Chapter 7 - Design an Enterprise Semantic Search Engine|Chapter 7]] (enterprise search), [[Chapter 17 - Design a Legal Contract Review System|Chapter 17]] (grounding)
+> - **Cross-references:** Chapter 3 (vector infrastructure), Chapter 5 (evaluation), Chapter 7 (enterprise search), Chapter 17 (grounding)
 
 **Problem statement:** Design a reusable RAG platform that multiple product teams can use to answer questions over large, permissioned, frequently changing enterprise corpora with citations and measurable faithfulness.
 
@@ -43,20 +43,6 @@ This contract prevents a common weak interview answer: "use embeddings and a vec
 
 ## Step 1: Understand the Problem and Establish Design Scope
 
-### Simulated Dialogue
-
-**Interviewer:** Design an advanced RAG platform.  
-**Candidate:** I will separate this into ingestion quality, retrieval recall, context assembly, generation, verification, and observability. [[glossary#RAG (Retrieval-Augmented Generation)|RAG]] failures usually look like model failures, but the root cause is often bad parsing, missing permissions, stale indexes, or weak reranking.
-
-**Candidate:** What scale and freshness do we need?  
-**Interviewer:** 100M documents, roughly 1B chunks. 20M user queries/day. New and updated documents must be searchable within 15 minutes.
-
-**Candidate:** Are documents permissioned?  
-**Interviewer:** Yes. Users must never see content they cannot access. ACL enforcement is mandatory before generation.
-
-**Candidate:** What answer quality target matters most?  
-**Interviewer:** Faithfulness. Every factual claim should be traceable to retrieved evidence. Unsupported claims should be blocked or rewritten.
-
 ### Functional Requirements
 
 - Ingest documents from multiple sources and preserve structure, metadata, ACLs, and freshness timestamps.
@@ -83,13 +69,11 @@ This contract prevents a common weak interview answer: "use embeddings and a vec
 - Avg chunks/document: 10
 - Total chunks: `1B`
 - Embedding dim: 768 float16 = `1.5KB/vector`
-- Raw vector footprint: `1B * 1.5KB ~= 1.5TB`
 - With ANN overhead, metadata, replicas: `5-8TB`
 
 #### Query Throughput
 
 - Queries/day: 20M
-- Average QPS: `20M / 86,400 ~= 231`
 - Peak multiplier: 8x
 - Peak QPS: `~1,850`
 - Capacity target with failover: `2,500-3,000 QPS`
@@ -119,9 +103,9 @@ This contract prevents a common weak interview answer: "use embeddings and a vec
 - **Index Builder:** Writes each chunk to three indexes simultaneously — lexical (Elasticsearch/OpenSearch for BM25 and field boosting), vector (HNSW-based ANN for semantic similarity), and entity graph (edges linking named entities across documents). Atomic alias swaps let a new index version go live without downtime, and the prior alias remains available for instant rollback.
 - **Query Planner:** Classifies the incoming query into one of five execution strategies (exact lookup, semantic, comparison, multi-hop, freshness-sensitive) using a lightweight intent classifier that adds fewer than 20 ms of overhead. Choosing the wrong strategy is one of the top causes of irrelevant retrieval results, making this the highest-leverage single component in the pipeline.
 - **Retrieval Orchestrator:** Fans out simultaneously to BM25, dense vector, and graph indexes, then merges candidates using reciprocal rank fusion before applying ACL filters. Parallelizing retrieval across all three indexes keeps total retrieval latency under 180 ms even at 3,000 QPS, because each index query takes 50–80 ms and they run concurrently.
-- **Reranker:** Applies a [[glossary#Cross-Encoder Reranking|cross-encoder]] or late-interaction model (ColBERT) to re-score the top-100 fused candidates and return the top-12 most relevant passages. Cross-encoders attend jointly to query and passage tokens, producing ranking accuracy 15–25 percentage points higher than bi-encoder retrieval alone, at the cost of O(k) forward passes — making the candidate pool size a critical cost lever.
-- **Context Packer:** Deduplicates near-duplicate passages using MinHash or sentence-level embedding similarity, orders evidence by relevance and recency, and enforces a hard token budget so the LLM prompt never exceeds the [[glossary#Context Window|context window]]. Poor context packing — not retrieval — is the most common root cause of diluted or contradictory evidence reaching the model.
-- **Answer Generator:** Calls the LLM with the packed evidence and a structured instruction to cite every factual claim with a chunk ID from the provided evidence set. [[glossary#Structured Output / Constrained Decoding|Structured output]] (JSON with claim-citation pairs) makes downstream grounding verification deterministic rather than dependent on regex parsing of free text.
+- **Reranker:** cross-encoder or late-interaction model (ColBERT) to re-score the top-100 fused candidates and return the top-12 most relevant passages. Cross-encoders attend jointly to query and passage tokens, producing ranking accuracy 15–25 percentage points higher than bi-encoder retrieval alone, at the cost of O(k) forward passes — making the candidate pool size a critical cost lever.
+- **Context Packer:** Deduplicates near-duplicate passages using MinHash or sentence-level embedding similarity, orders evidence by relevance and recency, and enforces a hard token budget so the context window. Poor context packing — not retrieval — is the most common root cause of diluted or contradictory evidence reaching the model.
+- **Answer Generator:** Calls the LLM with the packed evidence and a structured instruction to cite every factual claim with a chunk ID from the provided evidence set. Structured Output / Constrained Decoding|Structured output (JSON with claim-citation pairs) makes downstream grounding verification deterministic rather than dependent on regex parsing of free text.
 - **Grounding Verifier:** Splits the generated answer into atomic claims, maps each claim to its cited span, and labels it as supported, contradicted, or not-found. Unsupported claims are either rewritten to hedge appropriately or removed entirely before the response is returned, keeping the platform-level unsupported-claim rate below 2%.
 - **RAG Observability:** Records the full trace for every sampled or failed request: query rewrites, retrieval candidates with scores, ACL filter outcomes, reranking deltas, packed token counts, generation latency, and verifier labels. Without per-stage traces, product teams cannot distinguish ingestion bugs from retrieval bugs from generation bugs — all three look like "the answer was wrong."
 
@@ -244,7 +228,7 @@ flowchart LR
 
 The platform should not run the same retrieval path for every query. Exact identifiers, vague natural-language questions, multi-document comparisons, and multi-hop questions need fundamentally different execution plans. Routing them all through a single dense-vector retrieval path is the single most common cause of recall failures in production RAG systems — exact product codes and error IDs are often out-of-vocabulary for embedding models, while multi-hop questions require linking evidence across documents rather than ranking a single candidate pool.
 
-> **Why an intent classifier that routes queries to different retrieval strategies:** A lightweight intent classifier (fine-tuned BERT or even a rules-based heuristic over token patterns) adds fewer than 20 ms to the query path but can raise evidence recall@20 by 10–18 percentage points by routing queries to the retrieval strategy that matches their structure. At 20M queries/day, an 18% recall improvement translates directly into millions of additional queries getting correct answers.
+> **Why an intent classifier that routes queries to different retrieval strategies:** A lightweight intent classifier (fine-tuned BERT or even a rules-based heuristic over token patterns) adds fewer than 20 ms to the query path but can raise e...
 
 | Query Type | Example | Best First Stage | Extra Step |
 |---|---|---|---|
@@ -265,7 +249,7 @@ Recommended design:
 
 RAG quality often collapses after retrieval because the prompt includes redundant or weak evidence. A naive approach stuffs the top-k chunks into the context window in rank order — but this typically includes 3–5 near-duplicate passages that waste tokens, buries the most relevant span in the middle of the window (the position LLMs attend to least reliably), and omits structural cues like section headings that help the model interpret the evidence correctly.
 
-> **Why a deterministic context-packing strategy placing key evidence first and last:** Studies on "lost in the middle" attention patterns show that LLMs using GPT-4-class models retrieve information from the start and end of long contexts with 30–40% higher accuracy than from the middle. A deterministic packing strategy — placing the highest-confidence evidence first and last, and filling middle positions with supporting context — exploits this pattern without changing the model or retrieval logic.
+> **Why a deterministic context-packing strategy placing key evidence first and last:** Studies on "lost in the middle" attention patterns show that LLMs using GPT-4-class models retrieve information from the start and end of long contexts with ...
 
 Context packing rules:
 
@@ -287,7 +271,7 @@ Grounding verifier:
 
 Evaluation must measure each stage separately because a failure at ingestion is invisible to retrieval metrics, a failure at retrieval is invisible to generation metrics, and a failure at generation is indistinguishable from a retrieval failure without per-stage instrumentation. End-to-end accuracy metrics alone lead teams to optimize the wrong stage — the most common mistake is fine-tuning the generator when the actual problem is that the correct evidence was not retrieved in the first place.
 
-> **Why measure each RAG stage separately rather than only end-to-end accuracy:** RAG pipelines have at least four independent failure modes — parse failure (document content not indexed), retrieval failure (correct document not ranked in top-k), packing failure (correct chunk retrieved but dropped or buried), and generation failure (correct evidence present but claim not grounded). Each mode requires a different fix: a parse failure needs a better PDF parser, not a better LLM. Without stage-level metrics, teams burn weeks improving the wrong component.
+> **Why measure each RAG stage separately rather than only end-to-end accuracy:** RAG pipelines have at least four independent failure modes — parse failure (document content not indexed), retrieval failure (correct document not ranked in ...
 
 | Metric | Stage | Target | What Failure Looks Like |
 |---|---|---:|---|
@@ -309,43 +293,29 @@ Evaluation must measure each stage separately because a failure at ingestion is 
 
 ### Advanced Techniques
 
-- **[[glossary#GraphRAG|GraphRAG]]:** Build an entity and relation graph alongside the vector index, where nodes are named entities (products, policies, people, APIs) and edges are typed relations extracted by an NER + relation extraction model. For multi-hop questions like "which customers are affected by the deprecation of API v2?", graph traversal finds paths that pure vector search cannot — a vector search for "affected customers" will not naturally surface the API-to-customer-contract edge that answers the question.
+- **GraphRAG|GraphRAG:** Build an entity and relation graph alongside the vector index, where nodes are named entities (products, policies, people, APIs) and edges are typed relations extracted by an NER + relation extraction model. For multi-hop questions like "which customers are affected by the deprecation of API v2?", graph traversal finds paths that pure vector search cannot — a vector search for "affected customers" will not naturally surface the API-to-customer-contract edge that answers the question.
 
-  > **Why:** Vector similarity finds semantically related passages, but it cannot follow a chain of relationships across documents. Graph traversal is O(depth × branching-factor) rather than O(corpus-size), making it the only practical approach for questions that require joining facts from documents that share no vocabulary.
+  > **Why:** Vector similarity finds semantically related passages, but it cannot follow a chain of relationships across documents.
 
 - **HyDE (Hypothetical Document Embeddings):** Prompt the LLM to generate a short hypothetical answer or document before retrieval, then embed that hypothetical and use it as the retrieval query instead of the raw question. This works because the hypothetical answer is written in the same vocabulary and style as real corpus documents, closing the query-document vocabulary gap that causes vague questions to retrieve off-topic results.
 
-  > **Why:** User queries are often 5–15 tokens of natural language; corpus documents are 200–500 tokens of domain-specific prose. The embedding space for these two distributions partially overlaps, and HyDE effectively translates the query into the document distribution, improving recall by 8–15% on knowledge-base questions with technical vocabulary without requiring any query-time latency beyond a fast LLM call.
+  > **Why:** User queries are often 5–15 tokens of natural language; corpus documents are 200–500 tokens of domain-specific prose.
 
 - **Parent-child retrieval:** Index child passages of 128–256 tokens for high-precision embedding recall (short passages have less noise and closer alignment between embedding and content), but when a child passage is selected by the reranker, fetch its parent section (512–1024 tokens) to pack into the prompt. This two-level structure provides the best of both worlds: retrieval precision from small chunks and generation quality from full context.
 
-  > **Why:** Embedding a 1,024-token section dilutes the embedding with multiple topics, reducing retrieval recall for any individual claim in the section. But generating an answer from a 128-token child chunk often leaves out the surrounding context the LLM needs to reason correctly. Parent-child retrieval decouples these two concerns, and teams that adopt it typically report 10–20% improvement in answer completeness without any change to the retrieval model.
+  > **Why:** Embedding a 1,024-token section dilutes the embedding with multiple topics, reducing retrieval recall for any individual claim in the section.
 
 - **ColBERT-style late interaction:** Rather than encoding query and passage into a single vector each (bi-encoder) or concatenating them for a single score (cross-encoder), ColBERT retains token-level embeddings for both query and passage and computes relevance as the sum of maximum-similarity scores across query tokens. This captures fine-grained term-level matching that bi-encoders miss, at a cost of 32 bytes × sequence-length per passage rather than 1,536 bytes per passage.
 
-  > **Why:** Cross-encoder reranking is 15–25% more accurate than bi-encoder retrieval but requires O(k) forward passes at inference time, making it 50–100x more expensive per query. ColBERT late interaction achieves 80–90% of cross-encoder accuracy at roughly 5x the cost of bi-encoder retrieval, making it the right operating point for high-recall, cost-sensitive production workloads.
+  > **Why:** Cross-encoder reranking is 15–25% more accurate than bi-encoder retrieval but requires O(k) forward passes at inference time, making it 50–100x more expensiv...
 
 - **Contextual compression:** After reranking, pass each selected passage through an extraction prompt that identifies the 2–4 sentences most directly relevant to the query and discards the rest before packing. This can reduce average packed token count by 30–50% for dense passages, freeing budget for more diverse evidence or a more detailed system prompt.
 
-  > **Why:** Reranking selects the right passages but does not trim them — a highly ranked 300-token passage may contain only 50 tokens of directly relevant content. Contextual compression converts high-recall retrieval into high-precision context, which is especially valuable for models with limited context windows or when packing evidence from many sources simultaneously.
+  > **Why:** Reranking selects the right passages but does not trim them — a highly ranked 300-token passage may contain only 50 tokens of directly relevant content.
 
 - **Multi-vector documents:** Index the same document under multiple vector representations — the title embedding, the summary embedding, body chunk embeddings, table cell embeddings, and entity name embeddings — and search all of them at query time. This ensures that a query for a concept mentioned only in a table caption or document title is not missed because the body-chunk embedding did not capture it.
 
-  > **Why:** A single embedding per chunk cannot represent all retrieval surfaces equally well. A query for "quarterly revenue" will match a financial table's summary embedding but may miss a chunk whose body discusses methodology with only a parenthetical mention of the revenue figure. Multi-vector indexing adds index storage overhead (approximately 5x for five embedding types) but raises recall@20 by 5–12% for structured documents with distinct title, summary, and table regions.
-
----
-
-## Step 4: Wrap Up
-
-### Final Design Summary
-
-The design treats RAG as a multi-stage retrieval and verification system, not a prompt pattern. Ingestion preserves structure and permissions, query planning selects the retrieval path, hybrid retrieval maximizes recall, reranking improves precision, context packing controls token quality, and grounding verification blocks unsupported claims.
-
-### Wrap-Around Concerns
-
-- **Risk:** unauthorized evidence reaches the prompt. Mitigation: enforce ACLs before reranking and again before packing.
-- **Risk:** long context hides weak retrieval. Mitigation: measure evidence recall and context precision separately.
-- **Risk:** product teams cannot debug failures. Mitigation: store full traces with query rewrites, retrieved candidates, scores, citations, and verifier labels.
+  > **Why:** A single embedding per chunk cannot represent all retrieval surfaces equally well.
 
 ---
 
@@ -443,355 +413,3 @@ Q: A product team wants to add their own document collection to the RAG platform
 
 ---
 
-## Practical Implementation
-
-### Code Block 1: Parent-Child Chunker with ACL Annotation
-
-This chunker produces both parent sections and child passages from a structured document object, and annotates every chunk with the document's ACL list, last-modified timestamp, and source system. The parent-child relationship is stored via a `parent_id` field so the context packer can fetch the enclosing section when a child chunk is selected.
-
-```python
-import hashlib
-from dataclasses import dataclass, field
-from typing import Optional
-import tiktoken
-
-ENCODER = tiktoken.get_encoding("cl100k_base")
-
-@dataclass
-class Chunk:
-    chunk_id: str
-    parent_id: Optional[str]
-    doc_id: str
-    text: str
-    token_count: int
-    level: str          # "parent" | "child"
-    section_title: str
-    acl: list[str]
-    source_system: str
-    last_modified: str  # ISO-8601
-    metadata: dict = field(default_factory=dict)
-
-def _make_id(doc_id: str, suffix: str) -> str:
-    return hashlib.sha256(f"{doc_id}::{suffix}".encode()).hexdigest()[:16]
-
-def chunk_document(
-    doc_id: str,
-    sections: list[dict],   # [{"title": str, "text": str}]
-    acl: list[str],
-    source_system: str,
-    last_modified: str,
-    parent_token_limit: int = 800,
-    child_token_limit: int = 200,
-) -> list[Chunk]:
-    """
-    For each section, emit one parent chunk and N child chunks.
-    Children carry a parent_id pointing to their enclosing section chunk.
-    Both levels carry full ACL and provenance metadata.
-    """
-    chunks: list[Chunk] = []
-
-    for section in sections:
-        title = section["title"]
-        text = section["text"]
-        tokens = ENCODER.encode(text)
-
-        parent_id = _make_id(doc_id, f"parent::{title}")
-        # Truncate parent to token limit while keeping whole sentences.
-        parent_text = ENCODER.decode(tokens[:parent_token_limit])
-        parent_chunk = Chunk(
-            chunk_id=parent_id,
-            parent_id=None,
-            doc_id=doc_id,
-            text=f"{title}\n\n{parent_text}",
-            token_count=min(len(tokens), parent_token_limit) + len(ENCODER.encode(title)),
-            level="parent",
-            section_title=title,
-            acl=acl,
-            source_system=source_system,
-            last_modified=last_modified,
-        )
-        chunks.append(parent_chunk)
-
-        # Slide a child window across the full section text.
-        stride = child_token_limit // 2   # 50% overlap for boundary coverage
-        for i, start in enumerate(range(0, len(tokens), stride)):
-            child_tokens = tokens[start : start + child_token_limit]
-            if not child_tokens:
-                break
-            child_id = _make_id(doc_id, f"child::{title}::{i}")
-            child_chunk = Chunk(
-                chunk_id=child_id,
-                parent_id=parent_id,
-                doc_id=doc_id,
-                text=ENCODER.decode(child_tokens),
-                token_count=len(child_tokens),
-                level="child",
-                section_title=title,
-                acl=acl,
-                source_system=source_system,
-                last_modified=last_modified,
-                metadata={"window_index": i, "stride": stride},
-            )
-            chunks.append(child_chunk)
-
-    return chunks
-```
-
-### Code Block 2: Hybrid Retrieval with Reciprocal Rank Fusion
-
-This retrieval orchestrator fans out to BM25 and dense vector indexes in parallel, merges candidate lists using RRF, applies an ACL filter, and returns the top-k candidates with a unified score. The RRF constant `k=60` is the standard value that provides robustness to rank outliers across lists of different lengths.
-
-```python
-import asyncio
-from dataclasses import dataclass
-
-@dataclass
-class Candidate:
-    chunk_id: str
-    doc_id: str
-    text: str
-    acl: list[str]
-    score: float
-    source: str   # "bm25" | "dense" | "graph"
-
-async def bm25_search(query: str, top_k: int, index_client) -> list[Candidate]:
-    """Query BM25 index and return ranked candidates."""
-    results = await index_client.search(query=query, top_k=top_k, search_type="lexical")
-    return [
-        Candidate(
-            chunk_id=r["chunk_id"], doc_id=r["doc_id"], text=r["text"],
-            acl=r["acl"], score=r["bm25_score"], source="bm25"
-        )
-        for r in results
-    ]
-
-async def dense_search(query_embedding: list[float], top_k: int, vector_client) -> list[Candidate]:
-    """Query HNSW vector index and return ranked candidates."""
-    results = await vector_client.search(vector=query_embedding, top_k=top_k)
-    return [
-        Candidate(
-            chunk_id=r["chunk_id"], doc_id=r["doc_id"], text=r["text"],
-            acl=r["acl"], score=r["cosine_similarity"], source="dense"
-        )
-        for r in results
-    ]
-
-def reciprocal_rank_fusion(
-    ranked_lists: list[list[Candidate]],
-    k: int = 60,
-) -> list[Candidate]:
-    """
-    Merge multiple ranked lists using RRF.
-    RRF score = sum over lists of 1 / (k + rank_in_list).
-    Higher k reduces the weight of top-rank advantage; k=60 is empirically robust.
-    """
-    scores: dict[str, float] = {}
-    chunk_map: dict[str, Candidate] = {}
-
-    for ranked_list in ranked_lists:
-        for rank, candidate in enumerate(ranked_list, start=1):
-            cid = candidate.chunk_id
-            scores[cid] = scores.get(cid, 0.0) + 1.0 / (k + rank)
-            chunk_map[cid] = candidate
-
-    merged = sorted(chunk_map.values(), key=lambda c: scores[c.chunk_id], reverse=True)
-    for c in merged:
-        c.score = scores[c.chunk_id]
-    return merged
-
-def apply_acl_filter(candidates: list[Candidate], user_groups: set[str]) -> list[Candidate]:
-    """
-    Retain only chunks where the user's group set intersects the chunk's ACL.
-    An empty ACL list means the chunk is public (accessible to all).
-    """
-    filtered = []
-    for c in candidates:
-        if not c.acl or user_groups.intersection(c.acl):
-            filtered.append(c)
-    return filtered
-
-async def hybrid_retrieve(
-    query: str,
-    query_embedding: list[float],
-    user_groups: set[str],
-    top_k_per_source: int = 100,
-    final_top_k: int = 20,
-    index_client=None,
-    vector_client=None,
-) -> list[Candidate]:
-    """
-    Fan out to BM25 and dense indexes in parallel, fuse with RRF,
-    apply ACL filter, and return top final_top_k permissioned candidates.
-    """
-    bm25_task = bm25_search(query, top_k_per_source, index_client)
-    dense_task = dense_search(query_embedding, top_k_per_source, vector_client)
-    bm25_results, dense_results = await asyncio.gather(bm25_task, dense_task)
-
-    fused = reciprocal_rank_fusion([bm25_results, dense_results])
-    permissioned = apply_acl_filter(fused, user_groups)
-    return permissioned[:final_top_k]
-```
-
-### Code Block 3: Grounding Verifier with Claim-Level Labeling
-
-This verifier splits a generated answer into atomic claims and maps each claim to cited evidence spans. Claims with no supporting span are labeled `unsupported` and removed from the final answer, while contradicted claims trigger a warning flag in the trace.
-
-```python
-import re
-from dataclasses import dataclass
-from enum import Enum
-from anthropic import Anthropic
-
-client = Anthropic()
-
-class ClaimLabel(str, Enum):
-    SUPPORTED = "supported"
-    CONTRADICTED = "contradicted"
-    NOT_FOUND = "not_found"
-
-@dataclass
-class ClaimVerification:
-    claim: str
-    label: ClaimLabel
-    cited_chunk_id: str | None
-    cited_span: str | None
-    confidence: float
-
-DECOMPOSE_PROMPT = """Split the following answer into atomic claims.
-Each claim must be independently verifiable from a single evidence span.
-Return a JSON array of strings, one per claim.
-
-Answer:
-{answer}"""
-
-VERIFY_PROMPT = """Given this evidence and claim, label the claim as:
-- "supported": the evidence directly entails the claim
-- "contradicted": the evidence states the opposite
-- "not_found": the evidence does not address the claim
-
-Evidence (chunk_id={chunk_id}):
-{evidence_text}
-
-Claim: {claim}
-
-Return JSON: {{"label": "...", "span": "...", "confidence": 0.0-1.0}}
-where "span" is the exact evidence substring that supports/contradicts, or null."""
-
-def decompose_into_claims(answer: str) -> list[str]:
-    response = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=512,
-        messages=[{"role": "user", "content": DECOMPOSE_PROMPT.format(answer=answer)}],
-    )
-    import json
-    text = response.content[0].text.strip()
-    # Strip markdown code fences if present
-    text = re.sub(r"^```json\s*|```$", "", text, flags=re.MULTILINE).strip()
-    return json.loads(text)
-
-def verify_claim_against_chunk(
-    claim: str,
-    chunk_id: str,
-    evidence_text: str,
-) -> ClaimVerification:
-    import json
-    response = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=256,
-        messages=[{
-            "role": "user",
-            "content": VERIFY_PROMPT.format(
-                chunk_id=chunk_id, evidence_text=evidence_text, claim=claim
-            ),
-        }],
-    )
-    text = response.content[0].text.strip()
-    text = re.sub(r"^```json\s*|```$", "", text, flags=re.MULTILINE).strip()
-    result = json.loads(text)
-    return ClaimVerification(
-        claim=claim,
-        label=ClaimLabel(result["label"]),
-        cited_chunk_id=chunk_id if result["label"] != "not_found" else None,
-        cited_span=result.get("span"),
-        confidence=result.get("confidence", 0.0),
-    )
-
-def verify_answer(
-    answer: str,
-    evidence: list[dict],   # [{"chunk_id": str, "text": str}]
-    support_threshold: float = 0.7,
-) -> tuple[str, list[ClaimVerification]]:
-    """
-    Decompose the answer into claims, verify each against all evidence chunks,
-    remove unsupported claims, and return the filtered answer plus verification records.
-    """
-    claims = decompose_into_claims(answer)
-    verifications: list[ClaimVerification] = []
-
-    for claim in claims:
-        best: ClaimVerification | None = None
-        for chunk in evidence:
-            result = verify_claim_against_chunk(claim, chunk["chunk_id"], chunk["text"])
-            if result.label == ClaimLabel.SUPPORTED and (
-                best is None or result.confidence > best.confidence
-            ):
-                best = result
-        if best is None:
-            # No chunk supported this claim; mark not_found
-            best = ClaimVerification(
-                claim=claim, label=ClaimLabel.NOT_FOUND,
-                cited_chunk_id=None, cited_span=None, confidence=0.0,
-            )
-        verifications.append(best)
-
-    # Rebuild answer retaining only supported claims
-    supported_claims = [
-        v.claim for v in verifications
-        if v.label == ClaimLabel.SUPPORTED and v.confidence >= support_threshold
-    ]
-    filtered_answer = " ".join(supported_claims) if supported_claims else (
-        "I do not have sufficient evidence to answer this question reliably."
-    )
-    return filtered_answer, verifications
-```
-
----
-
-## Exercises
-
-### Design Exercises
-
-**Exercise 1 — Multi-Tenant Namespace Isolation**
-
-A single RAG platform must serve five business units, each with their own document collections, ACL policies, and latency SLAs. Business unit A needs sub-second responses for a customer-facing chatbot; business unit B runs batch analyst queries that are latency-tolerant but need very high recall. Design the platform's tenant isolation model, including how you would separate indexes, share infrastructure, enforce per-tenant token budgets, and prevent a noisy-tenant ingestion burst from degrading query latency for other tenants. Address how you would handle a request where a user has access rights in two different business units and their query requires evidence from both.
-
-**Exercise 2 — Index Migration Without Downtime**
-
-Your team is migrating from `text-embedding-ada-002` (1,536 dimensions) to a fine-tuned domain model (768 dimensions). The corpus has 1B chunks. Design a migration plan that: keeps the current system serving queries with no quality regression during migration; validates that the new model has equal or better recall@20 before cutover; supports rollback within 5 minutes if a quality regression is detected post-cutover; and completes without exceeding 2x normal infrastructure cost. Describe your dual-index strategy, the alias management approach, and the specific metrics you would monitor during the migration window.
-
-### Implementation Exercises
-
-**Exercise 3 — Freshness-Aware Context Packer**
-
-Implement a context packer that, given a list of reranked candidate chunks each with a `last_modified` ISO timestamp, a `relevance_score` float, and a `token_count` int, selects the optimal subset within a `max_tokens` budget. The packer must: prefer more recent chunks when relevance scores are within 0.05 of each other; deduplicate near-identical passages (cosine similarity > 0.92) keeping only the more recent one; place the highest-relevance chunk first and the second-highest last (exploiting LLM primacy/recency bias); and return the ordered list with a trace showing why each chunk was included or excluded.
-
-**Exercise 4 — Retrieval Recall Regression Detector**
-
-Write a Python script that: loads a golden query set from a JSON file (each entry: `{"query": str, "relevant_chunk_ids": list[str]}`); queries a live retrieval endpoint for each query and retrieves the top-20 candidates; computes recall@5, recall@10, recall@20, and mean reciprocal rank (MRR); compares results against a stored baseline file; prints a table of per-query regressions where recall@20 dropped by more than 0.10 versus baseline; and exits with a non-zero status code if more than 5% of queries show a regression, suitable for use as a CI gate.
-
-### Debug Exercise
-
-**Exercise 5 — Diagnose a Faithfulness Regression**
-
-Your weekly evaluation run shows that the platform's unsupported-claim rate jumped from 1.4% to 4.8% between Monday and Friday. The retrieval recall@20 metric is unchanged at 0.91. The grounding verifier version did not change. Walk through your complete debugging methodology: which metrics you would examine first and why, what queries you would use to slice the data, how you would distinguish a generation regression from a packing regression from a corpus quality regression, what tooling you would use to inspect individual failing traces, and what the three most likely root causes are in order of probability. For each root cause, describe the specific evidence you would look for in the traces and the remediation action.
-
-## End of Chapter
-
-- **Key takeaway:** An advanced RAG platform is a pipeline of independently-failing stages — query planning, hybrid retrieval, reranking, context packing, generation, and grounding verification — and its quality is gated by the weakest stage, not the model. The defining discipline is *attribution*: faithfulness regressions are usually a packing or corpus problem, not a generation problem, so every stage must emit traces (retrieved chunk IDs, rerank scores, packed token budget, unsupported-claim rate) that let you localize a regression to one stage. GraphRAG and query planning add recall on multi-hop questions but only pay off when single-pass retrieval is the measured bottleneck.
-- **What to practice:** Size the context-packing budget: given a 32K-token context window, a system prompt of 800 tokens, a target of leaving 4K tokens for generation, and reranked chunks averaging 350 tokens each, compute how many chunks fit and the recall ceiling that imposes. Then estimate the cost and p95 latency added by a cross-encoder rerank of top-100 candidates versus top-25, and the faithfulness lift required to justify it.
-- **Interview drill:** Your platform's unsupported-claim rate jumps from 1.4% to 4.8% in a week while retrieval recall@20 holds at 0.91 and the grounding verifier is unchanged. Walk through localizing the regression: which traces you slice first, how you distinguish a generation regression from a context-packing regression from a corpus-quality regression, the three most likely root causes in probability order, and the specific trace evidence and remediation for each.
-
----
-
-<!-- nav-footer -->
-[[Chapter 20 - Design a Healthcare Triage and Diagnostic Assistant|← Chapter 20]] | [[README|Contents]] | [[Chapter 22 - Design a Multi-Agent Workflow Orchestrator|Chapter 22 →]]

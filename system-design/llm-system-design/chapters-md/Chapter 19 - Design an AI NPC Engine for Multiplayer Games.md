@@ -14,7 +14,7 @@ part: case-studies
 > - **Scale:** 500K CCU, 75K concurrent dialogue sessions
 > - **Key Techniques:** Three-tier memory (short-term/episodic/world state), importance-weighted LRU eviction, 4-layer persona consistency enforcement, 2-tier model routing (3B/1.5B)
 > - **Primary Concerns:** Memory eviction under CCU, lore consistency, edge deployment latency, graceful fallback to scripted responses
-> - **Cross-references:** [[Chapter 6 - Design a Customer Support Chatbot|Chapter 6]] (memory management), [[Chapter 2 - The LLM Stack and Core Patterns|Chapter 2]] (model routing), [[Chapter 5 - Evaluation, Guardrails, and Safety|Chapter 5]] (content safety), [[Chapter 4 - Serving, Scaling, and Optimizing LLMs|Chapter 4]] (continuous batching deep dive), [[Chapter 8 - Design an AI Coding Assistant|Chapter 8]] (speculative decoding deep dive)
+> - **Cross-references:** Chapter 6 (memory management), Chapter 2 (model routing), Chapter 5 (content safety), Chapter 4 (continuous batching deep dive), Chapter 8 (speculative decoding deep dive)
 
 **Problem statement:** Design a real-time AI NPC dialogue engine for a multiplayer game that delivers contextually aware, personality-consistent, lore-grounded dialogue at sub-500ms latency across 500K concurrent users interacting with 200 NPC archetypes, with persistent memory across sessions and zero lore contradictions.
 
@@ -26,23 +26,6 @@ part: case-studies
 ---
 
 ## Step 1: Understand the Problem and Establish Design Scope
-
-### Simulated Dialogue
-
-**Interviewer:** Design an AI-driven NPC dialogue engine for a multiplayer game.  
-**Candidate:** I need to separate the real-time dialogue generation path from the offline memory/lore systems. The core tension is sub-500ms generation with personality fidelity and persistent memory—these pull in opposite directions (speed vs context richness). Let me scope the workload.
-
-**Candidate:** What's the concurrency model?  
-**Interviewer:** 500K CCU at peak. Average player interacts with 3-5 NPCs per session. Not all players are in dialogue simultaneously—assume 15% are in active NPC dialogue at any moment.
-
-**Candidate:** How many NPC archetypes and how deep is the lore?  
-**Interviewer:** 200 NPC archetypes with distinct backstories, speech patterns, relationship dynamics, and factional allegiances. The lore bible is ~2M tokens. Each NPC archetype has a 500-token persona definition. World state (quests completed, factions, time-of-day, weather) must influence dialogue.
-
-**Candidate:** What's the interaction profile?  
-**Interviewer:** Average 12 dialogue turns per interaction. Each turn: player sends text or selects from dynamic options, NPC responds. Dialogue must feel natural, not canned.
-
-**Candidate:** What are the latency and memory constraints?  
-**Interviewer:** 50ms network budget (client to edge server), leaving 450ms for generation. Each NPC-player pair gets 16KB of persistent memory. Players expect NPCs to remember interactions across sessions—days or weeks later.
 
 ### Functional Requirements
 
@@ -70,8 +53,6 @@ part: case-studies
 - CCU: 500K
 - Players in active dialogue: `500K × 0.15 = 75K`
 - Avg turns per interaction: 12
-- Avg interaction duration: 3 minutes → `12 turns / 180s = 0.067 turns/sec/player`
-- Dialogue turns/sec (peak): `75K × 0.067 ≈ 5,000 turns/sec`
 - Avg input tokens/turn (player input + context): ~800 tokens
 - Avg output tokens/turn (NPC response): ~60 tokens
 - Total input tokens/sec: `5,000 × 800 = 4M tokens/sec`
@@ -98,7 +79,6 @@ part: case-studies
 - Model: 3B parameter (INT4 quantized), ~8GB VRAM, optimized for dialogue
 - Tokens/sec/GPU with continuous batching + speculative decoding: ~4,000 output tokens/sec
 - Required output throughput: 300K tokens/sec
-- GPUs for generation: `300K / 4,000 = 75 GPUs`
 - With 2x headroom for burst + redundancy: **150 GPUs**
 - Edge deployment: 6 regions × 25 GPUs each
 
@@ -258,7 +238,7 @@ MemoryEntry {
 
 Storage per entry: ~1.6KB (100 tokens × 4 bytes + 384 × 4 bytes embedding + metadata). 16KB limit per pair ≈ 10 memory entries. Retrieval: embed the current player input, cosine similarity against stored memory embeddings, return top-3 most relevant entries. This ensures the NPC references relevant past interactions, not just the most recent.
 
-> **Why vector-similarity memory retrieval rather than recency-based retrieval:** Recency-based retrieval (always use the last 3 entries) fails when a player brings up a topic from a session three weeks ago—the relevant memory is buried beneath more recent but topically irrelevant entries. Vector similarity retrieval selects memories by semantic relevance to the current conversation turn, not by age. With only 10 entries in the store, the cosine similarity search is a 10-way dot product (trivially fast at < 0.1ms)—the embedding cost dominates at ~2ms using MiniLM-L6. This is the same mechanism used in [[glossary#RAG (Retrieval-Augmented Generation)|RAG]] systems but applied to a per-player-per-NPC private memory store rather than a shared knowledge base.
+> **Why vector-similarity memory retrieval rather than recency-based retrieval:** Recency-based retrieval (always use the last 3 entries) fails when a player brings up a topic from a session three weeks ago—the relevant memory is buried be...
 
 **Memory eviction strategy:**
 
@@ -399,13 +379,13 @@ At inference time:
 
 1. Generate 500K high-quality NPC dialogues using LLaMA-70B with full lore context (offline, no latency constraint).
 2. Filter for quality: keep dialogues with zero lore contradictions and high persona consistency (scored by the 100M classifier).
-3. [[glossary#Fine-tuning|Fine-tune]] 3B base model on this dataset. Loss: cross-entropy + persona consistency reward (RL from the classifier as reward model).
+3. Fine-tuning|Fine-tune 3B base model on this dataset. Loss: cross-entropy + persona consistency reward (RL from the classifier as reward model).
 4. Distill further to 1.5B for Tier 2 NPCs. Teacher: the fine-tuned 3B. Student: 1.5B with KL divergence loss.
 5. Evaluate: human raters score 1,000 blind A/B comparisons (3B vs 1.5B). Accept if win rate delta < 10%.
 
 **Speculative decoding for game dialogue:**
 
-> **Why speculative decoding for game dialogue generation:** Standard autoregressive decoding generates one token at a time, with each forward pass through the full 3B model taking ~1.5ms. For 60 tokens, that is ~90ms of sequential compute with the GPU underutilized at each step because the key-value cache lookups dominate memory bandwidth. [[glossary#Speculative Decoding|Speculative decoding]] parallelizes this by having a cheap 300M draft model generate K candidate tokens at once, then verifying all K tokens in a single pass of the 3B target model. When most tokens are accepted (as they are for predictable NPC speech), the effective [[glossary#Throughput|throughput]] is 3-4× higher at identical output quality. This is the single largest latency optimization available without reducing model size.
+> **Why speculative decoding for game dialogue generation:** Standard autoregressive decoding generates one token at a time, with each forward pass through the full 3B model taking ~1.5ms.
 
 Game dialogue is highly predictable—NPCs have restricted vocabulary and speech patterns. Speculative decoding exploits this:
 
@@ -418,7 +398,7 @@ Game dialogue is highly predictable—NPCs have restricted vocabulary and speech
 
 **Prefix KV cache per archetype:**
 
-> **Why a prefix KV cache per NPC archetype:** Every dialogue request for a given NPC archetype includes the same 200-token persona system prompt at the start of the context. Without prefix caching, the model re-computes the key-value attention tensors for those 200 tokens on every single request—at 5,000 requests/sec, that is 5,000 redundant identical prefill operations per second. Caching the [[glossary#KV Cache|KV]] tensors for these 200 tokens per archetype eliminates this redundant work entirely. The savings compound: 200 tokens × 5,000 req/sec × 4 bytes × 32 layers ≈ 1.28 GB/sec of memory bandwidth reclaimed, which directly translates to reduced prefill latency (~20ms saved per request) and increased batch throughput.
+> **Why a prefix KV cache per NPC archetype:** Every dialogue request for a given NPC archetype includes the same 200-token persona system prompt at the start of the context.
 
 Each NPC archetype has a fixed system prompt (~200 tokens). With 200 archetypes:
 - Cache 200 prefix KV states.
@@ -438,7 +418,7 @@ Priority-aware batching: Tier 1 NPC requests (main quest NPCs) get priority admi
 
 **Edge deployment topology:**
 
-> **Why edge deployment of the model fleet rather than a centralized cluster:** A centralized cloud model serving cluster in US-East would impose 80-150ms of round-trip network latency for players in Asia and Europe before generation even begins. With a 450ms total generation budget and 50ms network budget, a centralized design has already burned 60-70% of the latency budget on wire time alone. Edge deployment co-locates the model serving fleet with the game servers in each region, keeping dialogue requests on the same physical or logically adjacent infrastructure as the game server. Network RTT drops to 5-20ms, restoring ~100ms of generation headroom. Additionally, regional isolation means a GPU fleet failure in EU-West does not affect players in Asia-East—regional faults stay regional.
+> **Why edge deployment of the model fleet rather than a centralized cluster:** A centralized cloud model serving cluster in US-East would impose 80-150ms of round-trip network latency for players in Asia and Europe before generation eve...
 
 ```text
 6 Edge Regions:
@@ -498,33 +478,17 @@ In many game deployments, GPU clusters already exist for physics simulation and 
 
 - **Emotion state machine:** Track NPC emotional state as a finite state machine (neutral → annoyed → angry → hostile) updated by player actions and dialogue sentiment. Inject current emotional state as a structured token into the persona prompt: `[Emotion: hostile, cause: player_threatened_npc]`. Without an explicit state machine, the LLM interprets each turn in isolation—an NPC who was furious two turns ago may inexplicably return to friendly within a single generation. Keeping a discrete state prevents jarring emotional resets and allows the game engine to trigger gameplay consequences (e.g., a guard NPC transitioning to "hostile" state can simultaneously flag the player for combat AI).
 
-> **Why an explicit emotion state machine for NPC mood:** LLMs do not maintain state between calls—they only see the last N tokens of context. An emotion state machine externalizes the NPC's mood as structured data so it persists reliably, independent of whether the earlier turns that caused the emotion are still in the sliding context window.
+> **Why an explicit emotion state machine for NPC mood:** LLMs do not maintain state between calls—they only see the last N tokens of context.
 
 - **Hierarchical memory:** Compress old episodic memories into "chapter summaries" (e.g., "In Chapter 1, the player helped Grimbold find rare ore and earned his trust") once the episodic store reaches 70% capacity. Summaries are generated by the 3B model in a low-priority background job and stored at a dedicated "arc" slot separate from the 16KB per-pair budget. This preserves the shape of a long-running narrative without consuming retrieval slots with fine-grained but stale details—"player asked about armor prices on Tuesday" is useless after a month, but "player saved Grimbold's apprentice from the mines" defines the relationship anchor indefinitely.
 
-> **Why hierarchical arc summaries on top of episodic memory:** Vector similarity retrieval over 10 fine-grained memory entries is less robust than having 1-2 arc summaries that always appear in context. A summary condenses signal while discarding noise, reducing the chance that the retrieval step returns irrelevant old details over important ones.
+> **Why hierarchical arc summaries on top of episodic memory:** Vector similarity retrieval over 10 fine-grained memory entries is less robust than having 1-2 arc summaries that always appear in context.
 
 - **Player modeling:** After 10+ interactions with any NPC archetype, build a lightweight player preference vector: 3 float dimensions representing preference for combat-focused dialogue, lore exposition, and humor respectively (e.g., `[0.2, 0.8, 0.1]` for a lore-heavy player). Update via exponential moving average: `pref = 0.9 × pref + 0.1 × turn_signal` where `turn_signal` is extracted from the player's choice of dialogue option or free-text topic. Store alongside memory. The context assembly service appends a 10-token directive to the persona prompt: `[Player prefers: lore > combat > humor. Favor lore exposition when multiple framings are available]`. This costs 10 tokens of context budget but demonstrably improves engagement—players who receive preference-matched dialogue show 18% longer conversation chains.
 
-> **Why per-player preference modeling for dialogue style:** Different players want different things from the same NPC. A uniform response style optimizes for an average player and satisfies no one fully. Preference modeling is cheap (3 floats, negligible compute), requires no user-facing configuration, and degrades gracefully to neutral behavior when data is sparse.
+> **Why per-player preference modeling for dialogue style:** Different players want different things from the same NPC.
 
 - **Parallel NPC-NPC dialogue:** When two NPCs are within proximity range in the game world, generate ambient NPC-NPC conversations using a shared context window containing both NPCs' personas and the current world state. Generated at low priority (batch queue, no latency SLO) during GPU idle cycles—these conversations are not interactive, so latency tolerances are in the 2-5 second range. The output is stored as short audio-less text snippets delivered to nearby players as overhead chat bubbles or environmental chatter. Players overhearing guards discuss recent bandit activity or merchants arguing over trade prices reinforces world-building without any player action. Rate-limited to 1 NPC-NPC exchange per NPC pair per 90 seconds to avoid ambient chatter overwhelming the GPU budget.
-
----
-
-## Step 4: Wrap Up
-
-### Final Design Summary
-
-The design deploys a two-tier distilled model fleet (3B for important NPCs, 1.5B for ambient) at 6 edge regions to achieve sub-450ms dialogue generation for 75K concurrent sessions. A three-tier memory architecture (short-term buffer, long-term episodic store, world state feed) gives NPCs persistent awareness of player history and game context. Personality consistency is enforced through four layers: persona prompt engineering, constrained decoding, post-generation contradiction classifier, and lore retrieval grounding—achieving < 0.05% lore contradiction rate. Speculative decoding with a domain-specific draft model delivers 3.5-4x decode speedup. Scripted dialogue trees provide graceful fallback under failure or latency SLO breach.
-
-### Wrap-Around Concerns
-
-- **Risk:** A viral clip of an NPC lore contradiction causes a PR crisis. Mitigation: the four-layer contradiction detection system targets < 0.05% violation rate. Additionally, flag high-profile NPC interactions (e.g., main quest NPCs, NPCs in popular zones) for stricter enforcement (regenerate on any classifier confidence > 0.6, not just > 0.85).
-- **Risk:** Memory compaction loses important narrative details, causing NPCs to "forget" pivotal player moments. Mitigation: protected memory slots for first meeting and highest-importance events. Compaction only merges entries with > 80% semantic overlap.
-- **Risk:** Model distillation degrades dialogue quality for Tier 2 NPCs to the point where players notice a "two-class" NPC system. Mitigation: blind A/B testing during development. In production, track per-tier engagement metrics. Promote Tier 2 NPCs to Tier 1 if they become narratively important.
-- **Risk:** Edge GPU fleet is expensive for a game studio. Mitigation: share GPU capacity with other game AI workloads (pathfinding, procedural generation). Explore on-device inference for single-player mode or offline play using quantized 1.5B models.
-- **Risk:** Players deliberately try to break NPCs ("jailbreak" attempts—getting the blacksmith to discuss quantum physics). Mitigation: knowledge boundary enforcement in persona definition + constrained decoding. NPC deflects gracefully: "I don't know about that, lad. Ask the mage."
 
 ---
 
@@ -589,7 +553,7 @@ Q: Your 3B model occasionally generates modern slang ("that's fire, bro") in a m
 
 Q: The game launches a new expansion with 50 new NPCs. How do you onboard them without retraining the model?
 
-**The Ideal Answer:** New NPCs require zero model retraining. The persona-driven architecture decouples NPC identity from model weights. Steps: (1) Write 500-token persona definitions for each new archetype. (2) Pre-compute lore chunk relevance for each new archetype (offline, < 1 hour). (3) Generate prefix KV cache for each new archetype's system prompt (~2MB each, 50 × 2MB = 100MB total). (4) Deploy new persona definitions to the persona cache (hot reload, no restart). (5) Validate with automated testing: generate 100 sample dialogues per new NPC, run through contradiction classifier, and human-review a sample. (6) If a new NPC archetype has a speech pattern significantly different from training data (e.g., a rhyming bard), generate 5K synthetic dialogues with GPT-4 in that style and run a lightweight [[glossary#LoRA (Low-Rank Adaptation)|LoRA]] adapter. Cost: < 1 GPU-hour, deployable as a LoRA hot-swap.
+**The Ideal Answer:** New NPCs require zero model retraining. The persona-driven architecture decouples NPC identity from model weights. Steps: (1) Write 500-token persona definitions for each new archetype. (2) Pre-compute lore chunk relevance for each new archetype (offline, < 1 hour). (3) Generate prefix KV cache for each new archetype's system prompt (~2MB each, 50 × 2MB = 100MB total). (4) Deploy new persona definitions to the persona cache (hot reload, no restart). (5) Validate with automated testing: generate 100 sample dialogues per new NPC, run through contradiction classifier, and human-review a sample. (6) If a new NPC archetype has a speech pattern significantly different from training data (e.g., a rhyming bard), LoRA adapter. Cost: < 1 GPU-hour, deployable as a LoRA hot-swap.
 
 **Deep Dive & Trade-offs:**
 - The prompt-driven approach means NPC quality is bounded by the base model's ability to follow persona instructions. For radical departures from training distribution (an NPC who speaks only in haiku), LoRA adapters are necessary.
@@ -642,394 +606,3 @@ Q: Players have discovered they can extract your NPC system prompt by asking "re
 
 **The Interviewer's Rubric:** Checking security awareness for adversarial interactions with LLM-powered systems in an environment (games) where adversarial probing is guaranteed.
 
-## Practical Implementation
-
-### 1. Three-Tier Memory Assembly
-
-The context assembly service must pull from three data sources in parallel and merge them into a token-budget-constrained prompt. The following implementation shows the core memory retrieval and prompt construction logic used in production-grade NPC dialogue systems.
-
-```python
-import asyncio
-import time
-from dataclasses import dataclass, field
-from typing import Optional
-import numpy as np
-
-@dataclass
-class MemoryEntry:
-    entry_id: str
-    summary: str          # max 100 tokens
-    importance: float     # 0.0 - 1.0
-    embedding: np.ndarray # float[384], MiniLM-L6
-    tags: list[str]
-    timestamp: float      # unix seconds
-    verified: bool = True # False for unverified player claims
-
-@dataclass
-class DialogueContext:
-    persona_tokens: int = 0
-    memory_tokens: int = 0
-    world_tokens: int = 0
-    history_tokens: int = 0
-    total_tokens: int = 0
-    prompt: str = ""
-
-TOKEN_BUDGET = {
-    "persona":  200,   # archetype system prompt (prefix-cached)
-    "memory":   150,   # top-3 episodic entries
-    "world":    100,   # quest/faction/environment
-    "history":  400,   # last 8 turns
-    "input":    150,   # current player message
-    "headroom":  200,  # output + safety margin
-}
-MAX_CONTEXT = sum(TOKEN_BUDGET.values())  # 1200 tokens
-
-class ContextAssemblyService:
-    def __init__(self, persona_cache, memory_store, world_state, embedder):
-        self.persona_cache = persona_cache      # dict: archetype_id -> str
-        self.memory_store = memory_store        # RedisMemoryStore
-        self.world_state = world_state          # WorldStateService
-        self.embedder = embedder                # MiniLM-L6 embedding model
-
-    async def assemble(
-        self,
-        player_id: str,
-        npc_archetype_id: str,
-        player_input: str,
-        session_history: list[dict],
-    ) -> DialogueContext:
-        t0 = time.monotonic()
-
-        # Fire all four lookups in parallel — target: all complete within 40ms
-        persona_task = asyncio.create_task(
-            self._get_persona(npc_archetype_id)
-        )
-        memory_task = asyncio.create_task(
-            self._get_relevant_memories(player_id, npc_archetype_id, player_input)
-        )
-        world_task = asyncio.create_task(
-            self._get_world_state(player_id)
-        )
-
-        persona, memories, world = await asyncio.gather(
-            persona_task, memory_task, world_task
-        )
-
-        # Assemble history within token budget (oldest turns dropped first)
-        history_text = self._truncate_history(
-            session_history, budget=TOKEN_BUDGET["history"]
-        )
-
-        # Build structured prompt
-        prompt = self._build_prompt(
-            persona, memories, world, history_text, player_input
-        )
-
-        elapsed_ms = (time.monotonic() - t0) * 1000
-        assert elapsed_ms < 45, f"Context assembly exceeded budget: {elapsed_ms:.1f}ms"
-
-        return DialogueContext(
-            prompt=prompt,
-            total_tokens=self._count_tokens(prompt),
-        )
-
-    async def _get_persona(self, archetype_id: str) -> str:
-        # L1 hit: in-process Python dict (< 0.1ms)
-        return self.persona_cache[archetype_id]
-
-    async def _get_relevant_memories(
-        self, player_id: str, archetype_id: str, query: str
-    ) -> list[MemoryEntry]:
-        all_entries = await self.memory_store.get_all(player_id, archetype_id)
-        if not all_entries:
-            return []
-
-        # Embed the current player input and rank memories by cosine similarity
-        query_emb = self.embedder.encode(query)  # float[384]
-        scored = []
-        for entry in all_entries:
-            # Importance-weighted similarity: high-importance old memories score above
-            # low-importance recent ones when the topic matches
-            sim = float(np.dot(query_emb, entry.embedding) /
-                        (np.linalg.norm(query_emb) * np.linalg.norm(entry.embedding)))
-            recency_decay = np.exp(-0.02 * (time.time() - entry.timestamp) / 86400)
-            score = sim * 0.6 + entry.importance * 0.3 + recency_decay * 0.1
-            scored.append((score, entry))
-
-        scored.sort(key=lambda x: x[0], reverse=True)
-        return [entry for _, entry in scored[:3]]  # top-3
-
-    async def _get_world_state(self, player_id: str) -> dict:
-        return await self.world_state.get_player_context(player_id)
-
-    def _truncate_history(self, history: list[dict], budget: int) -> str:
-        # Build from most recent, truncate if total tokens exceeds budget
-        lines, token_count = [], 0
-        for turn in reversed(history):
-            line = f"{turn['speaker'].upper()}: {turn['text']}"
-            turn_tokens = len(line.split()) * 1.3  # rough token estimate
-            if token_count + turn_tokens > budget:
-                break
-            lines.insert(0, line)
-            token_count += turn_tokens
-        return "\n".join(lines)
-
-    def _build_prompt(self, persona, memories, world, history, player_input) -> str:
-        memory_block = "\n".join(
-            f"- [{e.tags[0] if e.tags else 'memory'}] {e.summary}"
-            + ("" if e.verified else " (UNVERIFIED PLAYER CLAIM)")
-            for e in memories
-        ) if memories else "No prior interactions with this player."
-
-        world_block = (
-            f"- Quest: {world.get('active_quest', 'None')}\n"
-            f"- Faction standing: {world.get('faction', 'Neutral')}\n"
-            f"- Environment: {world.get('time_of_day', 'Day')}, {world.get('weather', 'Clear')}\n"
-            f"- Location: {world.get('location', 'Unknown')}"
-        )
-
-        return (
-            f"[System]\n{persona}\n\n"
-            f"[Memory]\n{memory_block}\n\n"
-            f"[World State]\n{world_block}\n\n"
-            f"[Conversation History]\n{history}\n\n"
-            f"[Player]: {player_input}\n"
-            f"[NPC]:"
-        )
-
-    def _count_tokens(self, text: str) -> int:
-        return int(len(text.split()) * 1.3)  # replace with tokenizer.encode in production
-```
-
-### 2. Importance-Weighted Memory Eviction
-
-When the 16KB per-pair memory store is full, the eviction policy must protect narrative-critical entries. This implementation uses importance × recency scoring with two permanently protected slots.
-
-```python
-import heapq
-from typing import Optional
-
-MAX_STORE_BYTES = 16 * 1024   # 16KB per NPC-player pair
-ENTRY_SIZE_BYTES = 1638       # ~1.6KB per MemoryEntry
-
-class MemoryEvictionPolicy:
-    """
-    Two protected slots (first_meeting, highest_importance) + N flexible slots
-    using importance-weighted LRU eviction.
-    """
-    MAX_ENTRIES = MAX_STORE_BYTES // ENTRY_SIZE_BYTES  # ~10
-
-    def __init__(self):
-        self.entries: dict[str, MemoryEntry] = {}      # entry_id -> entry
-        self.first_meeting_id: Optional[str] = None
-        self.highest_importance_id: Optional[str] = None
-
-    def add(self, entry: MemoryEntry) -> Optional[str]:
-        """
-        Add a new memory entry. Returns the evicted entry_id if eviction occurred,
-        otherwise None.
-        """
-        self.entries[entry.entry_id] = entry
-
-        # Set first-meeting anchor on the very first entry
-        if self.first_meeting_id is None:
-            self.first_meeting_id = entry.entry_id
-
-        # Update highest-importance anchor
-        best = max(self.entries.values(), key=lambda e: e.importance)
-        self.highest_importance_id = best.entry_id
-
-        evicted_id = None
-        if len(self.entries) > self.MAX_ENTRIES:
-            evicted_id = self._evict_one()
-
-        return evicted_id
-
-    def _evict_one(self) -> str:
-        protected = {self.first_meeting_id, self.highest_importance_id}
-        candidates = [e for eid, e in self.entries.items() if eid not in protected]
-
-        if not candidates:
-            # All entries are protected (should not happen with > 2 entries and MAX_ENTRIES > 2)
-            # Fall back to evicting the oldest non-protected entry
-            candidates = list(self.entries.values())
-
-        now = time.time()
-        def eviction_score(entry: MemoryEntry) -> float:
-            """
-            Lower score = evict first.
-            importance × recency_weight — old, unimportant entries go first.
-            """
-            days_old = (now - entry.timestamp) / 86400
-            recency_weight = np.exp(-0.1 * days_old)   # half-life ~7 days
-            return entry.importance * recency_weight
-
-        victim = min(candidates, key=eviction_score)
-        del self.entries[victim.entry_id]
-        return victim.entry_id
-
-    def get_for_retrieval(self) -> list[MemoryEntry]:
-        """Return all entries sorted by importance descending for embedding search."""
-        return sorted(self.entries.values(), key=lambda e: e.importance, reverse=True)
-
-    def update_importance(self, entry_id: str, new_importance: float) -> None:
-        if entry_id in self.entries:
-            self.entries[entry_id].importance = new_importance
-            # Re-evaluate highest_importance anchor
-            best = max(self.entries.values(), key=lambda e: e.importance)
-            self.highest_importance_id = best.entry_id
-```
-
-### 3. Contradiction Detection Inference Pipeline
-
-The 100M classifier runs on every generated response before it reaches the player. The following shows the inference call, threshold logic, and regeneration trigger integrated into the dialogue serving path.
-
-```python
-import torch
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
-from enum import Enum
-
-class ContradictionLabel(Enum):
-    CONSISTENT = 0
-    PERSONA_VIOLATION = 1
-    LORE_VIOLATION = 2
-    KNOWLEDGE_BOUNDARY_VIOLATION = 3
-    REGISTER_VIOLATION = 4
-
-@dataclass
-class ContradictionResult:
-    label: ContradictionLabel
-    confidence: float
-    should_block: bool
-
-BLOCK_THRESHOLD = 0.85
-REGENERATE_MAX_ATTEMPTS = 2
-
-class ContradictionDetector:
-    def __init__(self, model_path: str, device: str = "cuda"):
-        self.tokenizer = AutoTokenizer.from_pretrained(model_path)
-        self.model = AutoModelForSequenceClassification.from_pretrained(model_path)
-        self.model.to(device).eval()
-        self.device = device
-
-    @torch.inference_mode()
-    def check(self, persona_constraints: str, response: str) -> ContradictionResult:
-        """
-        Input format: [CLS] persona_constraints [SEP] response [SEP]
-        Classifies the response against the persona constraint set.
-        """
-        inputs = self.tokenizer(
-            persona_constraints,
-            response,
-            max_length=512,
-            truncation=True,
-            return_tensors="pt",
-        ).to(self.device)
-
-        logits = self.model(**inputs).logits
-        probs = torch.softmax(logits, dim=-1).squeeze().cpu().numpy()
-        pred_class = int(np.argmax(probs))
-        confidence = float(probs[pred_class])
-        label = ContradictionLabel(pred_class)
-
-        return ContradictionResult(
-            label=label,
-            confidence=confidence,
-            should_block=(label != ContradictionLabel.CONSISTENT and confidence > BLOCK_THRESHOLD),
-        )
-
-
-async def generate_with_contradiction_guard(
-    model_client,
-    contradiction_detector: ContradictionDetector,
-    fallback_dialogue: dict,
-    prompt: str,
-    persona_constraints: str,
-    archetype_id: str,
-    max_tokens: int = 80,
-) -> tuple[str, str]:
-    """
-    Returns (response_text, source) where source is one of:
-      "model_clean", "model_regenerated", "scripted_fallback"
-    """
-    for attempt in range(REGENERATE_MAX_ATTEMPTS + 1):
-        if attempt > 0:
-            # Inject an explicit constraint reminder on regeneration attempts
-            constraint_reminder = (
-                f"\n[IMPORTANT: The previous response violated persona constraints. "
-                f"Strictly adhere to: {persona_constraints[:200]}]\n"
-            )
-            prompt_to_use = prompt + constraint_reminder
-        else:
-            prompt_to_use = prompt
-
-        response = await model_client.generate(
-            prompt_to_use, max_tokens=max_tokens
-        )
-
-        result = contradiction_detector.check(persona_constraints, response)
-
-        if not result.should_block:
-            source = "model_clean" if attempt == 0 else "model_regenerated"
-            return response, source
-
-        # Log for offline review
-        print(
-            f"[ContradictionDetector] Attempt {attempt+1}: "
-            f"{result.label.name} (confidence={result.confidence:.2f}) — blocking"
-        )
-
-    # All attempts violated constraints: fall back to scripted dialogue
-    scripted = fallback_dialogue.get(archetype_id, {}).get(
-        "generic_deflect",
-        "I'm not sure what to say to that, lad. Perhaps another time."
-    )
-    return scripted, "scripted_fallback"
-```
-
----
-
-## Exercises
-
-### Design Exercises
-
-**1. Design the memory system for a procedurally generated NPC population of 10,000 unique NPCs (not archetypes — each is individually unique) across a persistent online world with 200K CCU.**
-
-Each NPC has a unique backstory and personality that must persist across server restarts. Extend the memory architecture described in this chapter to handle: (a) 10,000 unique persona definitions that cannot all fit in L2 cache simultaneously — design a tiered persona cache with LRU eviction, sizing each tier and estimating hit rates; (b) cross-NPC memory for events that affect entire settlements (e.g., a plague that every NPC in a town witnessed); (c) NPC-NPC relationship memory (not just player-NPC) where two specific NPCs remember interactions with each other. Calculate the total persistent storage requirement assuming 50M player-NPC pairs and 5M NPC-NPC pairs at 16KB each, and propose a Redis + object storage tiering strategy for hot vs cold NPC state.
-
-**2. Design an AI NPC system for a battle royale game where NPCs act as autonomous agents competing against players — not as dialogue partners but as adversarial decision-makers.**
-
-The NPC must make real-time decisions (movement, weapon choice, cover selection, engagement decisions) every 100ms, informed by game state but not by player input. The latency SLO is 50ms per decision (tighter than dialogue), and there are 50-90 NPC agents active per match with 100K concurrent matches. Design the inference architecture: model size, batching strategy, decision representation (token-based vs structured output), and how you would ground NPC behavior in the current match state (player positions, loot, zone boundaries). Address how you handle the adversarial alignment problem — NPCs that are too accurate are unfun; too inaccurate are trivial — and propose a difficulty-scaling mechanism that adjusts model sampling temperature or applies action masking based on the configured difficulty tier.
-
----
-
-### Implementation Exercises
-
-**3. Implement an importance scorer for NPC memory entries.**
-
-Write a function `score_importance(conversation_summary: str, world_state: dict, npc_archetype: str) -> float` that returns a value between 0.0 and 1.0. The scorer should assign high importance (> 0.8) to: quest completions, first meetings, promises made by the NPC, player actions that changed faction reputation, and moments of high emotional intensity (rescue, betrayal, revelation). It should assign low importance (< 0.3) to: small talk, weather commentary, and generic vendor transactions. Implement two versions: (a) a rule-based version using keyword matching and the world state dict (fast, deterministic), and (b) a classifier-based version using a zero-shot text classification model (slower, generalizes to novel events). Write unit tests with at least 10 labeled examples covering both high- and low-importance cases. Benchmark the latency of each version and determine which meets the 5ms budget for the memory persistence pipeline.
-
-**4. Implement a streaming NPC response delivery system with contradiction checking that does not block the first tokens from reaching the client.**
-
-The constraint: players see the speech bubble start animating within 200ms (first token visible). The contradiction classifier needs the full response before it can check (it cannot check partial responses). Design and implement a two-phase streaming architecture: (a) the first N tokens (greeting/opener, typically safe) are streamed immediately to the client while the rest of the response is being generated; (b) the full response is checked by the contradiction classifier; (c) if a violation is detected, the client receives a "correction" message that naturally supersedes the partial response (e.g., the NPC pauses mid-sentence and says "No, what I mean is..."). Implement the client-side protocol for handling partial-then-correction delivery, and measure the worst-case user experience impact (the player sees a brief contradiction before it is corrected). Propose a threshold for how many tokens can be safely pre-streamed before the risk of an uncorrectable contradiction is too high.
-
----
-
-### Debug Exercise
-
-**5. You deploy the NPC dialogue system to production. Within 6 hours, the monitoring dashboard shows: (a) lore contradiction rate spiked from 0.04% to 1.8%; (b) classifier confidence scores on violations dropped from 0.91 average to 0.63 average (classifier is less certain); (c) the spike coincides with a game content patch that added 30 new questlines and updated 15 NPC backstories; (d) no changes were made to the model serving infrastructure. Diagnose the root cause and propose a remediation plan.**
-
-Walk through the following diagnostic steps in sequence: (1) Why would a game content patch — with no model changes — cause an increase in lore contradictions? Identify all the system components that are coupled to lore content and would become stale after a lore patch. (2) Why would the classifier's confidence drop simultaneously? What does low classifier confidence on true violations indicate about the relationship between the training data distribution and the new lore content? (3) Propose an immediate mitigation (< 1 hour) that does not require retraining any model. (4) Propose a medium-term fix (< 1 week) that updates the affected components without full retraining. (5) Propose a systemic process change that prevents this class of incident from recurring when future content patches are deployed. For each step, identify the specific system component involved (lore retrieval index, persona cache, contradiction classifier training data, constrained decoding ban lists) and estimate the engineering effort required.
-
----
-
-## End of Chapter
-
-- **Key takeaway:** An AI NPC engine is a memory-and-constraint system first, a language model second. The model generates tokens; the memory architecture, persona enforcement, and contradiction detection layers make those tokens feel like a character. Sub-500ms latency at game scale requires aggressive model distillation, speculative decoding with domain-specific draft models, edge deployment, and graceful fallback to scripted dialogue.
-- **What to practice:** Size the GPU fleet for 75K concurrent dialogue sessions with a latency breakdown from context assembly through decode to post-processing. Design the memory eviction policy for a 16KB-per-pair budget with importance scoring.
-- **Interview drill:** Given a new NPC archetype with extreme personality constraints (a compulsive liar, a pacifist in a combat game, an NPC who speaks only in riddles), walk through how the persona prompt, constrained decoding, and contradiction classifier would need to adapt—and identify which constraints are enforceable at inference time vs which require fine-tuning.
-
----
-
-<!-- nav-footer -->
-[[Chapter 18 - Design a Voice-First Real-Time Agent|← Chapter 18]] | [[README|Contents]] | [[Chapter 20 - Design a Healthcare Triage and Diagnostic Assistant|Chapter 20 →]]

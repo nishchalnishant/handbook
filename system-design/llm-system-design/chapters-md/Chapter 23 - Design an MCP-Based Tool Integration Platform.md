@@ -14,7 +14,7 @@ part: case-studies
 > - **Scale:** 50K enterprise users, 2K MCP servers, 100K tool calls/hour peak
 > - **Key Techniques:** host-client-server architecture, tools/resources/prompts, roots, OAuth, approval UX, server trust tiers, result sanitization
 > - **Primary Concerns:** tool safety, prompt injection, confused deputy attacks, data exfiltration, server lifecycle, observability
-> - **Cross-references:** [[Chapter 2 - The LLM Stack and Core Patterns|Chapter 2]] (tool patterns), [[Chapter 5 - Evaluation, Guardrails, and Safety|Chapter 5]] (guardrails), [[Chapter 9 - Design an Autonomous Research Agent|Chapter 9]] (agent tools), [[Chapter 22 - Design a Multi-Agent Workflow Orchestrator|Chapter 22]] (multi-agent orchestration)
+> - **Cross-references:** Chapter 2 (tool patterns), Chapter 5 (guardrails), Chapter 9 (agent tools), Chapter 22 (multi-agent orchestration)
 
 **Problem statement:** Design an enterprise platform that lets AI applications connect to internal and third-party tools through MCP while preserving security, user control, auditability, and reliable developer operations.
 
@@ -41,17 +41,6 @@ MCP solves the integration shape, not the governance problem. A production answe
 
 ## Step 1: Understand the Problem and Establish Design Scope
 
-### Simulated Dialogue
-
-**Interviewer:** Design an MCP tool integration platform.  
-**Candidate:** [[glossary#Model Context Protocol (MCP)|MCP]] standardizes how AI hosts connect to external context and tools, but production still needs a trust model, permissioning, approval UX, server registry, and auditing. I will design the control plane and runtime gateway around MCP primitives.
-
-**Candidate:** Which MCP primitives must we support?  
-**Interviewer:** Tools, resources, prompts, server discovery, roots, and OAuth-based authorization.
-
-**Candidate:** Are tool calls autonomous?  
-**Interviewer:** Read-only tools can run automatically if pre-approved. Destructive or external-write tools require explicit user confirmation.
-
 ### Functional Requirements
 
 - Register, approve, configure, and monitor MCP servers.
@@ -77,7 +66,6 @@ MCP solves the integration shape, not the governance problem. A production answe
 - Avg enabled servers/user: 8
 - Peak tool calls/hour: 100K = `~28 calls/sec`
 - Burst factor for agent workflows: 10x = `~280 calls/sec`
-- Audit log: `100K calls/hour * 10KB ~= 1GB/hour`, `~24GB/day` raw
 
 ---
 
@@ -91,14 +79,14 @@ MCP solves the integration shape, not the governance problem. A production answe
 - **Policy Engine:** evaluates user, tenant, tool, resource, data, and action risk.
 - **Tool Gateway:** validates tool arguments, applies approvals, executes calls, logs results.
 - **Resource Gateway:** fetches resources with roots and data-boundary enforcement.
-- **[[glossary#Prompt Registry|Prompt Registry]]:** exposes approved prompt templates and workflows.
+- **Prompt Registry|Prompt Registry:** exposes approved prompt templates and workflows.
 - **Authorization Service:** OAuth and credential handling outside model context.
 - **Sanitizer:** strips hidden instructions, secrets, and unsafe content from tool/resource results.
 - **Audit and Trace Store:** immutable record of server discovery, tool calls, approvals, and outputs.
 
 ### Pipeline A: Server Onboarding
 
-1. Developer submits [[glossary#MCP Server|MCP server]] metadata, transport, schemas, and owner.
+1. Developer submits MCP Server|MCP server metadata, transport, schemas, and owner.
 2. Registry validates capabilities and runs conformance tests.
 3. Security scanner reviews tool descriptions, scopes, and external domains.
 4. Admin assigns trust tier and allowed tenants.
@@ -193,7 +181,7 @@ MCP defines six primitives that each carry distinct security and operational imp
 | Sampling | A server-initiated request asking the host or model to perform a completion — effectively a server calling back into the AI. This enables recursive tool use and chain-of-thought on the server side. | Without a recursion depth limit, sampling enables unbounded agent loops that exhaust context and incur runaway costs. Each sampling call must be counted against a per-session budget, and the model must not receive sampling-injected instructions with elevated trust. |
 | Elicitation | A server-initiated request for interactive user input — e.g., asking the user to confirm a decision or supply a credential mid-workflow. | Elicitation UI must not be spoofable by a malicious server. Credentials solicited through elicitation must be routed to the credential service, never surfaced in the model's context. Every elicitation event must be audit-logged with the server identity and the data provided. |
 
-> **Why treat each MCP primitive as a distinct trust boundary:** MCP standardizes the integration surface but makes no security guarantees. Enterprise deployments must treat each primitive as a distinct trust boundary. Collapsing them into a single "tool use allowed / not allowed" policy is the most common design mistake in production MCP deployments — it either blocks useful reads to compensate for dangerous writes, or allows writes because reads were already permitted.
+> **Why treat each MCP primitive as a distinct trust boundary:** MCP standardizes the integration surface but makes no security guarantees.
 
 ### 2) Permission and Trust Model
 
@@ -209,7 +197,7 @@ Trust tiers:
 | User local | A local filesystem server or personal tool running on the user's machine via stdio transport. The server is not reviewed by security and may be any binary the user compiled or downloaded. | The user must explicitly declare filesystem roots — no default access to home directory or system paths. The server may not make outbound network calls. No cross-user or cross-workspace sharing is permitted. |
 | Experimental | A new server under active development by an internal team, not yet through conformance testing or security review. | Runs in a sandbox environment with no access to production systems. Outbound external writes are fully blocked. Usage is limited to the developing team and requires a named owner accountable for incidents. |
 
-> **Why assign a trust tier at server registration rather than per tool call:** Assigning a trust tier at server registration time is far cheaper than reasoning about risk at every individual tool call. The tier encodes the server's provenance, its blast radius, and the organization's confidence in its behavior. At runtime, the policy engine looks up the tier in O(1) and applies pre-computed rules — this keeps the hot path fast (sub-millisecond policy evaluation) and keeps the security model auditable by humans, not just code.
+> **Why assign a trust tier at server registration rather than per tool call:** Assigning a trust tier at server registration time is far cheaper than reasoning about risk at every individual tool call.
 
 Tool risk scoring drives the approval decision at tool call time, independent of the server's tier:
 
@@ -238,7 +226,7 @@ At 100K tool calls per hour with 10x burst headroom, every millisecond added to 
 - **Server discovery latency:** Capability negotiation over a cold MCP connection adds 50–200 ms per server per session. At 8 enabled servers per user, this creates a 400–1,600 ms cold-start penalty before the first tool call. Mitigate by caching the full capability document (tools list, resource templates, prompt definitions) in a Redis layer with a 5-minute TTL, keyed by server ID and schema version. Invalidate the cache entry immediately on version bump events from the registry webhook. Warm the cache on server registration so the first user connection pays zero discovery cost.
 - **Approval fatigue:** Users who receive approval prompts for every low-risk repeated action within a session learn to approve reflexively without reading, defeating the security purpose. Aggregate approvals: after a user approves `github.get_pr` once in a session, suppress subsequent prompts for the same tool and the same repository for the remainder of the session (30-minute window). Escalate approval friction for destructive actions — require the user to type a short confirmation string (e.g., the target resource name) rather than clicking a button, which slows reflexive approvals and ensures the user has read the action details.
 - **Tool schema drift:** A server owner silently updates a tool's argument schema — adding a required field or changing an enum — without bumping the version. Tool calls start failing with argument validation errors that appear as mysterious model failures, not deployment events. Mitigate by hashing the full tool schema at registration and re-checking on every client manager reconnect. Any deviation triggers an automated alert to the server owner and downgrades the server to a degraded health state until the registry is updated with the new schema and a conformance test passes.
-- **Noisy tool results:** A CI server returns a 50,000-token test log in response to `ci.get_test_failures`. Passing this directly into model context consumes most of the [[glossary#Context Window|context window]], crowds out the conversation history, and increases cost by roughly 10x per call. Apply a two-stage result pipeline: first, clip results to a configurable max token budget (default: 2,000 tokens) using a deterministic truncation strategy that preserves the first and last N lines of structured output; second, optionally summarize the clipped content with a fast small model before injection. Store the full raw result in the audit trace store, linked by trace ID, so it is available for debugging without bloating the model context.
+- **Noisy tool results:** A CI server returns a 50,000-token test log in response to `ci.get_test_failures`. Passing this directly into model context consumes most of the context window, crowds out the conversation history, and increases cost by roughly 10x per call. Apply a two-stage result pipeline: first, clip results to a configurable max token budget (default: 2,000 tokens) using a deterministic truncation strategy that preserves the first and last N lines of structured output; second, optionally summarize the clipped content with a fast small model before injection. Store the full raw result in the audit trace store, linked by trace ID, so it is available for debugging without bloating the model context.
 - **Local server instability:** stdio-transport servers run as child processes on the user's machine and can crash, deadlock, or exhaust memory without notice. Without recovery logic, the agent silently loses tool access mid-task and may hallucinate results. Implement a health check ping on a 10-second interval; restart crashed processes up to three times with exponential backoff; after the third failure, surface a structured fallback message to the model context indicating the server is unavailable and listing which tools are affected. Log the crash with a stack trace to the centralized audit store for the developer to investigate.
 
 ### Advanced Techniques
@@ -250,20 +238,6 @@ The following techniques move the platform from a baseline secure integration to
 - **Tool result tainting:** Assign a taint level to every piece of content that enters the model's context window from an external source. Content from Internal Verified servers receives a `low` taint; content from third-party servers receives `high` taint; content from resources that themselves came from user-supplied input (e.g., a doc URL the user pasted) receives `critical` taint. The policy engine refuses to pass `high` or `critical` tainted content as arguments to external-write tools without explicit approval, preventing a read-then-exfiltrate chain even when each individual step is individually permitted.
 - **Intent-bound approvals:** Rather than approving a tool capability in general, the user approves a specific instance of an action bound to the original intent of their request. The approval payload includes: the user's original message (quoted), the specific tool and arguments proposed, the data sources that contributed to those arguments, and the projected side effect. This binding is stored in the audit log so that any approved action can be traced back to exactly what the user said and exactly what they were shown before they approved. If the model later proposes a different action referencing the same approval, the gateway rejects it.
 - **Replayable tool traces:** Store every tool call's full request and response in the audit trace store in a format that can be replayed against a mock server. When a developer needs to debug an agent workflow that produced an incorrect result, they can replay the trace locally — re-running the model against the recorded tool responses without re-executing any real side effects (no GitHub issue created, no query run, no message sent). This dramatically reduces the cost of debugging multi-tool agent workflows and makes it safe to investigate incidents without reproducing them in production.
-
----
-
-## Step 4: Wrap Up
-
-### Final Design Summary
-
-The design wraps MCP in an enterprise control plane. The host and client manager handle protocol sessions; the registry governs what servers exist; the policy engine and gateways enforce least privilege; approval UX controls sensitive actions; sanitization and audit make tool use defensible.
-
-### Wrap-Around Concerns
-
-- **Risk:** a trusted resource injects malicious instructions. Mitigation: treat resource content as data, sanitize it, and enforce policy outside the model.
-- **Risk:** tool call creates unintended side effect. Mitigation: intent-bound approval and scoped credentials.
-- **Risk:** server ecosystem becomes unmanageable. Mitigation: registry ownership, versioning, trust tiers, health checks, and conformance tests.
 
 ---
 
@@ -316,7 +290,7 @@ Q: A user approves a tool call for one task. Can the model reuse that approval f
 **The Interviewer's Rubric:** A strong answer introduces intent-binding and per-call approval semantics, clearly distinguishing them from capability-level approval, and proposes a concrete mechanism such as a nonce plus intent-string comparison. The rubric penalizes treating session-level blanket approvals as the normal case, or flagging the risk without a concrete enforcement mechanism.
 
 Q: Your MCP server registry has 2,000 servers. How do you keep tool discovery fast without loading all 2,000 capability documents into the model context?  
-**The Ideal Answer:** Injecting all 2,000 servers' tool lists into every model context is clearly infeasible — at ~500 tokens per server, that is 1M tokens per request, exceeding every current model's context window. The solution is hierarchical discovery with user-level filtering. At session start, the client manager loads only the capability documents for the 8–12 servers the user has enabled, not the full registry. Each capability document is cached in Redis with a 5-minute TTL so it loads in under 5 ms. Within a session, the model receives a compact tool manifest — tool name, one-sentence description, and input schema — consuming roughly 4,000 tokens for 12 servers. If the user's task requires a server they have not enabled, the host surfaces a discovery UI where the user can browse and enable servers by category; this triggers a background capability fetch and cache warm. For large organizations with hundreds of enabled servers, apply semantic retrieval: index tool descriptions in a [[glossary#Vector Database / ANN Index|vector store]] and retrieve only the top-K most relevant tools for each model turn based on the user's current message.
+**The Ideal Answer:** Injecting all 2,000 servers' tool lists into every model context is clearly infeasible — at ~500 tokens per server, that is 1M tokens per request, exceeding every current model's context window. The solution is hierarchical discovery with user-level filtering. At session start, the client manager loads only the capability documents for the 8–12 servers the user has enabled, not the full registry. Each capability document is cached in Redis with a 5-minute TTL so it loads in under 5 ms. Within a session, the model receives a compact tool manifest — tool name, one-sentence description, and input schema — consuming roughly 4,000 tokens for 12 servers. If the user's task requires a server they have not enabled, the host surfaces a discovery UI where the user can browse and enable servers by category; this triggers a background capability fetch and cache warm. For large organizations with hundreds of enabled servers, apply semantic retrieval: index tool descriptions in a vector store and retrieve only the top-K most relevant tools for each model turn based on the user's current message.
 
 **Deep Dive & Trade-offs:**
 - Loading all 2,000 servers is infeasible: at ~500 tokens per server that is ~1M tokens per request, exceeding every current context window, so discovery must be hierarchical and user-scoped.
@@ -359,323 +333,3 @@ Q: A compliance team asks you to prove that the model never saw certain sensitiv
 
 **The Interviewer's Rubric:** A strong answer specifies append-only tamper-evident storage, the four logging categories (raw response, sanitized output, context snapshot, approval), and logging of blocked events as evidence of non-exposure. The rubric penalizes logging only tool-call arguments without recording what actually reached the model, or describing logging without addressing tamper-evidence and completeness.
 
-## Practical Implementation
-
-The following code blocks demonstrate three core platform components: the policy engine that evaluates tool call permission, the sanitizer that cleans tool results before model exposure, and the approval payload builder that constructs the structured confirmation shown to users.
-
-### Policy Engine: Tool Call Evaluation
-
-```python
-from dataclasses import dataclass
-from enum import Enum
-from typing import Optional
-import hashlib, time
-
-class RiskLevel(Enum):
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-    CRITICAL = "critical"
-
-class TrustTier(Enum):
-    INTERNAL_VERIFIED = "internal_verified"
-    INTERNAL_SENSITIVE = "internal_sensitive"
-    THIRD_PARTY_VERIFIED = "third_party_verified"
-    USER_LOCAL = "user_local"
-    EXPERIMENTAL = "experimental"
-
-@dataclass
-class PolicyDecision:
-    allowed: bool
-    requires_approval: bool
-    risk_level: RiskLevel
-    reason: str
-    taint_propagated: bool = False
-
-@dataclass
-class ToolCallContext:
-    user_id: str
-    tenant_id: str
-    server_id: str
-    tool_name: str
-    arguments: dict
-    session_taint_level: RiskLevel  # highest taint from prior reads this session
-    session_approved_tools: set     # tool names approved earlier in session
-
-# Risk classification table: (server_trust_tier, tool_side_effect_class) -> RiskLevel
-RISK_TABLE = {
-    (TrustTier.INTERNAL_VERIFIED,   "read"):           RiskLevel.LOW,
-    (TrustTier.INTERNAL_VERIFIED,   "write_internal"): RiskLevel.HIGH,
-    (TrustTier.INTERNAL_SENSITIVE,  "read"):           RiskLevel.MEDIUM,
-    (TrustTier.INTERNAL_SENSITIVE,  "write_internal"): RiskLevel.HIGH,
-    (TrustTier.THIRD_PARTY_VERIFIED,"read"):           RiskLevel.MEDIUM,
-    (TrustTier.THIRD_PARTY_VERIFIED,"external_write"): RiskLevel.CRITICAL,
-    (TrustTier.USER_LOCAL,          "read"):           RiskLevel.MEDIUM,
-    (TrustTier.USER_LOCAL,          "write_internal"): RiskLevel.HIGH,
-    (TrustTier.EXPERIMENTAL,        "read"):           RiskLevel.HIGH,
-    (TrustTier.EXPERIMENTAL,        "external_write"): RiskLevel.CRITICAL,
-}
-
-def evaluate_tool_call(
-    ctx: ToolCallContext,
-    server_trust_tier: TrustTier,
-    tool_side_effect_class: str,
-    registry_allows_tenant: bool,
-) -> PolicyDecision:
-    """
-    Evaluate whether a tool call is permitted and whether it requires approval.
-    Returns a PolicyDecision with the reasoning string for audit logging.
-    """
-    # Tenant must be allowed to use this server at all
-    if not registry_allows_tenant:
-        return PolicyDecision(
-            allowed=False, requires_approval=False,
-            risk_level=RiskLevel.CRITICAL,
-            reason="server not enabled for tenant"
-        )
-
-    # Experimental servers may not make external writes under any circumstances
-    if server_trust_tier == TrustTier.EXPERIMENTAL and tool_side_effect_class == "external_write":
-        return PolicyDecision(
-            allowed=False, requires_approval=False,
-            risk_level=RiskLevel.CRITICAL,
-            reason="experimental servers may not perform external writes"
-        )
-
-    risk = RISK_TABLE.get(
-        (server_trust_tier, tool_side_effect_class),
-        RiskLevel.CRITICAL  # default to critical if combination not in table
-    )
-
-    # Taint propagation: if session has high-taint data and this is an external write,
-    # escalate to CRITICAL and require explicit approval even for otherwise HIGH tools
-    taint_propagated = False
-    if (ctx.session_taint_level in (RiskLevel.HIGH, RiskLevel.CRITICAL)
-            and tool_side_effect_class in ("external_write", "write_internal")):
-        risk = RiskLevel.CRITICAL
-        taint_propagated = True
-
-    # Approval logic
-    requires_approval = risk in (RiskLevel.HIGH, RiskLevel.CRITICAL)
-
-    # For LOW risk tools already approved this session, suppress re-approval
-    if risk == RiskLevel.LOW and ctx.tool_name in ctx.session_approved_tools:
-        requires_approval = False
-
-    return PolicyDecision(
-        allowed=True,
-        requires_approval=requires_approval,
-        risk_level=risk,
-        reason=f"tier={server_trust_tier.value} side_effect={tool_side_effect_class} taint={taint_propagated}",
-        taint_propagated=taint_propagated,
-    )
-```
-
-> **Why a risk table over the tier/side-effect cross-product rather than per-server rules:** The risk table encodes the cross-product of trust tier and side-effect class rather than hard-coding rules per server. Adding a new server is a matter of assigning it a tier at registration; the policy engine automatically derives the correct risk level and approval requirement from the table. Taint propagation is checked at evaluation time rather than being a separate middleware step, so the logic is co-located with the authorization decision and audit-logged together in a single `PolicyDecision` object.
-
-### Sanitizer: Tool Result Cleaning Before Model Exposure
-
-```python
-import re
-from typing import Any
-
-# Patterns that indicate prompt injection attempts in tool results
-INJECTION_PATTERNS = [
-    re.compile(r"ignore (previous|all|prior|above) instruction", re.IGNORECASE),
-    re.compile(r"you are now", re.IGNORECASE),
-    re.compile(r"system\s*:", re.IGNORECASE),
-    re.compile(r"<\|im_start\|>|<\|im_end\|>|<\|endoftext\|>"),  # common control tokens
-    re.compile(r"\[INST\]|\[/INST\]|<s>|</s>"),                   # llama-style tokens
-]
-
-# Patterns that indicate credential or secret leakage
-SECRET_PATTERNS = [
-    re.compile(r"(?i)(bearer|token|api[-_]?key|secret|password)\s*[:=]\s*[A-Za-z0-9+/._-]{20,}"),
-    re.compile(r"(?i)sk-[A-Za-z0-9]{32,}"),          # OpenAI-style key
-    re.compile(r"(?i)ghp_[A-Za-z0-9]{36}"),           # GitHub PAT
-    re.compile(r"(?i)AKIA[A-Z0-9]{16}"),              # AWS access key
-]
-
-MAX_RESULT_TOKENS_ESTIMATE = 2000  # ~8000 chars at ~4 chars/token
-MAX_RESULT_CHARS = MAX_RESULT_TOKENS_ESTIMATE * 4
-
-def sanitize_tool_result(
-    raw_result: Any,
-    server_trust_tier: TrustTier,
-    tool_name: str,
-    trace_id: str,
-) -> tuple[Any, list[str]]:
-    """
-    Sanitize a raw tool result before passing it to the model context.
-    Returns (sanitized_result, list_of_warnings) for audit logging.
-    
-    The raw_result is always stored in the audit trace; only the sanitized
-    output is returned to the caller for model injection.
-    """
-    warnings = []
-    result_str = _to_string(raw_result)
-
-    # 1. Detect and redact credential leakage
-    for pattern in SECRET_PATTERNS:
-        if pattern.search(result_str):
-            result_str = pattern.sub("[REDACTED_CREDENTIAL]", result_str)
-            warnings.append(f"credential_pattern_redacted:{pattern.pattern[:40]}")
-
-    # 2. Detect and flag prompt injection
-    for pattern in INJECTION_PATTERNS:
-        if pattern.search(result_str):
-            # Quote the entire result to signal to the model it is untrusted data
-            result_str = f"[UNTRUSTED_CONTENT_FROM:{tool_name}]\n{result_str}\n[/UNTRUSTED_CONTENT]"
-            warnings.append(f"injection_pattern_detected:{pattern.pattern[:40]}")
-            break  # one wrapping is enough; multiple would be redundant
-
-    # 3. Clip oversized results, preserving head and tail for context
-    if len(result_str) > MAX_RESULT_CHARS:
-        half = MAX_RESULT_CHARS // 2
-        clipped_chars = len(result_str) - MAX_RESULT_CHARS
-        result_str = (
-            result_str[:half]
-            + f"\n... [{clipped_chars} characters clipped; full result in trace:{trace_id}] ...\n"
-            + result_str[-half:]
-        )
-        warnings.append(f"result_clipped:{clipped_chars}_chars")
-
-    # 4. Third-party results always get an untrusted-content wrapper if not already added
-    if server_trust_tier == TrustTier.THIRD_PARTY_VERIFIED and "[UNTRUSTED_CONTENT_FROM" not in result_str:
-        result_str = f"[THIRD_PARTY_CONTENT_FROM:{tool_name}]\n{result_str}\n[/THIRD_PARTY_CONTENT]"
-
-    return result_str, warnings
-
-
-def _to_string(value: Any) -> str:
-    if isinstance(value, str):
-        return value
-    if isinstance(value, (dict, list)):
-        import json
-        return json.dumps(value, indent=2, default=str)
-    return str(value)
-```
-
-> **Why a pure-function sanitizer returning sanitized output plus warnings:** The sanitizer is the last line of defense before external content reaches the model context. Separating it into a pure function that returns both the sanitized result and a list of warnings makes it trivially testable — each pattern class can be unit-tested with a golden fixture. Warnings are passed to the audit logger alongside the trace ID that links back to the raw result, so security reviewers can reconstruct exactly what the model saw versus what the server returned. The head-and-tail clipping strategy for oversized results is preferred over truncation because it preserves the error message or exception at the end of a log, which is typically the most diagnostically useful part.
-
-### Approval Payload Builder
-
-```python
-from dataclasses import dataclass, field
-from typing import Optional
-import time, uuid
-
-@dataclass
-class ApprovalPayload:
-    approval_id: str
-    session_id: str
-    user_id: str
-    approval_type: str              # "external_write" | "write_internal" | "critical"
-    tool: str
-    server: str
-    side_effect: str                # human-readable description of what will happen
-    arguments_preview: dict         # subset of arguments safe to show the user
-    data_sources: list[str]         # tool calls whose results contributed to these args
-    taint_sources: list[str]        # any tainted data that will be included
-    expires_at: float               # unix timestamp; approval void after this
-    requires_typed_confirmation: bool = False  # True for CRITICAL risk
-    confirmation_string: Optional[str] = None  # what the user must type to confirm
-
-def build_approval_payload(
-    session_id: str,
-    user_id: str,
-    tool_name: str,
-    server_display_name: str,
-    policy_decision: PolicyDecision,
-    tool_arguments: dict,
-    contributing_tool_calls: list[str],
-    taint_sources: list[str],
-    side_effect_description: str,
-    ttl_seconds: int = 120,
-) -> ApprovalPayload:
-    """
-    Build a structured approval payload for the UX layer.
-    CRITICAL risk tools require a typed confirmation string.
-    """
-    approval_id = str(uuid.uuid4())
-    expires_at = time.time() + ttl_seconds
-
-    # Determine approval type string for UX rendering
-    approval_type = policy_decision.risk_level.value
-
-    # For CRITICAL risk, require the user to type the primary target identifier
-    # (e.g., the repo name for a delete, the project key for a ticket creation)
-    requires_typed = policy_decision.risk_level == RiskLevel.CRITICAL
-    confirmation_string = None
-    if requires_typed:
-        # Extract the most specific identifier from the arguments as the confirmation target
-        # Convention: look for keys named "project", "repo", "resource_id", "name"
-        for key in ("project", "repo", "repository", "resource_id", "name"):
-            if key in tool_arguments:
-                confirmation_string = str(tool_arguments[key])
-                break
-        if not confirmation_string:
-            confirmation_string = tool_name  # fallback: user must type the tool name
-
-    # Filter arguments to safe-to-display subset (exclude raw content blobs)
-    safe_args = {
-        k: v for k, v in tool_arguments.items()
-        if not isinstance(v, str) or len(v) < 500  # omit large string values
-    }
-
-    return ApprovalPayload(
-        approval_id=approval_id,
-        session_id=session_id,
-        user_id=user_id,
-        approval_type=approval_type,
-        tool=tool_name,
-        server=server_display_name,
-        side_effect=side_effect_description,
-        arguments_preview=safe_args,
-        data_sources=contributing_tool_calls,
-        taint_sources=taint_sources,
-        expires_at=expires_at,
-        requires_typed_confirmation=requires_typed,
-        confirmation_string=confirmation_string,
-    )
-```
-
-> **Why separate the approval payload builder from the policy engine:** The approval payload builder is separated from the policy engine because it serves a different concern — communication with the user — while the policy engine serves authorization. Keeping them separate makes it possible to update the approval UX (e.g., adding a new field, translating the side-effect description) without touching the security logic. The `confirmation_string` mechanism for CRITICAL risk tools is intentionally simple: it forces the user to type a specific identifier rather than clicking "OK", which studies of approval UX have shown reduces reflexive approvals by 60–80% compared to one-click confirmation buttons.
-
----
-
-## Exercises
-
-### Design Exercises
-
-**1. Multi-Tenant Tool Isolation**
-You are designing the server registry and policy engine for an MCP platform that serves 200 enterprise tenants, each with their own approved server list. A new requirement arrives: a single MCP server must be shareable across tenants (e.g., a central document search server), but each tenant's query results must be scoped to only their workspace. Design the data model and request flow that allows the shared server to serve multiple tenants without cross-tenant data leakage. Consider: how is the tenant identity passed to the server, how does the server enforce the scope, and who is responsible if it fails to do so? Extend your design to handle a rogue server that ignores the tenant scope hint and returns cross-tenant results.
-
-**2. Approval UX at Scale with Batch Agent Workflows**
-An enterprise customer runs automated agent workflows overnight that generate 10,000 tool calls — most of them identical, repetitive write operations (e.g., updating 10,000 Jira tickets with a generated comment). With per-call approval, the workflow is not practical. Design an approval model that supports batch approval: a user can approve a pattern of tool calls (tool name + argument schema + target scope) in advance, and the agent executes matching calls autonomously up to a specified limit. Address: how the batch approval is scoped, how abuse is prevented (e.g., a model that crafts arguments to match a broad pattern), how audit logs capture the batch authorization event, and how the user can revoke a batch approval mid-execution.
-
-### Implementation Exercises
-
-**3. Taint Propagation Across Tool Call Chains**
-Implement a `TaintTracker` class that maintains a session-scoped taint registry. The tracker should: (a) record the taint level of each tool result (keyed by tool call ID), (b) propagate taint when a tool call's arguments reference a prior result (by tool call ID or by detecting substring matches of the prior result in the new arguments), and (c) expose a `get_session_taint_level()` method that returns the maximum taint level across all results in the session. Write unit tests covering: clean read followed by a tainted read, taint propagation through three tool calls, and a taint reset scenario when a new session begins.
-
-**4. Schema Diff Engine for Server Version Upgrades**
-Implement a `compute_schema_diff(old_schema: dict, new_schema: dict) -> SchemaDiff` function that compares two MCP server capability documents and classifies each change as `non_breaking` (added optional field, added new tool, updated description) or `breaking` (removed tool, removed required field, changed field type, narrowed enum values). The function should return a `SchemaDiff` dataclass with lists of breaking and non-breaking changes, a human-readable summary, and a boolean `requires_admin_review`. Write tests for: adding a new tool (non-breaking), removing a tool (breaking), adding a required field to an existing tool (breaking), adding an optional field (non-breaking), and narrowing an enum from `["create", "update", "delete"]` to `["create", "update"]` (breaking).
-
-### Debug Exercise
-
-**5. Diagnosing Phantom Tool Call Approvals**
-A production incident report describes the following behavior: users report seeing approval prompts for `github.get_pr` (a read-only tool on an Internal Verified server) even after they have already approved the tool earlier in the same session. The platform's session state shows that `github.get_pr` is present in `session_approved_tools` for these users. The policy engine code shows the correct suppression logic. Describe your debugging methodology: what logs would you inspect first, what specific fields you would diff between the first (approved) tool call and the subsequent (re-prompting) call, and what three failure hypotheses you would test in order of likelihood. Consider: session ID mismatch (new session created mid-conversation), tool name normalization (e.g., `github.get_pr` vs `github.GetPR` case sensitivity), server version bump invalidating the session approval cache, and a race condition in the session state write. For each hypothesis, write the specific log query or code assertion you would use to confirm or rule it out.
-
----
-
-## End of Chapter
-
-- **Key takeaway:** An MCP platform is fundamentally an authorization and trust-boundary problem wearing an integration-platform costume: the server registry, capability discovery (tools/resources/prompts), and approval UX exist to answer one question safely at scale — "is this caller allowed to invoke this tool with these arguments right now?" Session-scoped approval caching, per-server trust tiers (Internal Verified vs. third-party), and tool-name normalization are the load-bearing details, because the subtle bugs (phantom re-prompts, stale approval caches after a server version bump, case-sensitivity mismatches) all live at the identity/session boundary, not in the tool logic.
-- **What to practice:** Size the approval and registry layer: for 200 registered MCP servers exposing a mean of 8 tools each, 50,000 active sessions, and a 30% rate of first-use approval prompts, compute the approval-decision QPS, the session-state storage for cached approvals, and the cache-invalidation fan-out when a single popular server bumps its version. Then estimate the added p95 latency of a synchronous policy-engine check on the hot tool-call path.
-- **Interview drill:** Users report seeing approval prompts for the read-only `github.get_pr` tool even after approving it earlier in the same session, and `session_approved_tools` shows the tool present for those users while the policy suppression logic is provably correct. Walk through the debugging methodology: which logs you inspect first, which fields you diff between the approved and re-prompting calls, and three failure hypotheses in likelihood order (session-ID mismatch, tool-name normalization, server-version cache invalidation, write race) with the exact query or assertion that confirms or rules out each.
-
----
-
-<!-- nav-footer -->
-[[Chapter 22 - Design a Multi-Agent Workflow Orchestrator|← Chapter 22]] | [[README|Contents]] | [[Chapter 24 - LLMOps and Production Lifecycle Management|Chapter 24 →]]

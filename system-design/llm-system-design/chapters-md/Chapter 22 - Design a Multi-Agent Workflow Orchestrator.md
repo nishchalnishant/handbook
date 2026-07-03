@@ -14,7 +14,7 @@ part: case-studies
 > - **Scale:** 200K workflows/day, 5-50 agent steps/workflow, p95 workflow completion < 10 minutes
 > - **Key Techniques:** task decomposition, DAG scheduling, typed handoffs, tool sandboxing, state store, approval gates, trace replay
 > - **Primary Concerns:** runaway loops, conflicting agents, tool safety, observability, cost, deterministic recovery
-> - **Cross-references:** [[Chapter 9 - Design an Autonomous Research Agent|Chapter 9]] (autonomous research agent), [[Chapter 10 - Design an Automated Content Generation Pipeline|Chapter 10]] (DAG orchestration), [[Chapter 16 - Design an AI Data Analyst (Text-to-SQL and Insights)|Chapter 16]] (sandboxed execution)
+> - **Cross-references:** Chapter 9 (autonomous research agent), Chapter 10 (DAG orchestration), Chapter 16 (sandboxed execution)
 
 **Problem statement:** Design a platform where multiple specialized agents collaborate on complex enterprise workflows such as incident response, sales research, code migration, or compliance review.
 
@@ -41,17 +41,6 @@ The orchestrator should be judged like a workflow engine: can it recover, retry,
 
 ## Step 1: Understand the Problem and Establish Design Scope
 
-### Simulated Dialogue
-
-**Interviewer:** Design a multi-agent orchestrator.  
-**Candidate:** I will treat agents as unreliable workers in a distributed workflow system. The core design problem of [[glossary#Multi-Agent Orchestration|multi-agent orchestration]] is not making agents talk; it is controlling state, permissions, dependencies, budgets, and recovery.
-
-**Candidate:** What workflows must the platform support?  
-**Interviewer:** Research, code changes, incident response, and business operations. Some actions are read-only; others mutate production systems and require approval.
-
-**Candidate:** How autonomous can it be?  
-**Interviewer:** It can act autonomously for read-only and sandboxed actions. It must request human approval for external writes, customer messages, money movement, or production changes.
-
 ### Functional Requirements
 
 - **Decompose user goals into tasks and dependency graphs.** A free-form goal such as "investigate this incident" must be converted into discrete, bounded tasks whose inputs and outputs are well-defined; otherwise agents cannot be retried, parallelized, or audited independently.
@@ -75,10 +64,7 @@ The orchestrator should be judged like a workflow engine: can it recover, retry,
 - Workflows/day: 200K
 - Average steps/workflow: 12
 - Peak multiplier: 5x
-- Average agent steps/sec: `200K * 12 / 86,400 ~= 28`
 - Peak steps/sec: `~140`
-- If 20% of steps call tools with 10s average duration: `140 * 0.2 * 10 ~= 280` concurrent tool slots
-- Trace storage: `200K workflows * 12 steps * 20KB ~= 48GB/day` before compression
 
 ---
 
@@ -97,7 +83,7 @@ The orchestrator should be judged like a workflow engine: can it recover, retry,
 - **Evaluator/Critic Agent:** receives a completed task artifact and checks it against a rubric—schema compliance, confidence threshold, evidence coverage, and policy constraints—before marking the task as accepted; rejection triggers a retry or escalation rather than passing bad output downstream.
 - **Trace Store:** stores a complete, ordered timeline of every event in a workflow—task dispatch, model calls with token counts and costs, tool invocations with arguments and results, artifact writes, approval decisions, and final output—queryable by workflow ID, agent, or tool name.
 
-> **Why decompose orchestration into separate Supervisor, Planner, Scheduler, and Critic components:** Separating the Supervisor, Planner, Scheduler, and Critic into distinct components rather than a single "orchestrator agent" is the core reliability decision. A single orchestrator that both plans and executes cannot be retried safely, cannot enforce budgets structurally, and produces a trace that is a monologue rather than a structured event log. Decomposing these responsibilities makes each component independently testable, replaceable, and auditable.
+> **Why decompose orchestration into separate Supervisor, Planner, Scheduler, and Critic components:** Separating the Supervisor, Planner, Scheduler, and Critic into distinct components rather than a single "orchestrator agent" is the core reliability decision.
 
 ### Pipeline A: Workflow Planning
 
@@ -213,15 +199,15 @@ flowchart LR
 | Debate/consensus | Two or more agents produce competing analyses and a judge synthesizes them; this reliably catches factual errors and one-sided reasoning that a single agent misses | Running N agents plus a judge multiplies cost by roughly N+0.5; at $0.015/1K output tokens, a three-agent debate on a complex task can cost 3–5× a single-agent answer | High-stakes, low-frequency decisions such as legal risk assessment, financial model review, or security architecture sign-off |
 | Swarm | Agents spawn sub-agents dynamically for high-branching exploration tasks, maximizing coverage of a large search space | Swarms are extremely difficult to audit, budget, and terminate gracefully; runaway spawning can exhaust tool quotas and cost budgets within minutes without hard resource caps at the spawn point | Rarely appropriate in production enterprise systems; better suited to offline research or strictly sandboxed environments |
 
-> **Why supervisor-worker plus DAG scheduler as the default coordination pattern:** The supervisor-worker pattern is recommended as the default because it gives a single component—the supervisor—clear authority to arbitrate, replan, and approve. Without a designated authority, two worker agents producing conflicting recommendations will stall the workflow indefinitely or silently discard one result. The DAG scheduler adds structure that makes parallelism safe and retries bounded, which no amount of agent prompting can replicate reliably.
+> **Why supervisor-worker plus DAG scheduler as the default coordination pattern:** The supervisor-worker pattern is recommended as the default because it gives a single component—the supervisor—clear authority to arbitrate, replan, and appr...
 
 Recommended default: supervisor-worker plus DAG scheduler. Use agents for judgment-heavy tasks and deterministic workflow code for control flow.
 
 ### 2) State, Handoffs, and Conflict Control
 
-Agents should not hand off large unstructured transcripts as the primary state. Passing raw conversation history between agents couples their token budgets together—an agent that has accumulated a 30K-token context will push its downstream consumer past the model's effective [[glossary#Context Window|reasoning window]] before the actual task content is even read. Use typed artifacts instead: compact, schema-validated structures that convey conclusions, evidence pointers, and confidence scores without carrying the entire reasoning trace.
+Agents should not hand off large unstructured transcripts as the primary state. Passing raw conversation history between agents couples their token budgets together—an agent that has accumulated a 30K-token context will push its downstream consumer past the model's effective reasoning window before the actual task content is even read. Use typed artifacts instead: compact, schema-validated structures that convey conclusions, evidence pointers, and confidence scores without carrying the entire reasoning trace.
 
-> **Why typed artifacts for agent handoffs rather than unstructured transcripts:** Typed artifacts enforce a contract between agents the same way function signatures enforce a contract between code modules. A `finding.v1` artifact with `confidence`, `evidence_ids`, and `open_questions` fields tells the critic exactly what to check, lets the supervisor compare two conflicting findings on equal terms, and gives the trace store a structured record that is queryable and diffable. Unstructured text handoffs make all of this impossible without another LLM call to parse them.
+> **Why typed artifacts for agent handoffs rather than unstructured transcripts:** Typed artifacts enforce a contract between agents the same way function signatures enforce a contract between code modules.
 
 Example artifact types:
 
@@ -247,7 +233,7 @@ Conflict handling:
 
 Every workflow needs a budget hierarchy enforced structurally at the gateway and scheduler layers, not in prompts. Prompt-based budget instructions ("stop after 10 tool calls") are ignored during long-context reasoning and cannot be trusted as a safety mechanism.
 
-> **Why enforce budgets structurally at the gateway and scheduler rather than in prompts:** Budget enforcement in prompts fails because models do not have a reliable internal counter for tool calls or dollars spent, especially in multi-turn reasoning chains. Structural enforcement—a counter in the scheduler that blocks task dispatch at the limit, and a dollar meter in the gateway that blocks tool calls when exceeded—is the only mechanism that provides a hard ceiling regardless of model behavior.
+> **Why enforce budgets structurally at the gateway and scheduler rather than in prompts:** Budget enforcement in prompts fails because models do not have a reliable internal counter for tool calls or dollars spent, especially in multi-turn reasonin...
 
 - **Workflow budget:** max total dollars, tokens, wall time, and total tool calls; when any dimension is exceeded the scheduler transitions the workflow to `BUDGET_EXCEEDED` state, persists all completed artifacts, and surfaces the partial result rather than silently terminating.
 - **Agent budget:** max steps and model tier per agent per workflow; this prevents a single verbose planner from consuming the token budget intended for the entire pipeline, and allows a cost-sensitive operator to restrict certain agent roles to cheaper model tiers (e.g., Haiku for log extraction, Sonnet for synthesis).
@@ -265,7 +251,7 @@ Approval gates:
 | Modify production config | Yes — config changes can cause immediate service degradation affecting all users; approval must include a diff and a rollback plan |
 | Execute payment/refund | Yes — financial transactions are governed by audit and compliance requirements; every execution must have an approver identity and timestamp recorded |
 
-> **Why gate the approval taxonomy on action reversibility:** The approval gate taxonomy maps directly to the concept of reversibility. Read-only actions are always safe to automate because they leave no state change. Sandboxed actions are safe because their blast radius is intentionally bounded. All other actions are gated by approval because their effects persist in systems the orchestrator does not control—external APIs, customer inboxes, production databases, and financial ledgers—and cannot be undone programmatically.
+> **Why gate the approval taxonomy on action reversibility:** The approval gate taxonomy maps directly to the concept of reversibility.
 
 ### Production Bottlenecks and Mitigations
 
@@ -279,26 +265,12 @@ Approval gates:
 
 - **Hierarchical planning:** the top-level supervisor decomposes a large goal into sub-workflows, each with its own local supervisor, budget, and state namespace; this allows a "migrate 50 microservices" goal to run as 50 parallel sub-workflows without the root supervisor needing to hold all intermediate state in a single context window.
 
-> **Why hierarchical planning into sub-workflows rather than one flat DAG:** A flat plan for a 50-service migration would have hundreds of tasks in a single DAG, making the scheduler's ready-queue enormous and the supervisor's synthesis step impossibly large. Hierarchical decomposition keeps each sub-workflow small enough to fit within a manageable context and budget, while the root supervisor only needs to aggregate final status artifacts from each sub-workflow.
+> **Why hierarchical planning into sub-workflows rather than one flat DAG:** A flat plan for a 50-service migration would have hundreds of tasks in a single DAG, making the scheduler's ready-queue enormous and the supervisor's synthes...
 
 - **Speculative parallelism:** launch two or more independent research branches simultaneously when the planner cannot determine upfront which path will yield useful results; after a configurable time or step budget, score the branches by artifact confidence and evidence coverage, then commit the winning branch and discard the rest; this trades extra cost (typically 1.5–2× a single path) for lower p95 wall time when the best path is unpredictable.
-- **Typed tool contracts:** define every tool's input and output for [[glossary#Tool Use / Function Calling|tool use]] with JSON Schema and validate at the gateway before execution; a schema mismatch surfaces as a `VALIDATION_ERROR` before the tool is invoked, which is cheaper and more debuggable than a runtime failure inside the tool and prevents malformed arguments from reaching external APIs.
-- **[[glossary#Trace Replay|Trace replay]]:** re-run a workflow by substituting fixed artifacts for one or more completed tasks, allowing engineers to test a new prompt or model version against real historical inputs without re-executing expensive or side-effectful tool calls; replay is the primary mechanism for bisecting whether a regression is caused by a model change, a prompt change, or a data change.
+- **Typed tool contracts:** define every tool's input and output for tool use with JSON Schema and validate at the gateway before execution; a schema mismatch surfaces as a `VALIDATION_ERROR` before the tool is invoked, which is cheaper and more debuggable than a runtime failure inside the tool and prevents malformed arguments from reaching external APIs.
+- **Trace Replay|Trace replay:** re-run a workflow by substituting fixed artifacts for one or more completed tasks, allowing engineers to test a new prompt or model version against real historical inputs without re-executing expensive or side-effectful tool calls; replay is the primary mechanism for bisecting whether a regression is caused by a model change, a prompt change, or a data change.
 - **Agent evals:** measure task success rate, cost per task, and tool error rate broken down by agent role, model tier, tool type, and workflow category; without role-level evals it is impossible to determine whether a quality regression is caused by the planner, a worker agent, or the critic, making prompt and model updates a guessing game.
-
----
-
-## Step 4: Wrap Up
-
-### Final Design Summary
-
-The design makes the workflow engine, not the LLM, the source of control. Agents perform bounded specialized work, while the scheduler owns dependencies, state transitions, retries, approval gates, and auditability.
-
-### Wrap-Around Concerns
-
-- **Risk:** agents overwrite each other's work. Mitigation: typed artifacts with optimistic locking in the state store prevent silent overwrites; a merge task inserted by the scheduler makes conflicts explicit and resolvable rather than invisible; append-only versioning preserves the full history for post-mortem review.
-- **Risk:** autonomy exceeds policy. Mitigation: the tool gateway is the structural enforcement point—agents receive only their authorized tool list at dispatch time and cannot call any tool outside it, regardless of what the model generates; the approval service adds a second layer for actions whose side effects are irreversible even within the authorized tool scope.
-- **Risk:** impossible debugging. Mitigation: the trace store records every artifact version, model input with token count, tool call with arguments and response, cost delta, approval decision, and state transition; a replay endpoint lets engineers re-run any task against historical inputs to isolate whether a failure is caused by a model change, a prompt change, a data change, or an external tool API change.
 
 ---
 
@@ -396,309 +368,3 @@ Q: A new regulation requires you to prove that a human approved every production
 
 ---
 
-## Practical Implementation
-
-### DAG Scheduler Core Loop
-
-```python
-import heapq
-from dataclasses import dataclass, field
-from typing import Any
-from enum import Enum
-
-class TaskStatus(Enum):
-    PENDING = "pending"
-    READY = "ready"
-    IN_FLIGHT = "in_flight"
-    PENDING_APPROVAL = "pending_approval"
-    SUCCEEDED = "succeeded"
-    FAILED = "failed"
-    STUCK = "stuck"
-    BUDGET_EXCEEDED = "budget_exceeded"
-
-@dataclass
-class Task:
-    id: str
-    agent: str
-    description: str
-    allowed_tools: list[str]
-    depends_on: list[str]
-    output_schema: str
-    max_steps: int = 15
-    steps_used: int = 0
-    status: TaskStatus = TaskStatus.PENDING
-    artifact: dict | None = None
-    requires_approval_for: list[str] = field(default_factory=list)
-
-class DAGScheduler:
-    def __init__(self, state_store, tool_gateway, approval_service):
-        self.state_store = state_store
-        self.tool_gateway = tool_gateway
-        self.approval_service = approval_service
-
-    def get_ready_tasks(self, tasks: dict[str, Task]) -> list[Task]:
-        """Return tasks whose all dependencies have SUCCEEDED."""
-        ready = []
-        for task in tasks.values():
-            if task.status != TaskStatus.PENDING:
-                continue
-            deps_done = all(
-                tasks[dep_id].status == TaskStatus.SUCCEEDED
-                for dep_id in task.depends_on
-            )
-            if deps_done:
-                task.status = TaskStatus.READY
-                ready.append(task)
-        return ready
-
-    def dispatch_task(self, task: Task, workflow_budget: dict) -> dict:
-        """Dispatch a task to its agent with scoped context and budget."""
-        # Gather input artifacts from completed dependencies
-        input_artifacts = {
-            dep_id: self.state_store.get_artifact(dep_id)
-            for dep_id in task.depends_on
-        }
-        # Check workflow budget before dispatch
-        if workflow_budget["cost_usd"] >= workflow_budget["max_cost_usd"]:
-            task.status = TaskStatus.BUDGET_EXCEEDED
-            return {"status": "budget_exceeded", "task_id": task.id}
-
-        task.status = TaskStatus.IN_FLIGHT
-        self.state_store.save_task(task)
-
-        return {
-            "task_id": task.id,
-            "agent": task.agent,
-            "description": task.description,
-            "allowed_tools": task.allowed_tools,
-            "input_artifacts": input_artifacts,
-            "max_steps": task.max_steps,
-            "output_schema": task.output_schema,
-        }
-
-    def complete_task(self, task_id: str, artifact: dict, tasks: dict[str, Task]):
-        """Mark task succeeded, persist artifact, unblock dependents."""
-        task = tasks[task_id]
-        task.artifact = artifact
-        task.status = TaskStatus.SUCCEEDED
-        self.state_store.save_artifact(task_id, artifact)
-        self.state_store.save_task(task)
-        # Immediately evaluate which tasks are now unblocked
-        return self.get_ready_tasks(tasks)
-```
-
-> **Why the scheduler owns all status transitions and persists state after every mutation:** The scheduler owns all status transitions and persists state after every mutation. If the process crashes between `dispatch_task` and `complete_task`, the task remains `IN_FLIGHT` in the store and can be detected by a watchdog that re-queues tasks stuck in-flight beyond their timeout. No workflow progress is lost.
-
-### Tool Gateway with Budget Enforcement and Approval Routing
-
-```python
-import time
-from typing import Callable
-
-TOOL_RISK_CLASS = {
-    "metrics.query": "read_only",
-    "logs.query": "read_only",
-    "git.read": "read_only",
-    "tests.run_sandbox": "sandboxed",
-    "deploy.read": "read_only",
-    "github.create_pr": "internal_write",
-    "email.send": "external_write",
-    "deploy.rollback": "production_write",
-    "payments.refund": "production_write",
-}
-
-APPROVAL_REQUIRED_FOR = {"internal_write", "external_write", "production_write"}
-
-class ToolGateway:
-    def __init__(self, approval_service, audit_store, rate_limiter):
-        self.approval_service = approval_service
-        self.audit_store = audit_store
-        self.rate_limiter = rate_limiter
-        self._tool_registry: dict[str, Callable] = {}
-
-    def register_tool(self, name: str, fn: Callable):
-        self._tool_registry[name] = fn
-
-    def call(
-        self,
-        tool_name: str,
-        args: dict,
-        task: "Task",
-        workflow_context: dict,
-    ) -> dict:
-        # 1. Authorization: is this tool in the task's allowed list?
-        if tool_name not in task.allowed_tools:
-            self.audit_store.log({
-                "event": "UNAUTHORIZED_TOOL_CALL",
-                "tool": tool_name,
-                "task_id": task.id,
-                "workflow_id": workflow_context["workflow_id"],
-                "timestamp": time.time(),
-            })
-            raise PermissionError(f"Tool '{tool_name}' not in task allowed list")
-
-        # 2. Step budget check
-        task.steps_used += 1
-        if task.steps_used > task.max_steps:
-            task.status = TaskStatus.STUCK
-            raise RuntimeError(f"Task {task.id} exceeded max_steps={task.max_steps}")
-
-        # 3. Rate limiting
-        self.rate_limiter.check(tool_name, workflow_context["workflow_id"])
-
-        # 4. Risk classification and approval gate
-        risk_class = TOOL_RISK_CLASS.get(tool_name, "unknown")
-        if risk_class in APPROVAL_REQUIRED_FOR:
-            if tool_name in task.requires_approval_for:
-                approval = self.approval_service.request(
-                    workflow_id=workflow_context["workflow_id"],
-                    task_id=task.id,
-                    tool_name=tool_name,
-                    args=args,
-                    evidence_artifact_ids=list(workflow_context.get("artifacts", {}).keys()),
-                )
-                if not approval["approved"]:
-                    raise PermissionError(f"Approval denied for {tool_name}: {approval['reason']}")
-
-        # 5. Execute
-        start = time.time()
-        result = self._tool_registry[tool_name](**args)
-        latency_ms = (time.time() - start) * 1000
-
-        # 6. Audit log
-        self.audit_store.log({
-            "event": "TOOL_CALL",
-            "tool": tool_name,
-            "args": args,
-            "risk_class": risk_class,
-            "task_id": task.id,
-            "workflow_id": workflow_context["workflow_id"],
-            "latency_ms": latency_ms,
-            "timestamp": time.time(),
-        })
-        return result
-```
-
-> **Why centralize tool-call policy checks in a single gateway:** The gateway is the single enforcement point for authorization, step budget, rate limits, and approval routing. Distributing these checks across individual agent implementations creates inconsistency—a new agent built by a different team might omit one check. Centralizing them in the gateway means every tool call, regardless of which agent issues it, passes through the same policy layer.
-
-### Typed Artifact Store with Optimistic Locking
-
-```python
-import hashlib
-import json
-import time
-from typing import Optional
-
-class ArtifactStore:
-    """
-    Append-only artifact store with optimistic locking.
-    Backed by any KV store (DynamoDB, Redis, Postgres).
-    """
-
-    def __init__(self, backend):
-        self.backend = backend  # must support get/put with conditional writes
-
-    def write_artifact(
-        self,
-        task_id: str,
-        artifact: dict,
-        expected_version: Optional[int] = None,
-    ) -> dict:
-        """
-        Write a new artifact version. Raises ConflictError if another agent
-        has already written this version (optimistic locking).
-        """
-        key = f"artifact:{task_id}"
-        current = self.backend.get(key)
-
-        if current is not None:
-            current_version = current["version"]
-            if expected_version is not None and current_version != expected_version:
-                raise ConflictError(
-                    f"Artifact {task_id} version mismatch: "
-                    f"expected {expected_version}, found {current_version}. "
-                    "Re-read and retry."
-                )
-            new_version = current_version + 1
-            # Mark previous version as superseded
-            self.backend.put(f"artifact:{task_id}:v{current_version}", {
-                **current, "superseded_by": new_version
-            })
-        else:
-            new_version = 1
-
-        versioned_artifact = {
-            **artifact,
-            "version": new_version,
-            "task_id": task_id,
-            "written_at": time.time(),
-            "checksum": hashlib.sha256(
-                json.dumps(artifact, sort_keys=True).encode()
-            ).hexdigest(),
-        }
-        # Conditional write: fails if another writer beat us
-        self.backend.put_if_version(key, versioned_artifact, expected_version=current_version if current else None)
-        return versioned_artifact
-
-    def get_artifact(self, task_id: str, version: Optional[int] = None) -> Optional[dict]:
-        if version is not None:
-            return self.backend.get(f"artifact:{task_id}:v{version}")
-        return self.backend.get(f"artifact:{task_id}")
-
-    def list_versions(self, task_id: str) -> list[dict]:
-        """Return all historical versions for audit and replay."""
-        versions = []
-        v = 1
-        while True:
-            artifact = self.backend.get(f"artifact:{task_id}:v{v}")
-            if artifact is None:
-                break
-            versions.append(artifact)
-            v += 1
-        return versions
-
-class ConflictError(Exception):
-    pass
-```
-
-> **Why optimistic locking in the artifact store rather than pessimistic locking:** Optimistic locking in the artifact store prevents two agents from simultaneously overwriting the same task output without either being aware of the conflict. Unlike pessimistic locking (which serializes all writes and creates a bottleneck), optimistic locking allows concurrent writes and only fails the rarer case of a true collision, at which point the losing agent re-reads the current state and decides whether to merge or retry. The version history and checksum chain provide the tamper-evident record required for compliance audits.
-
----
-
-## Exercises
-
-### Design Exercises
-
-**Exercise 1: Adaptive Replanning Under Budget Pressure**
-You are designing the replanning logic for a supervisor agent. Mid-workflow, the cost meter shows 70% of the workflow budget has been consumed after only 40% of tasks have completed. The remaining tasks include both high-confidence deterministic steps (log parsing, schema validation) and low-confidence judgment steps (root cause synthesis, recommendation drafting). Design a replanning strategy that the supervisor should follow. Your design should specify: (a) how the supervisor decides which tasks to skip or downgrade, (b) what signals it uses to classify tasks as skippable, (c) how it communicates the reduced scope to the final output consumer, and (d) what guard rails prevent the supervisor from eliminating the tasks that most contribute to output quality.
-
-**Exercise 2: Multi-Tenant Workflow Isolation**
-Your multi-agent orchestrator serves 50 enterprise tenants on a shared infrastructure. Design the isolation architecture that ensures one tenant's runaway workflow cannot degrade latency or consume resources for other tenants. Address: (a) scheduler-level isolation (queue priority, worker pool partitioning), (b) tool gateway rate limiting per tenant, (c) trace store and state store namespace isolation, (d) approval service routing so one tenant's approvers never see another tenant's actions, and (e) how you handle a tenant whose single workflow legitimately needs 10× their normal tool call rate due to an incident response.
-
-### Implementation Exercises
-
-**Exercise 3: Loop Detection with Novelty Scoring**
-Implement a `NoveltyChecker` class that the scheduler calls before dispatching each tool call. The checker should maintain a sliding window of the last N tool calls for a given task (tool name + argument hash). It should compute a novelty score: 1.0 for a completely new call, 0.0 for an exact repeat, and a value between 0 and 1 for similar-but-not-identical calls (consider Jaccard similarity on argument keys). The scheduler should block dispatch and transition the task to `STUCK` if the novelty score falls below a configurable threshold for two consecutive calls. Write the class with unit tests covering: exact repeat detection, near-repeat detection, and a legitimate sequence of varied tool calls that should not trigger the check.
-
-**Exercise 4: Trace Replay Engine**
-Implement a `WorkflowReplayer` that takes a workflow ID and a set of `override_artifacts` (a mapping from task ID to a replacement artifact). The replayer should re-execute all tasks that depend on any overridden task, while using the stored artifacts for all other tasks. The purpose is to let an engineer test a new prompt for the root-cause synthesis task without re-running the expensive log analysis and metrics query tasks. Your implementation should: (a) topologically sort the task graph, (b) identify the replay frontier (tasks that must re-run because their inputs changed), (c) call the live agent only for frontier tasks and their downstream dependents, and (d) write the replayed artifacts to a separate replay namespace so the original workflow is not mutated.
-
-### Debug Exercise
-
-**Exercise 5: Diagnose a Stuck Workflow**
-A workflow `wf_incident_887` has been in status `IN_FLIGHT` for 47 minutes against a 10-minute SLO. The trace store shows the following: task `t3` (root cause synthesis, assigned to supervisor agent) was dispatched 47 minutes ago, has `steps_used=1`, and no tool calls have been recorded since the initial dispatch. Task `t1` (log analysis) and `t2` (metrics query) both show status `SUCCEEDED` with artifacts written 48 minutes ago. The tool gateway shows zero calls from task `t3`. The approval service shows no pending approval requests for this workflow.
-
-Given this evidence, identify at least three distinct failure hypotheses ordered by likelihood, describe the specific log queries or state store lookups you would run to confirm or eliminate each hypothesis, and propose the recovery action for the most likely cause. Then redesign one aspect of the orchestrator to automatically detect and recover from this failure class within 5 minutes rather than requiring manual investigation.
-
----
-
-## End of Chapter
-
-- **Key takeaway:** A multi-agent orchestrator is a distributed state machine, not a prompt-chaining trick: every task needs typed state, an explicit status (`QUEUED`/`IN_FLIGHT`/`SUCCEEDED`/`FAILED`), a tool budget, and a step cap, so that a stuck or runaway agent is detectable and recoverable from state alone. The recurring failure is silent stalls — an agent dispatched but making no tool calls — which is why timeouts, heartbeat/liveness checks, and trace replay must be first-class, and why supervisor-worker and DAG topologies are chosen for their failure-isolation properties rather than their elegance. Approval gates and per-workflow budget ceilings are what make autonomous multi-step execution safe to run in production.
-- **What to practice:** Size the orchestration overhead: for a workflow of 6 tasks with a supervisor fan-out of 3 parallel workers, a mean of 4 LLM calls per task, and a 10-minute SLO, compute the critical-path latency, the worst-case token spend if every task hits its step cap, and the state-store write rate at 1,000 concurrent workflows. Then derive the timeout threshold that catches a stalled task before it consumes half the SLO.
-- **Interview drill:** Workflow `wf_incident_887` has been `IN_FLIGHT` for 47 minutes against a 10-minute SLO; task `t3` shows `steps_used=1` with zero tool-gateway calls since dispatch, while upstream tasks `t1`/`t2` succeeded and no approval is pending. Give at least three failure hypotheses ordered by likelihood, the exact state-store/log lookups to confirm each, the recovery action for the most likely cause, and one orchestrator redesign that auto-detects and recovers from this failure class within 5 minutes.
-
----
-
-<!-- nav-footer -->
-[[Chapter 21 - Design an Advanced RAG Platform|← Chapter 21]] | [[README|Contents]] | [[Chapter 23 - Design an MCP-Based Tool Integration Platform|Chapter 23 →]]

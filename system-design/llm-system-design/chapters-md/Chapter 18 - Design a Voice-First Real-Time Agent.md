@@ -14,7 +14,7 @@ part: case-studies
 > - **Scale:** 50K concurrent voice sessions, 12M sessions/day
 > - **Key Techniques:** Streaming STT (Deepgram Nova-2) + self-hosted 8B LLM with speculative decoding + XTTS v2 TTS, barge-in handling (AEC + 2-stage detection), Silero VAD
 > - **Primary Concerns:** End-to-end < 500ms voice-to-voice latency, barge-in interruption handling, acoustic echo cancellation, graceful degradation
-> - **Cross-references:** [[Chapter 4 - Serving, Scaling, and Optimizing LLMs|Chapter 4]] (speculative decoding), [[Chapter 14 - Design a Real-Time Meeting Summarizer|Chapter 14]] (streaming STT), [[Chapter 9 - Design an Autonomous Research Agent|Chapter 9]] (agentic loop control), [[Chapter 19 - Design an AI NPC Engine for Multiplayer Games|Chapter 19]] (real-time NPC dialogue at high concurrency)
+> - **Cross-references:** Chapter 4 (speculative decoding), Chapter 14 (streaming STT), Chapter 9 (agentic loop control), Chapter 19 (real-time NPC dialogue at high concurrency)
 
 **Problem statement:** Design a real-time voice agent that conducts natural conversations over phone or drive-thru intercom with sub-500ms voice-to-voice latency, handles interruptions gracefully, and maintains task state across multi-turn dialogues—processing 50K concurrent sessions with human-like responsiveness.
 
@@ -26,23 +26,6 @@ part: case-studies
 ---
 
 ## Step 1: Understand the Problem and Establish Design Scope
-
-### Simulated Dialogue
-
-**Interviewer:** Design a voice-first real-time agent for drive-thru ordering or phone-based customer service.  
-**Candidate:** Voice agents have a fundamentally different latency contract than text-based systems. In text chat, 2 seconds is fine. In voice, anything over 500ms feels unnatural—humans expect conversational pacing. I need to understand the voice pipeline architecture (STT→LLM→TTS vs. native multimodal), interruption handling requirements, and concurrent session targets.
-
-**Candidate:** What's the scale and concurrency?  
-**Interviewer:** 50K concurrent voice sessions at peak. Each session lasts 2-5 minutes with 5-15 conversational turns.
-
-**Candidate:** What latency targets?  
-**Interviewer:** Voice-to-voice latency (end of user speech to start of agent speech) must be <500ms at p95. Total response must begin within 500ms; full responses stream over 2-5 seconds.
-
-**Candidate:** What quality metrics?  
-**Interviewer:** STT accuracy >95% WER (word error rate <5%). TTS naturalness MOS >4.0 (Mean Opinion Score, 1-5 scale). Task completion rate >90% (e.g., order placed correctly). Interruption handling: agent must stop within 200ms of user barge-in.
-
-**Candidate:** What's the deployment environment?  
-**Interviewer:** Phone calls via SIP/PSTN for customer service. Drive-thru intercom via audio stream. Both require handling background noise (kitchen noise, traffic, multiple speakers).
 
 ### Functional Requirements
 
@@ -72,14 +55,10 @@ part: case-studies
 - Concurrent sessions: 50K
 - Average session duration: 3 minutes
 - Turns per session: 10 (5 user, 5 agent)
-- Total sessions/day: assuming average session = 3 min, 50K concurrent, avg utilization 40%: `50K * 0.4 * (86400 / 180) = 9.6M sessions/day`
-- Realistically (business hours, 12hr window): `50K * (12 * 3600 / 180) = 12M sessions/day`
 
 #### Audio Data Volume
 
 - Audio bitrate: 16kHz, 16-bit mono = 256 kbps = 32 KB/s
-- Per session (3 min): `32 * 180 = 5.76 MB`
-- Daily audio: `12M * 5.76 MB = 69 TB` (if stored; typically not stored long-term)
 - Audio in transit: 50K sessions × 32 KB/s = 1.6 GB/s sustained bandwidth
 
 #### STT Compute
@@ -87,17 +66,12 @@ part: case-studies
 - Whisper large-v3: processes 30s of audio in ~1s on A100 GPU (30x real-time)
 - For streaming STT (Deepgram, AssemblyAI): cloud API, no GPU management needed
 - Self-hosted streaming STT: each GPU handles ~30 concurrent streams
-- GPUs for 50K concurrent: `50K / 30 = ~1,667 GPUs` for STT alone (prohibitive self-hosted)
 - Reality: use managed STT API (Deepgram: $0.0043/min, AssemblyAI: $0.0065/min)
-- STT cost: `12M sessions * 3 min * $0.0043 = $154,800/day` ← significant
 
 #### LLM Compute
 
 - Tokens per turn: ~100 input (transcript + state), ~50 output
 - Turns per session: 5 agent turns
-- Tokens per session: `5 * 150 = 750 tokens`
-- Total tokens/day: `12M * 750 = 9B tokens`
-- Using a fast 7B model (self-hosted, $0.10/1M tokens): `9B * $0.10/1M = $900/day`
 - Using GPT-4o-mini ($0.15/1M input, $0.60/1M output): ~$2,700/day
 - LLM is NOT the cost bottleneck. STT and TTS are.
 
@@ -106,8 +80,6 @@ part: case-studies
 - Agent speaks ~15 seconds per turn, 5 turns = 75 seconds per session
 - ElevenLabs: $0.18/1K chars, ~15 chars/second = ~$0.04/min
 - Self-hosted (VITS/Bark): 1 GPU handles ~100 concurrent streams at real-time factor 50x
-- GPUs for 50K concurrent TTS: `50K / 100 = 500 GPUs` self-hosted
-- Managed TTS cost: `12M * 1.25 min * $0.04 = $600K/day` ← prohibitive at scale
 - Self-hosted TTS is mandatory at this scale
 
 #### Latency Budget (500ms voice-to-voice)
@@ -245,12 +217,12 @@ In a streaming pipeline: STT emits partial transcripts while user speaks → LLM
 | Energy-based (RMS threshold) | 1-5ms | 80% | CPU only | Trivially fast but triggers on any sustained noise (HVAC hum, kitchen clatter), rendering it unusable in real-world acoustic conditions. |
 | Custom CNN VAD | 20-50ms | 97% | GPU | Marginally more accurate than Silero but requires a dedicated GPU inference slot, adding hardware cost and deployment complexity for a 2% accuracy gain. |
 
-> **Why Silero VAD:** Silero VAD achieves 95%+ accuracy while running entirely on CPU, eliminating the need for a dedicated GPU for end-of-speech detection. In drive-thru benchmarks it produces a false-positive rate of roughly 3% compared to WebRTC VAD's 6-7%, which directly translates to fewer spurious barge-in interruptions that break the agent's TTS stream mid-sentence. A custom CNN VAD achieves 97% accuracy but demands a GPU inference slot; at 50K concurrent sessions, dedicating even a fraction of a GPU per session for VAD alone would add hundreds of GPUs to the fleet and cost hundreds of thousands of dollars per year for a 2-percentage-point accuracy improvement.
+> **Why Silero VAD:** Silero VAD achieves 95%+ accuracy while running entirely on CPU, eliminating the need for a dedicated GPU for end-of-speech detection.
 
 End-of-speech detection: VAD must decide "the user has stopped talking" quickly but not prematurely. Use a silence duration threshold:
 - 300ms silence → end-of-speech (default for transactional conversations)
 
-> **Why 300ms:** 300ms silence is the empirically measured natural inter-word gap for conversational speech at normal pace. Below 200ms the system cuts off users mid-word; above 400ms it creates perceptible hesitation before the agent responds. 300ms is the threshold where task completion rate is highest in transactional dialogue benchmarks — it matches how humans judge when a speaker has finished a thought.
+> **Why 300ms:** 300ms silence is the empirically measured natural inter-word gap for conversational speech at normal pace.
 
 - 500ms silence → end-of-speech (for more deliberate speakers)
 - Adaptive: start at 300ms, increase to 500ms if the user has been pausing mid-sentence (detected via partial transcript analysis)
@@ -269,13 +241,13 @@ The STT has been running throughout the user's speech, emitting partial transcri
 
 For <500ms voice-to-voice: managed streaming STT (Deepgram) provides the best latency profile. Self-hosted Whisper requires chunked streaming (500ms chunks), which adds 200ms to the pipeline.
 
-> **Why Deepgram Nova-2:** Nova-2 achieves 100ms finalization latency after end-of-speech — 50ms faster than Google Cloud STT v2 — while matching it on clean-audio WER (3.2% vs 3.8%). At 50K concurrent sessions the STT cost is $155K/day either way, but Nova-2's lower latency profile recovers budget for other pipeline stages. AssemblyAI has comparable latency but is 50% more expensive per minute.
+> **Why Deepgram Nova-2:** Nova-2 achieves 100ms finalization latency after end-of-speech — 50ms faster than Google Cloud STT v2 — while matching it on clean-audio WER (3.2% vs 3.8%).
 
 **Domain vocabulary adaptation:**
 
 Drive-thru menus have domain-specific terms ("McFlurry," "Whopper," "venti"). STT systems misrecognize these. Fix:
 - **Hot-word boosting:** Deepgram/Google Cloud support keyword boosting—provide a list of menu item names with boosted recognition probability. +15% accuracy on menu items, zero latency impact.
-- **[[glossary#Fine-tuning|Fine-tuning]]:** fine-tune Whisper on 100 hours of drive-thru audio with transcripts. WER drops from 8.5% to 5.2% on domain vocab. Requires labeled training data.
+- **Fine-tuning|Fine-tuning:** fine-tune Whisper on 100 hours of drive-thru audio with transcripts. WER drops from 8.5% to 5.2% on domain vocab. Requires labeled training data.
 - **Post-correction:** after STT, run a fast string-matching pass to correct common misrecognitions: "large MacFlurry" → "large McFlurry." Adds <5ms.
 
 **Stage 3: LLM Generation — 150ms budget (to first token)**
@@ -290,10 +262,9 @@ The LLM must produce the first output token within 150ms of receiving the final 
 | Phi-3 3.8B (INT4) | 3.8B | 40ms | 5ms | 82% | 1× A10 | Budget option |
 | Mistral 7B (INT4) | 7B | 75ms | 7ms | 86% | 1× A100 | Good alternative |
 
-For voice agents, a self-hosted 8B model with [[glossary#Speculative Decoding|speculative decoding]] is optimal: 80ms [[glossary#TTFT (Time To First Token)|TTFT]], 3ms [[glossary#TPOT (Time Per Output Token)|TPOT]], fitting the 150ms budget with headroom. API-based models add 50-100ms network latency that's hard to recover.
+For voice agents, a self-hosted 8speculative decoding is optimal: TTFT, TPOT, fitting the 150ms budget with headroom. API-based models add 50-100ms network latency that's hard to recover.
 
-> **Why Llama 3 8B INT4:** 8B at INT4 [[glossary#Quantization|quantization]] achieves 80ms TTFT on a single A100 — within the 150ms budget — while maintaining 88% task completion rate. Phi-3 3.8B is faster (40ms TTFT) but drops task completion to 82%, which translates to 6% more escalations to human agents. GPT-4o-mini adds 50-100ms unavoidable network latency that cannot be recovered within the 500ms budget.
-> **Why speculative decoding:** Speculative decoding with a 1B draft model reduces TPOT from 8ms to 3ms per token by proposing 4-6 tokens at a time that the 8B verifier accepts ~75% of the time. At 50 output tokens per turn, this saves approximately 250ms of decode time — enough to absorb STT or TTS latency overruns without breaking the 500ms budget.
+> **Why Llama 3 8B INT4:** 8quantization achieves 80ms TTFT on a single A100 — within the 150ms budget — while maintaining 88% task completion rate.
 
 **Prompt design for voice agents:**
 
@@ -486,576 +457,13 @@ Use the pipeline by default. If STT confidence drops below 70% (noisy environmen
 
 - **Speculative response generation:** while the user is still speaking (mid-utterance), the system classifies the partial STT transcript against a set of high-frequency intent templates (e.g., "I'd like a [menu_item]," "Can I get [size] [item]") and begins generating a response speculatively against the most probable completed utterance. In a drive-thru domain with a 200-item menu and roughly 15 canonical ordering patterns, this prediction is accurate more than 70% of the time, meaning the LLM response is 100-200ms pre-generated by the time the user finishes speaking. The remaining 30% of cases produce wasted compute — the speculative generation is cancelled and a correct generation runs from scratch — adding roughly 25% to average LLM GPU utilization. The technique is most valuable on the highest-traffic intent classes (ordering a combo, asking the price) and should be disabled for rare or complex intents (order modifications, complaints) where prediction accuracy drops below 50%.
 
-> **Why speculative response generation:** The 150ms LLM TTFT budget is the tightest single constraint in the entire pipeline. Speculative generation effectively starts the TTFT clock 300-500ms before end-of-speech, converting a post-EOS wait into a pre-EOS overlap — this is the only technique that can push voice-to-voice latency below 350ms without changing any hardware. The 25% GPU overhead is the direct cost, which at 30 LLM GPUs translates to roughly 7-8 additional GPUs ($2-3K/month), a worthwhile trade for a premium latency tier.
+> **Why speculative response generation:** The 150ms LLM TTFT budget is the tightest single constraint in the entire pipeline.
 
 - **Emotion detection for escalation:** analyze audio features — fundamental frequency (F0/pitch), speech rate (syllables per second), RMS energy, and jitter — in real-time on the inbound audio stream using a lightweight classifier (a 3-layer CNN trained on labeled emotional speech datasets, running on CPU in under 5ms). When the frustration score exceeds a configurable threshold (typically 0.7 on a 0-1 scale, calibrated to reduce false escalations) for two consecutive turns, the agent proactively shifts its language to acknowledging and offers human connection: "I want to make sure we get this exactly right for you — would you like me to connect you with a team member who can help directly?" Proactive escalation after two frustrated turns improves post-call CSAT by roughly 15 points compared to reactive escalation (waiting for the customer to demand a human), because it signals that the system recognized their frustration rather than blundering forward.
 
-> **Why emotion detection:** Task completion rate is the primary metric, but CSAT is the business metric that determines whether customers return. An agent that detects frustration and gracefully hands off outperforms one that keeps trying and fails — even if the latter has a 5% higher task completion rate. Emotion detection also provides an early-warning signal for systematic failures: a spike in frustration scores across sessions at a specific location typically indicates a hardware issue (noisy intercom) or a menu configuration error rather than individual caller variability.
+> **Why emotion detection:** Task completion rate is the primary metric, but CSAT is the business metric that determines whether customers return.
 
-- **Contextual pre-loading:** before the first caller utterance, the system pre-loads the session context into the LLM's [[glossary#KV Cache|KV cache]]. For a drive-thru, this includes the full current menu (items, prices, availability flags, active promotions, and item-level modifiers) plus the day-of-week and time-of-day context (breakfast vs. lunch menu). For phone agents, use caller ID lookup to pre-load the customer's account history, prior order preferences, and any open tickets. Pre-loading is triggered the moment the audio connection is established — roughly 300-500ms before the caller finishes their greeting utterance — so by the time the first transcript arrives, the LLM's KV cache already contains the full context and TTFT is reduced to prefill over just the new user turn rather than the full context, cutting per-turn LLM latency by 30-40ms at the context sizes typical for drive-thru menus (2,000-4,000 tokens).
+- **Contextual pre-loading:** before the first caller utterance, the system pre-loads the session context into the LLM's KV Cache|KV cache. For a drive-thru, this includes the full current menu (items, prices, availability flags, active promotions, and item-level modifiers) plus the day-of-week and time-of-day context (breakfast vs. lunch menu). For phone agents, use caller ID lookup to pre-load the customer's account history, prior order preferences, and any open tickets. Pre-loading is triggered the moment the audio connection is established — roughly 300-500ms before the caller finishes their greeting utterance — so by the time the first transcript arrives, the LLM's KV cache already contains the full context and TTFT is reduced to prefill over just the new user turn rather than the full context, cutting per-turn LLM latency by 30-40ms at the context sizes typical for drive-thru menus (2,000-4,000 tokens).
 
 ---
 
-## Practical Implementation
-
-### Code Block 1: Streaming VAD + STT Pipeline with Barge-In Control
-
-This implementation shows the core pipeline loop: Silero VAD monitoring the inbound audio stream, routing speech frames to a streaming STT client, and triggering the barge-in controller when speech is detected during agent TTS playback.
-
-```python
-import asyncio
-import torch
-import numpy as np
-from dataclasses import dataclass, field
-from enum import Enum
-from typing import AsyncIterator, Callable, Optional
-
-# pip install silero-vad deepgram-sdk
-
-class TurnState(Enum):
-    LISTENING = "listening"
-    PROCESSING = "processing"
-    SPEAKING = "speaking"
-    INTERRUPTED = "interrupted"
-
-
-@dataclass
-class SessionState:
-    session_id: str
-    turn_state: TurnState = TurnState.LISTENING
-    partial_agent_response: str = ""   # how much the agent said before barge-in
-    conversation_history: list = field(default_factory=list)
-    order_state: dict = field(default_factory=dict)
-    version: int = 0  # optimistic lock counter
-
-
-class SileroVAD:
-    """Thin wrapper around Silero VAD for real-time frame-level detection."""
-
-    SAMPLE_RATE = 16000
-    CHUNK_FRAMES = 512  # 32ms per chunk at 16kHz
-
-    def __init__(self, threshold: float = 0.5):
-        self.model, _ = torch.hub.load(
-            "snakers4/silero-vad", "silero_vad", force_reload=False
-        )
-        self.model.eval()
-        self.threshold = threshold
-        self._h = torch.zeros(2, 1, 64)
-        self._c = torch.zeros(2, 1, 64)
-
-    def is_speech(self, pcm_chunk: np.ndarray) -> tuple[bool, float]:
-        """Return (is_speech, confidence) for one 32ms PCM chunk."""
-        tensor = torch.from_numpy(pcm_chunk).float().unsqueeze(0)
-        with torch.no_grad():
-            prob, self._h, self._c = self.model(tensor, self.SAMPLE_RATE, self._h, self._c)
-        confidence = float(prob.squeeze())
-        return confidence >= self.threshold, confidence
-
-
-class BargeInController:
-    """Coordinates the stop/cancel/restart sequence when user speaks over the agent."""
-
-    def __init__(
-        self,
-        on_stop_tts: Callable[[], None],
-        on_cancel_llm: Callable[[], None],
-        on_barge_in: Callable[[str], None],  # called with partial_agent_response
-    ):
-        self._stop_tts = on_stop_tts
-        self._cancel_llm = on_cancel_llm
-        self._on_barge_in = on_barge_in
-
-    async def handle(self, session: SessionState) -> None:
-        """Execute the full barge-in sequence. Target: <70ms total."""
-        partial = session.partial_agent_response
-        session.turn_state = TurnState.INTERRUPTED
-
-        # Steps run concurrently to minimize latency
-        await asyncio.gather(
-            asyncio.to_thread(self._stop_tts),    # mute audio immediately
-            asyncio.to_thread(self._cancel_llm),  # cancel in-flight generation
-        )
-        # Record interruption context for the dialogue manager
-        self._on_barge_in(partial)
-        session.partial_agent_response = ""
-
-
-class StreamingVoicePipeline:
-    """
-    Core pipeline loop: audio frames in → VAD → STT → barge-in detection.
-
-    Audio input is a raw 16kHz 16-bit PCM byte stream (e.g., from WebRTC).
-    """
-
-    SILENCE_FRAMES_THRESHOLD = 10   # 10 × 32ms = 320ms silence → end-of-speech
-    MIN_SPEECH_FRAMES_FOR_BARGE_IN = 10  # 10 × 32ms = 320ms minimum barge-in speech
-
-    def __init__(
-        self,
-        session: SessionState,
-        stt_client,          # e.g., deepgram AsyncLiveClient
-        barge_in_controller: BargeInController,
-        on_final_transcript: Callable[[str, SessionState], None],
-    ):
-        self.session = session
-        self.stt = stt_client
-        self.barge_in = barge_in_controller
-        self.on_final_transcript = on_final_transcript
-        self.vad = SileroVAD(threshold=0.5)
-
-        self._silence_frames = 0
-        self._speech_frames = 0
-        self._in_speech = False
-
-    async def process_audio_stream(self, audio_stream: AsyncIterator[bytes]) -> None:
-        """Main loop: consume audio chunks, run VAD, route to STT or barge-in."""
-        async for raw_chunk in audio_stream:
-            pcm = np.frombuffer(raw_chunk, dtype=np.int16).astype(np.float32) / 32768.0
-            is_speech, confidence = self.vad.is_speech(pcm)
-
-            if self.session.turn_state == TurnState.SPEAKING:
-                await self._handle_barge_in_detection(is_speech, raw_chunk)
-            elif self.session.turn_state == TurnState.LISTENING:
-                await self._handle_listening(is_speech, raw_chunk)
-
-    async def _handle_listening(self, is_speech: bool, raw_chunk: bytes) -> None:
-        if is_speech:
-            self._silence_frames = 0
-            if not self._in_speech:
-                self._in_speech = True
-                self._speech_frames = 0
-            self._speech_frames += 1
-            # Forward audio to streaming STT
-            await self.stt.send(raw_chunk)
-        else:
-            if self._in_speech:
-                self._silence_frames += 1
-                if self._silence_frames >= self.SILENCE_FRAMES_THRESHOLD:
-                    # End of speech detected: finalize STT
-                    self._in_speech = False
-                    self._silence_frames = 0
-                    self.session.turn_state = TurnState.PROCESSING
-                    final_transcript = await self.stt.finalize()
-                    self.on_final_transcript(final_transcript, self.session)
-
-    async def _handle_barge_in_detection(self, is_speech: bool, raw_chunk: bytes) -> None:
-        """Two-stage barge-in: volume dip at first detection, full stop after 320ms."""
-        if is_speech:
-            self._speech_frames += 1
-            if self._speech_frames >= self.MIN_SPEECH_FRAMES_FOR_BARGE_IN:
-                # Confirmed barge-in: full pipeline interrupt
-                await self.barge_in.handle(self.session)
-                self.session.turn_state = TurnState.LISTENING
-                self._speech_frames = 0
-                await self.stt.send(raw_chunk)  # begin STT on the interruption
-        else:
-            # Speech burst ended before threshold: likely backchannel, restore TTS
-            if 0 < self._speech_frames < self.MIN_SPEECH_FRAMES_FOR_BARGE_IN:
-                self._speech_frames = 0
-                # (TTS volume restoration would be signalled here)
-```
-
-### Code Block 2: Streaming LLM → TTS Sentence-Buffer Handoff
-
-This shows how to buffer LLM streaming tokens into sentence-level fragments before dispatching to TTS, ensuring TTS receives enough text to generate natural-sounding audio without waiting for the full LLM response.
-
-```python
-import re
-import asyncio
-from typing import AsyncIterator
-
-SENTENCE_END = re.compile(r'(?<=[.!?])\s+|(?<=[,;])\s+(?:and|but|so|then)\s+')
-MIN_FRAGMENT_WORDS = 5
-MAX_BUFFER_WAIT_SEC = 0.5  # force synthesis after 500ms even without sentence boundary
-
-
-async def stream_llm_tokens(prompt: str, llm_client) -> AsyncIterator[str]:
-    """Yield tokens one at a time from a streaming LLM call."""
-    async for chunk in llm_client.stream(prompt, max_tokens=60, temperature=0.2):
-        yield chunk.text
-
-
-async def sentence_buffer(
-    token_stream: AsyncIterator[str],
-) -> AsyncIterator[str]:
-    """
-    Accumulate LLM tokens into synthesizable sentence fragments.
-    Emits a fragment when:
-      1. A sentence boundary is detected and the buffer has >= MIN_FRAGMENT_WORDS words, OR
-      2. MAX_BUFFER_WAIT_SEC has elapsed since the last emission.
-    """
-    buffer = ""
-    last_emit_time = asyncio.get_event_loop().time()
-
-    async for token in token_stream:
-        buffer += token
-        now = asyncio.get_event_loop().time()
-        elapsed = now - last_emit_time
-
-        word_count = len(buffer.split())
-        has_boundary = bool(SENTENCE_END.search(buffer))
-
-        if (has_boundary and word_count >= MIN_FRAGMENT_WORDS) or elapsed >= MAX_BUFFER_WAIT_SEC:
-            # Find the last clean boundary to split on
-            parts = SENTENCE_END.split(buffer, maxsplit=1)
-            fragment = parts[0].strip()
-            buffer = parts[1].strip() if len(parts) > 1 else ""
-            if fragment:
-                yield fragment
-                last_emit_time = now
-
-    # Flush remaining buffer
-    if buffer.strip():
-        yield buffer.strip()
-
-
-async def stream_response_to_audio(
-    prompt: str,
-    llm_client,
-    tts_client,
-    audio_output_queue: asyncio.Queue,
-) -> None:
-    """
-    Full streaming LLM→TTS handoff: tokens → sentence fragments → audio chunks.
-    First audio chunk is in the queue within ~100ms of first sentence boundary.
-    """
-    token_stream = stream_llm_tokens(prompt, llm_client)
-
-    async for fragment in sentence_buffer(token_stream):
-        # TTS synthesizes the fragment and returns streaming audio chunks
-        async for audio_chunk in tts_client.synthesize_stream(fragment):
-            await audio_output_queue.put(audio_chunk)
-
-    # Signal end of audio stream
-    await audio_output_queue.put(None)
-```
-
-### Code Block 3: Dialogue Manager with Atomic State Updates and Interruption Context
-
-This shows the dialogue manager's turn-processing logic, including optimistic locking for concurrent barge-in safety and prompt construction that carries interruption context into the LLM.
-
-```python
-import asyncio
-import json
-import redis.asyncio as aioredis
-from dataclasses import dataclass, asdict
-from typing import Optional
-
-
-@dataclass
-class OrderState:
-    items: list   # [{"name": "Large Combo #3", "modifiers": ["no pickles"], "qty": 1}]
-    total_cents: int = 0
-    confirmed: bool = False
-
-
-SYSTEM_PROMPT = """You are a friendly drive-thru ordering assistant.
-Rules:
-- Keep responses to 1-2 sentences maximum.
-- Use only spoken-language formats: no bullet points, no URLs.
-- When a customer self-corrects ("oh wait," "actually," "no, make that"), the LAST stated preference overrides any earlier preference for the same slot.
-- Negations ("no pickles," "without onions") must be recorded as explicit remove-modifiers.
-- Always confirm item + size + modifiers before finalising.
-- If the order is ambiguous, ask exactly one clarifying question."""
-
-
-async def build_llm_prompt(
-    transcript: str,
-    session: "SessionState",
-    menu_context: str,
-    interruption_partial: Optional[str] = None,
-) -> str:
-    """
-    Construct the LLM prompt for one turn.
-    If interruption_partial is set, injects the interruption context header.
-    """
-    history_text = "\n".join(
-        f"{msg['role'].upper()}: {msg['content']}"
-        for msg in session.conversation_history[-8:]  # last 4 turns
-    )
-
-    interruption_header = ""
-    if interruption_partial:
-        interruption_header = (
-            f"[CONTEXT: You were saying '{interruption_partial}' when the customer interrupted.]\n"
-            f"[INSTRUCTION: Acknowledge the interruption, then process the customer's new request.]\n\n"
-        )
-
-    order_summary = json.dumps(asdict(session.order_state), indent=2) if session.order_state else "No items yet."
-
-    return f"""{SYSTEM_PROMPT}
-
-MENU:
-{menu_context}
-
-CURRENT ORDER:
-{order_summary}
-
-CONVERSATION:
-{history_text}
-
-{interruption_header}CUSTOMER: {transcript}
-ASSISTANT:"""
-
-
-class DialogueManager:
-    def __init__(self, redis_url: str, llm_client, menu_context: str):
-        self.redis = aioredis.from_url(redis_url)
-        self.llm = llm_client
-        self.menu_context = menu_context
-
-    async def _load_session(self, session_id: str) -> dict:
-        raw = await self.redis.get(f"session:{session_id}")
-        return json.loads(raw) if raw else {"version": 0, "history": [], "order": {}}
-
-    async def _save_session(self, session_id: str, state: dict, expected_version: int) -> bool:
-        """Optimistic lock: only write if version matches. Returns True on success."""
-        key = f"session:{session_id}"
-        async with self.redis.pipeline(transaction=True) as pipe:
-            try:
-                await pipe.watch(key)
-                current = json.loads(await pipe.get(key) or "{}")
-                if current.get("version", 0) != expected_version:
-                    await pipe.reset()
-                    return False  # concurrent write detected — caller should retry
-                pipe.multi()
-                state["version"] = expected_version + 1
-                pipe.set(key, json.dumps(state), ex=3600)
-                await pipe.execute()
-                return True
-            except aioredis.WatchError:
-                return False
-
-    async def process_turn(
-        self,
-        session_id: str,
-        transcript: str,
-        interruption_partial: Optional[str] = None,
-    ) -> AsyncIterator[str]:
-        """
-        Load session state, build prompt, stream LLM response, attempt atomic save.
-        Yields LLM tokens as they arrive for real-time TTS handoff.
-        """
-        for attempt in range(3):  # retry up to 3 times on optimistic lock failure
-            state = await self._load_session(session_id)
-            expected_version = state.get("version", 0)
-
-            prompt = await build_llm_prompt(
-                transcript=transcript,
-                session=state,
-                menu_context=self.menu_context,
-                interruption_partial=interruption_partial,
-            )
-
-            full_response = ""
-            async for token in self.llm.stream(prompt, max_tokens=60):
-                full_response += token.text
-                yield token.text  # pass to TTS sentence buffer immediately
-
-            # Update state after full response collected
-            state["history"].append({"role": "user", "content": transcript})
-            state["history"].append({"role": "assistant", "content": full_response})
-            # (Order extraction from full_response would run here via a fast slot-fill model)
-
-            saved = await self._save_session(session_id, state, expected_version)
-            if saved:
-                return
-            # Version mismatch: a concurrent barge-in wrote state; reload and retry
-            await asyncio.sleep(0.01 * (attempt + 1))
-```
-
----
-
-
----
-
-## Step 4: Wrap Up
-
-### Final Design Summary
-
-The system achieves sub-500ms voice-to-voice latency through a fully streaming pipeline: Silero VAD for end-of-speech detection (50ms), streaming STT with domain-adapted vocabulary (100ms finalization), a self-hosted 8B LLM with speculative decoding (80ms TTFT), and self-hosted XTTS v2 for streaming TTS (80ms first chunk). Barge-in handling uses a two-stage detection strategy (volume reduction then full stop) that achieves 3% false positive rate while catching 98% of real interruptions. At 50K concurrent sessions, self-hosted STT and TTS at $0.002/minute is 23x cheaper than managed APIs. The architecture is pipeline-based (STT→LLM→TTS) for production maturity and debuggability, with a planned migration path to hybrid pipeline + native multimodal for noisy environments.
-
-### Wrap-Around Concerns
-
-- **Risk:** 500ms latency budget has zero slack. Any single stage regression (STT provider latency spike, GPU contention on LLM, TTS audio buffer underrun) breaks the SLO. Mitigation: per-stage latency monitoring with circuit breakers. If any stage exceeds 1.5x budget, degrade gracefully (shorter responses, skip speculative execution, use lower-quality but faster TTS).
-- **Risk:** Background noise in drive-thru environments degrades STT accuracy below 95%. Mitigation: domain-adapted STT model, hot-word boosting, and multimodal fallback for low-confidence transcripts.
-- **Risk:** Barge-in handling with AEC fails in novel acoustic environments (new intercom hardware, outdoor seating areas). Mitigation: per-location AEC calibration during installation. Monitor barge-in false-positive rate per location; alert if >10%.
-- **Risk:** Self-hosted TTS and STT require 900+ GPUs at peak, creating significant infrastructure operational burden. Mitigation: auto-scaling with spot instances for burst. Maintain 60% baseline on reserved instances, scale 40% on spot.
-- **Risk:** Dialogue state errors cause wrong orders (customer says "large" but system records "small"). Mitigation: explicit confirmation turns for high-value items. "Got it—one large combo number three. Is that correct?" Confirmation rate should be >95%.
-
----
-
-## Step 5: Interviewer Curveballs
-
-### Interviewer Follow-ups & Frequently Asked Questions (FAQ)
-
-Q: The customer says "I'd like a large number three with no pickles and a Coke—oh wait, make that a Sprite." Your system must handle this single utterance. Walk through exactly what happens.
-
-**The Ideal Answer:** This is a self-correction within a single turn — not a multi-turn dialogue issue. The STT transcribes the full utterance as one text segment because there is no natural end-of-speech pause that would trigger VAD. The LLM must parse the self-correction semantics rather than treating "Coke" and "Sprite" as two additive items. The system prompt instructs the LLM: "Customers may change their mind mid-sentence using phrases like 'oh wait,' 'actually,' or 'no, make that.' The LAST stated preference for any slot overrides all earlier preferences for that slot." The LLM parses the utterance into four slot fills: (1) item=combo #3, (2) size=large, (3) modifier=no pickles, (4) drink=Coke, then applies the self-correction signal ("oh wait, make that a Sprite") to override drink=Coke with drink=Sprite. Final extracted order: large #3, no pickles, Sprite. The dialogue manager commits this as a single atomic state update. The confirmation response is: "A large number three, no pickles, with a Sprite. Anything else?"
-
-**Deep Dive & Trade-offs:**
-- The LLM must have robust self-correction examples in its few-shot examples. Without at least 3-5 examples covering the patterns "oh wait, I meant X," "actually make that X," and "no, X instead," the LLM will treat self-corrections as additive modifications and produce a wrong order roughly 20% of the time on self-correction utterances.
-- If the user pauses for more than 300ms between "Coke" and "oh wait," VAD fires an end-of-speech event and the system processes "I'd like a large number three with no pickles and a Coke" as a complete turn, committing the Coke order. The subsequent "oh wait, make that a Sprite" arrives as a correction in the next turn — the dialogue manager handles it as an order modification. Both paths produce the correct final order, but the two-turn path adds one full 500ms round-trip and one confirmation cycle, adding 3-4 seconds to the session.
-- The "no pickles" negation is a separate pitfall: LLMs trained on general text sometimes treat "no pickles" as a positive modifier ("pickles: absent") but fail to propagate that correctly when the order schema expects `modifiers: [remove_pickle]`. Include explicit negation examples in few-shot and validate that the extracted order schema representation correctly reflects negations before any tool call commits the order.
-- Monitor the self-correction rate as a session-level metric: if a location shows more than 15% of turns containing self-correction signals, it usually indicates a slow or confusing confirmation flow that causes customers to correct themselves to speed up the interaction.
-
-**The Interviewer's Rubric:** Checking understanding of real-world speech patterns and how they map to dialogue management, including the distinction between single-turn self-corrections and multi-turn modifications, and awareness of LLM prompt design for edge cases in slot extraction.
-
----
-
-Q: Your STT transcribes "I'd like a four-piece nugget" but the customer actually said "forty-piece nugget." This is a real order—how do you prevent costly misrecognitions?
-
-**The Ideal Answer:** Numerals in noisy environments are the #1 STT failure mode. Defense layers: (1) **Hot-word boosting:** if the menu has "4-piece" and "40-piece" but no "forty-piece" as a string, STT may default to the more common "four-piece." Boost all menu item names including their numeric variants. (2) **Menu-aware post-processing:** after STT, validate the transcript against the actual menu. "Four-piece nugget" is a valid menu item but so is "forty-piece nugget." If ambiguous, use acoustic confidence scores on the numeral. (3) **Confirmation protocol:** for items where the quantity matters (and thus the price difference is large—$3 vs $12), always confirm: "Was that a four-piece or forty-piece nugget?" This adds one turn (~3 seconds) but prevents a wrong order. (4) **Cost-based confirmation threshold:** only confirm when the price difference between homophones exceeds $5. "Coke vs. Diet Coke" ($0 difference) → don't confirm. "4-piece vs. 40-piece" ($9 difference) → confirm.
-
-**Deep Dive & Trade-offs:**
-- Confirmation on every item creates a tedious experience. Cost-based thresholding limits confirmations to ~10% of items.
-- Alternative: use DTMF (keypad) input for quantities. "Press 4 for four-piece, press 0 for forty-piece." Works for phone; not for drive-thru.
-- Long-term: fine-tune STT on menu-specific audio (with emphasis on numeric terms) to reduce misrecognition rate.
-
-**The Interviewer's Rubric:** Checking awareness of domain-specific STT failure modes, the economics of confirmation thresholds (when to add friction vs. when to accept risk), and the layered defense strategy of hot-word boosting, post-correction, and confirmation as complementary rather than alternative tools.
-
----
-
-Q: Two people are talking at the drive-thru speaker simultaneously—one ordering, one commenting to their passenger. How does the system handle overlapping speakers?
-
-**The Ideal Answer:** Multi-speaker handling at drive-thru is a genuinely hard acoustic problem with no perfect software-only solution. The most effective solutions are layered: (1) **Hardware-first:** a cardioid directional microphone mounted at the driver-side order station and aimed at the speaker window provides 15-20 dB of rejection for off-axis sound sources (passengers, kitchen noise). This single hardware choice eliminates the majority of multi-speaker confusion before any software runs and adds zero latency. Most professional drive-thru headset installations use this approach already. (2) **Dominant speaker extraction:** for remaining cases, use audio energy combined with inter-channel level difference (if a two-mic array is available) to select the loudest/closest speaker's audio stream. This model-free approach processes in under 50ms and works correctly roughly 80% of the time. (3) **Speaker diarization:** if a two-mic array is not available, use a lightweight real-time diarization model (pyannote-audio with a streaming-capable configuration) to assign speaker labels to audio segments and route only the segment tagged as "driver-side primary speaker" to the STT pipeline. Modern streaming diarization adds 100-200ms of latency, which is tight against the 500ms budget. (4) **Coherence-based fallback:** if the STT output looks incoherent — two interwoven sentence fragments, pronoun-reference mismatch, syntactic non-sequiturs — the dialogue manager detects the likely multi-speaker contamination and prompts: "Sorry, I heard a couple of different things. Could you tell me just your order?" This adds one turn but recovers gracefully.
-
-**Deep Dive & Trade-offs:**
-- Real-time speaker diarization adds 100-200ms — if the pipeline is already at 450ms, this pushes p95 latency over 600ms. Only activate diarization when the microphone hardware does not provide sufficient speaker isolation.
-- Directional microphones solve 90% of the problem at hardware level with zero latency impact, which is why hardware-first is always the right recommendation rather than reaching for software complexity immediately.
-- For phone calls (not drive-thru), there is no directional mic. On a phone call, the caller's microphone picks up everything in the room equally. The best available options are noise-gated STT (only transcribe audio above a loudness threshold associated with someone speaking into the mic) and aggressive backchannel filtering. Accept that multi-speaker phone calls have a higher STT error rate and compensate with more confirmation turns.
-- Worst case: if no speaker isolation works and the STT produces an incoherent transcript, the confirmation step is the last line of defense. An incorrect order that reaches the POS but is confirmed by the customer before payment is the failure mode to avoid most aggressively — it causes food waste and CSAT damage simultaneously.
-
-**The Interviewer's Rubric:** Checking the understanding that voice pipeline challenges are frequently solved most effectively at the hardware/acoustic layer rather than purely in software, and that layering hardware, signal processing, and software fallbacks produces more robust systems than any single technique alone.
-
----
-
-Q: Your LLM generates a response but the TTS pronunciation is wrong—it says "live" (as in "alive") instead of "live" (as in "broadcast"). How do you control pronunciation?
-
-**The Ideal Answer:** TTS pronunciation errors on homographs ("live," "read," "lead," "wind") are common. Controls: (1) **SSML (Speech Synthesis Markup Language):** wrap ambiguous words with phoneme hints: `<phoneme alphabet="ipa" ph="laɪv">live</phoneme>`. This requires the LLM to generate SSML-annotated text, which is feasible with prompt engineering. (2) **Pronunciation dictionary:** the TTS system maintains a custom pronunciation dictionary mapping words to phonemes in context. "Live music" → /laɪv/, "live broadcast" → /laɪv/, "live animals" → /laɪv/. Context-dependent rules. (3) **Domain-specific TTS fine-tuning:** fine-tune the TTS model on domain-specific text-audio pairs. For a drive-thru, the vocabulary is limited; pronunciation errors are rare after fine-tuning on menu items. (4) **Post-synthesis verification (expensive):** run a lightweight STT on the generated audio and compare against the input text. If mismatched, re-synthesize. Adds ~200ms per turn.
-
-**Deep Dive & Trade-offs:**
-- SSML adds complexity to the LLM prompt and output parsing. Not all TTS systems fully support SSML.
-- Pronunciation dictionaries are effective for domain-specific terms but don't generalize to novel text.
-- TTS fine-tuning requires 5-10 hours of recorded audio in the target voice + domain text. ~1 week of effort.
-- In practice, for constrained domains (drive-thru, appointment scheduling), the vocabulary is small enough that a pronunciation dictionary covers 99% of cases.
-
-**The Interviewer's Rubric:** Checking awareness of TTS quality control beyond "plug in a TTS API," including knowledge of SSML as a programmatic pronunciation control layer, the trade-off between pronunciation dictionary specificity and coverage, and the practical consideration that constrained domains can achieve near-perfect pronunciation with a small, maintainable dictionary rather than expensive post-synthesis verification loops.
-
----
-
-Q: You need to deploy this system across 5,000 drive-thru locations worldwide. How do you handle the infrastructure?
-
-**The Ideal Answer:** Two architectural options: (1) **Cloud-centralized:** all audio streams back to regional cloud data centers. Pros: centralized GPU fleet, easy model updates, shared capacity. Cons: network latency from store to cloud (50-100ms RTT), bandwidth costs (32KB/s per stream × 5K locations), dependency on WAN. (2) **Edge deployment:** deploy a small compute node at each location (or per-cluster of locations). Run VAD + lightweight processing locally; stream only to STT/LLM in a regional data center. Pros: reduced network dependency, lower latency. Cons: 5,000 edge devices to manage, limited compute per location.
-
-**Recommended: Hybrid.** VAD runs on a local edge device (Raspberry Pi-class, $50 hardware). Audio streams to the nearest regional data center (8-12 regions globally) for STT→LLM→TTS processing. Audio transport over WebRTC with adaptive bitrate.
-
-Regional data center sizing: 5,000 locations / 10 regions = 500 locations per region. At peak (lunch rush): 500 locations × 3 concurrent orders = 1,500 concurrent sessions per region. GPU fleet per region: ~30 GPUs for STT, ~5 for LLM, ~15 for TTS = ~50 GPUs per region, 500 GPUs total.
-
-Network resilience: if WAN to cloud fails, the edge device plays pre-recorded prompts ("Our AI system is temporarily unavailable. A team member will take your order.") and escalates to human.
-
-**Deep Dive & Trade-offs:**
-- Edge VAD eliminates false triggers before audio leaves the premises, saving bandwidth.
-- Running full STT/LLM/TTS on-premise is theoretically possible (with a $5K GPU box per location) but operationally nightmarish at 5,000 locations.
-- Network quality varies by location. Rural locations with poor connectivity may need a larger edge compute footprint.
-- Model updates: push new model weights to regional data centers (trivial). Push new VAD models to edge devices (non-trivial—requires OTA update infrastructure).
-
-**The Interviewer's Rubric:** Checking infrastructure architecture thinking for geographically distributed real-time systems, specifically the judgment to push only VAD to the edge (cheap, low-latency) while keeping GPU-intensive compute centralized in regional data centers, and the operational discipline to plan for WAN failure modes rather than assuming always-on connectivity.
-
----
-
-Q: A customer has a heavy accent that drops STT accuracy to 70% WER. How do you handle graceful degradation?
-
-**The Ideal Answer:** Accent robustness is an equity and accessibility concern, not just a quality metric. Layers: (1) **Multi-model STT ensemble:** run two STT models in parallel (e.g., Deepgram + Whisper). Take the transcript with higher confidence. Different models have different accent strengths. (2) **Confidence-based clarification:** if STT confidence on any word drops below 60%, ask for clarification on that specific word rather than the whole utterance: "I got 'large number three'—was the drink a Coke or a Fanta?" (3) **Multimodal fallback:** if text-based understanding fails, route the audio to a native multimodal model (GPT-4o voice mode) that processes audio directly—it may understand accented speech that STT couldn't transcribe. (4) **Human escalation:** if confidence stays below threshold for 3 consecutive turns, offer: "Let me connect you with a team member who can help." Don't let the customer struggle. (5) **Long-term:** collect and label accent-diverse training data (with speaker consent). Fine-tune STT models to improve accuracy across accent groups. Monitor WER by demographic cohort (accent, age) to ensure equitable performance.
-
-**Deep Dive & Trade-offs:**
-- Multi-model STT doubles compute cost. Only activate for low-confidence sessions.
-- Clarification questions add friction. Limit to 1 clarification per turn.
-- Human escalation is the safety net but defeats the purpose of automation. Track escalation rate by accent group—if one group escalates 5x more, the model needs retraining for that accent.
-- Ethical consideration: if the system performs significantly worse for certain accent groups, it's discriminatory. Regular fairness audits on WER by accent are mandatory.
-
-**The Interviewer's Rubric:** Checking fairness and accessibility thinking in voice AI systems — specifically the recognition that disparate STT performance across accent groups is a discriminatory outcome, not merely a quality issue, and that the engineering response must include both technical mitigations (ensemble STT, multimodal fallback) and measurement accountability (WER by demographic cohort, escalation rate by accent group).
-
----
-
-Q: The restaurant changes its menu seasonally. How do you update the voice agent without downtime?
-
-**The Ideal Answer:** Menu updates propagate through three components: (1) **Dialogue context:** the system prompt and menu context (item names, prices, availability) are stored in a configuration database, not hardcoded in the model. Menu update = database record update, zero model changes. The LLM reads the current menu from context at the start of each session. (2) **STT hot-words:** the keyword boost list must be updated with new item names. Push new hot-word list to the STT service (API parameter, no model reload). (3) **TTS pronunciation dictionary:** add pronunciation entries for new menu items. Deploy as a config update to the TTS service.
-
-Deployment: blue-green deployment at the session level. New sessions use the updated config (new menu). Existing sessions continue with the old config until they end (max 5 minutes). No mid-session menu changes to avoid confusion. Zero downtime.
-
-Testing: before deployment, run the updated config through an automated test suite: 50 synthetic orders covering new menu items. Verify: STT recognizes new item names, LLM correctly adds them to orders, TTS pronounces them correctly, confirmation messages include correct prices.
-
-**Deep Dive & Trade-offs:**
-- Separating menu data from model weights is critical. If menu items were in the model's training data, updates would require model retraining.
-- Hot-word lists have limits (typically 100-500 terms). Seasonal menus fit easily; restaurants with 500+ items may need tiered boosting (boost seasonal items + top-50 by popularity).
-- The test suite should run in <5 minutes. Block deployment if any test fails.
-- Rollback: if the new menu config causes issues (wrong prices, unrecognized items), revert the database record. All new sessions immediately use the old menu. Rollback time: <1 minute.
-
-**The Interviewer's Rubric:** Checking operational maturity for configuration-driven updates in real-time systems — the key insight being that menu data must be externalised from model weights entirely so that a business-side menu change never requires an ML team to retrain or redeploy a model, and that blue-green session-level deployment gives a clean zero-downtime update path without the complexity of live session migration.
-
----
-
-Q: How do you measure whether the voice agent is actually good? What metrics matter beyond latency?
-
-**The Ideal Answer:** Voice agent quality is multi-dimensional. Metric stack: (1) **Task completion rate:** did the order get placed correctly / did the appointment get scheduled / did the issue get resolved? Ground truth: compare agent-recorded order vs. POS system receipt. Target: >90%. (2) **Order accuracy:** for drive-thru, exact match between what the agent understood and what the customer received. Track mismatches at the item and modifier level (wrong size, missing "no pickles"). (3) **Average handle time (AHT):** total session duration. Compare against human operator baseline. Target: within 20% of human AHT. (4) **Escalation rate:** % of sessions escalated to human. Target: <10%. (5) **Customer satisfaction (CSAT):** post-call survey or inferred from behavioral signals (repeat usage, abandonment). (6) **Utterance understanding rate:** % of user utterances that the system correctly interpreted (manual sampling of 500/week). (7) **Barge-in success rate:** when users interrupt, does the system correctly handle the interruption? (8) **Revenue per session:** for sales agents, compare average order value (AI agent vs. human). AI agents are consistent (always upsell) but may miss contextual cues.
-
-**Deep Dive & Trade-offs:**
-- Task completion rate is the ultimate metric but is expensive to measure (requires ground truth from the fulfillment system).
-- AHT is easy to measure but can be gamed (agent that confirms excessively has low error but high AHT).
-- CSAT surveys have low response rates (<5%). Infer satisfaction from behavioral signals: repeat usage, session duration, abandonment timing.
-- Weekly review of 500 sampled sessions by QA team provides qualitative insights that metrics miss.
-
-**The Interviewer's Rubric:** Checking holistic quality measurement beyond engineering metrics — specifically the distinction between leading indicators (latency, WER, barge-in success rate) that are cheap to measure in real-time and lagging business outcomes (task completion rate, order accuracy, revenue per session) that require integration with the POS system and periodic QA sampling, and the discipline to track both rather than optimizing only the metrics that are easy to instrument.
-
-## Exercises
-
-### Design Exercises
-
-**Exercise 1 — Multi-Language Voice Agent Architecture**
-
-Design a voice agent system that handles English and Spanish callers seamlessly on the same phone line, switching languages mid-conversation if the caller switches. Specify: (a) how language detection integrates with the VAD→STT pipeline without adding more than 50ms to the latency budget; (b) how the LLM maintains conversation state when the language switches mid-session; (c) how TTS handles language-specific phonology and prosody without maintaining two completely separate TTS model deployments. Address the specific challenge of code-switching (a caller who says "I'd like the burrito, sin jalapeños please").
-
-**Exercise 2 — Voice Agent for a High-Stakes Domain (Medical Triage)**
-
-Redesign the architecture for a medical triage phone agent that handles after-hours patient calls, collects symptoms, and routes to an on-call nurse or emergency services. Compared to the drive-thru design: (a) the latency requirement is relaxed to 800ms but the accuracy requirement on medical entity extraction (symptom names, medication names, dosage numbers) is extremely high; (b) barge-in handling must be more conservative — patients in distress must never be cut off; (c) every utterance must be recorded and transcribed to a HIPAA-compliant audit log. Design the specific changes to STT, LLM prompt, barge-in controller, and storage layers. Identify which architectural components from the drive-thru design carry over unchanged and which require fundamental rethinking.
-
-### Implementation Exercises
-
-**Exercise 3 — Adaptive End-of-Speech Detection**
-
-Implement an adaptive VAD silence threshold that starts at 300ms and adjusts dynamically based on the user's speaking pattern detected in the current session. Specifically: if the user has paused mid-sentence 2+ times without triggering end-of-speech (i.e., the partial transcript shows an incomplete thought when silence occurs), increase the silence threshold to 500ms for the remainder of the session. Use the existing `SileroVAD` and `StreamingVoicePipeline` classes from Code Block 1 as your starting point. Test your implementation against a synthetic audio stream that contains three mid-sentence pauses of 250ms each followed by a genuine end-of-utterance silence of 600ms.
-
-**Exercise 4 — Cost-Aware STT Provider Failover**
-
-Implement a `STTRouter` class that maintains real-time latency percentile estimates for two STT providers (Deepgram and Google Cloud STT) using an exponentially weighted moving average over the last 100 requests per provider. When the primary provider's p95 latency estimate exceeds 200ms, automatically route new sessions to the secondary provider and continue routing there until the primary's p95 drops below 150ms. Expose a method `get_active_provider() -> str` and `record_latency(provider: str, latency_ms: float)`. Include logic to prevent thrashing — do not switch providers more than once per 60-second window.
-
-### Debug Exercise
-
-**Exercise 5 — Diagnosing a Latency Regression**
-
-Your production monitoring shows that p95 voice-to-voice latency has regressed from 450ms to 720ms over the past 48 hours at three specific regional data centers. The following signals are available in your observability stack:
-
-- STT finalization latency: p50 = 95ms, p95 = 110ms (unchanged from baseline)
-- LLM TTFT: p50 = 85ms, p95 = 160ms (up from p95 = 95ms at baseline)
-- TTS first-chunk latency: p50 = 78ms, p95 = 230ms (up from p95 = 95ms at baseline)
-- GPU utilization on LLM nodes: 62% average (unchanged)
-- GPU utilization on TTS nodes: 91% average (up from 70% at baseline)
-- No new model deployments in the past 72 hours
-- Session volume at affected regions: 1.4× normal (Monday after a 3-day weekend)
-
-Diagnose the root cause. Explain why TTS p95 latency tripled while GPU utilization only increased from 70% to 91%. Propose three specific mitigations in order of implementation speed, including which one you would deploy first and why. Identify what monitoring rule you would add to detect this scenario automatically within 5 minutes of onset rather than waiting for user-facing SLO breach alerts.
-
----
-
-## End of Chapter
-
-- **Key takeaway:** Voice-first agents are latency-engineering problems first and AI problems second. The 500ms voice-to-voice budget requires streaming at every pipeline stage—STT, LLM, and TTS cannot operate in batch mode. Barge-in handling (interruption detection and response within 200ms) is the feature that separates usable voice agents from frustrating ones. At 50K concurrent sessions, self-hosted STT and TTS are 23x cheaper than managed APIs, making infrastructure architecture as critical as model selection.
-- **What to practice:** Draw the end-to-end latency waterfall from user speech → VAD → STT → LLM → TTS → audio playback, with millisecond budgets per stage. Identify which stage is the bottleneck and how to shave 50ms from it.
-- **Interview drill:** Walk through a barge-in scenario: the agent is saying "Your total comes to twelve dollars and fifty cents" and the customer interrupts at "twelve dollars." Trace every system action from VAD detection through TTS stop through STT transcription of the interruption through LLM re-generation through audio playback.
-
----
-
-<!-- nav-footer -->
-[[Chapter 17 - Design a Legal Contract Review System|← Chapter 17]] | [[README|Contents]] | [[Chapter 19 - Design an AI NPC Engine for Multiplayer Games|Chapter 19 →]]

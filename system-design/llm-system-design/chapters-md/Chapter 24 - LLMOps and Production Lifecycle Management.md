@@ -14,7 +14,7 @@ part: production-operations
 > - **Scale:** 50 product teams, 200 prompt/model deployments/week, 1B requests/month
 > - **Key Techniques:** prompt registry, model registry, eval gates, canaries, shadow traffic, trace replay, cost observability, incident response
 > - **Primary Concerns:** silent quality regressions, model drift, prompt sprawl, cost spikes, rollback, compliance
-> - **Cross-references:** [[Chapter 4 - Serving, Scaling, and Optimizing LLMs|Chapter 4]] (serving), [[Chapter 5 - Evaluation, Guardrails, and Safety|Chapter 5]] (evaluation), [[Chapter 8 - Design an AI Coding Assistant|Chapter 8]] (telemetry), [[Chapter 20 - Design a Healthcare Triage and Diagnostic Assistant|Chapter 20]] (audit trail), [[Chapter 26 - Fine-Tuning and Adaptation|Chapter 26]] (fine-tuning and adapter lifecycle), [[Chapter 28 - Cost Optimization as a Design Concern|Chapter 28]] (cost optimization), [[Chapter 29 - Observability and Incident Response for LLM Systems|Chapter 29]] (observability and incident response)
+> - **Cross-references:** Chapter 4 (serving), Chapter 5 (evaluation), Chapter 8 (telemetry), Chapter 20 (audit trail), Chapter 26 (fine-tuning and adapter lifecycle), Chapter 28 (cost optimization), Chapter 29 (observability and incident response)
 
 **Problem statement:** Design the operational platform and lifecycle practices required to ship, monitor, evaluate, and safely evolve LLM-backed systems across an organization.
 
@@ -41,24 +41,13 @@ LLMOps should be framed as production change management for probabilistic system
 
 ## Step 1: Understand the Problem and Establish Design Scope
 
-### Simulated Dialogue
-
-**Interviewer:** Design LLMOps for a company with many LLM applications.  
-**Candidate:** I will manage prompts, models, retrieval indexes, eval datasets, deployment gates, runtime traces, and incident response as first-class production artifacts. [[glossary#LLMOps|LLMOps]] extends MLOps because prompts, tools, retrieved context, and model providers all change behavior.
-
-**Candidate:** What artifacts change frequently?  
-**Interviewer:** Prompt templates daily, retrieval indexes hourly, model/provider versions monthly, and guardrail policies weekly.
-
-**Candidate:** What failures worry you most?  
-**Interviewer:** Silent quality regression, safety regression, cost blowups, and inability to reproduce an answer during audit.
-
 ### Functional Requirements
 
 - **Version prompts, models, tools, schemas, policies, and retrieval indexes.** Each of these artifacts changes behavior independently of code deployments. Without explicit versioning, a prompt edited in-place makes it impossible to attribute a regression to a specific change or roll back to a known-good state.
 - **Run offline evals before deployment and online evals after release.** Offline evals catch regressions against curated golden sets before any user sees the change; online evals detect issues that only surface under real traffic distribution, including queries the golden set did not anticipate.
 - **Support shadow mode, canaries, A/B tests, and rollbacks.** Progressive delivery reduces blast radius: shadow mode validates behavior without user impact, canaries surface regressions on a small traffic slice, and A/B tests generate statistically valid quality and business-metric comparisons before full rollout.
 - **Attribute latency, cost, and quality to artifact versions.** Because multiple teams share provider APIs and retrieval infrastructure, attribution must be version-granular — otherwise a prompt change that doubles tool calls is invisible until a billing spike reaches finance.
-- **Detect [[glossary#Model Drift|drift]], safety regressions, and cost anomalies.** Production inputs shift over time as user behavior evolves; a model or prompt that passed evals at launch can silently degrade as the real distribution diverges from the golden set distribution.
+- **drift, safety regressions, and cost anomalies.** Production inputs shift over time as user behavior evolves; a model or prompt that passed evals at launch can silently degrade as the real distribution diverges from the golden set distribution.
 - **Reproduce historical outputs for debugging and audits.** Regulated use cases (legal, financial, medical) require the ability to present the exact context the model received and the exact output it generated for any given request, even months after the fact.
 - **Provide governance workflows for high-risk domains.** Self-service velocity for low-risk changes must coexist with mandatory human review, approvals, and audit evidence for high-risk deployments — one set of controls cannot serve both needs.
 
@@ -75,7 +64,6 @@ LLMOps should be framed as production change management for probabilistic system
 - Requests/month: 1B
 - Trace sampling: 5% full traces = 50M traces/month
 - Full trace average: 30KB compressed
-- Trace storage: `50M * 30KB ~= 1.5TB/month`
 - Deployments/week: 200
 - Eval examples per deployment: 2K standard + 500 domain-specific
 - LLM-as-judge cost if 2.5K examples * 2 judge calls * 200 deployments = 1M judge calls/week
@@ -86,7 +74,7 @@ LLMOps should be framed as production change management for probabilistic system
 
 ### Core Architecture Components
 
-- **[[glossary#Prompt Registry|Prompt Registry]]:** stores versioned templates, variable schemas, few-shot examples, owner contacts, and changelogs. Each commit is immutable and content-addressed so that a given version ID always refers to exactly the same bytes — making prompt versions as reliable as container image digests.
+- **Prompt Registry|Prompt Registry:** stores versioned templates, variable schemas, few-shot examples, owner contacts, and changelogs. Each commit is immutable and content-addressed so that a given version ID always refers to exactly the same bytes — making prompt versions as reliable as container image digests.
 - **Model Registry:** tracks provider, model ID, adapter checkpoint, tokenizer version, inference hyperparameters, and validation status. It also stores cost-per-token, context window, and capability tags so the Release Orchestrator can enforce compatibility checks when pairing a model with a prompt or tool schema.
 - **Index Registry:** manages retrieval index versions including the source document snapshot timestamp, embedding model ID, chunking strategy, and ACL policy revision. Because retrieval silently changes answers, index versions must be treated with the same rigor as model versions.
 - **Eval Store:** maintains golden task sets, adversarial injection cases, synthetic stress tests, rubric definitions, and judge-model calibration records. Calibration records are critical: they document how closely the judge model agrees with human raters so teams can trust automated gate decisions.
@@ -187,7 +175,7 @@ flowchart LR
 
 Every production response should be attributable to a complete artifact bundle. Partial attribution — knowing the code version but not the prompt version, or knowing the model but not the retrieval index — is the most common root cause of "we can't reproduce this incident" postmortems.
 
-> **Why version every artifact dimension rather than just code:** LLM systems have multiple independent behavioral dimensions, each controlled by a different artifact. A code deployment does not capture a prompt edit; a model upgrade does not capture a retrieval index snapshot. Without versioning all dimensions, regression attribution becomes guesswork and rollbacks risk reverting unrelated changes along with the culprit.
+> **Why version every artifact dimension rather than just code:** LLM systems have multiple independent behavioral dimensions, each controlled by a different artifact.
 
 | Artifact | Version Fields | Why It Matters |
 |---|---|---|
@@ -202,7 +190,7 @@ Every production response should be attributable to a complete artifact bundle. 
 
 Evaluation should be layered by risk. A risk-tiered gate structure ensures that low-risk teams are not bottlenecked by heavyweight review processes while high-risk use cases are never allowed to bypass safety controls. The gates are cumulative: a change cannot skip an earlier gate by passing a later one.
 
-> **Why tier evaluation gates by risk rather than apply flat requirements:** Flat eval requirements create perverse incentives — teams either over-engineer simple changes to meet heavyweight gates, or they route around the process entirely. Tiering gates by risk makes the safe path the fast path for the majority of changes while concentrating human review effort where consequences of failure are highest.
+> **Why tier evaluation gates by risk rather than apply flat requirements:** Flat eval requirements create perverse incentives — teams either over-engineer simple changes to meet heavyweight gates, or they route around the process ent...
 
 | Gate | Low Risk | High Risk |
 |---|---|---|
@@ -217,7 +205,7 @@ Evaluation should be layered by risk. A risk-tiered gate structure ensures that 
 Metrics tracked at each gate:
 
 - **Task success rate:** the primary quality signal; measures whether the model completed the intended task as judged by automated rubric or human evaluator.
-- **Unsupported-claim rate:** fraction of responses that assert facts not present in the retrieved context or known model knowledge; critical for [[glossary#RAG (Retrieval-Augmented Generation)|RAG]] workflows where [[glossary#Hallucination (LLM)|hallucination]] directly misleads users.
+- **Unsupported-claim rate:** fraction of responses that assert facts not present in the retrieved context or known model knowledge; critical for RAG directly misleads users.
 - **Policy violation rate:** fraction of outputs flagged by the guardrail classifier; a regression here blocks promotion regardless of other metric improvements.
 - **Human preference win rate:** in pairwise comparisons between the new and old artifact bundle, the fraction of cases where human raters prefer the new output; a win rate below 50% relative to baseline is a regression signal even if absolute scores improve.
 - **Tool-call success rate:** for agentic workflows, the fraction of tool invocations that returned a valid result; a drop here often signals schema incompatibility or latent prompt change that altered tool-selection behavior.
@@ -228,7 +216,7 @@ Metrics tracked at each gate:
 
 A useful trace answers: what did the model know, what did it do, and why did the system allow it? Traces that capture only the final output are insufficient for production debugging — the trace must capture the full decision chain from request receipt through retrieval, prompt construction, model invocation, tool calls, guardrail evaluation, and response delivery.
 
-> **Why traces must capture the full decision chain, not just the final output:** LLM bugs are often not bugs in the traditional sense — the code ran correctly, but the composition of artifacts produced an unintended result. Diagnosing these requires replaying the exact context the model received. Without traces that include retrieved chunk IDs, tool call arguments and results, and guardrail labels, engineers spend hours reconstructing context from logs that were never designed to support that use case.
+> **Why traces must capture the full decision chain, not just the final output:** LLM bugs are often not bugs in the traditional sense — the code ran correctly, but the composition of artifacts produced an unintended result.
 
 Trace fields:
 
@@ -275,20 +263,6 @@ Incident workflow:
 
 ---
 
-## Step 4: Wrap Up
-
-### Final Design Summary
-
-LLMOps turns prompts, models, indexes, tools, and policies into governed production artifacts. The platform provides versioning, eval gates, progressive delivery, observability, drift detection, rollback, and audit replay so teams can ship quickly without losing control of quality, safety, and cost.
-
-### Wrap-Around Concerns
-
-- **Risk:** silent regression after prompt/model change. Mitigation: eval gates, shadow traffic, and segment-level monitoring.
-- **Risk:** audit cannot reproduce answer. Mitigation: store artifact versions, retrieved context IDs, inference params, and trace metadata.
-- **Risk:** cost spike from agent/tool behavior. Mitigation: per-version cost attribution and budgets.
-
----
-
 ## Step 5: Interviewer Curveballs
 
 ### Interviewer Follow-ups & Frequently Asked Questions (FAQ)
@@ -328,407 +302,3 @@ Q: What is the minimum trace needed for auditability?
 
 ---
 
-## Practical Implementation
-
-### Prompt Registry Client with Immutable Versioning
-
-This example shows a minimal prompt registry that content-addresses templates so that the same version ID always refers to the same bytes, and that records a full audit trail on every registration.
-
-```python
-import hashlib
-import json
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Optional
-
-@dataclass
-class PromptVersion:
-    version_id: str           # SHA-256 of the canonical template bytes
-    name: str                 # Human-readable prompt name (e.g., "support.v42")
-    template: str             # The raw template string with {{variable}} placeholders
-    variable_schema: dict     # JSON Schema describing allowed variables
-    owner_email: str
-    changelog: str
-    risk_tier: str            # "low", "medium", "high"
-    registered_at: str
-    parent_version_id: Optional[str] = None   # Previous version for lineage tracking
-    tags: list[str] = field(default_factory=list)
-
-
-class PromptRegistry:
-    """
-    Content-addressed prompt registry.
-    A version_id is the SHA-256 of the canonical template bytes,
-    guaranteeing that the same ID always refers to the same behavior.
-    """
-
-    def __init__(self, store: dict):
-        # store is a dict-backed stub; swap for DynamoDB, Postgres, etc.
-        self._store: dict[str, PromptVersion] = store
-        self._name_index: dict[str, list[str]] = {}  # name -> [version_ids]
-
-    def register(
-        self,
-        name: str,
-        template: str,
-        variable_schema: dict,
-        owner_email: str,
-        changelog: str,
-        risk_tier: str = "low",
-        parent_version_id: Optional[str] = None,
-        tags: list[str] | None = None,
-    ) -> PromptVersion:
-        # Canonical bytes: UTF-8 of the template; deterministic hash
-        template_bytes = template.encode("utf-8")
-        version_id = hashlib.sha256(template_bytes).hexdigest()
-
-        if version_id in self._store:
-            # Idempotent: same content, same ID — no duplicate write
-            return self._store[version_id]
-
-        version = PromptVersion(
-            version_id=version_id,
-            name=name,
-            template=template,
-            variable_schema=variable_schema,
-            owner_email=owner_email,
-            changelog=changelog,
-            risk_tier=risk_tier,
-            registered_at=datetime.now(timezone.utc).isoformat(),
-            parent_version_id=parent_version_id,
-            tags=tags or [],
-        )
-        self._store[version_id] = version
-        self._name_index.setdefault(name, []).append(version_id)
-        return version
-
-    def get(self, version_id: str) -> PromptVersion:
-        if version_id not in self._store:
-            raise KeyError(f"Prompt version {version_id!r} not found")
-        return self._store[version_id]
-
-    def latest(self, name: str) -> PromptVersion:
-        ids = self._name_index.get(name, [])
-        if not ids:
-            raise KeyError(f"No versions registered for prompt {name!r}")
-        # Versions are appended in registration order; last is latest
-        return self._store[ids[-1]]
-
-    def lineage(self, version_id: str) -> list[PromptVersion]:
-        """Walk the parent chain and return ancestry, oldest first."""
-        chain = []
-        current_id: Optional[str] = version_id
-        while current_id:
-            v = self.get(current_id)
-            chain.append(v)
-            current_id = v.parent_version_id
-        chain.reverse()
-        return chain
-
-
-# --- Usage ---
-store = {}
-registry = PromptRegistry(store)
-
-v41 = registry.register(
-    name="support",
-    template="You are a support agent. Customer issue: {{issue}}. Be concise.",
-    variable_schema={"issue": {"type": "string"}},
-    owner_email="alice@example.com",
-    changelog="Initial support prompt",
-    risk_tier="low",
-)
-
-v42 = registry.register(
-    name="support",
-    template="You are a support agent. Customer issue: {{issue}}. Resolve in under 3 steps.",
-    variable_schema={"issue": {"type": "string"}},
-    owner_email="alice@example.com",
-    changelog="Constrain response to 3-step resolution to reduce tool calls",
-    risk_tier="low",
-    parent_version_id=v41.version_id,
-)
-
-print(f"v41 id: {v41.version_id[:12]}...")
-print(f"v42 id: {v42.version_id[:12]}...")
-print(f"Lineage: {[v.name + ':' + v.version_id[:8] for v in registry.lineage(v42.version_id)]}")
-```
-
-### Eval Gate Runner with Risk-Tiered Pass Thresholds
-
-This snippet shows how a Release Orchestrator applies risk-tiered thresholds to an eval result set before deciding whether to promote an artifact bundle.
-
-```python
-from dataclasses import dataclass
-from typing import Literal
-
-RiskTier = Literal["low", "medium", "high"]
-
-@dataclass
-class EvalResult:
-    task_success_rate: float      # 0.0 – 1.0
-    policy_violation_rate: float  # 0.0 – 1.0; must stay near zero
-    cost_per_request_usd: float
-    p95_latency_ms: float
-    unsupported_claim_rate: float # 0.0 – 1.0; hallucination proxy
-
-@dataclass
-class EvalGateConfig:
-    min_task_success_rate: float
-    max_policy_violation_rate: float
-    max_cost_delta_fraction: float    # fraction increase vs baseline allowed
-    max_p95_latency_ms: float
-    max_unsupported_claim_rate: float
-
-GATE_CONFIGS: dict[RiskTier, EvalGateConfig] = {
-    "low": EvalGateConfig(
-        min_task_success_rate=0.80,
-        max_policy_violation_rate=0.005,
-        max_cost_delta_fraction=0.10,
-        max_p95_latency_ms=3000,
-        max_unsupported_claim_rate=0.10,
-    ),
-    "medium": EvalGateConfig(
-        min_task_success_rate=0.85,
-        max_policy_violation_rate=0.002,
-        max_cost_delta_fraction=0.05,
-        max_p95_latency_ms=2500,
-        max_unsupported_claim_rate=0.05,
-    ),
-    "high": EvalGateConfig(
-        min_task_success_rate=0.92,
-        max_policy_violation_rate=0.001,
-        max_cost_delta_fraction=0.02,
-        max_p95_latency_ms=2000,
-        max_unsupported_claim_rate=0.02,
-    ),
-}
-
-
-def evaluate_gate(
-    result: EvalResult,
-    baseline: EvalResult,
-    tier: RiskTier,
-) -> tuple[bool, list[str]]:
-    """
-    Returns (passed, list_of_failures).
-    Each failure is a human-readable string explaining what threshold was breached.
-    """
-    config = GATE_CONFIGS[tier]
-    failures = []
-
-    if result.task_success_rate < config.min_task_success_rate:
-        failures.append(
-            f"task_success_rate {result.task_success_rate:.3f} < "
-            f"threshold {config.min_task_success_rate:.3f}"
-        )
-
-    if result.policy_violation_rate > config.max_policy_violation_rate:
-        failures.append(
-            f"policy_violation_rate {result.policy_violation_rate:.4f} > "
-            f"threshold {config.max_policy_violation_rate:.4f}"
-        )
-
-    cost_delta = (result.cost_per_request_usd - baseline.cost_per_request_usd) / max(
-        baseline.cost_per_request_usd, 1e-9
-    )
-    if cost_delta > config.max_cost_delta_fraction:
-        failures.append(
-            f"cost_delta +{cost_delta:.1%} > threshold +{config.max_cost_delta_fraction:.1%}"
-        )
-
-    if result.p95_latency_ms > config.max_p95_latency_ms:
-        failures.append(
-            f"p95_latency_ms {result.p95_latency_ms:.0f} > "
-            f"threshold {config.max_p95_latency_ms:.0f}"
-        )
-
-    if result.unsupported_claim_rate > config.max_unsupported_claim_rate:
-        failures.append(
-            f"unsupported_claim_rate {result.unsupported_claim_rate:.3f} > "
-            f"threshold {config.max_unsupported_claim_rate:.3f}"
-        )
-
-    return len(failures) == 0, failures
-
-
-# --- Usage ---
-baseline = EvalResult(
-    task_success_rate=0.87,
-    policy_violation_rate=0.001,
-    cost_per_request_usd=0.015,
-    p95_latency_ms=1800,
-    unsupported_claim_rate=0.03,
-)
-
-candidate = EvalResult(
-    task_success_rate=0.89,
-    policy_violation_rate=0.001,
-    cost_per_request_usd=0.031,   # doubled — will breach cost gate
-    p95_latency_ms=1750,
-    unsupported_claim_rate=0.02,
-)
-
-passed, failures = evaluate_gate(candidate, baseline, tier="medium")
-print(f"Gate passed: {passed}")
-for f in failures:
-    print(f"  FAILED: {f}")
-# Gate passed: False
-# FAILED: cost_delta +106.7% > threshold +5.0%
-```
-
-### Structured Trace Emitter with Artifact Bundle
-
-This class shows how a production runtime should emit a structured trace that captures the full artifact bundle alongside latency and cost, enabling per-version attribution and audit replay.
-
-```python
-import time
-import hashlib
-import json
-from dataclasses import dataclass, field, asdict
-from typing import Any
-
-@dataclass
-class ToolCallRecord:
-    tool_name: str
-    tool_schema_version: str
-    arguments: dict
-    result_status: str    # "success", "error", "timeout"
-    latency_ms: float
-
-@dataclass
-class ArtifactBundle:
-    prompt_version_id: str
-    model_version: str
-    index_version: str
-    tool_schema_versions: dict[str, str]   # tool_name -> version
-    guardrail_policy_version: str
-    inference_config: dict                 # temperature, max_tokens, etc.
-
-@dataclass
-class ProductionTrace:
-    request_id: str
-    tenant_id: str
-    artifact_bundle: ArtifactBundle
-    retrieved_chunk_ids: list[str]
-    tool_calls: list[ToolCallRecord]
-    guardrail_labels: list[str]
-    output_hash: str                       # SHA-256 of the final response text
-    latency_breakdown_ms: dict[str, float] # stage -> ms
-    cost_usd: float
-    timestamp_utc: str
-
-
-class TraceEmitter:
-    """
-    Wraps a request execution and emits a structured trace to a sink.
-    In production, sink writes to an append-only store (e.g., S3 + Athena,
-    BigQuery, or a dedicated trace store).
-    """
-
-    def __init__(self, sink):
-        self._sink = sink  # callable(trace_dict) -> None
-
-    def emit(
-        self,
-        request_id: str,
-        tenant_id: str,
-        bundle: ArtifactBundle,
-        retrieved_chunk_ids: list[str],
-        tool_calls: list[ToolCallRecord],
-        guardrail_labels: list[str],
-        output_text: str,
-        latency_breakdown_ms: dict[str, float],
-        cost_usd: float,
-        timestamp_utc: str,
-    ) -> ProductionTrace:
-        output_hash = "sha256:" + hashlib.sha256(
-            output_text.encode("utf-8")
-        ).hexdigest()
-
-        trace = ProductionTrace(
-            request_id=request_id,
-            tenant_id=tenant_id,
-            artifact_bundle=bundle,
-            retrieved_chunk_ids=retrieved_chunk_ids,
-            tool_calls=tool_calls,
-            guardrail_labels=guardrail_labels,
-            output_hash=output_hash,
-            latency_breakdown_ms=latency_breakdown_ms,
-            cost_usd=cost_usd,
-            timestamp_utc=timestamp_utc,
-        )
-        self._sink(asdict(trace))
-        return trace
-
-
-# --- Usage (stub) ---
-emitted_traces = []
-
-emitter = TraceEmitter(sink=emitted_traces.append)
-
-bundle = ArtifactBundle(
-    prompt_version_id="abc123def456",
-    model_version="provider/model-2026-05-01",
-    index_version="kb_2026_05_29_0800",
-    tool_schema_versions={"crm.lookup_customer": "v7", "ticket.create": "v3"},
-    guardrail_policy_version="support_policy.v18",
-    inference_config={"temperature": 0.2, "max_output_tokens": 500},
-)
-
-trace = emitter.emit(
-    request_id="req_789",
-    tenant_id="tenant_acme",
-    bundle=bundle,
-    retrieved_chunk_ids=["chunk_c1", "chunk_c7"],
-    tool_calls=[
-        ToolCallRecord("crm.lookup_customer", "v7", {"customer_id": "cust_42"},
-                       "success", 95.3)
-    ],
-    guardrail_labels=["allowed"],
-    output_text="Your refund of $49.99 has been processed and will arrive in 3-5 days.",
-    latency_breakdown_ms={"retrieval": 120, "ttft": 840, "total": 2200},
-    cost_usd=0.018,
-    timestamp_utc="2026-05-30T14:32:01Z",
-)
-
-print(f"Trace emitted: {trace.request_id}, output_hash={trace.output_hash[:20]}...")
-```
-
----
-
-## Exercises
-
-### Design
-
-**Exercise 1 — Multi-Tenant Governance Architecture**  
-Design an LLMOps governance layer for a SaaS platform with three customer risk tiers: consumer (low), enterprise (medium), and regulated-industry (high, e.g., financial services). Each tier has different requirements for eval gate depth, approval workflows, audit log retention, and rollback SLAs. Specify: (a) how artifact risk tiers are assigned and enforced at registration time; (b) the approval routing rules and how you prevent tier downgrade without an explicit re-review; (c) how you structure audit log storage to satisfy a 7-year retention requirement for the regulated tier while keeping storage costs manageable for the consumer tier; (d) how you implement tenant-scoped rollback so that reverting an artifact for one customer does not affect others sharing the same model version.
-
-**Exercise 2 — Cost Attribution System for Agentic Workflows**  
-Design a cost attribution pipeline for an agentic LLM system where a single user request can trigger 0–20 tool calls, each of which may itself invoke nested LLM calls. The system serves 50 product teams and needs to attribute per-request costs to: (a) artifact version, (b) team, (c) tenant, and (d) specific tool invocation chain. Address: how you capture cost at every LLM call boundary including nested calls; how you aggregate costs without double-counting when a tool call triggers a sub-agent; what alerting thresholds you set per team to surface cost anomalies within one billing cycle; and how you handle cost attribution when a single request spans multiple artifact bundle versions due to mid-request policy updates.
-
-### Implementation
-
-**Exercise 3 — Drift Detector for Input Distribution**  
-Implement a drift detector that uses embedding-space distance to flag when the production query distribution has shifted significantly from the distribution captured at the last model deployment. The detector should: (a) maintain a compressed representation of the baseline distribution (e.g., cluster centroids from K-means on the first 10,000 production queries after each deployment); (b) compute a rolling drift score for new queries using average distance to the nearest baseline centroid; (c) emit an alert when the 7-day rolling drift score exceeds a configurable threshold; (d) support per-segment drift detection so that drift in Spanish queries is detected independently from drift in English queries. Use cosine distance and include unit tests that verify the detector fires on a synthetic shifted distribution.
-
-**Exercise 4 — Shadow Traffic Harness with Async Comparison**  
-Implement a shadow traffic harness that mirrors production requests to a candidate artifact bundle without affecting the live response. The harness should: (a) intercept requests after retrieval and before model invocation; (b) asynchronously invoke the candidate bundle with the same retrieved context and log the response without blocking the live path; (c) compute a quality comparison score using a simple heuristic (e.g., output length delta and ROUGE-L against the live output as a baseline proxy); (d) write comparison results to a shadow evaluation store keyed by request ID so they can be queried by artifact version; (e) enforce a configurable timeout so that slow candidate responses do not accumulate unbounded background tasks.
-
-### Debug
-
-**Exercise 5 — Silent Regression Root-Cause Drill**  
-You are on-call and receive an alert: the policy violation rate for the `legal-assistant` application has increased from 0.3% to 1.8% over the past 6 hours. The code has not been deployed. Using the LLMOps platform described in this chapter, walk through the complete incident investigation process: (a) identify which artifacts changed in the past 24 hours and how you narrow the candidate set; (b) explain how you use trace replay to reproduce the violation pattern on a sample of affected requests; (c) describe how you determine whether the root cause is a prompt change, a retrieval index update, a model provider infrastructure change, or a guardrail policy threshold change; (d) specify the exact rollback sequence if the root cause is an index rebuild that introduced stale policy documents into the knowledge base; (e) describe what you add to the regression eval suite to prevent this class of incident from reaching production again. Include the specific trace fields you would query and the eval cases you would generate from the failing traces.
-
----
-
-## End of Chapter
-
-- **Key takeaway:** LLMOps treats every shippable thing—prompt, retrieval index, guardrail policy, model version—as an immutable, versioned artifact bundle that moves through eval gates before reaching production, and keeps moving through continuous monitoring after. The defining insight is that LLM regressions are usually *silent* and *codeless*: quality degrades with no deploy, because a prompt edit, an index rebuild, or a provider-side model change shifted behavior. Reproducible artifact lineage plus trace replay is what makes root-causing possible at all.
-- **What to practice:** Size a cost-attribution and observability pipeline for an agentic system: given 10M requests/day, a mean of 4 LLM calls per request (including nested sub-agent calls), and full trace retention, compute trace storage volume per day, the sampling rate needed to keep observability spend under a fixed budget, and the per-team/per-tenant aggregation cardinality. Then size audit-log retention cost for a 7-year regulated tier versus a 30-day consumer tier.
-- **Interview drill:** You are on-call. Policy-violation rate on a production app jumps from 0.3% to 1.8% over 6 hours with zero code deploys. Walk through the full investigation: enumerate which non-code artifacts changed in the window, use trace replay to reproduce the failure on affected request IDs, isolate whether the cause is a prompt change, an index rebuild that admitted stale documents, a guardrail threshold change, or provider drift, specify the exact tenant-scoped rollback sequence, and define the regression eval cases you mine from the failing traces to block recurrence.
-
----
-
-<!-- nav-footer -->
-[[Chapter 23 - Design an MCP-Based Tool Integration Platform|← Chapter 23]] | [[README|Contents]] | [[Chapter 25 - Prompt Engineering in Depth|Chapter 25 →]]

@@ -32,14 +32,6 @@ Each term uses this structure:
 - **Pitfalls:** Unbounded loops can create runaway cost, tool spam, and unsafe side effects.
 - **Related:** [[glossary#Tool Use / Function Calling|Tool Use]], [[glossary#Multi-Agent Orchestration|Multi-Agent Orchestration]], Budget Controller, ReAct.
 
-### Accuracy
-- **Definition:** Fraction of predictions that are correct over all predictions.
-- **Math / Formula:** `(TP + TN) / (TP + TN + FP + FN)`.
-- **How it works:** Compares predicted labels against ground truth and counts exact matches.
-- **Why it matters:** Useful as a quick baseline when classes are balanced and misclassification costs are symmetric.
-- **Pitfalls:** Can be dangerously misleading on imbalanced datasets (for example, 99% negative class).
-- **Related:** [[glossary#Precision|Precision]], [[glossary#Recall|Recall]], F1, PR-AUC, Confusion Matrix.
-
 ### Activation Function
 - **Definition:** Non-linear transform applied to a neuron's pre-activation value.
 - **Math / Formula:** Examples: `ReLU(x)=max(0,x)`, `GELU(x)=x*Phi(x)`.
@@ -64,43 +56,7 @@ Each term uses this structure:
 - **Pitfalls:** Quadratic complexity in sequence length for standard self-attention.
 - **Related:** [[glossary#Transformer|Transformer]], [[glossary#Multi-Head Attention|Multi-Head Attention]], [[glossary#KV Cache|KV Cache]], [[glossary#Context Window|Context Window]].
 
-### AUC (ROC-AUC)
-- **Definition:** Area under ROC curve (TPR vs FPR across thresholds).
-- **Math / Formula:** Probability that a random positive is ranked above a random negative.
-- **How it works:** Threshold-independent ranking metric for binary classifiers.
-- **Why it matters:** Useful when class threshold is undecided and ranking quality is primary.
-- **Pitfalls:** Overly optimistic under heavy class imbalance compared with PR-AUC.
-- **Related:** ROC, PR-AUC, [[glossary#Precision|Precision]], [[glossary#Recall|Recall]].
-
----
-
 ## B
-
-### Backpropagation
-- **Definition:** Algorithm to compute gradients of loss with respect to model parameters via chain rule.
-- **Math / Formula:** For each layer, `dL/dW = dL/dz * dz/dW`.
-- **How it works:** Forward pass computes activations and loss; backward pass propagates gradients layer-by-layer.
-- **Why it matters:** Makes training deep networks computationally tractable.
-- **Pitfalls:** Gradient explosion/vanishing without careful architecture and normalization choices.
-- **Related:** Gradient Descent, Autodiff, [[glossary#Vanishing Gradient|Vanishing Gradient]], [[glossary#Gradient Clipping|Gradient Clipping]].
-
-### Batch Normalization
-- **Definition:** Normalizes intermediate activations within mini-batches during training.
-- **Math / Formula:** `x_hat=(x-mu_batch)/sqrt(var_batch+eps)`, then affine transform with learnable `gamma, beta`.
-- **How it works:** Reduces internal covariate shift and stabilizes optimization.
-- **Why it matters:** Enables higher learning rates and faster convergence in many CNN/MLP settings.
-- **Pitfalls:** Train/inference mismatch and weaker behavior with very small batch sizes.
-- **Related:** LayerNorm, Residual Networks, Learning Rate Warmup.
-
-### Bias-Variance Trade-off
-- **Definition:** Decomposition intuition of prediction error into underfitting vs overfitting effects.
-- **Math / Formula:** `Expected Error = Bias^2 + Variance + Irreducible Noise`.
-- **How it works:** Simpler models reduce variance but increase bias; complex models do the opposite.
-- **Why it matters:** Guides model capacity, regularization strength, and dataset size decisions.
-- **Pitfalls:** Treated as a slogan rather than measured with proper validation strategy.
-- **Related:** [[glossary#Regularization|Regularization]], [[glossary#Cross-Validation|Cross-Validation]], [[glossary#Overfitting|Overfitting]], [[glossary#Underfitting|Underfitting]].
-
----
 
 ## C
 
@@ -112,14 +68,6 @@ Each term uses this structure:
 - **Pitfalls:** High accuracy does not imply good calibration.
 - **Related:** Brier Score, Temperature Scaling, Reliability Diagram.
 
-### Categorical Cross-Entropy
-- **Definition:** Standard loss for multi-class classification.
-- **Math / Formula:** `L = -sum_i y_i * log(p_i)`.
-- **How it works:** Penalizes low predicted probability assigned to true class.
-- **Why it matters:** Optimizes probabilistic discrimination and pairs naturally with softmax outputs.
-- **Pitfalls:** Sensitive to mislabeled data; can encourage overconfident outputs.
-- **Related:** Softmax, [[glossary#Label Smoothing|Label Smoothing]], [[glossary#Negative Log-Likelihood (NLL)|NLL]].
-
 ### Context Window
 - **Definition:** Maximum number of tokens a model can process at once (input plus sometimes output constraints by runtime).
 - **Math / Formula:** Attention memory/time for vanilla attention scales roughly `O(n^2)` with sequence length `n`.
@@ -127,14 +75,6 @@ Each term uses this structure:
 - **Why it matters:** Governs RAG chunking strategy, prompt packing, and latency/cost behavior.
 - **Pitfalls:** Long context can degrade quality if relevant evidence is diluted.
 - **Related:** [[glossary#Tokenization|Tokenization]], [[glossary#RAG (Retrieval-Augmented Generation)|RAG]], [[glossary#Positional Encoding|Positional Encoding]], [[glossary#KV Cache|KV Cache]].
-
-### Cross-Validation
-- **Definition:** Resampling method to estimate model generalization using repeated train/validation splits.
-- **Math / Formula:** K-fold average metric across `k` held-out folds.
-- **How it works:** Rotate validation fold; train `k` models; aggregate mean and variance.
-- **Why it matters:** More robust estimate than a single split for limited data.
-- **Pitfalls:** Leakage if preprocessing is fit on full data instead of per-fold training data.
-- **Related:** [[glossary#Data Leakage|Data Leakage]], Stratification, Hyperparameter Tuning.
 
 ### Cross-Encoder Reranking
 - **Definition:** Reranking retrieved candidates by scoring query-document pairs jointly in one model forward pass.
@@ -164,30 +104,6 @@ Each term uses this structure:
 
 ## D
 
-### Data Leakage
-- **Definition:** Train-time access to information unavailable at inference time.
-- **Math / Formula:** No single formula; detected via suspiciously high validation metrics that collapse in production.
-- **How it works:** Common sources include target leakage, temporal leakage, and split contamination.
-- **Why it matters:** Produces brittle models and false confidence.
-- **Pitfalls:** Leakage hidden in feature engineering or preprocessing pipelines.
-- **Related:** [[glossary#Cross-Validation|Cross-Validation]], Time-Series Split, Feature Store.
-
-### Distribution Shift
-- **Definition:** Difference between training data distribution and real-world serving distribution.
-- **Math / Formula:** Conceptualized as `P_train(X,Y) != P_prod(X,Y)`.
-- **How it works:** Can be covariate shift, label shift, concept drift, or abrupt regime change.
-- **Why it matters:** Main cause of silent performance decay after deployment.
-- **Pitfalls:** Monitoring only aggregate accuracy misses segment-level drift.
-- **Related:** Drift Detection, Monitoring, Retraining Strategy.
-
-### Dropout
-- **Definition:** Regularization that randomly masks activations during training.
-- **Math / Formula:** `h' = m * h`, where `m ~ Bernoulli(1-p)` and activations are scaled accordingly.
-- **How it works:** Prevents co-adaptation and encourages redundant robust feature learning.
-- **Why it matters:** Helps generalization in over-parameterized networks.
-- **Pitfalls:** Excessive dropout can underfit; interacts with normalization and architecture choices.
-- **Related:** [[glossary#Regularization|Regularization]], [[glossary#Early Stopping|Early Stopping]], [[glossary#Weight Decay|Weight Decay]].
-
 ### DPO (Direct Preference Optimization)
 - **Definition:** Preference-learning objective for aligning LLM outputs to human/chosen preferences without full RL loop.
 - **Math / Formula:** Optimizes preference probability between chosen vs rejected responses under a reference model.
@@ -200,14 +116,6 @@ Each term uses this structure:
 
 ## E
 
-### Early Stopping
-- **Definition:** Stop training when validation metric fails to improve after a patience window.
-- **Math / Formula:** Trigger when `best_metric` unchanged for `patience` epochs.
-- **How it works:** Prevents overfitting by halting before memorization dominates.
-- **Why it matters:** Cheap and effective regularizer in practical pipelines.
-- **Pitfalls:** Noisy validation metrics can trigger premature stopping without smoothing.
-- **Related:** [[glossary#Regularization|Regularization]], Checkpointing, Learning Curves.
-
 ### Embedding
 - **Definition:** Dense vector representation of items (tokens, sentences, documents, users, products).
 - **Math / Formula:** Similarity often measured via cosine `u·v/(||u|| ||v||)`.
@@ -216,33 +124,7 @@ Each term uses this structure:
 - **Pitfalls:** Embedding drift after model upgrades can break nearest-neighbor assumptions.
 - **Related:** Vector Index, ANN Search, [[glossary#RAG (Retrieval-Augmented Generation)|RAG]], Bi-Encoder.
 
-### Epoch
-- **Definition:** One full pass through the training dataset.
-- **Math / Formula:** Steps per epoch roughly `ceil(num_samples / batch_size)`.
-- **How it works:** Multiple epochs iteratively update parameters until convergence or stopping criteria.
-- **Why it matters:** Helps reason about optimization progress and compute budget.
-- **Pitfalls:** More epochs are not always better; can overfit if validation degrades.
-- **Related:** Batch Size, Iteration, [[glossary#Early Stopping|Early Stopping]].
-
----
-
 ## F
-
-### F1 Score
-- **Definition:** Harmonic mean of precision and recall.
-- **Math / Formula:** `F1 = 2PR/(P+R)`.
-- **How it works:** Penalizes extreme imbalance between precision and recall.
-- **Why it matters:** Better summary metric than accuracy under class imbalance.
-- **Pitfalls:** Hides calibration quality and business-specific error asymmetry.
-- **Related:** [[glossary#Precision|Precision]], [[glossary#Recall|Recall]], PR-AUC.
-
-### Feature Engineering
-- **Definition:** Transforming raw data into informative model inputs.
-- **Math / Formula:** Includes interactions, log transforms, aggregations, temporal windows.
-- **How it works:** Encodes domain structure and signal into model-friendly features.
-- **Why it matters:** Still decisive in classical ML and tabular systems.
-- **Pitfalls:** Leakage through future information or post-outcome fields.
-- **Related:** [[glossary#Data Leakage|Data Leakage]], Feature Store, Model Explainability.
 
 ### Fine-tuning
 - **Definition:** Continued training of a pretrained model on a target dataset/task.
@@ -272,14 +154,6 @@ Each term uses this structure:
 
 ## G
 
-### Generalization
-- **Definition:** Ability to perform well on unseen data from target distribution.
-- **Math / Formula:** Generalization gap = train metric - validation/test metric.
-- **How it works:** Emerges from fit quality, regularization, data coverage, and optimization dynamics.
-- **Why it matters:** Production value comes from generalization, not memorized training performance.
-- **Pitfalls:** Benchmark overfitting via repeated evaluation on same test sets.
-- **Related:** [[glossary#Cross-Validation|Cross-Validation]], [[glossary#Overfitting|Overfitting]], [[glossary#Distribution Shift|Distribution Shift]].
-
 ### GraphRAG
 - **Definition:** Retrieval-augmented generation that uses an entity or knowledge graph alongside text/vector retrieval.
 - **Math / Formula:** Often combines graph traversal scores with lexical/vector scores during candidate fusion.
@@ -287,16 +161,6 @@ Each term uses this structure:
 - **Why it matters:** Improves multi-hop questions where answers depend on relationships across documents.
 - **Pitfalls:** Poor entity resolution or stale graph edges can produce confident but wrong context.
 - **Related:** [[glossary#RAG (Retrieval-Augmented Generation)|RAG]], Entity Extraction, Hybrid Retrieval, Multi-Hop Retrieval.
-
-### Gradient Clipping
-- **Definition:** Restricts gradient magnitude to improve numerical stability.
-- **Math / Formula:** Commonly clip global norm: `g <- g * min(1, c/||g||)`.
-- **How it works:** Prevents rare large updates from destabilizing training.
-- **Why it matters:** Especially useful in long-sequence models and recurrent architectures.
-- **Pitfalls:** Over-clipping slows convergence and can mask poor hyperparameters.
-- **Related:** Learning Rate, Exploding Gradient, Optimizer Stability.
-
----
 
 ## H
 
@@ -307,16 +171,6 @@ Each term uses this structure:
 - **Why it matters:** Primary trust and safety failure mode in LLM applications.
 - **Pitfalls:** Treating hallucination as purely model issue; often retrieval/prompt/orchestration failures.
 - **Related:** [[glossary#RAG (Retrieval-Augmented Generation)|RAG]], Groundedness, [[glossary#Safety Filter / Guardrails|Guardrails]], Verification.
-
-### Hyperparameter
-- **Definition:** Configuration value set before training (not directly learned).
-- **Math / Formula:** Examples: learning rate, weight decay, depth, batch size, dropout.
-- **How it works:** Controls optimization behavior, model capacity, and regularization.
-- **Why it matters:** Often dominates final performance.
-- **Pitfalls:** Tuning on test set leaks information and inflates reported metrics.
-- **Related:** [[glossary#Cross-Validation|Cross-Validation]], Bayesian Optimization, Reproducibility.
-
----
 
 ## I
 
@@ -352,14 +206,6 @@ Each term uses this structure:
 
 ## L
 
-### Label Smoothing
-- **Definition:** Replaces hard one-hot labels with softened targets.
-- **Math / Formula:** `y_smooth = (1-eps)*y + eps/K`.
-- **How it works:** Prevents overconfident logits and improves calibration/generalization.
-- **Why it matters:** Useful stabilization trick in classification and seq2seq training.
-- **Pitfalls:** Too much smoothing can hurt separability and confidence where needed.
-- **Related:** Cross-Entropy, [[glossary#Calibration|Calibration]], Overconfidence.
-
 ### LLMOps
 - **Definition:** Operational discipline for versioning, evaluating, deploying, monitoring, and rolling back LLM system artifacts.
 - **Math / Formula:** No single formula; key metrics include quality, safety, latency, and cost by artifact version.
@@ -375,14 +221,6 @@ Each term uses this structure:
 - **Why it matters:** User experience and SLOs depend heavily on p95/p99 tail latency.
 - **Pitfalls:** Optimizing average latency while ignoring tail behavior under burst traffic.
 - **Related:** [[glossary#Throughput|Throughput]], Rate Limiting, Batching, Autoscaling.
-
-### Learning Rate Schedule
-- **Definition:** Time-varying policy for optimizer step size.
-- **Math / Formula:** Common patterns: warmup + cosine decay, linear decay, step decay.
-- **How it works:** Larger early steps accelerate progress; smaller late steps refine minima.
-- **Why it matters:** Strongly influences convergence and final quality.
-- **Pitfalls:** No warmup in large models can cause unstable early training.
-- **Related:** AdamW, SGD, Gradient Noise Scale.
 
 ### LoRA (Low-Rank Adaptation)
 - **Definition:** Parameter-efficient fine-tuning that learns low-rank update matrices on frozen base weights.
@@ -447,36 +285,6 @@ Each term uses this structure:
 ---
 
 ## N
-
-### Negative Log-Likelihood (NLL)
-- **Definition:** Loss based on log probability assigned to true targets.
-- **Math / Formula:** `NLL = -sum log p(y_true | x)`.
-- **How it works:** Encourages assigning higher probability to correct outputs.
-- **Why it matters:** Core objective in language modeling and many probabilistic models.
-- **Pitfalls:** Lower NLL does not always correlate with downstream task utility.
-- **Related:** Cross-Entropy, [[glossary#Perplexity|Perplexity]], [[glossary#Calibration|Calibration]].
-
-### Normalization Layers
-- **Definition:** Layers that normalize activations to stabilize optimization.
-- **Math / Formula:** BatchNorm (batch stats), LayerNorm (feature stats per token/sample), RMSNorm.
-- **How it works:** Controls activation scale and gradient behavior through depth.
-- **Why it matters:** Essential for deep Transformer training stability.
-- **Pitfalls:** Wrong normalization choice can degrade throughput or quality.
-- **Related:** BatchNorm, LayerNorm, Residual Connections.
-
----
-
-## O
-
-### Overfitting
-- **Definition:** Model captures training idiosyncrasies/noise rather than general patterns.
-- **Math / Formula:** Characterized by widening train-vs-validation gap.
-- **How it works:** Excess capacity or training duration without adequate regularization/data diversity.
-- **Why it matters:** Leads to poor real-world performance despite high train metrics.
-- **Pitfalls:** Mistaking data leakage or shift for pure overfitting.
-- **Related:** [[glossary#Regularization|Regularization]], [[glossary#Early Stopping|Early Stopping]], Data Augmentation.
-
----
 
 ## P
 
@@ -567,14 +375,6 @@ Each term uses this structure:
 - **Why it matters:** Vital when misses are costly.
 - **Pitfalls:** High recall can come with unacceptable false-positive volume.
 - **Related:** [[glossary#Precision|Precision]], F1, ROC/PR Curves.
-
-### Regularization
-- **Definition:** Techniques that reduce overfitting by constraining effective model complexity.
-- **Math / Formula:** Examples include `L2: Loss + lambda||w||^2`, dropout, label smoothing.
-- **How it works:** Penalizes unstable or overly specific solutions.
-- **Why it matters:** Improves robustness and out-of-sample performance.
-- **Pitfalls:** Over-regularization can underfit and suppress useful signal.
-- **Related:** [[glossary#Bias-Variance Trade-off|Bias-Variance Trade-off]], [[glossary#Early Stopping|Early Stopping]], [[glossary#Weight Decay|Weight Decay]].
 
 ### RLHF (Reinforcement Learning from Human Feedback)
 - **Definition:** Alignment approach using human preference data and RL optimization.
@@ -698,18 +498,6 @@ Each term uses this structure:
 
 ---
 
-## U
-
-### Underfitting
-- **Definition:** Model fails to capture signal in training data due to insufficient capacity or training.
-- **Math / Formula:** Both training and validation performance remain poor.
-- **How it works:** Model class or optimization budget is too weak for task complexity.
-- **Why it matters:** Wastes data and compute while delivering weak accuracy.
-- **Pitfalls:** Misdiagnosed as data-quality issue when model capacity is the root cause.
-- **Related:** [[glossary#Bias-Variance Trade-off|Bias-Variance Trade-off]], Model Capacity, Learning Curves.
-
----
-
 ## V
 
 ### Vector Database / ANN Index
@@ -727,18 +515,6 @@ Each term uses this structure:
 - **Why it matters:** Slows or stalls training in deep/recurrent networks.
 - **Pitfalls:** Often masked until late when optimization appears stuck.
 - **Related:** Residual Connections, Normalization, Activation Choice.
-
----
-
-## W
-
-### Weight Decay
-- **Definition:** Parameter shrinkage regularization applied during optimization (often decoupled in AdamW).
-- **Math / Formula:** Parameter update includes `-lr * wd * w`.
-- **How it works:** Discourages large weights and improves generalization.
-- **Why it matters:** Standard default in modern deep learning training recipes.
-- **Pitfalls:** Confusing classic L2 penalty with decoupled weight decay in adaptive optimizers.
-- **Related:** [[glossary#Regularization|Regularization]], AdamW, [[glossary#Overfitting|Overfitting]].
 
 ---
 
