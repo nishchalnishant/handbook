@@ -66,44 +66,6 @@ class DivideConquerMathSolutions:
         return res
 
     # -----------------------------------------------------------------------
-    # 3. Merge K Sorted Lists (LC 23) — T2
-    # You are given an array of k linked-lists lists, each linked-list is sorted in ascending order. Merge all the linked-lists into one sorted linked-list and return it.
-    # Example: lists = [[1,4,5],[1,3,4],[2,6]] → [1,1,2,3,4,4,5,6]
-    # Constraints: k == lists.length, 0 <= k <= 10^4, 0 <= lists[i].length <= 500, 10^4 <= lists[i][j] <= 10^4, lists[i] is sorted in ascending order, The sum of lists[i].length will not exceed 10^4
-    # Time: O(n log k), Space: O(1)
-    # -----------------------------------------------------------------------
-    def mergeKLists(self, lists: List[Optional[ListNode]]) -> Optional[ListNode]:
-        if not lists or len(lists) == 0:
-            return None
-        # Pairwise merge lists until only one list remains.
-        while len(lists) > 1:
-            mergedLists = []
-            for i in range(0, len(lists), 2):
-                l1 = lists[i]
-                # If there's no pair for the last list, use None.
-                l2 = lists[i + 1] if (i + 1) < len(lists) else None
-                mergedLists.append(self.mergeList(l1, l2))
-            lists = mergedLists
-        return lists[0]
-
-    def mergeList(self, l1, l2):
-        dummy = ListNode()
-        tail = dummy
-        # Merge nodes of l1 and l2 in sorted order.
-        while l1 and l2:
-            if l1.val < l2.val:
-                tail.next = l1
-                l1 = l1.next
-            else:
-                tail.next = l2
-                l2 = l2.next
-            tail = tail.next
-        # Append remaining nodes from either list.
-        if l1: tail.next = l1
-        if l2: tail.next = l2
-        return dummy.next
-
-    # -----------------------------------------------------------------------
     # 4. Happy Number — T2
     # Write an algorithm to determine if a number n is happy. A happy number is a number defined by the following process:
     # 1. Starting with any positive integer, replace the number by the sum of the squares of its digits.
@@ -160,26 +122,6 @@ class DivideConquerMathSolutions:
             # Append digit to reversed result.
             res = (res * 10) + digit
         return res
-
-    # -----------------------------------------------------------------------
-    # 6. Majority Element (LC 169) — T2
-    # Given an array nums of size n, return the majority element. The majority element is the element that appears more than ⌊n / 2⌋ times. You may assume that the majority element always exists in the array.
-    # Example: nums = [3,2,3] → 3
-    # Constraints: n == nums.length, 1 <= n <= 5 * 10^4, 10^9 <= nums[i] <= 10^9, The input is generated such that a majority element will exist in the array, Follow-up: Could you solve the problem in linear time and in O(1) space?
-    # Time: O(n), Space: O(1)
-    # -----------------------------------------------------------------------
-    def majorityElement(self, nums: List[int]) -> int:
-        count, candidate = 0, None
-        for n in nums:
-            # Adopt new candidate when count falls to zero.
-            if count == 0:
-                candidate = n
-            # Increment count if element matches candidate; decrement otherwise.
-            if n== candidate:
-                count+=1
-            else:
-                -1
-        return candidate
 
     # -----------------------------------------------------------------------
     # 7. Majority Element II — T2
@@ -281,26 +223,6 @@ class TreeNode:
         self.right = right
 
 if __name__ == "__main__":
-    def make_list(vals):
-        """Builds list for tests or examples."""
-        # Dummy head node
-        dummy = ListNode(0)
-        cur = dummy
-        # Populate list nodes
-        for v in vals:
-            cur.next = ListNode(v)
-            cur = cur.next
-        return dummy.next
-
-    def to_list(head):
-        """Converts the input into list for tests or examples."""
-        res = []
-        # Traverse list and collect values
-        while head:
-            res.append(head.val)
-            head = head.next
-        return res
-
     def tree_vals_inorder(root):
         # Empty tree returns empty list
         if not root:
@@ -327,11 +249,6 @@ if __name__ == "__main__":
     assert sol.maxSubArray([1]) == 1
     assert sol.maxSubArray([-1]) == -1
 
-    # mergeKLists (divide & conquer)
-    lists = [make_list([1,4,5]), make_list([1,3,4]), make_list([2,6])]
-    assert to_list(sol.mergeKLists(lists)) == [1,1,2,3,4,4,5,6]
-    assert sol.mergeKLists([]) is None
-
     # isHappy
     assert sol.isHappy(19) == True   # 19->82->68->100->1
     assert sol.isHappy(2) == False
@@ -341,10 +258,6 @@ if __name__ == "__main__":
     assert sol.reverse(-123) == -321
     assert sol.reverse(120) == 21
     assert sol.reverse(1534236469) == 0  # overflow → 0
-
-    # majorityElement (Boyer-Moore)
-    assert sol.majorityElement([3,2,3]) == 3
-    assert sol.majorityElement([2,2,1,1,1,2,2]) == 2
 
     # majorityElementII (> n/3 elements)
     assert sorted(sol.majorityElementII([3,2,3])) == [3]

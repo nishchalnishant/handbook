@@ -19,31 +19,6 @@ from typing import List, Tuple
 
 class QueueSolutions:
     # -----------------------------------------------------------------------
-    # 1. Sliding Window Maximum (LC 239) — T1
-    # You are given an array of integers nums, there is a sliding window of size k which is moving from the very left of the array to the very right. You can only see the k numbers in the window. Each time the sliding window moves right by one position. Return the max sliding window.
-    # Example: nums = [1,3,-1,-3,5,3,6,7], k = 3 → [3,3,5,5,6,7]
-    # Constraints: 1 <= nums.length <= 10^5, 10^4 <= nums[i] <= 10^4, 1 <= k <= nums.length
-    # Time: O(n), Space: O(k)
-    # -----------------------------------------------------------------------
-    def maxSlidingWindow(self, nums: List[int], k: int) -> List[int]:
-        res = []
-        # Monotonically decreasing queue of indices
-        q = deque()
-        for i, num in enumerate(nums):
-            # Remove indices that are out of the current sliding window range
-            while q and q[0] < i - k + 1:
-                q.popleft()
-            # Remove indices of elements smaller than the current element from the back
-            while q and nums[q[-1]] < num:
-                q.pop()
-            # Append current index to the queue
-            q.append(i)
-            # Append the current maximum (front of the queue) to the result once window size is reached
-            if i >= k - 1:
-                res.append(nums[q[0]])
-        return res
-
-    # -----------------------------------------------------------------------
     # 2. Rotten Oranges (LC 994) — T1
     # You are given an m x n grid where each cell can have one of three values: 0 representing an empty cell, 1 representing a fresh orange, or 2 representing a rotten orange. Every minute, any fresh orange that is 4-directionally adjacent to a rotten orange becomes rotten. Return the minimum number of minutes that must elapse until no cell has a fresh orange. If this is impossible, return -1.
     # Example: grid = [[2,1,1],[1,1,0],[0,1,1]] → 4
@@ -175,34 +150,6 @@ class QueueSolutions:
         return -1
 
     # -----------------------------------------------------------------------
-    # 6. Word Ladder (LC 127) — T1
-    # A transformation sequence from word beginWord to word endWord using a dictionary wordList is a sequence of words beginWord -> s1 -> s2 -> ... -> sk such that: Given two words, beginWord and endWord, and a dictionary wordList, return the number of words in the shortest transformation sequence from beginWord to endWord, or 0 if no such sequence exists.
-    # Example: beginWord = "hit", endWord = "cog", wordList = ["hot","dot","dog","lot","log","cog"] → 5
-    # Constraints: 1 <= beginWord.length <= 10, endWord.length == beginWord.length, 1 <= wordList.length <= 5000, wordList[i].length == beginWord.length, beginWord, endWord, and wordList[i] consist of lowercase English letters, beginWord != endWord, All the words in wordList are unique
-    # Time: O(n * m * 26), Space: O(n * m)
-    # -----------------------------------------------------------------------
-    def ladderLength(self, beginWord: str, endWord: str, wordList: List[str]) -> int:
-        # Store words in a set for O(1) lookups
-        wordSet = set(wordList)
-        if endWord not in wordSet: return 0
-        q = deque([(beginWord, 1)])
-
-        # BFS to find the shortest transition path
-        while q:
-            word, length = q.popleft()
-            if word == endWord: return length
-
-            # Try changing each character of the word to find neighbors
-            for i in range(len(word)):
-                for c in 'abcdefghijklmnopqrstuvwxyz':
-                    next_word = word[:i] + c + word[i+1:]
-                    if next_word in wordSet:
-                        # Remove from set to mark as visited and enqueue
-                        wordSet.remove(next_word)
-                        q.append((next_word, length + 1))
-        return 0
-
-    # -----------------------------------------------------------------------
     # 7. Open the Lock (LC 752) — T1
     # You have a lock in front of you with 4 circular wheels. Each wheel has 10 slots: '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'. The wheels can rotate freely and wrap around: for example we can turn '9' to be '0', or '0' to be '9'. Each move consists of turning one wheel one slot. The lock initially starts at '0000', a string representing the state of the 4 wheels. You are given a list of deadends dead ends, meaning if the lock displays any of these codes, the wheels of the lock will stop turning and you will be unable to open it. Given a target representing the value of the wheels that will unlock the lock, return the minimum total number of turns required to open the lock, or -1 if it is impossible.
     # Example: deadends = ["0201","0101","0102","1212","2002"], target = "0202" → 6
@@ -314,30 +261,6 @@ class MyCircularQueue:
         return self.size == self.k
 
 class MovingAverage:
-    # -----------------------------------------------------------------------
-    # 3. Moving Average from Data Stream (LC 346) — T2
-    # Given a stream of integers and a window size, calculate the moving average of all integers in the sliding window. Implement the MovingAverage class.
-    # Example: ["MovingAverage", "next", "next", "next", "next"] [[3], [1], [10], [3], [5]] → [null, 1.0, 5.5, 4.66667, 6.0]
-    # Constraints: 1 <= size <= 1000
-    # Time: O(1) per call, Space: O(size)
-    # -----------------------------------------------------------------------
-    def __init__(self, size: int):
-        self.q = deque()
-        self.size = size
-        self.window_sum = 0
-
-    # Time: O(1), Space: O(1)
-    def next(self, val: int) -> float:
-        # Append new value to queue
-        self.q.append(val)
-        # Add value to window sum
-        self.window_sum += val
-        # Evict oldest element if window size is exceeded
-        if len(self.q) > self.size:
-            self.window_sum -= self.q.popleft()
-        # Return average of current window
-        return self.window_sum / len(self.q)
-
     # -----------------------------------------------------------------------
     # 4. Jump Game III (LC 1306) — T2
     # Given an array of non-negative integers arr, you are initially positioned at start index of the array. When you are at index i, you can jump to i + arr[i] or i - arr[i], check if you can reach any index with value 0. Notice that you can not jump outside of the array at any time.
@@ -452,10 +375,6 @@ class MovingAverage:
 if __name__ == "__main__":
     sol = QueueSolutions()
 
-    # maxSlidingWindow
-    assert sol.maxSlidingWindow([1, 3, -1, -3, 5, 3, 6, 7], 3) == [3, 3, 5, 5, 6, 7]
-    assert sol.maxSlidingWindow([1], 1) == [1]
-
     # orangesRotting
     assert sol.orangesRotting([[2,1,1],[1,1,0],[0,1,1]]) == 4
     assert sol.orangesRotting([[2,1,1],[0,1,1],[1,0,1]]) == -1
@@ -469,10 +388,6 @@ if __name__ == "__main__":
     assert sol.shortestPathBinaryMatrix([[0,1],[1,0]]) == 2
     assert sol.shortestPathBinaryMatrix([[0,0,0],[1,1,0],[1,1,0]]) == 4
     assert sol.shortestPathBinaryMatrix([[1,0]]) == -1  # blocked start
-
-    # ladderLength
-    assert sol.ladderLength("hit", "cog", ["hot","dot","dog","lot","log","cog"]) == 5
-    assert sol.ladderLength("hit", "cog", ["hot","dot","dog","lot","log"]) == 0
 
     # openLock
     assert sol.openLock(["0201","0101","0102","1212","2002"], "0202") == 6
@@ -491,11 +406,10 @@ if __name__ == "__main__":
     assert cq.enQueue(4) == True
     assert cq.Rear() == 4
 
-    # MovingAverage
-    mv = MovingAverage(3)
-    assert mv.next(1) == 1.0
-    assert mv.next(10) == 5.5
-    assert abs(mv.next(3) - 14/3) < 1e-9
-    assert mv.next(5) == 6.0
+    # canReach (Jump Game III)
+    mv = MovingAverage()
+    assert mv.canReach([4,2,3,0,3,1,2], 5) == True
+    assert mv.canReach([4,2,3,0,3,1,2], 0) == True
+    assert mv.canReach([3,0,2,1,2], 2) == False
 
     print("All queue tests passed.")

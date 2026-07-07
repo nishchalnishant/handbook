@@ -14,13 +14,8 @@ Patterns covered in this module:
   - Reference implementations and key problem-solving strategies.
 """
 
-from typing import List, Optional
+from typing import List
 from collections import Counter, deque
-
-class ListNode:
-    def __init__(self, val=0, next=None):
-        self.val = val
-        self.next = next
 
 class TwoPointersSolutions:
     # -----------------------------------------------------------------------
@@ -103,33 +98,6 @@ class TwoPointersSolutions:
         return max_area
 
     # -----------------------------------------------------------------------
-    # 4. Trapping Rain Water (LC 42) — T1
-    # Given n non-negative integers representing an elevation map where the width of each bar is 1, compute how much water it can trap after raining.
-    # Example: height = [0,1,0,2,1,0,1,3,2,1,2,1] → 6
-    # Constraints: n == height.length, 1 <= n <= 2 * 10^4, 0 <= height[i] <= 10^5
-    # Time: O(n), Space: O(1)
-    # -----------------------------------------------------------------------
-    def trap(self, height: List[int]) -> int:
-        if not height: return 0
-        l, r = 0, len(height) - 1
-        # Track the maximum height seen so far from left and right.
-        l_max, r_max = height[l], height[r]
-        res = 0
-        while l < r:
-            # The amount of water trapped is limited by the smaller of the two running maximums.
-            if l_max < r_max:
-                l += 1
-                l_max = max(l_max, height[l])
-                # Add water trapped at the current left pointer position.
-                res += l_max - height[l]
-            else:
-                r -= 1
-                r_max = max(r_max, height[r])
-                # Add water trapped at the current right pointer position.
-                res += r_max - height[r]
-        return res
-
-    # -----------------------------------------------------------------------
     # 5. Sort Colors (Dutch National Flag) (LC 75) — T1
     # Given an array nums with n objects colored red, white, or blue, sort them in-place so that objects of the same color are adjacent, with the colors in the order red, white, and blue. We will use the integers 0, 1, and 2 to represent the color red, white, and blue, respectively.
     # Example: nums = [2,0,2,1,1,0] → [0,0,1,1,2,2]
@@ -173,72 +141,6 @@ class TwoPointersSolutions:
             seen[s[r]] = r
             # Update the maximum length found so far.
             res = max(res, r - l + 1)
-        return res
-
-    # -----------------------------------------------------------------------
-    # 7. Minimum Window Substring (LC 76) — T1
-    # Given two strings s and t of lengths m and n respectively, return the minimum window substring of s such that every character in t (including duplicates) is included in the window. If there is no such substring, return the empty string "".
-    # Example: s = "ADOBECODEBANC", t = "ABC" → "BANC"
-    # Constraints: 1 <= s.length, t.length <= 10^5
-    # Time: O(m + n), Space: O(m + n)
-    # -----------------------------------------------------------------------
-    def minWindow(self, s: str, t: str) -> str:
-        if not t or not s: return ""
-        # Counter for character frequencies needed from t.
-        dict_t = Counter(t)
-        # Total unique characters to satisfy.
-        required = len(dict_t)
-        l, r = 0, 0
-        # Tracks how many unique characters have met their target frequency.
-        formed = 0
-        window_counts = {}
-        # Stores result window: (length, left_index, right_index).
-        ans = float("inf"), None, None
-
-        while r < len(s):
-            char = s[r]
-            # Add character to the current window's counts.
-            window_counts[char] = window_counts.get(char, 0) + 1
-            # Check if this character has satisfied its target frequency in t.
-            if char in dict_t and window_counts[char] == dict_t[char]:
-                formed += 1
-            # Try to shrink window from the left while it contains all required characters.
-            while l <= r and formed == required:
-                char = s[l]
-                # Update answer if current window is smaller.
-                if r - l + 1 < ans[0]:
-                    ans = (r - l + 1, l, r)
-                # Remove s[l] from window counts as we shrink.
-                window_counts[char] -= 1
-                # If character count falls below required frequency, decrement formed.
-                if char in dict_t and window_counts[char] < dict_t[char]:
-                    formed -= 1
-                l += 1
-            r += 1
-        return "" if ans[0] == float("inf") else s[ans[1]: ans[2] + 1]
-
-    # -----------------------------------------------------------------------
-    # 8. Sliding Window Maximum (LC 239) — T1
-    # You are given an array of integers nums, there is a sliding window of size k which is moving from the very left of the array to the very right. You can only see the k numbers in the window. Each time the sliding window moves right by one position. Return the max sliding window.
-    # Example: nums = [1,3,-1,-3,5,3,6,7], k = 3 → [3,3,5,5,6,7]
-    # Constraints: 1 <= nums.length <= 10^5, 10^4 <= nums[i] <= 10^4, 1 <= k <= nums.length
-    # Time: O(n), Space: O(k)
-    # -----------------------------------------------------------------------
-    def maxSlidingWindow(self, nums: List[int], k: int) -> List[int]:
-        res = []
-        q = deque()
-        for i, num in enumerate(nums):
-            # Remove indices that have fallen out of the current window.
-            while q and q[0] < i - k + 1:
-                q.popleft()
-            # Remove indices of elements smaller than the current element from the back.
-            while q and nums[q[-1]] < num:
-                q.pop()
-            # Append current index to the queue.
-            q.append(i)
-            # The front of the queue is the index of the maximum element in the window.
-            if i >= k - 1:
-                res.append(nums[q[0]])
         return res
 
     # -----------------------------------------------------------------------
@@ -297,56 +199,6 @@ class TwoPointersSolutions:
         return False
 
 class TwoPointersSolutionsT2:
-    class ListNode:
-        def __init__(self, x):
-            self.val = x
-            self.next = None
-
-    # -----------------------------------------------------------------------
-    # 11. Valid Palindrome II (LC 680) — T2
-    # Given a string s, return true if the s can be palindrome after deleting at most one character from it.
-    # Example: s = "aba" → true
-    # Constraints: 1 <= s.length <= 10^5, s consists of lowercase English letters
-    # Time: O(n), Space: O(1)
-    # -----------------------------------------------------------------------
-    def validPalindrome(self, s: str) -> bool:
-        def check_palindrome(s, i, j):
-            # Standard two-pointer palindrome check
-            while i < j:
-                # Character mismatch
-                if s[i] != s[j]:
-                    return False
-                i += 1
-                j -= 1
-            return True
-
-        i, j = 0, len(s) - 1
-        while i < j:
-            # If mismatch is found, check if deleting s[i] or s[j] yields a palindrome.
-            if s[i] != s[j]:
-                return check_palindrome(s, i, j - 1) or check_palindrome(s, i + 1, j)
-            i += 1
-            j -= 1
-        return True
-
-    # -----------------------------------------------------------------------
-    # 12. Linked List Cycle (LC 141) — T2
-    # Given head, the head of a linked list, determine if the linked list has a cycle in it. There is a cycle in a linked list if there is some node in the list that can be reached again by continuously following the next pointer. Internally, pos is used to denote the index of the node that tail's next pointer is connected to. Note that pos is not passed as a parameter. Return true if there is a cycle in the linked list. Otherwise, return false.
-    # Example: head = [3,2,0,-4], pos = 1 → true
-    # Constraints: The number of the nodes in the list is in the range [0, 10^4], 10^5 <= Node.val <= 10^5, pos is -1 or a valid index in the linked-list, Follow up: Can you solve it using O(1) (i.e. constant) memory?
-    # Time: O(n), Space: O(1)
-    # -----------------------------------------------------------------------
-    def hasCycle(self, head: Optional[ListNode]) -> bool:
-        slow, fast = head, head
-        # fast pointer moves 2 steps, slow pointer moves 1 step.
-        while fast and fast.next:
-            slow = slow.next
-            fast = fast.next.next
-            # If slow and fast meet, a cycle exists.
-            if slow is fast:
-                return True
-        return False
-
     # -----------------------------------------------------------------------
     # 13. Longest Repeating Character Replacement (LC 424) — T2
     # You are given a string s and an integer k. You can choose any character of the string and change it to any other uppercase English character. You can perform this operation at most k times. Return the length of the longest substring containing the same letter you can get after performing the above operations.
@@ -370,35 +222,6 @@ class TwoPointersSolutionsT2:
                 l += 1
             res = max(res, r - l + 1)
         return res
-
-    # -----------------------------------------------------------------------
-    # 14. Subarrays with K Different Integers (LC 992) — T2
-    # Given an integer array nums and an integer k, return the number of good subarrays of nums. A good array is an array where the number of different integers in that array is exactly k.
-    # Example: nums = [1,2,1,2,3], k = 2 → 7
-    # Constraints: 1 <= nums.length <= 2 * 10^4, 1 <= nums[i], k <= nums.length
-    # Time: O(n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def subarraysWithKDistinct(self, nums: List[int], k: int) -> int:
-        # Helper to find the number of subarrays with at most k distinct elements.
-        def atMostK(nums, k):
-            count = Counter()
-            res = 0
-            l = 0
-            for r in range(len(nums)):
-                # If element is new, we consume 1 unit of distinct budget.
-                if count[nums[r]] == 0:
-                    k -= 1
-                count[nums[r]] += 1
-                # If distinct budget is exceeded, shrink window from left.
-                while k < 0:
-                    count[nums[l]] -= 1
-                    if count[nums[l]] == 0:
-                        k += 1
-                    l += 1
-                # Add all valid subarrays ending at index r.
-                res += r - l + 1
-            return res
-        return atMostK(nums, k) - atMostK(nums, k - 1)
 
     # -----------------------------------------------------------------------
     # 15. Find the Duplicate Number (LC 287) — T2
@@ -737,10 +560,6 @@ if __name__ == "__main__":
     assert sol.maxArea([1, 8, 6, 2, 5, 4, 8, 3, 7]) == 49
     assert sol.maxArea([1, 1]) == 1
 
-    # trap
-    assert sol.trap([0, 1, 0, 2, 1, 0, 1, 3, 2, 1, 2, 1]) == 6
-    assert sol.trap([]) == 0
-
     # sortColors (Dutch national flag)
     arr = [2, 0, 2, 1, 1, 0]
     sol.sortColors(arr)
@@ -751,14 +570,6 @@ if __name__ == "__main__":
     assert sol.lengthOfLongestSubstring("bbbbb") == 1
     assert sol.lengthOfLongestSubstring("pwwkew") == 3
 
-    # minWindow
-    assert sol.minWindow("ADOBECODEBANC", "ABC") == "BANC"
-    assert sol.minWindow("a", "a") == "a"
-    assert sol.minWindow("a", "aa") == ""
-
-    # maxSlidingWindow
-    assert sol.maxSlidingWindow([1, 3, -1, -3, 5, 3, 6, 7], 3) == [3, 3, 5, 5, 6, 7]
-
     # findAnagrams
     assert sol.findAnagrams("cbaebabacd", "abc") == [0, 6]
     assert sol.findAnagrams("abab", "ab") == [0, 1, 2]
@@ -766,11 +577,6 @@ if __name__ == "__main__":
     # checkInclusion
     assert sol.checkInclusion("ab", "eidbaooo") == True
     assert sol.checkInclusion("ab", "eidboaoo") == False
-
-    # validPalindrome (delete at most 1 char)
-    assert sol2.validPalindrome("aba") == True
-    assert sol2.validPalindrome("abca") == True
-    assert sol2.validPalindrome("abc") == False
 
     # characterReplacement
     assert sol2.characterReplacement("AABABBA", 1) == 4
@@ -787,10 +593,6 @@ if __name__ == "__main__":
     # longestOnes
     assert sol2.longestOnes([1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0], 2) == 6
     assert sol2.longestOnes([0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1], 3) == 10
-
-    # subarraysWithKDistinct
-    assert sol2.subarraysWithKDistinct([1, 2, 1, 2, 3], 2) == 7
-    assert sol2.subarraysWithKDistinct([1, 2, 1, 3, 4], 3) == 3
 
     sol3 = TwoPointersSolutionsL4()
 

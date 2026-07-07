@@ -15,50 +15,8 @@ Patterns covered in this module:
 """
 
 from typing import List
-from collections import deque
 
 class ArraySolutions:
-    # -----------------------------------------------------------------------
-    # 1. Two Sum (LC 1) — T1
-    # Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target. You may assume that each input would have exactly one solution, and you may not use the same element twice. You can return the answer in any order.
-    # Example: nums = [2,7,11,15], target = 9 → [0,1]
-    # Constraints: 2 <= nums.length <= 10^4, 10^9 <= nums[i] <= 10^9, 10^9 <= target <= 10^9, Only one valid answer exists, Follow-up: Can you come up with an algorithm that is less than O(n^2) time complexity?
-    # Time: O(n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def twoSum(self, nums: List[int], target: int) -> List[int]:
-        # Map to store number to its index.
-        seen = {}
-        # Iterate over the numbers with their indices.
-        for i, num in enumerate(nums):
-            # Check if complement exists in seen map.
-            if target - num in seen:
-                # Return the indices of the complement and current element.
-                return [seen[target - num], i]
-            # Record current number and its index.
-            seen[num] = i
-        # Return empty list if no pair is found.
-        return []
-
-    # -----------------------------------------------------------------------
-    # 2. Best Time to Buy and Sell Stock (LC 121) — T1
-    # You are given an array prices where prices[i] is the price of a given stock on the i^th day. You want to maximize your profit by choosing a single day to buy one stock and choosing a different day in the future to sell that stock. Return the maximum profit you can achieve from this transaction. If you cannot achieve any profit, return 0.
-    # Example: prices = [7,1,5,3,6,4] → 5
-    # Constraints: 1 <= prices.length <= 10^5, 0 <= prices[i] <= 10^4
-    # Time: O(n), Space: O(1)
-    # -----------------------------------------------------------------------
-    def maxProfit(self, prices: List[int]) -> int:
-        # Track the lowest price seen so far.
-        min_price = float('inf')
-        # Track the maximum profit we can get.
-        max_profit = 0
-        # Iterate over all prices day by day.
-        for price in prices:
-            # Update running minimum price.
-            min_price = min(min_price, price)
-            # Update running maximum profit if selling today is better.
-            max_profit = max(max_profit, price - min_price)
-        return max_profit
-
     # -----------------------------------------------------------------------
     # 3. Maximum Subarray (LC 53) — T1
     # Given an integer array nums, find the subarray with the largest sum, and return its sum.
@@ -140,65 +98,6 @@ class ArraySolutions:
             # Combine prefix and suffix products.
             res[i] *= suffix
             suffix *= nums[i]
-        return res
-
-    # -----------------------------------------------------------------------
-    # 5. Contains Duplicate (LC 217) — T1
-    # Given an integer array nums, return true if any value appears at least twice in the array, and return false if every element is distinct.
-    # Example: nums = [1,2,3,1] → true
-    # Constraints: 1 <= nums.length <= 10^5, 10^9 <= nums[i] <= 10^9
-    # Time: O(n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def containsDuplicate(self, nums: List[int]) -> bool:
-        return len(set(nums)) != len(nums)
-
-    # -----------------------------------------------------------------------
-    # 6. Trapping Rain Water (LC 42) — T1
-    # Given n non-negative integers representing an elevation map where the width of each bar is 1, compute how much water it can trap after raining.
-    # Example: height = [0,1,0,2,1,0,1,3,2,1,2,1] → 6
-    # Constraints: n == height.length, 1 <= n <= 2 * 10^4, 0 <= height[i] <= 10^5
-    # Time: O(n), Space: O(1)
-    # -----------------------------------------------------------------------
-    def trap(self, height: List[int]) -> int:
-        # Guard against empty height array.
-        if not height: return 0
-        # Initialize left and right pointers.
-        l, r = 0, len(height) - 1
-        # Track the maximum heights from left and right sides.
-        l_max, r_max = height[l], height[r]
-        res = 0
-
-        # Loop until left and right pointers meet.
-        while l < r:
-            # Symmetrically advance pointers from the side with lower max height.
-            if l_max < r_max:
-                l += 1
-                l_max = max(l_max, height[l])
-                res += l_max - height[l]
-            else:
-                r -= 1
-                r_max = max(r_max, height[r])
-                res += r_max - height[r]
-        return res
-
-    # -----------------------------------------------------------------------
-    # 7. Sliding Window Maximum (LC 239) — T1
-    # You are given an array of integers nums, there is a sliding window of size k which is moving from the very left of the array to the very right. You can only see the k numbers in the window. Each time the sliding window moves right by one position. Return the max sliding window.
-    # Example: nums = [1,3,-1,-3,5,3,6,7], k = 3 → [3,3,5,5,6,7]
-    # Constraints: 1 <= nums.length <= 10^5, 10^4 <= nums[i] <= 10^4, 1 <= k <= nums.length
-    # Time: O(n), Space: O(k)
-    # -----------------------------------------------------------------------
-    def maxSlidingWindow(self, nums: List[int], k: int) -> List[int]:
-        res = []
-        q = deque()  # stores indices
-        for i, num in enumerate(nums):
-            while q and q[0] < i - k + 1:
-                q.popleft()
-            while q and nums[q[-1]] < num:
-                q.pop()
-            q.append(i)
-            if i >= k - 1:
-                res.append(nums[q[0]])
         return res
 
     # -----------------------------------------------------------------------
@@ -455,25 +354,6 @@ class ArraySolutionsT2:
         reverse(k, len(nums) - 1)
 
     # -----------------------------------------------------------------------
-    # 7. Majority Element (LC 169) — T2
-    # Given an array nums of size n, return the majority element. The majority element is the element that appears more than ⌊n / 2⌋ times. You may assume that the majority element always exists in the array.
-    # Example: nums = [3,2,3] → 3
-    # Constraints: n == nums.length, 1 <= n <= 5 * 10^4, 10^9 <= nums[i] <= 10^9, The input is generated such that a majority element will exist in the array, Follow-up: Could you solve the problem in linear time and in O(1) space?
-    # Time: O(n), Space: O(1)
-    # -----------------------------------------------------------------------
-    def majorityElement(self, nums: List[int]) -> int:
-        # Candidates and votes counter.
-        res, count = 0, 0
-        # Single pass Boyer-Moore Voting algorithm.
-        for n in nums:
-            # If current count is zero, pick the current element as candidate.
-            if count == 0:
-                res = n
-            # Cancel out candidates on mismatches.
-            count += (1 if n == res else -1)
-        return res
-
-    # -----------------------------------------------------------------------
     # 8. Set Matrix Zeroes — T2
     # Given an m x n integer matrix matrix, if an element is 0, set its entire row and column to 0's. You must do it in place.
     # Example: matrix = [[1,1,1],[1,0,1],[1,1,1]] → [[1,0,1],[0,0,0],[1,0,1]]
@@ -637,46 +517,6 @@ class ArraySolutionsL4:
         return r - l + 1
 
     # -----------------------------------------------------------------------
-    # 4. Find All Numbers Disappeared in an Array (LC 448)
-    # Given an array nums of n integers where nums[i] is in the range [1, n], return an array of all the integers in the range [1, n] that do not appear in nums.
-    # Example: nums = [4,3,2,7,8,2,3,1] → [5,6]
-    # Constraints: n == nums.length, 1 <= n <= 10^5, 1 <= nums[i] <= n
-    # Time: O(n), Space: O(1)
-    # -----------------------------------------------------------------------
-    def findDisappearedNumbers(self, nums: List[int]) -> List[int]:
-        # Mark visited indices by negating elements.
-        for num in nums:
-            idx = abs(num) - 1
-            if nums[idx] > 0:
-                nums[idx] = -nums[idx]
-        # Any positive element indicates a missing number at index + 1.
-        return [i + 1 for i in range(len(nums)) if nums[i] > 0]
-
-    # -----------------------------------------------------------------------
-    # 5. First Missing Positive (LC 41)
-    # Given an unsorted integer array nums, return the smallest missing positive integer. You must implement an algorithm that runs in O(n) time and uses O(1) auxiliary space.
-    # Example: nums = [1,2,0] → 3
-    # Constraints: 1 <= nums.length <= 10^5, 2^31 <= nums[i] <= 2^31 - 1
-    # Time: O(n), Space: O(1)
-    # -----------------------------------------------------------------------
-    def firstMissingPositive(self, nums: List[int]) -> int:
-        n = len(nums)
-        # Step 1: Clean out negative numbers, zeros, and out-of-range elements.
-        for i in range(n):
-            if nums[i] <= 0 or nums[i] > n:
-                nums[i] = n + 1
-        # Step 2: Use in-place negation as a presence bitmap.
-        for i in range(n):
-            v = abs(nums[i])
-            if 1 <= v <= n and nums[v - 1] > 0:
-                nums[v - 1] = -nums[v - 1]
-        # Step 3: Scan from index 0 to find the first positive cell.
-        for i in range(n):
-            if nums[i] > 0:
-                return i + 1
-        return n + 1
-
-    # -----------------------------------------------------------------------
     # 6. Maximum Points You Can Obtain from Cards (LC 1423)
     # There are several cards arranged in a row. In one step you can take one card from the beginning or end of the row. You want to take exactly k cards. Return the maximum score of points you can obtain.
     # Example: cardPoints = [1,2,3,4,5,6,1], k = 3 → 12
@@ -775,40 +615,6 @@ class ArraySolutionsL4:
         return res
 
     # -----------------------------------------------------------------------
-    # 10. Replace Elements with Greatest Element on Right Side (LC 1299)
-    # Given an array arr, replace every element in that array with the greatest element among the elements to its right, and replace the last element with -1. After doing so, return the array.
-    # Example: arr = [17,18,5,4,6,1] → [18,6,6,6,1,-1]
-    # Constraints: 1 <= arr.length <= 10^4, 1 <= arr[i] <= 10^5
-    # Time: O(n), Space: O(1)
-    # -----------------------------------------------------------------------
-    def replaceElements(self, arr: List[int]) -> List[int]:
-        # Sentinel value for the last element.
-        cur_max = -1
-        # Traverse right-to-left.
-        for i in range(len(arr) - 1, -1, -1):
-            # Save new running max before overwriting element.
-            new_max = max(cur_max, arr[i])
-            arr[i] = cur_max
-            cur_max = new_max
-        return arr
-
-    # -----------------------------------------------------------------------
-    # 11. Range Sum Query — Immutable (LC 303)
-    # Given an integer array nums, handle multiple queries of the following type: Calculate the sum of the elements of nums between indices left and right inclusive where left <= right. Implement the NumArray class: and right inclusive.
-    # Example: ["NumArray", "sumRange", "sumRange", "sumRange"] → [null, 1, -1, -3]
-    # Constraints: 1 <= nums.length <= 10^4, 10^5 <= nums[i] <= 10^5, 0 <= left <= right < nums.length, At most 10^4 calls will be made to sumRange
-    # Time: O(1) per query, O(n) build, Space: O(n)
-    # -----------------------------------------------------------------------
-    def __init_range_sum__(self, nums: List[int]) -> None:
-        n = len(nums)
-        self._prefix = [0] * (n + 1)
-        for i in range(n):
-            self._prefix[i + 1] = self._prefix[i] + nums[i]
-
-    def sumRange(self, left: int, right: int) -> int:
-        return self._prefix[right + 1] - self._prefix[left]
-
-    # -----------------------------------------------------------------------
     # 12. Range Sum Query 2D — Immutable (LC 304)
     # Given a 2D matrix matrix, handle multiple queries of the following type: Calculate the sum of the elements of matrix inside the rectangle defined by its upper left corner (row1, col1) and lower right corner (row2, col2).
     # Example: ["NumMatrix", "sumRegion", "sumRegion", "sumRegion"] → [null, 8, 11, 12]
@@ -838,15 +644,6 @@ if __name__ == "__main__":
     sol = ArraySolutions()
     sol2 = ArraySolutionsT2()
 
-    # 1. Two Sum
-    assert sol.twoSum([2, 7, 11, 15], 9) == [0, 1]
-    assert sol.twoSum([3, 2, 4], 6) == [1, 2]
-    assert sol.twoSum([3, 3], 6) == [0, 1]                  # duplicate values
-
-    # 2. Best Time to Buy and Sell Stock
-    assert sol.maxProfit([7, 1, 5, 3, 6, 4]) == 5
-    assert sol.maxProfit([7, 6, 4, 3, 1]) == 0              # no profit possible
-
     # 3. Maximum Subarray
     assert sol.maxSubArray([-2, 1, -3, 4, -1, 2, 1, -5, 4]) == 6
     assert sol.maxSubArray([1]) == 1
@@ -856,19 +653,6 @@ if __name__ == "__main__":
     assert sol.productExceptSelf([1, 2, 3, 4]) == [24, 12, 8, 6]
     assert sol.productExceptSelf([-1, 1, 0, -3, 3]) == [0, 0, 9, 0, 0]
     assert sol.productExceptSelf([0, 0]) == [0, 0]           # two zeros
-
-    # 5. Contains Duplicate
-    assert sol.containsDuplicate([1, 2, 3, 1]) == True
-    assert sol.containsDuplicate([1, 2, 3, 4]) == False
-
-    # 6. Trapping Rain Water
-    assert sol.trap([0, 1, 0, 2, 1, 0, 1, 3, 2, 1, 2, 1]) == 6
-    assert sol.trap([4, 2, 0, 3, 2, 5]) == 9
-    assert sol.trap([3, 0, 0, 2, 0, 4]) == 10               # multiple valleys
-
-    # 7. Sliding Window Maximum
-    assert sol.maxSlidingWindow([1, 3, -1, -3, 5, 3, 6, 7], 3) == [3, 3, 5, 5, 6, 7]
-    assert sol.maxSlidingWindow([1], 1) == [1]               # single element
 
     # 8. Subarray Sum Equals K
     assert sol.subarraySum([1, 1, 1], 2) == 2
@@ -903,10 +687,6 @@ if __name__ == "__main__":
     assert sol2.canJump([2, 3, 1, 1, 4]) == True
     assert sol2.canJump([3, 2, 1, 0, 4]) == False
     assert sol2.canJump([0]) == True                         # single element
-
-    # 15. Majority Element
-    assert sol2.majorityElement([3, 2, 3]) == 3
-    assert sol2.majorityElement([2, 2, 1, 1, 1, 2, 2]) == 2
 
     # 16. Spiral Matrix
     assert sol2.spiralOrder([[1, 2, 3], [4, 5, 6], [7, 8, 9]]) == [1, 2, 3, 6, 9, 8, 7, 4, 5]

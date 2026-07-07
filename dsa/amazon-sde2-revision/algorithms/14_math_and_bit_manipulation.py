@@ -198,73 +198,6 @@ class MathAndBitManipulation:
         return (n & (n - 1)) == 0
 
     # -----------------------------------------------------------------------
-    # 9. Integer to English Words (LC 273)
-    # Convert a non-negative integer num to its English words representation.
-    # Time: O(1) (bounded by 32-bit integer), Space: O(1)
-    # -----------------------------------------------------------------------
-    def numberToWords(self, num: int) -> str:
-        # Base case: if number is 0, return "Zero" immediately.
-        if num == 0:
-            return "Zero"
-
-        ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven",
-                "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen",
-                "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"]
-        tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty",
-                "Sixty", "Seventy", "Eighty", "Ninety"]
-        thousands = ["", "Thousand", "Million", "Billion"]
-
-        # Helper function to convert a three-digit group to words.
-        def helper(n: int) -> str:
-            # If sub-part is 0, it contributes nothing.
-            """Helper routine used by the enclosing solution."""
-            if n == 0:
-                return ""
-            # Less than 20: use direct lookup.
-            elif n < 20:
-                return ones[n] + " "
-            # Between 20 and 99: use tens lookup and recursively solve for ones place.
-            elif n < 100:
-                return tens[n // 10] + " " + helper(n % 10)
-            # 100 or greater: extract hundreds digit, add word "Hundred", and recursively solve for the rest.
-            else:
-                return ones[n // 100] + " Hundred " + helper(n % 100)
-
-        result = ""
-        # Process groups of three digits from right to left (ones, thousands, millions, billions).
-        for i, suffix in enumerate(thousands):
-            # If the current 3-digit chunk is non-zero, convert it.
-            if num % 1000 != 0:
-                chunk = helper(num % 1000)
-                # Prepend the chunk and its scale suffix (e.g. "Thousand") to the result.
-                result = chunk + (suffix + " " if suffix else "") + result
-            # Integer divide by 1000 to move to the next three-digit group.
-            num //= 1000
-            # If no more digits remain, we are done.
-            if num == 0:
-                break
-
-        # Strip any trailing whitespace.
-        return result.strip()
-
-    # -----------------------------------------------------------------------
-    # 10. Excel Sheet Column Title (LC 168)
-    # Given an integer columnNumber, return its corresponding column title as it appears in an Excel sheet.
-    # Time: O(log n), Space: O(log n)
-    # -----------------------------------------------------------------------
-    def convertToTitle(self, columnNumber: int) -> str:
-        result = ""
-        # Build the title character by character from right to left.
-        while columnNumber > 0:
-            # Shift 1-based indexing (A=1) to 0-based indexing (A=0) to simplify mod operations.
-            columnNumber -= 1
-            # Prepend the character corresponding to the modulo digit.
-            result = chr(ord('A') + columnNumber % 26) + result
-            # Move to the next digit position by dividing by 26.
-            columnNumber //= 26
-        return result
-
-    # -----------------------------------------------------------------------
     # 11. Fraction to Recurring Decimal (LC 166)
     # Given two integers representing the numerator and denominator of a fraction, return the fraction in string format. If the fractional part is repeating, enclose the repeating part in parentheses.
     # Time: O(denominator), Space: O(denominator)
@@ -380,52 +313,6 @@ class MathAndBitManipulation:
         return result
 
     # -----------------------------------------------------------------------
-    # 15. Number of Digit One (LC 233)
-    # Given an integer n, count the total number of digit 1 appearing in all non-negative integers <= n.
-    # Time: O(log n), Space: O(1)
-    # -----------------------------------------------------------------------
-    def countDigitOne(self, n: int) -> int:
-        count = 0
-        factor = 1
-        # Loop through each digit position (ones, tens, hundreds...) up to n.
-        while factor <= n:
-            # Extract the digits to the left of the current digit.
-            higher = n // (factor * 10)
-            # Extract the current digit itself.
-            current = (n // factor) % 10
-            # Extract the digits to the right of the current digit.
-            lower = n % factor
-            
-            # Case 1: Current digit is 0. 1s are contributed only by the higher digits.
-            if current == 0:
-                count += higher * factor
-            # Case 2: Current digit is 1. Contributed by higher digits, plus partial cycles from lower digits.
-            elif current == 1:
-                count += higher * factor + lower + 1
-            # Case 3: Current digit is greater than 1. Contributed by higher digits plus one complete cycle.
-            else:
-                count += (higher + 1) * factor
-            # Shift to the next digit position.
-            factor *= 10
-        return count
-
-    # -----------------------------------------------------------------------
-    # 16. Ugly Number (LC 263)
-    # An ugly number is a positive integer whose prime factors are limited to 2, 3, and 5. Given an integer n, return true if n is an ugly number.
-    # Time: O(log n), Space: O(1)
-    # -----------------------------------------------------------------------
-    def isUgly(self, n: int) -> bool:
-        # Ugly numbers must be strictly positive.
-        if n <= 0:
-            return False
-        # Repeatedly divide out factors of 2, 3, and 5.
-        for factor in [2, 3, 5]:
-            while n % factor == 0:
-                n //= factor
-        # If the remaining number is 1, n is ugly.
-        return n == 1
-
-    # -----------------------------------------------------------------------
     # 17. Ugly Number II (LC 264)
     # An ugly number is a positive integer whose prime factors are limited to 2, 3, and 5. Given an integer n, return the nth ugly number.
     # Time: O(n), Space: O(n)
@@ -520,40 +407,6 @@ class MathAndBitManipulation:
         return [i for i, v in enumerate(is_prime) if v]
 
     # -----------------------------------------------------------------------
-    # 21. Pascal's Triangle (LC 118)
-    # Given an integer numRows, return the first numRows of Pascal's triangle.
-    # Time: O(numRows^2), Space: O(numRows^2)
-    # -----------------------------------------------------------------------
-    def generate(self, numRows: int) -> List[List[int]]:
-        """Pascal's Triangle (LC 118): Build Pascal's triangle iteratively row by row."""
-        # Seed the first row of Pascal's triangle.
-        triangle = [[1]]
-        # Build subsequent rows.
-        for i in range(1, numRows):
-            prev = triangle[-1]
-            # Form the current row by adding adjacent elements of the previous row.
-            row = [1] + [prev[j - 1] + prev[j] for j in range(1, len(prev))] + [1]
-            triangle.append(row)
-        return triangle
-
-    # -----------------------------------------------------------------------
-    # 22. Pascal's Triangle II (LC 119)
-    # Given an integer rowIndex, return the rowIndex-th (0-indexed) row of Pascal's triangle.
-    # Time: O(rowIndex^2), Space: O(rowIndex)
-    # -----------------------------------------------------------------------
-    def getRow(self, rowIndex: int) -> List[int]:
-        # Seed the initial row.
-        row = [1]
-        # Iterate up to the requested row index.
-        for _ in range(rowIndex):
-            # Update the row values in place from right to left to avoid corruption.
-            for j in range(len(row) - 1, 0, -1):
-                row[j] += row[j - 1]
-            # Append 1 to finish the current level.
-            row.append(1)
-        return row
-
-    # -----------------------------------------------------------------------
     # 23. Strobogrammatic Numbers (LC 246)
     # LC 246: A strobogrammatic number is a number that looks the same when rotated 180 degrees. Given a string num, return true if the number is strobogrammatic. LC 247: Given an integer n, return all strobogrammatic numbers of length n. Example LC 246: "69" → True, "88" → True, "962" → False Example LC 247: n=2 → ["11","69","88","96"]
     # Constraints: Time LC 246: O(n), Space: O(1). Time LC 247: O(5^(n/2)), Space: O(5^(n/2))
@@ -646,20 +499,6 @@ if __name__ == "__main__":
     assert sol.isPowerOfTwo(3) == False
     assert sol.isPowerOfTwo(0) == False
 
-    # numberToWords (LC 273)
-    assert sol.numberToWords(0) == "Zero"
-    assert sol.numberToWords(123) == "One Hundred Twenty Three"
-    assert sol.numberToWords(1000000) == "One Million"
-    assert sol.numberToWords(1000010) == "One Million Ten"
-    assert sol.numberToWords(1000000000) == "One Billion"
-    assert sol.numberToWords(12345) == "Twelve Thousand Three Hundred Forty Five"
-
-    # convertToTitle (LC 168)
-    assert sol.convertToTitle(1) == "A"
-    assert sol.convertToTitle(26) == "Z"
-    assert sol.convertToTitle(28) == "AB"
-    assert sol.convertToTitle(701) == "ZY"
-
     # fractionToDecimal (LC 166)
     assert sol.fractionToDecimal(1, 2) == "0.5"
     assert sol.fractionToDecimal(2, 3) == "0.(6)"
@@ -685,18 +524,6 @@ if __name__ == "__main__":
     assert sol.superPow(2, [1, 0]) == 1024
     assert sol.superPow(1, [4, 3, 3, 8, 5, 2]) == 1
 
-    # countDigitOne (LC 233)
-    assert sol.countDigitOne(13) == 6
-    assert sol.countDigitOne(0) == 0
-    assert sol.countDigitOne(1) == 1
-    assert sol.countDigitOne(11) == 4
-
-    # isUgly (LC 263)
-    assert sol.isUgly(6) == True
-    assert sol.isUgly(1) == True
-    assert sol.isUgly(14) == False
-    assert sol.isUgly(0) == False
-
     # nthUglyNumber (LC 264)
     assert sol.nthUglyNumber(10) == 12
     assert sol.nthUglyNumber(1) == 1
@@ -715,15 +542,6 @@ if __name__ == "__main__":
     assert sol.sieveOfEratosthenes(20) == [2, 3, 5, 7, 11, 13, 17, 19]
     assert sol.sieveOfEratosthenes(1) == []
     assert sol.sieveOfEratosthenes(2) == [2]
-
-    # generate (LC 118 Pascal's Triangle)
-    assert sol.generate(1) == [[1]]
-    assert sol.generate(5) == [[1],[1,1],[1,2,1],[1,3,3,1],[1,4,6,4,1]]
-
-    # getRow (LC 119 Pascal's Triangle II)
-    assert sol.getRow(0) == [1]
-    assert sol.getRow(3) == [1, 3, 3, 1]
-    assert sol.getRow(4) == [1, 4, 6, 4, 1]
 
     # isStrobogrammatic (LC 246)
     assert sol.isStrobogrammatic("69") == True

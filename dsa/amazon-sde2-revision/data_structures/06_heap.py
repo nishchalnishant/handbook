@@ -72,33 +72,6 @@ class HeapSolutions:
         return heapq.nlargest(k, count.keys(), key=count.get)
 
     # -----------------------------------------------------------------------
-    # 4. Find Median from Stream (LC 295) — T1
-    # The median is the middle value in an ordered integer list. Implement the MedianFinder class to add integers to the data stream and return the median.
-    # Time: O(log n) per addNum, O(1) per findMedian, Space: O(n)
-    # -----------------------------------------------------------------------
-    class MedianFinder:
-        def __init__(self):
-            self.lo = []  # max-heap
-            self.hi = []  # min-heap
-
-        def addNum(self, num: int) -> None:
-            # Push negated number to max-heap (lo)
-            heapq.heappush(self.lo, -num)
-            # Rebalance to min-heap (hi)
-            heapq.heappush(self.hi, -heapq.heappop(self.lo))
-
-            # Maintain sizing constraint len(lo) >= len(hi)
-            if len(self.lo) < len(self.hi):
-                heapq.heappush(self.lo, -heapq.heappop(self.hi))
-
-        def findMedian(self) -> float:
-            # If total elements is odd, return root of lo
-            if len(self.lo) > len(self.hi):
-                return -self.lo[0]
-            # If even, return average of both roots
-            return (-self.lo[0] + self.hi[0]) / 2.0
-
-    # -----------------------------------------------------------------------
     def leastInterval(self, tasks: List[str], n: int) -> int:
         # Count frequencies of each task
         counts = Counter(tasks)
@@ -143,30 +116,6 @@ class HeapSolutions:
         res_str = "".join(res)
         # Return empty string if not all characters could be placed
         return res_str if len(res_str) == len(s) else ""
-
-class KthLargest:
-    # -----------------------------------------------------------------------
-    # 7. Kth Largest in Stream (LC 703) — T1
-    # Design a class to find the kth largest element in a stream.
-    # Time: O(n log k) init, O(log k) per add, Space: O(k)
-    # -----------------------------------------------------------------------
-    def __init__(self, k: int, nums: List[int]):
-        self.k = k
-        self.heap = nums
-        heapq.heapify(self.heap)
-        while len(self.heap) > k:
-            heapq.heappop(self.heap)
-
-    def add(self, val: int) -> int:
-        """Design a class to find the kth largest element in a stream."""
-        # Push to heap if we have less than k elements
-        if len(self.heap) < self.k:
-            heapq.heappush(self.heap, val)
-        # Replace root if current value is larger than the kth largest element
-        elif val > self.heap[0]:
-            heapq.heapreplace(self.heap, val)
-        # Return the root which is the current kth largest
-        return self.heap[0]
 
 class HeapSolutionsT2:
     # -----------------------------------------------------------------------
@@ -237,48 +186,6 @@ class HeapSolutionsT2:
             if bricks < 0:
                 return i
         return len(heights) - 1
-
-    # -----------------------------------------------------------------------
-    # 13. Minimum Refueling Stops (LC 871) — T1
-    # A car travels from a starting position to a destination which is target miles east of the starting position. There are gas stations along the way. The gas stations are represented as an array stations where stations[i] = [positioni, fueli] indicates that the ith gas station is positioni miles east of the starting position and has fueli liters of gas. Return the minimum number of refueling stops the car must make in order to reach its destination. If it cannot reach the destination, return -1.
-    # Example: target = 1, startFuel = 1, stations = [] → 0
-    # Constraints: 1 <= target, startFuel <= 10^9
-    # Time: O(n log n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def minRefuelStops(self, target: int, startFuel: int, stations: List[List[int]]) -> int:
-        import heapq
-
-        # Max-heap to store the fuel available at stations we've passed
-        max_heap = []
-
-        # Current fuel tank
-        tank = startFuel
-        stops = 0
-        prev_position = 0
-
-        # Add a dummy station at the target
-        stations.append([target, 0])
-
-        for position, fuel in stations:
-            # Distance to the next station
-            distance = position - prev_position
-            tank -= distance
-
-            # If we run out of fuel before reaching the station
-            while max_heap and tank < 0:
-                # Refuel from the largest station we've passed
-                tank += -heapq.heappop(max_heap)
-                stops += 1
-
-            # If we still don't have enough fuel, it's impossible
-            if tank < 0:
-                return -1
-
-            # Add the current station's fuel to our options
-            heapq.heappush(max_heap, -fuel)
-            prev_position = position
-
-        return stops
 
     # -----------------------------------------------------------------------
     # 11. Kth Smallest in Sorted Matrix (LC 378) — T1
@@ -385,55 +292,6 @@ class HeapSolutionsT2:
                 res.append(index)
         return res
 
-    # -----------------------------------------------------------------------
-    # 16. Last Stone Weight (LC 1046) — T2
-    # You are given an array of integers stones where stones[i] is the weight of the i^th stone. We are playing a game with the stones. On each turn, we choose the heaviest two stones and smash them together. Suppose the heaviest two stones have weights x and y with x <= y. The result of this smash is: At the end of the game, there is at most one stone left. Return the weight of the last remaining stone. If there are no stones left, return 0.
-    # Example: stones = [2,7,4,1,8,1] → 1
-    # Constraints: 1 <= stones.length <= 30, 1 <= stones[i] <= 1000
-    # Time: O(n log n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def lastStoneWeight(self, stones: List[int]) -> int:
-        # Negate values to implement a max-heap in Python
-        stones = [-s for s in stones]
-        heapq.heapify(stones)
-        # Smash the two largest stones until at most one remains
-        while len(stones) > 1:
-            first = heapq.heappop(stones)
-            second = heapq.heappop(stones)
-            # Push remaining weight if they are not identical
-            if second > first:
-                heapq.heappush(stones, first - second)
-        stones.append(0)
-        return abs(stones[0])
-
-
-    # -----------------------------------------------------------------------
-    # 20. Minimize Deviation in Array (LC 1675) — T3
-    # Given an array nums of n positive integers, you can divide even elements by 2 or multiply odd elements by 2. Return the minimum possible deviation (max - min) after any number of operations.
-    # Time: O(n log(max_val) * log n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def minimumDeviation(self, nums: List[int]) -> int:
-        pq = []
-        min_val = float('inf')
-        # Double odd numbers and seed min-heap with negated values (max-heap)
-        for num in nums:
-            if num % 2 == 1:
-                num *= 2
-            heapq.heappush(pq, -num)
-            min_val = min(min_val, num)
-        res = float('inf')
-        # Shrink the maximum value until it becomes odd
-        while True:
-            max_val = -heapq.heappop(pq)
-            res = min(res, max_val - min_val)
-            # Stop if maximum is odd (cannot divide by 2)
-            if max_val % 2 == 1:
-                break
-            max_val //= 2
-            min_val = min(min_val, max_val)
-            heapq.heappush(pq, -max_val)
-        return res
-
 class Twitter:
     # -----------------------------------------------------------------------
     # 17. Design Twitter (LC 355) — T2
@@ -518,76 +376,6 @@ class SlidingWindowMedian:
 
 class HeapSolutionsL4:
     # -----------------------------------------------------------------------
-    # 21. Median of Data Stream — two-heap running median (LC 295)
-    # Time: O(log n) addNum, O(1) findMedian, Space: O(n)
-    # -----------------------------------------------------------------------
-    def __init__(self):
-        self.lo = []  # max-heap (negated)
-        self.hi = []  # min-heap
-
-    def addNum(self, num: int) -> None:
-        # Route the new number through max-heap (lo)
-        heapq.heappush(self.lo, -num)
-        # Push the maximum of lo to min-heap (hi)
-        heapq.heappush(self.hi, -heapq.heappop(self.lo))
-        # Keep heaps balanced: lo size >= hi size
-        if len(self.lo) < len(self.hi):
-            heapq.heappush(self.lo, -heapq.heappop(self.hi))
-
-    def findMedian(self) -> float:
-        # If odd number of elements, median is top of lo
-        if len(self.lo) > len(self.hi):
-            return -self.lo[0]
-        # If even, median is average of both heap roots
-        return (-self.lo[0] + self.hi[0]) / 2.0
-
-    # -----------------------------------------------------------------------
-    # 22. Smallest Range Covering Elements from K Lists (LC 632)
-    # Time: O(n log k) where n = total elements, Space: O(k)
-    # -----------------------------------------------------------------------
-    def smallestRange(self, nums: List[List[int]]) -> List[int]:
-        heap = []
-        cur_max = float('-inf')
-        # Seed min-heap with the first element of each of the k lists
-        for i, row in enumerate(nums):
-            heapq.heappush(heap, (row[0], i, 0))
-            cur_max = max(cur_max, row[0])
-
-        best = [heap[0][0], cur_max]
-
-        # Slide the window using the min-heap
-        while True:
-            val, i, j = heapq.heappop(heap)
-            # Stop if any list is exhausted
-            if j + 1 == len(nums[i]):
-                break
-            next_val = nums[i][j + 1]
-            heapq.heappush(heap, (next_val, i, j + 1))
-            cur_max = max(cur_max, next_val)
-            # Update best range if current window is tighter
-            if cur_max - heap[0][0] < best[1] - best[0]:
-                best = [heap[0][0], cur_max]
-        return best
-
-    # -----------------------------------------------------------------------
-    # 23. Maximum Performance of a Team (LC 1383)
-    # Time: O(n log n + n log k), Space: O(k)
-    # -----------------------------------------------------------------------
-    def maxPerformance(self, n: int, speed: List[int], efficiency: List[int], k: int) -> int:
-        """Maximum Performance of a Team (LC 1383): Sort engineers by efficiency descending."""
-        engineers = sorted(zip(efficiency, speed), reverse=True)
-        heap = []  # min-heap of speeds
-        speed_sum = 0
-        best = 0
-        for eff, spd in engineers:
-            heapq.heappush(heap, spd)
-            speed_sum += spd
-            if len(heap) > k:
-                speed_sum -= heapq.heappop(heap)
-            best = max(best, speed_sum * eff)
-        return best % (10**9 + 7)
-
-    # -----------------------------------------------------------------------
     # 24. K-th Smallest Prime Fraction (LC 786)
     # Time: O(n log n), Space: O(n)
     # -----------------------------------------------------------------------
@@ -627,21 +415,6 @@ class HeapSolutionsL4:
             if ei + 1 < len(arrays[ai]):
                 heapq.heappush(heap, (arrays[ai][ei + 1], ai, ei + 1))
         return result
-
-    # -----------------------------------------------------------------------
-    # 26. Employee Free Time (LC 759)
-    # Time: O(n log n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def employeeFreeTime(self, schedule: List[List[List[int]]]) -> List[List[int]]:
-        intervals = [interval for employee in schedule for interval in employee]
-        intervals.sort()
-        free = []
-        current_end = intervals[0][1]
-        for start, end in intervals[1:]:
-            if start > current_end:
-                free.append([current_end, start])
-            current_end = max(current_end, end)
-        return free
 
     # -----------------------------------------------------------------------
     # 27. Jump Game VI — heap / monotonic-deque DP variant (LC 1696)
@@ -754,14 +527,6 @@ if __name__ == "__main__":
     assert r == "aba"
     assert sol.reorganizeString("aaab") == ""
 
-    # KthLargest
-    kth = KthLargest(3, [4, 5, 8, 2])
-    assert kth.add(3) == 4
-    assert kth.add(5) == 5
-    assert kth.add(10) == 5
-    assert kth.add(9) == 8
-    assert kth.add(4) == 8
-
     # findMaximizedCapital
     assert sol2.findMaximizedCapital(2, 0, [1, 2, 3], [0, 1, 1]) == 4
     assert sol2.findMaximizedCapital(3, 0, [1, 2, 3], [0, 1, 2]) == 6
@@ -785,35 +550,12 @@ if __name__ == "__main__":
     # getOrder (task scheduler)
     assert sol2.getOrder([[1, 2], [2, 4], [3, 2], [4, 1]]) == [0, 2, 3, 1]
 
-    # lastStoneWeight
-    assert sol2.lastStoneWeight([2, 7, 4, 1, 8, 1]) == 1
-    assert sol2.lastStoneWeight([1]) == 1
-
     # SlidingWindowMedian
     swm = SlidingWindowMedian()
     assert swm.medianSlidingWindow([1, 3, -1, -3, 5, 3, 6, 7], 3) == [1.0, -1.0, -1.0, 3.0, 5.0, 6.0]
 
-    # minimumDeviation
-    assert sol2.minimumDeviation([1, 2, 3, 4]) == 1
-    assert sol2.minimumDeviation([4, 1, 5, 20, 3]) == 3
-
     # HeapSolutionsL4
     l4 = HeapSolutionsL4()
-
-    # Median of Data Stream (two-heap running median)
-    mf = HeapSolutionsL4()
-    mf.addNum(1); mf.addNum(2)
-    assert mf.findMedian() == 1.5
-    mf.addNum(3)
-    assert mf.findMedian() == 2.0
-
-    # smallestRange
-    assert l4.smallestRange([[4,10,15,24,26],[0,9,12,20],[5,18,22,30]]) == [20, 24]
-    assert l4.smallestRange([[1,2,3],[1,2,3],[1,2,3]]) == [1, 1]
-
-    # maxPerformance
-    assert l4.maxPerformance(6, [2,10,3,1,5,8], [5,4,3,9,7,2], 2) == 60
-    assert l4.maxPerformance(6, [2,10,3,1,5,8], [5,4,3,9,7,2], 3) == 68
 
     # kthSmallestPrimeFraction
     assert l4.kthSmallestPrimeFraction([1,2,3,5], 3) == [2, 5]
@@ -822,10 +564,6 @@ if __name__ == "__main__":
     # mergeKSortedArrays
     assert l4.mergeKSortedArrays([[1,4,7],[2,5,8],[3,6,9]]) == [1,2,3,4,5,6,7,8,9]
     assert l4.mergeKSortedArrays([[1,3,5],[2,4,6],[]]) == [1,2,3,4,5,6]
-
-    # employeeFreeTime
-    assert l4.employeeFreeTime([[[1,3],[6,7]],[[2,4]],[[2,5],[9,12]]]) == [[5,6],[7,9]]
-    assert l4.employeeFreeTime([[[1,3],[6,7]],[[2,4]]]) == [[4,6]]
 
     # maxResult (Jump Game VI)
     assert l4.maxResult([1,-1,-2,4,-7,3], 2) == 7

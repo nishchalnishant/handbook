@@ -415,92 +415,6 @@ class GreedySolutionsT2:
         return res
 
     # -----------------------------------------------------------------------
-    # 8. Candy (LC 135) — T1
-# 
-# Problem Description:
-# There are n children standing in a line. Each child is assigned a rating value given in the integer array ratings.
-#
-# You are giving candies to these children subjected to the following requirements:
-#
-#
-# Each child must have at least one candy.
-#
-#
-# Children with a higher rating get more candies than their neighbors.
-#
-# Return the minimum number of candies you need to have to distribute the candies to the children.
-#
-# Examples:
-# Example 1:
-#
-#   Input: ratings = [1,0,2]
-#   Output: 5
-#   Explanation: You can allocate to the first, second and third child with 2, 1, 2 candies respectively.
-#
-# Example 2:
-#
-#   Input: ratings = [1,2,2]
-#   Output: 4
-#   Explanation: You can allocate to the first, second and third child with 1, 2, 1 candies respectively.
-#   The third child gets 1 candy because it satisfies the above two conditions.
-#
-# Constraints:
-# n == ratings.length
-#
-#
-# 1 <= n <= 2 * 104
-#
-#
-# 0 <= ratings[i] <= 2 * 104
-# 
-    # There are n children standing in a line. Each child is assigned a rating value given in the integer array ratings. You are giving candies to these children subjected to the following requirements: Each child must have at least one candy. Children with a higher rating get more candies than their neighbors. Return the minimum number of candies you need to have to distribute the candies to the children.
-    # Example: ratings = [1,0,2] → 5
-    # Constraints: n == ratings.length, 1 <= n <= 2 * 10^4
-    # Time: O(n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def candy(self, ratings: List[int]) -> int:
-        n = len(ratings)
-        candies = [1] * n
-
-        # Pass 1: Left to right
-        for i in range(1, n):
-            if ratings[i] > ratings[i - 1]:
-                candies[i] = candies[i - 1] + 1
-
-        # Pass 2: Right to left
-        for i in range(n - 2, -1, -1):
-            if ratings[i] > ratings[i + 1]:
-                candies[i] = max(candies[i], candies[i + 1] + 1)
-
-        return sum(candies)
-
-    # -----------------------------------------------------------------------
-    # 9. IPO (Maximize Capital) (LC 502) — T1
-    # Suppose LeetCode will start its IPO soon. In order to sell a good price of its shares to Venture Capital, LeetCode would like to work on some projects to increase its capital before the IPO. Since it has limited resources, it can only finish at most k distinct projects before the IPO. Help LeetCode design the best way to maximize its total capital after finishing at most k distinct projects.
-    # Example: k = 2, w = 0, profits = [1,2,3], capital = [0,1,1] → 4
-    # Constraints: 1 <= k <= 10^5, 0 <= w <= 10^9
-    # Time: O((n + k) log n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def findMaximizedCapital(self, k: int, w: int, profits: List[int], capital: List[int]) -> int:
-        # Max-heap for profits of currently affordable projects (Python has min-heap, so negate values).
-        maxProfit = []
-        # Min-heap keyed by capital requirement to track unaffordable projects.
-        minCapital = [(c, p) for c, p in zip(capital, profits)]
-        heapq.heapify(minCapital)
-        # Attempt to select up to k projects.
-        for i in range(k):
-            # Unlock all projects that can be afforded with current capital w.
-            while minCapital and minCapital[0][0] <= w:
-                c, p = heapq.heappop(minCapital)
-                heapq.heappush(maxProfit, -1 * p)
-            # If no affordable projects are available, we must stop early.
-            if not maxProfit:
-                break
-            # Pop the most profitable project and add its profit to our capital.
-            w += -1 * heapq.heappop(maxProfit)
-        return w
-
-    # -----------------------------------------------------------------------
     # 10. The Skyline Problem (L4) — Sweep line + heap with lazy deletion
     # A city's skyline is the outer contour of the silhouette formed by all the buildings in that city when viewed from a distance. Given the locations and heights of all the buildings, return the skyline formed by these buildings collectively.
     # Example: buildings = [[2,9,10],[3,7,15],[5,12,12],[15,20,10],[19,24,8]] → [[2,10],[3,15],[7,12],[12,0],[15,10],[20,8],[24,0]]
@@ -610,74 +524,6 @@ class GreedySolutionsT2:
             min_reach = max_reach
             res += 1
         return res
-
-    # -----------------------------------------------------------------------
-    # 14. Minimum Number of Taps to Open to Water a Garden (LC 1326) — T2
-# 
-# Problem Description:
-# There is a one-dimensional garden on the x-axis. The garden starts at the point 0 and ends at the point n. (i.e., the length of the garden is n).
-#
-# There are n + 1 taps located at points [0, 1, ..., n] in the garden.
-#
-# Given an integer n and an integer array ranges of length n + 1 where ranges[i] (0-indexed) means the i-th tap can water the area [i - ranges[i], i + ranges[i]] if it was open.
-#
-# Return the minimum number of taps that should be open to water the whole garden, If the garden cannot be watered return -1.
-#
-# Examples:
-# Example 1:
-#
-#   Input: n = 5, ranges = [3,4,1,1,0,0]
-#   Output: 1
-#   Explanation: The tap at point 0 can cover the interval [-3,3]
-#   The tap at point 1 can cover the interval [-3,5]
-#   The tap at point 2 can cover the interval [1,3]
-#   The tap at point 3 can cover the interval [2,4]
-#   The tap at point 4 can cover the interval [4,4]
-#   The tap at point 5 can cover the interval [5,5]
-#   Opening Only the second tap will water the whole garden [0,5]
-#
-# Example 2:
-#
-#   Input: n = 3, ranges = [0,0,0,0]
-#   Output: -1
-#   Explanation: Even if you activate all the four taps you cannot water the whole garden.
-#
-# Constraints:
-# 1 <= n <= 104
-#
-#
-# ranges.length == n + 1
-#
-#
-# 0 <= ranges[i] <= 100
-# 
-    # There is a one-dimensional garden on the x-axis. The garden starts at the point 0 and ends at the point n. (i.e., the length of the garden is n). There are n + 1 taps located at points [0, 1, ..., n] in the garden. Given an integer n and an integer array ranges of length n + 1 where ranges[i] (0-indexed) means the i-th tap can water the area [i - ranges[i], i + ranges[i]] if it was open. Return the minimum number of taps that should be open to water the whole garden, If the garden cannot be watered return -1.
-    # Example: n = 5, ranges = [3,4,1,1,0,0] → 1
-    # Constraints: 1 <= n <= 10^4, ranges.length == n + 1, 0 <= ranges[i] <= 100
-    # Time: O(n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def minTaps(self, n: int, ranges: List[int]) -> int:
-        # Build max_reach array where max_reach[left] stores the farthest right reachable position.
-        max_reach = [0] * (n + 1)
-        for i, r in enumerate(ranges):
-            left = max(0, i - r)
-            max_reach[left] = max(max_reach[left], i + r)
-
-        reach, next_reach, taps = 0, 0, 0
-        # Traverse the garden to greedily select taps to cover [0, n]
-        for i in range(n):
-            next_reach = max(next_reach, max_reach[i])
-            
-            # When we reach the boundary of the current tap's watering range:
-            if i == reach:
-                # If the next best tap cannot even reach beyond index i, there is a gap.
-                if next_reach <= i:
-                    return -1
-                # Move reach to next_reach and increment tap count.
-                reach = next_reach
-                taps += 1
-                
-        return taps
 
     # -----------------------------------------------------------------------
     # 15. Distant Barcodes (LC 1054) — T2
@@ -794,70 +640,6 @@ class GreedySolutionsL4:
                     queue.append(ni)
         return False
 
-    # LC 1345 — Jump Game IV
-    # BFS: minimum jumps to reach last index; can jump to same-value indices.
-    # Time: O(n), Space: O(n)
-    def minJumps(self, arr: List[int]) -> int:
-        """Jump Game IV (LC 1345). O(n)."""
-        n = len(arr)
-        # Trivial case: single element requires 0 jumps.
-        if n == 1:
-            return 0
-        # Build adjacency list mapping each value to all indices sharing that value.
-        graph = defaultdict(list)
-        for i, v in enumerate(arr):
-            graph[v].append(i)
-        # Track visited indices to avoid cycles.
-        visited = {0}
-        queue = deque([0])
-        steps = 0
-        # Standard BFS traversal
-        while queue:
-            steps += 1
-            # Process all nodes in the current BFS layer.
-            for _ in range(len(queue)):
-                i = queue.popleft()
-                # Check neighbors (previous index, next index, and indices with same value).
-                for ni in [i - 1, i + 1] + graph[arr[i]]:
-                    # If we reached the last index, return the number of steps.
-                    if ni == n - 1:
-                        return steps
-                    # Enqueue unvisited in-bound neighbors.
-                    if 0 <= ni < n and ni not in visited:
-                        visited.add(ni)
-                        queue.append(ni)
-                # Optimization: clear same-value list to avoid re-scanning.
-                graph[arr[i]] = []
-        return -1
-
-    # LC 1340 — Jump Game V
-    # DP + greedy: max number of indices you can visit.
-    # Time: O(n log n + n*d), Space: O(n)
-    def maxJumps(self, arr: List[int], d: int) -> int:
-        """Jump Game V (LC 1340). O(n log n + n*d)."""
-        n = len(arr)
-        dp = [1] * n
-        # Sort indices by value so we process from shortest to tallest.
-        indices = sorted(range(n), key=lambda i: arr[i])
-        # Process each index in ascending height order.
-        for i in indices:
-            # Check jumps to the right up to d steps.
-            for di in range(1, d + 1):
-                if i + di < n:
-                    # Taller or equal elements block further jumps.
-                    if arr[i + di] >= arr[i]:
-                        break
-                    dp[i] = max(dp[i], 1 + dp[i + di])
-            # Check jumps to the left up to d steps.
-            for di in range(1, d + 1):
-                if i - di >= 0:
-                    # Taller or equal elements block further jumps.
-                    if arr[i - di] >= arr[i]:
-                        break
-                    dp[i] = max(dp[i], 1 + dp[i - di])
-        # Return the maximum jumps starting from any index.
-        return max(dp)
-
     # LC 1007 — Minimum Domino Rotations For Equal Row
     # Greedy: try making all tops or all bottoms equal to tops[0] or bottoms[0].
     # Time: O(n), Space: O(1)
@@ -893,68 +675,6 @@ class GreedySolutionsL4:
         costs.sort(key=lambda x: x[0] - x[1])
         # First n people go to city A, remaining n people go to city B.
         return sum(c[0] for c in costs[:n]) + sum(c[1] for c in costs[n:])
-
-    # LC 630 — Course Schedule III
-    # Greedy + max-heap: maximize number of courses taken within deadlines.
-    # Time: O(n log n), Space: O(n)
-    def scheduleCourse(self, courses: List[List[int]]) -> int:
-        """Course Schedule III (LC 630). O(n log n)."""
-        courses.sort(key=lambda x: x[1])
-        heap = []  # max-heap via negation
-        t = 0
-        for duration, deadline in courses:
-            if t + duration <= deadline:
-                heapq.heappush(heap, -duration)
-                t += duration
-            elif heap and -heap[0] > duration:
-                t += duration + heap[0]  # heap[0] is negative
-                heapq.heapreplace(heap, -duration)
-        return len(heap)
-
-    # LC 455 — Assign Cookies
-    # Greedy two pointers: match smallest sufficient cookie to each child.
-    # Time: O(n log n + m log m), Space: O(1)
-    def findContentChildren(self, g: List[int], s: List[int]) -> int:
-        """Assign Cookies (LC 455). O(n log n + m log m)."""
-        # Sort both the children's greed factors and the cookie sizes.
-        g.sort()
-        s.sort()
-        res = 0
-        j = 0
-        # Iterate through children.
-        for i in range(len(g)):
-            # Find the smallest cookie that can satisfy the current child.
-            while j < len(s) and s[j] < g[i]:
-                j += 1
-            # If a sufficient cookie is found, assign it and move to the next child.
-            if j < len(s):
-                res += 1
-                j += 1
-        return res
-
-    # LC 860 — Lemonade Change
-    # Greedy: simulate change-making, prefer to give $10+$5 over three $5s.
-    # Time: O(n), Space: O(1)
-    def lemonadeChange(self, bills: List[int]) -> bool:
-        """Lemonade Change (LC 860). O(n)."""
-        five = ten = 0
-        for bill in bills:
-            if bill == 5:
-                five += 1
-            elif bill == 10:
-                if not five:
-                    return False
-                five -= 1
-                ten += 1
-            else:  # bill == 20
-                if ten and five:
-                    ten -= 1
-                    five -= 1
-                elif five >= 3:
-                    five -= 3
-                else:
-                    return False
-        return True
 
     # LC 1094 — Car Pooling
     # Difference array: track passenger delta at each stop.
@@ -1130,10 +850,6 @@ if __name__ == "__main__":
     # partitionLabels
     assert sol2.partitionLabels("ababcbacadefegdehijhklij") == [9, 7, 8]
 
-    # candy
-    assert sol2.candy([1, 0, 2]) == 5
-    assert sol2.candy([1, 2, 2]) == 4
-
     # getSkyline
     res = sol2.getSkyline([[2,9,10],[3,7,15],[5,12,12],[15,20,10],[19,24,8]])
     assert res == [[2,10],[3,15],[7,12],[12,0],[15,10],[20,8],[24,0]]
@@ -1153,15 +869,6 @@ if __name__ == "__main__":
     assert sol3.canReach([4,2,3,0,3,1,2], 0) == True
     assert sol3.canReach([3,0,2,1,2], 2) == False
 
-    # minJumps (LC 1345)
-    assert sol3.minJumps([100,-23,-23,404,100,23,23,23,3,404]) == 3
-    assert sol3.minJumps([7]) == 0
-    assert sol3.minJumps([7,6,9,6,9,6,9,7]) == 1
-
-    # maxJumps (LC 1340)
-    assert sol3.maxJumps([6,4,14,6,8,13,9,7,10,6,12], 2) == 4
-    assert sol3.maxJumps([3,3,3,3,3], 3) == 1
-
     # minDominoRotations (LC 1007)
     assert sol3.minDominoRotations([2,1,2,4,2,2], [5,2,6,2,3,2]) == 2
     assert sol3.minDominoRotations([3,5,1,2,3], [3,6,3,3,4]) == -1
@@ -1169,19 +876,6 @@ if __name__ == "__main__":
     # twoCitySchedCost (LC 1029)
     assert sol3.twoCitySchedCost([[10,20],[30,200],[400,50],[30,20]]) == 110
     assert sol3.twoCitySchedCost([[259,770],[448,54],[926,667],[184,139],[840,118],[577,469]]) == 1859
-
-    # scheduleCourse (LC 630)
-    assert sol3.scheduleCourse([[100,200],[200,1300],[1000,1250],[2000,3200]]) == 3
-    assert sol3.scheduleCourse([[1,2]]) == 1
-    assert sol3.scheduleCourse([[3,2],[4,3]]) == 0
-
-    # findContentChildren (LC 455)
-    assert sol3.findContentChildren([1,2,3], [1,1]) == 1
-    assert sol3.findContentChildren([1,2], [1,2,3]) == 2
-
-    # lemonadeChange (LC 860)
-    assert sol3.lemonadeChange([5,5,5,10,20]) == True
-    assert sol3.lemonadeChange([5,5,10,10,20]) == False
 
     # carPooling (LC 1094)
     assert sol3.carPooling([[2,1,5],[3,3,7]], 4) == False

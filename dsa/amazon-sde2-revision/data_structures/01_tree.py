@@ -100,96 +100,6 @@ class TreeSolutions:
         return left if left else right
 
     # -----------------------------------------------------------------------
-    # 4. Binary Tree Max Path Sum (LC 124) — T1
-    # A path in a binary tree is a sequence of nodes where each pair of adjacent nodes in the sequence has an edge connecting them. Return the maximum path sum of any non-empty path.
-    # Example: root = [1,2,3] → 6
-    # Constraints: The number of nodes in the tree is in the range [1, 3 * 10^4]
-    # Time: O(n), Space: O(h)
-    # -----------------------------------------------------------------------
-    def maxPathSum(self, root: Optional[TreeNode]) -> int:
-        res = [root.val]
-
-        def dfs(node):
-            """Depth-first-search helper for the enclosing solution."""
-            if not node: return 0
-            # Compute max path gain of left and right children, ignoring negative paths
-            leftMax = max(dfs(node.left), 0)
-            rightMax = max(dfs(node.right), 0)
-
-            # Update global max sum using current node as splitting/turning point
-            res[0] = max(res[0], node.val + leftMax + rightMax)
-            # Return max single branch sum to parent
-            return node.val + max(leftMax, rightMax)
-
-        dfs(root)
-        return res[0]
-
-    # -----------------------------------------------------------------------
-    # 5. Serialize / Deserialize Binary Tree (LC 297) — T1
-    # Design an algorithm to serialize and deserialize a binary tree. There is no restriction on how your serialization/deserialization algorithm should work. You just need to ensure that a binary tree can be serialized to a string and this string can be deserialized to the original tree structure.
-    # Example: root = [1,2,3,null,null,4,5] → [1,2,3,null,null,4,5]
-    # Constraints: The number of nodes in the tree is in the range [0, 10^4]
-    # Time: O(n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def serialize(self, root: Optional[TreeNode]) -> str:
-        res = []
-        def dfs(node):
-            """Depth-first-search helper for the enclosing solution."""
-            # Base case: append null marker
-            if not node:
-                res.append("N")
-                return
-            # Preorder step: append root value, then recurse left and right
-            res.append(str(node.val))
-            dfs(node.left)
-            dfs(node.right)
-        dfs(root)
-        return ",".join(res)
-
-    # Time: O(n), Space: O(n)
-    def deserialize(self, data: str) -> Optional[TreeNode]:
-        # Split serialized string by delimiter
-        vals = data.split(",")
-        # Initialize index pointer
-        self.i = 0
-        def dfs():
-            """Depth-first-search helper for the enclosing solution."""
-            # Return None if null marker is encountered
-            if vals[self.i] == "N":
-                self.i += 1
-                return None
-            # Build node and recurse left and right
-            node = TreeNode(int(vals[self.i]))
-            self.i += 1
-            node.left = dfs()
-            node.right = dfs()
-            return node
-        # Launch pre-order deserialization
-        return dfs()
-
-    # -----------------------------------------------------------------------
-    # 6. Diameter of Binary Tree (LC 543) — T1
-    # Given the root of a binary tree, return the length of the diameter of the tree. The diameter of a binary tree is the length of the longest path between any two nodes in a tree. This path may or may not pass through the root. The length of a path between two nodes is represented by the number of edges between them.
-    # Example: root = [1,2,3,4,5] → 3
-    # Constraints: The number of nodes in the tree is in the range [1, 10^4], 100 <= Node.val <= 100
-    # Time: O(n), Space: O(h)
-    # -----------------------------------------------------------------------
-    def diameterOfBinaryTree(self, root: Optional[TreeNode]) -> int:
-        res = [0]
-        def dfs(node):
-            """Depth-first-search helper for the enclosing solution."""
-            if not node: return 0
-            # Get height of left and right subtrees
-            left = dfs(node.left)
-            right = dfs(node.right)
-            # Update candidate path max
-            res[0] = max(res[0], left + right)
-            # Return edge height to parent
-            return 1 + max(left, right)
-        dfs(root)
-        return res[0]
-
-    # -----------------------------------------------------------------------
     # 7. Construct Tree from Pre+Inorder (LC 105) — T1
     # Given two integer arrays preorder and inorder where preorder is the preorder traversal of a binary tree and inorder is the inorder traversal of the same tree, construct and return the binary tree.
     # Example: preorder = [3,9,20,15,7], inorder = [9,3,15,20,7] → [3,9,20,null,null,15,7]
@@ -243,50 +153,6 @@ class TreeSolutions:
         return build(0, len(inorder) - 1)
 
 class TreeSolutionsT2:
-    # -----------------------------------------------------------------------
-    # 8. Maximum Depth of Binary Tree (LC 104) — T2
-    # Given the root of a binary tree, return its maximum depth. A binary tree's maximum depth is the number of nodes along the longest path from the root node down to the farthest leaf node.
-    # Example: root = [3,9,20,null,null,15,7] → 3
-    # Constraints: The number of nodes in the tree is in the range [0, 10^4], 100 <= Node.val <= 100
-    # Time: O(n), Space: O(h)
-    # -----------------------------------------------------------------------
-    def maxDepth(self, root: Optional[TreeNode]) -> int:
-        if not root: return 0
-        return 1 + max(self.maxDepth(root.left), self.maxDepth(root.right))
-
-    # -----------------------------------------------------------------------
-    # 9. Invert Binary Tree (LC 226) — T2
-    # Given the root of a binary tree, invert the tree, and return its root.
-    # Example: root = [4,2,7,1,3,6,9] → [4,7,2,9,6,3,1]
-    # Constraints: The number of nodes in the tree is in the range [0, 100], 100 <= Node.val <= 100
-    # Time: O(n), Space: O(h)
-    # -----------------------------------------------------------------------
-    def invertTree(self, root: Optional[TreeNode]) -> Optional[TreeNode]:
-        if not root: return None
-        # Swap children pointers in place
-        root.left, root.right = root.right, root.left
-        # Recurse on left and right children
-        self.invertTree(root.left)
-        self.invertTree(root.right)
-        return root
-
-    # -----------------------------------------------------------------------
-    # 10. Symmetric Tree (LC 101) — T2
-    # Given the root of a binary tree, check whether it is a mirror of itself (i.e., symmetric around its center).
-    # Example: root = [1,2,2,3,4,4,3] → true
-    # Constraints: The number of nodes in the tree is in the range [1, 1000], 100 <= Node.val <= 100, Follow up: Could you solve it both recursively and iteratively?
-    # Time: O(n), Space: O(h)
-    # -----------------------------------------------------------------------
-    def isSymmetric(self, root: Optional[TreeNode]) -> bool:
-        if not root: return True
-        def isMirror(t1, t2):
-            # Base cases: both null is symmetric, one null is not
-            if not t1 and not t2: return True
-            if not t1 or not t2: return False
-            # Check mirror children pairs
-            return (t1.val == t2.val) and isMirror(t1.left, t2.right) and isMirror(t1.right, t2.left)
-        return isMirror(root.left, root.right)
-
     # -----------------------------------------------------------------------
     # 11. LCA of BST (LC 235) — T2
     # Given a binary search tree (BST), find the lowest common ancestor (LCA) node of two given nodes in the BST.
@@ -353,39 +219,6 @@ class TreeSolutionsT2:
 
             return [withRoot, withoutRoot]
         return max(dfs(root))
-
-    # -----------------------------------------------------------------------
-    # 14. Binary Tree Cameras (LC 968) — T2
-    # You are given the root of a binary tree. We install cameras on the tree nodes where each camera at a node can monitor its parent, itself, and its immediate children. Return the minimum number of cameras needed to monitor all nodes of the tree.
-    # Example: root = [0,0,null,0,0] → 1
-    # Constraints: The number of nodes in the tree is in the range [1, 1000], Node.val == 0
-    # Time: O(n), Space: O(h)
-    # -----------------------------------------------------------------------
-    def minCameraCover(self, root: Optional[TreeNode]) -> int:
-        res = [0]
-        # 0 = strictly need camera, 1 = has camera, 2 = covered
-        def dfs(node):
-            """Depth-first-search helper for the enclosing solution."""
-            # Base case: null node is covered
-            if not node: return 2
-
-            # Recurse left and right
-            left = dfs(node.left)
-            right = dfs(node.right)
-
-            # If either child is uncovered, place a camera here
-            if left == 0 or right == 0:
-                res[0] += 1
-                return 1
-            # If either child has a camera, this parent is covered
-            if left == 1 or right == 1:
-                return 2
-            # Otherwise, this node needs coverage from its parent
-            return 0
-
-        if dfs(root) == 0:
-            res[0] += 1
-        return res[0]
 
     # -----------------------------------------------------------------------
     # 15. Recover BST (LC 99) — T2
@@ -662,8 +495,9 @@ class TreeSolutionsT2:
 
 class TreeSolutionsL4:
     # -----------------------------------------------------------------------
-    # 1. Morris Inorder Traversal (LC 94)
-    # O(1) space inorder traversal using threading
+    # Morris Inorder Traversal — O(1) space inorder traversal using threading.
+    # Kept as a helper: used by balanceBST/deleteNode/insertIntoBST tests below
+    # to verify sorted order (not itself an LC-numbered Medium problem).
     # Time: O(n), Space: O(1)
     # -----------------------------------------------------------------------
     def morrisInorder(self, root: Optional[TreeNode]) -> List[int]:
@@ -823,32 +657,6 @@ class TreeSolutionsL4:
         return True
 
     # -----------------------------------------------------------------------
-    # 6. Cousins in Binary Tree (LC 993)
-    # Time: O(n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def isCousins(self, root: Optional[TreeNode], x: int, y: int) -> bool:
-        """Cousins in Binary Tree (LC 993): DFS the tree tracking each node's depth and parent."""
-        info = {}  # val -> (depth, parent_val)
-
-        def dfs(node, depth, parent_val):
-            """Depth-first-search helper for the enclosing solution."""
-            if not node:
-                return
-            # If target node is found, capture depth and parent value
-            if node.val == x or node.val == y:
-                info[node.val] = (depth, parent_val)
-            # Recurse down left and right subtrees
-            dfs(node.left, depth + 1, node.val)
-            dfs(node.right, depth + 1, node.val)
-
-        dfs(root, 0, None)
-        if x not in info or y not in info:
-            return False
-        dx, px = info[x]
-        dy, py = info[y]
-        return dx == dy and px != py
-
-    # -----------------------------------------------------------------------
     # 7. Step-By-Step Directions From a Binary Tree Node to Another (LC 2096)
     # Time: O(n), Space: O(n)
     # -----------------------------------------------------------------------
@@ -891,28 +699,6 @@ class TreeSolutionsL4:
         find_path(lca_node, startValue, start_path)
         find_path(lca_node, destValue, dest_path)
         return 'U' * len(start_path) + ''.join(dest_path)
-
-    # -----------------------------------------------------------------------
-    # 8. Minimum Absolute Difference in BST (LC 530)
-    # Time: O(n), Space: O(h)
-    # -----------------------------------------------------------------------
-    def getMinimumDifference(self, root: Optional[TreeNode]) -> int:
-        prev = None
-        min_diff = float('inf')
-
-        def inorder(node):
-            nonlocal prev, min_diff
-            if not node:
-                return
-            inorder(node.left)
-            # Calculate difference between adjacent sorted values
-            if prev is not None:
-                min_diff = min(min_diff, node.val - prev)
-            prev = node.val
-            inorder(node.right)
-
-        inorder(root)
-        return min_diff
 
     # -----------------------------------------------------------------------
     # 9. Convert BST to Greater Tree (LC 538)
@@ -1068,13 +854,6 @@ if __name__ == "__main__":
     q_node = root.right    # 1
     assert sol.lowestCommonAncestor(root, p, q_node).val == 3
 
-    # maxPathSum
-    assert sol.maxPathSum(make_tree([1, 2, 3])) == 6
-    assert sol.maxPathSum(make_tree([-10, 9, 20, None, None, 15, 7])) == 42
-
-    # serialize / deserialize
-    original = make_tree([1, 2, 3, None, None, 4, 5])
-    data = sol.serialize(original)
     from collections import deque
     def tree_to_list(root):
         if not root: return []
@@ -1089,25 +868,9 @@ if __name__ == "__main__":
         while res and res[-1] is None:
             res.pop()
         return res
-    assert tree_to_list(sol.deserialize(data)) == tree_to_list(original)
-
-    # diameterOfBinaryTree
-    assert sol.diameterOfBinaryTree(make_tree([1, 2, 3, 4, 5])) == 3
-    assert sol.diameterOfBinaryTree(make_tree([1, 2])) == 1
 
     # buildTree (preorder + inorder)
     assert tree_to_list(sol.buildTree([3, 9, 20, 15, 7], [9, 3, 15, 20, 7])) == [3, 9, 20, None, None, 15, 7]
-
-    # maxDepth
-    assert sol2.maxDepth(make_tree([3, 9, 20, None, None, 15, 7])) == 3
-    assert sol2.maxDepth(None) == 0
-
-    # invertTree
-    assert tree_to_list(sol2.invertTree(make_tree([4, 2, 7, 1, 3, 6, 9]))) == [4, 7, 2, 9, 6, 3, 1]
-
-    # isSymmetric
-    assert sol2.isSymmetric(make_tree([1, 2, 2, 3, 4, 4, 3])) == True
-    assert sol2.isSymmetric(make_tree([1, 2, 2, None, 3, None, 3])) == False
 
     # lowestCommonAncestorBST
     bst = make_tree([6, 2, 8, 0, 4, 7, 9, None, None, 3, 5])
@@ -1159,18 +922,9 @@ if __name__ == "__main__":
     assert sol4.isCompleteTree(make_tree([1, 2, 3, 4, 5, 6])) == True
     assert sol4.isCompleteTree(make_tree([1, 2, 3, 4, 5, None, 7])) == False
 
-    # isCousins
-    assert sol4.isCousins(make_tree([1, 2, 3, 4]), 4, 3) == False
-    assert sol4.isCousins(make_tree([1, 2, 3, None, 4, None, 5]), 5, 4) == True
-    assert sol4.isCousins(make_tree([1, 2, 3, None, 4]), 2, 3) == False
-
     # getDirections
     assert sol4.getDirections(make_tree([5, 1, 2, 3, None, 6, 4]), 3, 6) == "UURL"
     assert sol4.getDirections(make_tree([2, 1]), 2, 1) == "L"
-
-    # getMinimumDifference
-    assert sol4.getMinimumDifference(make_tree([4, 2, 6, 1, 3])) == 1
-    assert sol4.getMinimumDifference(make_tree([1, 0, 48, None, None, 12, 49])) == 1
 
     # convertBST — use a simple tree: [3, 2, 4, 1]
     # inorder: 1, 2, 3, 4; suffix sums: 1->10, 2->9, 3->7, 4->4

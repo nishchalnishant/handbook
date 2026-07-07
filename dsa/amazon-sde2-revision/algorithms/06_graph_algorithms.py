@@ -206,35 +206,6 @@ class GraphAlgorithmSolutions:
         return output
 
     # -----------------------------------------------------------------------
-    # 6. Word Ladder (LC 127) — T1
-    # A transformation sequence from word beginWord to word endWord using a dictionary wordList is a sequence of words beginWord -> s1 -> s2 -> ... -> sk such that: Given two words, beginWord and endWord, and a dictionary wordList, return the number of words in the shortest transformation sequence from beginWord to endWord, or 0 if no such sequence exists.
-    # Example: beginWord = "hit", endWord = "cog", wordList = ["hot","dot","dog","lot","log","cog"] → 5
-    # Constraints: 1 <= beginWord.length <= 10, endWord.length == beginWord.length, 1 <= wordList.length <= 5000, wordList[i].length == beginWord.length, beginWord, endWord, and wordList[i] consist of lowercase English letters, beginWord != endWord, All the words in wordList are unique
-    # Time: O(N*L*26), Space: O(N)
-    # -----------------------------------------------------------------------
-    def ladderLength(self, beginWord: str, endWord: str, wordList: List[str]) -> int:
-        # Convert wordList to set for O(1) lookups.
-        wordSet = set(wordList)
-        # If the target word is not in the dictionary, a valid sequence is impossible.
-        if endWord not in wordSet: return 0
-        # Initialize queue for BFS tracking (current_word, sequence_length).
-        q = deque([(beginWord, 1)])
-        while q:
-            word, length = q.popleft()
-            # If target word is reached, return the sequence length.
-            if word == endWord: return length
-            # Generate all possible single-character mutations of the current word.
-            for i in range(len(word)):
-                for c in 'abcdefghijklmnopqrstuvwxyz':
-                    next_word = word[:i] + c + word[i+1:]
-                    # If mutation exists in wordSet, it's a valid neighbor.
-                    if next_word in wordSet:
-                        # Remove from set to prevent visiting again and queue it up.
-                        wordSet.remove(next_word)
-                        q.append((next_word, length + 1))
-        return 0
-
-    # -----------------------------------------------------------------------
     # 7. All Paths From Source to Target — T1
     # Given a directed acyclic graph (DAG) of n nodes labeled from 0 to n - 1, find all possible paths from node 0 to node n - 1 and return them in any order. The graph is given as follows: graph[i] is a list of all nodes you can visit from node i (i.e., there is a directed edge from node i to node graph[i][j]).
     # Example: graph = [[1,2],[3],[3],[]] → [[0,1,3],[0,2,3]]
@@ -285,50 +256,6 @@ class GraphAlgorithmSolutions:
                         elif colors[nei] == colors[node]:
                             return False
         return True
-
-    # -----------------------------------------------------------------------
-    # 9. Alien Dictionary (LC 269) — T1
-    # There is a new alien language that uses the English alphabet. However, the order among the letters is unknown to you. You are given a list of strings words from the alien language's dictionary, where the strings in words are sorted lexicographically by the rules of this new language. Return a string of the unique letters in the new alien language sorted in lexicographically increasing order by the new language's rules.
-    # Time: O(C), Space: O(U)
-    # -----------------------------------------------------------------------
-    def alienOrder(self, words: List[str]) -> str:
-        # Initialize adjacency list for all unique characters present in the dictionary.
-        adj = {c: set() for w in words for c in w}
-        # Compare consecutive words to build directed ordering edges.
-        for i in range(len(words) - 1):
-            w1, w2 = words[i], words[i + 1]
-            minLen = min(len(w1), len(w2))
-            # Edge case: prefix check where a longer prefix comes before a shorter word.
-            if len(w1) > len(w2) and w1[:minLen] == w2[:minLen]:
-                return ""
-            # Find the first differing character to build an order relationship.
-            for j in range(minLen):
-                if w1[j] != w2[j]:
-                    adj[w1[j]].add(w2[j])
-                    break
-        # visit tracks states: True for in active path, False for fully visited.
-        visit = {}
-        res = []
-        # Post-order DFS topological sort.
-        def dfs(c):
-            """Depth-first-search helper for the enclosing solution."""
-            if c in visit: return visit[c]
-            # Mark character as visiting in the active path.
-            visit[c] = True
-            for nei in adj[c]:
-                # Recursively check neighbors for cycles.
-                if dfs(nei): return True
-            # Mark character as fully visited.
-            visit[c] = False
-            # Append to results in post-order.
-            res.append(c)
-            return False
-        # Run topological sort DFS for each character.
-        for c in adj:
-            if dfs(c): return ""
-        # Reverse post-order results to obtain the topological sort.
-        res.reverse()
-        return "".join(res)
 
     # -----------------------------------------------------------------------
     # 10. Longest Path in DAG — Topological Sort DP
@@ -458,38 +385,6 @@ class GraphAlgorithmSolutions:
         return semesters if processed == n else -1
 
     # -----------------------------------------------------------------------
-    # 14. Parallel Courses III (LC 2050)
-    # Given n courses labeled 1..n, relations [prevCourse, nextCourse], and time[] where time[i] is weeks to complete course i+1, return the minimum number of weeks to complete all courses.
-    # Time: O(V+E), Space: O(V+E)
-    # -----------------------------------------------------------------------
-    def minimumTime(self, n: int, relations: List[List[int]], time: List[int]) -> int:
-        # Build adjacency list and in-degrees (1-indexed nodes).
-        adj = defaultdict(list)
-        indegree = [0] * (n + 1)
-        for prev, nxt in relations:
-            adj[prev].append(nxt)
-            indegree[nxt] += 1
-        # dp[i] will store the completion time of course i.
-        dp = [0] * (n + 1)
-        q = deque()
-        # Initialise dp for source nodes and add them to the queue.
-        for i in range(1, n + 1):
-            if indegree[i] == 0:
-                dp[i] = time[i - 1]
-                q.append(i)
-        # Kahn's BFS topological sort DP logic.
-        while q:
-            u = q.popleft()
-            for v in adj[u]:
-                # Relax completion time of dependent course v.
-                dp[v] = max(dp[v], dp[u] + time[v - 1])
-                indegree[v] -= 1
-                if indegree[v] == 0:
-                    q.append(v)
-        # Return the maximum completion time across all courses.
-        return max(dp[1:])
-
-    # -----------------------------------------------------------------------
     # 15. Count Unreachable Pairs of Nodes (LC 2316)
     # Given n nodes (0-indexed) and a list of undirected edges, return the number of pairs of nodes (i, j) where i < j and there is no path between i and j.
     # Time: O(V+E), Space: O(V)
@@ -519,130 +414,6 @@ class GraphAlgorithmSolutions:
         total = n * (n - 1) // 2
         return total - reachable
 
-    # -----------------------------------------------------------------------
-    # 16. Reachable Nodes In Subdivided Graph (LC 882)
-    # An undirected graph has n nodes. Each edge [u, v, cnt] has cnt new nodes inserted on it (subdividing it into cnt+1 edges). Starting from node 0 with maxMoves moves, return the number of reachable nodes (original + subdivided).
-    # Time: O((V+E) log V), Space: O(V+E)
-    # -----------------------------------------------------------------------
-    def reachableNodes(self, edges: List[List[int]], maxMoves: int, n: int) -> int:
-        import heapq
-        # Build undirected graph adjacency list.
-        adj = defaultdict(list)
-        for u, v, cnt in edges:
-            adj[u].append((v, cnt))
-            adj[v].append((u, cnt))
-        # Run Dijkstra from source node 0.
-        dist = {0: 0}
-        heap = [(0, 0)]
-        while heap:
-            d, u = heapq.heappop(heap)
-            if d > dist.get(u, float('inf')):
-                continue
-            for v, cnt in adj[u]:
-                # Cost to traverse original edge is cnt + 1.
-                nd = d + cnt + 1
-                if nd < dist.get(v, float('inf')):
-                    dist[v] = nd
-                    heapq.heappush(heap, (nd, v))
-        # Count all original nodes reached within maxMoves.
-        result = sum(1 for i in range(n) if dist.get(i, float('inf')) <= maxMoves)
-        # Process each edge to count how many subdivided nodes are reachable.
-        for u, v, cnt in edges:
-            from_u = max(0, maxMoves - dist.get(u, float('inf'))) if dist.get(u, float('inf')) <= maxMoves else 0
-            from_v = max(0, maxMoves - dist.get(v, float('inf'))) if dist.get(v, float('inf')) <= maxMoves else 0
-            # Sum of steps from both directions, capped by the total subdivided nodes count.
-            result += min(from_u + from_v, cnt)
-        return result
-
-    # -----------------------------------------------------------------------
-    # 17. Minimum Weighted Subgraph with Required Paths (LC 2203)
-    # Given n nodes, weighted directed edges, src1, src2, dest, find the minimum weight of a subgraph that has paths from src1 to dest and src2 to dest. Return -1 if impossible.
-    # Time: O((V+E) log V), Space: O(V+E)
-    # -----------------------------------------------------------------------
-    def minimumWeight(self, n: int, edges: List[List[int]], src1: int, src2: int, dest: int) -> int:
-        import heapq
-        # Build forward and reversed adjacency lists.
-        adj = defaultdict(list)
-        radj = defaultdict(list)
-        for u, v, w in edges:
-            adj[u].append((v, w))
-            radj[v].append((u, w))
-        # Dijkstra helper on a given graph from a source.
-        def dijkstra(graph, src):
-            # Distance array initialized to infinity
-            dist = [float('inf')] * n
-            dist[src] = 0
-            # Min-heap with (distance, node)
-            heap = [(0, src)]
-            while heap:
-                d, u = heapq.heappop(heap)
-                # Skip if a shorter path is already found
-                if d > dist[u]: continue
-                # Relax neighbor edges
-                for v, w in graph[u]:
-                    if dist[u] + w < dist[v]:
-                        dist[v] = dist[u] + w
-                        heapq.heappush(heap, (dist[v], v))
-            return dist
-        # Run forward Dijkstra from src1 and src2, and reversed Dijkstra from dest.
-        d1 = dijkstra(adj, src1)
-        d2 = dijkstra(adj, src2)
-        d3 = dijkstra(radj, dest)
-        ans = float('inf')
-        # Find the meeting point m that minimizes the sum of distances.
-        for m in range(n):
-            if d1[m] != float('inf') and d2[m] != float('inf') and d3[m] != float('inf'):
-                ans = min(ans, d1[m] + d2[m] + d3[m])
-        return ans if ans != float('inf') else -1
-
-    # -----------------------------------------------------------------------
-    # 18. Strange Printer II (LC 1591)
-    # Given a target grid of colors (1-indexed), determine if it is possible to print the grid using a strange printer that prints solid rectangles of one color at a time, where later prints overwrite earlier ones.
-    # Time: O(C^2 + R*C) where C=num colors, Space: O(C^2)
-    # -----------------------------------------------------------------------
-    def isPrintable(self, targetGrid: List[List[int]]) -> bool:
-        rows, cols = len(targetGrid), len(targetGrid[0])
-        # Find boundaries (min_row, min_col, max_row, max_col) for each color.
-        bounds = {}
-        for r in range(rows):
-            for c in range(cols):
-                color = targetGrid[r][c]
-                if color not in bounds:
-                    bounds[color] = [r, c, r, c]
-                else:
-                    bounds[color][0] = min(bounds[color][0], r)
-                    bounds[color][1] = min(bounds[color][1], c)
-                    bounds[color][2] = max(bounds[color][2], r)
-                    bounds[color][3] = max(bounds[color][3], c)
-        # Build dependency graph: color A must be printed before color B if B is inside A's bounds.
-        adj = defaultdict(set)
-        for color, (r1, c1, r2, c2) in bounds.items():
-            for r in range(r1, r2 + 1):
-                for c in range(c1, c2 + 1):
-                    other = targetGrid[r][c]
-                    if other != color:
-                        adj[color].add(other)
-        # visit tracks states: True for in active path, False for fully visited.
-        visit = {}
-        def dfs(node):
-            """Depth-first-search helper for the enclosing solution."""
-            # Return cached traversal/visiting state
-            if node in visit:
-                return visit[node]
-            # Mark node on active path
-            visit[node] = True
-            for nei in adj[node]:
-                if dfs(nei):
-                    return True
-            # Backtrack from active path
-            visit[node] = False
-            return False
-        # Verify if the dependency graph contains any cycles.
-        for color in bounds:
-            if dfs(color):
-                return False
-        return True
-
 if __name__ == "__main__":
     sol = GraphAlgorithmSolutions()
 
@@ -662,22 +433,12 @@ if __name__ == "__main__":
     res = sol.findOrder(4, [[1,0],[2,0],[3,1],[3,2]])
     assert len(res) == 4 and res[0] == 0  # 0 must come first
 
-    # ladderLength (BFS)
-    assert sol.ladderLength("hit", "cog", ["hot","dot","dog","lot","log","cog"]) == 5
-    assert sol.ladderLength("hit", "cog", ["hot","dot","dog","lot","log"]) == 0
-
     # allPathsSourceTarget
     assert sorted(sol.allPathsSourceTarget([[1,2],[3],[3],[]])) == [[0,1,3],[0,2,3]]
 
     # isBipartite
     assert sol.isBipartite([[1,3],[0,2],[1,3],[0,2]]) == True
     assert sol.isBipartite([[1,2,3],[0,2],[0,1,3],[0,2]]) == False
-
-    # alienOrder
-    order = sol.alienOrder(["wrt","wrf","er","ett","rftt"])
-    assert order != ""  # valid topological order exists
-    assert sol.alienOrder(["z","x"]) in ["zx", ""]  # z before x
-    assert sol.alienOrder(["z","x","z"]) == ""  # invalid
 
     # longestPathDAG
     # 0 --(3)--> 1 --(2)--> 2 : longest path = 5
@@ -697,24 +458,8 @@ if __name__ == "__main__":
     assert sol.minimumSemesters(3, [[1,3],[2,3]]) == 2
     assert sol.minimumSemesters(3, [[1,2],[2,3],[3,1]]) == -1
 
-    # minimumTime (Parallel Courses III LC 2050)
-    assert sol.minimumTime(3, [[1,3],[2,3]], [3,2,5]) == 8
-    assert sol.minimumTime(5, [[1,5],[2,5],[3,5],[4,5]], [1,2,3,4,5]) == 9
-
     # countPairs (Count Unreachable Pairs LC 2316)
     assert sol.countPairs(7, [[0,2],[0,5],[2,4],[1,6],[5,4]]) == 14
     assert sol.countPairs(3, [[0,1],[0,2],[1,2]]) == 0
-
-    # reachableNodes (LC 882)
-    assert sol.reachableNodes([[0,1,10],[0,2,1],[1,2,2]], 6, 3) == 13
-    assert sol.reachableNodes([[1,2,4],[1,4,5],[1,3,1],[2,3,4],[3,4,5]], 17, 5) == 1
-
-    # minimumWeight (LC 2203)
-    assert sol.minimumWeight(6, [[0,2,2],[0,5,6],[1,0,3],[1,4,5],[2,1,1],[2,3,3],[2,3,4],[3,4,2],[4,5,1]], 0, 1, 5) == 9
-    assert sol.minimumWeight(3, [[0,1,1],[2,1,1]], 0, 1, 2) == -1
-
-    # isPrintable (Strange Printer II LC 1591)
-    assert sol.isPrintable([[1,1,1],[1,2,2],[1,2,2]]) == True
-    assert sol.isPrintable([[1,2],[2,1]]) == False
 
     print("All graph algorithm tests passed.")

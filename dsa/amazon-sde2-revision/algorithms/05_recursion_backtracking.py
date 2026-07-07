@@ -267,47 +267,6 @@ class RecursionBacktrackingSolutionsT2:
         return res
 
     # -----------------------------------------------------------------------
-    # 9. N-Queens (LC 51) — T2
-    # The n-queens puzzle is the problem of placing n queens on an n x n chessboard such that no two queens attack each other. Given an integer n, return all distinct solutions to the n-queens puzzle. You may return the answer in any order. Each solution contains a distinct board configuration of the n-queens' placement, where 'Q' and '.' both indicate a queen and an empty space, respectively.
-    # Example: n = 4 → [[".Q..","...Q","Q...","..Q."],["..Q.","Q...","...Q",".Q.."]]
-    # Constraints: 1 <= n <= 9
-    # Time: O(n!), Space: O(n^2)
-    # -----------------------------------------------------------------------
-    def solveNQueens(self, n: int) -> List[List[str]]:
-        col = set()
-        posDiag = set() # (r + c)
-        negDiag = set() # (r - c)
-        res = []
-        board = [["."] * n for i in range(n)]
-        def backtrack(r):
-            """Backtracking helper that explores candidate states for the enclosing solution."""
-            # Base case: successfully placed queens in all n rows.
-            if r == n:
-                copy = ["".join(row) for row in board]
-                res.append(copy)
-                return
-            # Try placing a queen in each column of row r.
-            for c in range(n):
-                # Check for conflicts on column or diagonals.
-                if c in col or (r + c) in posDiag or (r - c) in negDiag:
-                    continue
-                # Place the queen and mark column/diagonals as occupied.
-                col.add(c)
-                posDiag.add(r + c)
-                negDiag.add(r - c)
-                board[r][c] = "Q"
-                # Recurse for the next row.
-                backtrack(r + 1)
-                # Backtrack: remove the queen and restore column/diagonals.
-                col.remove(c)
-                posDiag.remove(r + c)
-                negDiag.remove(r - c)
-                board[r][c] = "."
-        # Begin backtracking from row 0.
-        backtrack(0)
-        return res
-
-    # -----------------------------------------------------------------------
     # 10. Palindrome Partitioning (LC 131) — T2
     # Given a string s, partition s such that every substring of the partition is a palindrome. Return all possible palindrome partitioning of s.
     # Example: s = "aab" → [["a","a","b"],["aa","b"]]
@@ -420,77 +379,6 @@ class RecursionBacktrackingSolutionsT2:
         return backtrack(0, 0)
 
     # -----------------------------------------------------------------------
-    # 14. Word Break II (LC 140) — T2
-    # Given a string s and a dictionary of strings wordDict, add spaces in s to construct a sentence where each word is a valid dictionary word. Return all such possible sentences in any order. Note that the same word in the dictionary may be reused multiple times in the segmentation.
-    # Example: s = "catsanddog", wordDict = ["cat","cats","and","sand","dog"] → ["cats and dog","cat sand dog"]
-    # Constraints: 1 <= s.length <= 20, 1 <= wordDict.length <= 1000, 1 <= wordDict[i].length <= 10, s and wordDict[i] consist of only lowercase English letters, All the strings of wordDict are unique, Input is generated in a way that the length of the answer doesn't exceed 10^5
-    # Time: O(n^2 * 2^n), Space: O(n * 2^n)
-    # -----------------------------------------------------------------------
-    def wordBreak(self, s: str, wordDict: List[str]) -> List[str]:
-        """Word Break II (LC 140): Use memoized DFS on the remaining suffix of the string."""
-        wordSet = set(wordDict)
-        memo = {}
-        def dfs(s):
-            """Depth-first-search helper for the enclosing solution."""
-            # Base case: empty string suffix can be matched with an empty word segment.
-            if not s: 
-                return [""]
-            # Return cached sentence list if suffix s was already solved.
-            if s in memo: 
-                return memo[s]
-            res = []
-            # Partition the string suffix into prefix and remainder.
-            for i in range(1, len(s) + 1):
-                prefix = s[:i]
-                # If prefix is a valid word, solve the remainder of the suffix.
-                if prefix in wordSet:
-                    suffixes = dfs(s[i:])
-                    for suffix in suffixes:
-                        # Append the matched prefix to the rest of the sentence.
-                        res.append(prefix + (" " + suffix if suffix else ""))
-            # Cache the result.
-            memo[s] = res
-            return res
-        return dfs(s)
-
-    # -----------------------------------------------------------------------
-    # 15. Unique Paths III (LC 980) — T2
-    # You are given an m x n integer array grid where grid[i][j] could be: Return the number of 4-directional walks from the starting square to the ending square, that walk over every non-obstacle square exactly once.
-    # Example: grid = [[1,0,0,0],[0,0,0,0],[0,0,2,-1]] → 2
-    # Constraints: m == grid.length, n == grid[i].length, 1 <= m, n <= 20, 1 <= m * n <= 20, 1 <= grid[i][j] <= 2, There is exactly one starting cell and one ending cell
-    # Time: O(4^(m*n)), Space: O(m*n)
-    # -----------------------------------------------------------------------
-    def uniquePathsIII(self, grid: List[List[int]]) -> int:
-        zero = 0
-        sx, sy = 0, 0
-        # Count all empty squares and locate the starting position.
-        for r in range(len(grid)):
-            for c in range(len(grid[0])):
-                if grid[r][c] == 0: zero += 1
-                elif grid[r][c] == 1: sx, sy = r, c
-
-        def dfs(r, c, zero):
-            """Depth-first-search helper for the enclosing solution."""
-            # Base case: if out of bounds or obstacle / visited cell, return 0.
-            if r < 0 or c < 0 or r >= len(grid) or c >= len(grid[0]) or grid[r][c] == -1:
-                return 0
-            # If we reached the end cell, check if we visited all empty cells.
-            if grid[r][c] == 2:
-                return 1 if zero == -1 else 0
-            # Mark cell as visited by setting it to -1.
-            grid[r][c] = -1
-            zero -= 1
-            # Explore all 4 adjacent cells.
-            total_paths = (dfs(r + 1, c, zero) + dfs(r - 1, c, zero) +
-                           dfs(r, c + 1, zero) + dfs(r, c - 1, zero))
-            # Backtrack: restore the cell value and increment the zero count.
-            grid[r][c] = 0
-            zero += 1
-            return total_paths
-
-        return dfs(sx, sy, zero)
-
-    # -----------------------------------------------------------------------
     # 16. Combination Sum III (LC 216) — T2
     # Find all valid combinations of k numbers that sum up to n such that the following conditions are true: Return a list of all possible valid combinations. The list must not contain the same combination twice, and the combinations may be returned in any order.
     # Example: k = 3, n = 7 → [[1,2,4]]
@@ -545,44 +433,6 @@ class RecursionBacktrackingSolutionsT2:
         # Begin backtracking search from index 0.
         backtrack(0, "")
         return res
-
-    # -----------------------------------------------------------------------
-    # 18. Sudoku Solver (LC 37) — T2
-    # Write a program to solve a Sudoku puzzle by filling the empty cells. A sudoku solution must satisfy all of the following rules: The '.' character indicates empty cells.
-    # Example: board = [["5","3",".",".","7",".",".",".","."],["6",".",".","1","9","5",".",".","."],[".","9" → [["5","3","4","6","7","8","9","1","2"],["6","7","2","1","9","5","3","4","8"],["1","9","8","3
-    # Constraints: board.length == 9, board[i].length == 9, board[i][j] is a digit or '.', It is guaranteed that the input board has only one solution
-    # Time: O(9^m) where m is the number of empty cells, Space: O(1)
-    # -----------------------------------------------------------------------
-    def solveSudoku(self, board: List[List[str]]) -> None:
-        """Sudoku Solver (LC 37): Use recursive backtracking with a nested solve function."""
-        def is_valid(r, c, k):
-            """Returns whether the current candidate satisfies the problem constraints."""
-            # Check row and column constraints.
-            for i in range(9):
-                if board[i][c] == k or board[r][i] == k:
-                    return False
-                # Check the 3x3 sub-box constraint.
-                if board[3 * (r // 3) + i // 3][3 * (c // 3) + i % 3] == k:
-                    return False
-            return True
-
-        def solve():
-            # Find the first empty cell on the board.
-            for r in range(9):
-                for c in range(9):
-                    if board[r][c] == '.':
-                        # Try placing each digit from 1 to 9.
-                        for k in map(str, range(1, 10)):
-                            if is_valid(r, c, k):
-                                board[r][c] = k
-                                # Recurse. If successful, keep this placement.
-                                if solve():
-                                    return True
-                                # Backtrack: clear the cell.
-                                board[r][c] = '.'
-                        return False
-            return True
-        solve()
 
 class RecursionBacktrackingSolutionsT3:
     # -----------------------------------------------------------------------
@@ -755,61 +605,6 @@ class RecursionBacktrackingSolutionsT3:
         return backtrack(0)
 
     # -----------------------------------------------------------------------
-    # 25. Remove Invalid Parentheses (LC 301)
-    # Given a string s that contains parentheses and letters, remove the minimum number of invalid parentheses to make the input string valid. Return a list of unique results.
-    # Example: s = "()())()" → ["()()()", "(())()"]
-    # Constraints: 1 <= s.length <= 25, s consists of lowercase English letters and parentheses '(' and ')', There will be at most 20 parentheses in s
-    # Time: O(2^n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def removeInvalidParentheses(self, s: str) -> List[str]:
-        rem_open = rem_close = 0
-        # Count unmatched opening and closing parentheses that must be removed.
-        for c in s:
-            if c == '(':
-                rem_open += 1
-            elif c == ')':
-                # An open paren matches a closing paren.
-                if rem_open > 0:
-                    rem_open -= 1
-                else:
-                    rem_close += 1
-
-        res = set()
-
-        def backtrack(i, left_rem, right_rem, open_count, current):
-            """Backtracking helper that explores candidate states for the enclosing solution."""
-            # Base case: processed all characters in string.
-            if i == len(s):
-                # Verify that required removals are met and parenthesis balance is zero.
-                if left_rem == 0 and right_rem == 0 and open_count == 0:
-                    res.add(current)
-                return
-            c = s[i]
-            # Choice 1: Remove '(' if we still have rem_open allowance.
-            if c == '(' and left_rem > 0:
-                backtrack(i + 1, left_rem - 1, right_rem, open_count, current)
-            # Choice 1: Remove ')' if we still have rem_close allowance.
-            if c == ')' and right_rem > 0:
-                backtrack(i + 1, left_rem, right_rem - 1, open_count, current)
-            
-            # Choice 2: Keep the character.
-            current += c
-            if c == '(':
-                # Increment balance of open parenthesis.
-                backtrack(i + 1, left_rem, right_rem, open_count + 1, current)
-            elif c == ')':
-                # Decrement balance only if we have matching open parenthesis available.
-                if open_count > 0:
-                    backtrack(i + 1, left_rem, right_rem, open_count - 1, current)
-            else:
-                # Keep non-parenthesis characters.
-                backtrack(i + 1, left_rem, right_rem, open_count, current)
-
-        # Start backtracking from index 0.
-        backtrack(0, rem_open, rem_close, 0, "")
-        return list(res)
-
-    # -----------------------------------------------------------------------
     # 26. Strobogrammatic Number II (LC 247)
     # Given an integer n, return all the strobogrammatic numbers that are of length n. A strobogrammatic number is a number that looks the same when rotated 180 degrees (upside down).
     # Example: n = 2 → ["11","69","88","96"]
@@ -928,10 +723,6 @@ if __name__ == "__main__":
     res = sorted([sorted(c) for c in sol2.combinationSum2([10, 1, 2, 7, 6, 1, 5], 8)])
     assert res == [[1, 1, 6], [1, 2, 5], [1, 7], [2, 6]]
 
-    # solveNQueens
-    res = sol2.solveNQueens(4)
-    assert len(res) == 2
-
     # partition (palindrome partitioning)
     res = sorted([sorted(p) for p in sol2.partition("aab")])
     assert ["a", "a", "b"] in [sorted(p) for p in sol2.partition("aab")]
@@ -950,30 +741,9 @@ if __name__ == "__main__":
     assert sol2.findTargetSumWays([1, 1, 1, 1, 1], 3) == 5
     assert sol2.findTargetSumWays([1], 1) == 1
 
-    # wordBreak (all decompositions)
-    res = sorted(sol2.wordBreak("catsanddog", ["cat", "cats", "and", "sand", "dog"]))
-    assert res == sorted(["cats and dog", "cat sand dog"])
-
-    # uniquePathsIII
-    grid = [[1, 0, 0, 0], [0, 0, 0, 0], [0, 0, 2, -1]]
-    assert sol2.uniquePathsIII(grid) == 2
-
     # combinationSum3
     res = sorted([sorted(c) for c in sol2.combinationSum3(3, 7)])
     assert res == [[1, 2, 4]]
-
-    # solveSudoku
-    board = [["5","3",".",".","7",".",".",".","."],
-             ["6",".",".","1","9","5",".",".","."],
-             [".","9","8",".",".",".",".","6","."],
-             ["8",".",".",".","6",".",".",".","3"],
-             ["4",".",".","8",".","3",".",".","1"],
-             ["7",".",".",".","2",".",".",".","6"],
-             [".","6",".",".",".",".","2","8","."],
-             [".",".",".","4","1","9",".",".","5"],
-             [".",".",".",".","8",".",".","7","9"]]
-    sol2.solveSudoku(board)
-    assert board[0][2] == "4"  # known solution cell
 
     sol3 = RecursionBacktrackingSolutionsT3()
 
@@ -1001,11 +771,6 @@ if __name__ == "__main__":
     # canPartitionKSubsets
     assert sol3.canPartitionKSubsets([4, 3, 2, 3, 5, 2, 1], 4) == True
     assert sol3.canPartitionKSubsets([1, 2, 3, 4], 3) == False
-
-    # removeInvalidParentheses
-    res = set(sol3.removeInvalidParentheses("()())()"))
-    assert res == {"()()()", "(())()"}
-    assert sol3.removeInvalidParentheses(")(") == [""]
 
     # findStrobogrammatic
     res = sorted(sol3.findStrobogrammatic(2))

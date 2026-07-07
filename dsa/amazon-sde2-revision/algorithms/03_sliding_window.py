@@ -17,45 +17,8 @@ Patterns covered in this module:
 from collections import Counter, defaultdict
 from typing import List
 
-from sortedcontainers import SortedList
-
 
 class SlidingWindowSolutions:
-
-    # -----------------------------------------------------------------------
-    # 1. Minimum Window Substring (LC 76) — T3
-    # find smallest window in s containing all chars of t
-    # Time: O(|s| + |t|)
-    # -----------------------------------------------------------------------
-    def min_window(self, s: str, t: str) -> str:
-        """Pattern: VARIABLE window."""
-        if not t or not s:
-            return ""
-        need = Counter(t)
-        required = len(need)
-        formed = 0
-        window = {}
-        l = 0
-        best = (float("inf"), 0, 0)  # (length, left, right)
-        for r, ch in enumerate(s):
-            # Add current character to window frequency map.
-            window[ch] = window.get(ch, 0) + 1
-            # If current character frequency matches the target frequency in need, increment formed count.
-            if ch in need and window[ch] == need[ch]:
-                formed += 1
-            # Shrink window from left as long as all required character frequencies are satisfied.
-            while formed == required:
-                # Update best window if current window is smaller.
-                if r - l + 1 < best[0]:
-                    best = (r - l + 1, l, r)
-                lch = s[l]
-                # Remove left character from window frequency.
-                window[lch] -= 1
-                # If window count of left character falls below target frequency, decrement formed count.
-                if lch in need and window[lch] < need[lch]:
-                    formed -= 1
-                l += 1
-        return "" if best[0] == float("inf") else s[best[1]: best[2] + 1]
 
     # -----------------------------------------------------------------------
     # 2. Longest Substring Without Repeating Characters (LC 3) — T2
@@ -295,32 +258,6 @@ class SlidingWindowSolutions:
         return best
 
     # -----------------------------------------------------------------------
-    # 13. Subarrays with K Different Integers (LC 992) — T3
-    # count subarrays with exactly k distinct values
-    # Time: O(n)
-    # -----------------------------------------------------------------------
-    def subarrays_with_k_distinct(self, nums: List[int], k: int) -> int:
-        def at_most(k: int) -> int:
-            """Pattern: VARIABLE window, exact-K trick."""
-            count: dict = {}
-            l = res = 0
-            for r in range(len(nums)):
-                # Increment count for current element.
-                count[nums[r]] = count.get(nums[r], 0) + 1
-                # Shrink window if distinct elements exceed k.
-                while len(count) > k:
-                    lv = nums[l]
-                    count[lv] -= 1
-                    if count[lv] == 0:
-                        del count[lv]
-                    l += 1
-                # Add all valid subarrays ending at index r.
-                res += r - l + 1
-            return res
-
-        return at_most(k) - at_most(k - 1)
-
-    # -----------------------------------------------------------------------
     # 14. Minimum Operations to Reduce X to Zero (LC 1658) — T3
     # remove elements from either end summing to x; min removals
     # Time: O(n)
@@ -452,31 +389,6 @@ class SlidingWindowSolutions:
         # Window size len(nums) - l is the max size reached.
         return len(nums) - l
 
-    # -----------------------------------------------------------------------
-    # 20. Sliding Window Median (LC 480) — T3
-    # median of every window of size k
-    # Time: O(n log k)
-    # -----------------------------------------------------------------------
-    def median_sliding_window(self, nums: List[int], k: int) -> List[float]:
-        """Pattern: FIXED window of size k."""
-        window: SortedList = SortedList()
-        res: List[float] = []
-        for i, n in enumerate(nums):
-            # Add incoming element.
-            window.add(n)
-            # Remove element falling out of window.
-            if len(window) > k:
-                window.remove(nums[i - k])
-            # If window is complete, calculate median.
-            if len(window) == k:
-                # Odd size window: middle element.
-                if k & 1:
-                    res.append(float(window[k // 2]))
-                # Even size window: average of two middle elements.
-                else:
-                    res.append((window[k // 2 - 1] + window[k // 2]) / 2.0)
-        return res
-
 
 # ---------------------------------------------------------------------------
 
@@ -488,11 +400,6 @@ if __name__ == "__main__":
         """Predicate helper used to validate a candidate state or answer."""
         if got != expected:
             failures.append(f"FAIL {name}: got {got!r}, expected {expected!r}")
-
-    # 1. min_window
-    check("min_window basic", sol.min_window("ADOBECODEBANC", "ABC"), "BANC")
-    check("min_window single", sol.min_window("a", "a"), "a")
-    check("min_window impossible", sol.min_window("a", "aa"), "")
 
     # 2. length_of_longest_substring
     check("longest_no_repeat abcabcbb", sol.length_of_longest_substring("abcabcbb"), 3)
@@ -536,10 +443,6 @@ if __name__ == "__main__":
     check("total_fruit [0,1,2,2]", sol.total_fruit([0, 1, 2, 2]), 3)
     check("total_fruit [1,2,3,2,2]", sol.total_fruit([1, 2, 3, 2, 2]), 4)
 
-    # 13. subarrays_with_k_distinct
-    check("k_distinct [1,2,1,2,3] k=2", sol.subarrays_with_k_distinct([1, 2, 1, 2, 3], 2), 7)
-    check("k_distinct [1,2,1,3,4] k=3", sol.subarrays_with_k_distinct([1, 2, 1, 3, 4], 3), 3)
-
     # 14. min_operations
     check("min_ops [1,1,4,2,3] x=5", sol.min_operations([1, 1, 4, 2, 3], 5), 2)
     check("min_ops [5,6,7,8,9] x=4", sol.min_operations([5, 6, 7, 8, 9], 4), -1)
@@ -567,14 +470,6 @@ if __name__ == "__main__":
     # 19. longest_ones_fixed_style (same answers as #11)
     check("longest_ones_fixed [1,1,1,0,0,0,1,1,1,1,0] k=2",
           sol.longest_ones_fixed_style([1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0], 2), 6)
-
-    # 20. sliding window median
-    check("median [1,3,-1,-3,5,3,6,7] k=3",
-          sol.median_sliding_window([1, 3, -1, -3, 5, 3, 6, 7], 3),
-          [1.0, -1.0, -1.0, 3.0, 5.0, 6.0])
-    check("median [1,2] k=1",
-          sol.median_sliding_window([1, 2], 1),
-          [1.0, 2.0])
 
     if failures:
         for f in failures:

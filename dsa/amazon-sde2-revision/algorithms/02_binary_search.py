@@ -19,31 +19,6 @@ import math
 
 class BinarySearchSolutions:
     # -----------------------------------------------------------------------
-    # 1. Binary Search (LC 704) — T1
-    # Given an array of integers nums which is sorted in ascending order, and an integer target, write a function to search target in nums. If target exists, then return its index. Otherwise, return -1. You must write an algorithm with O(log n) runtime complexity.
-    # Example: nums = [-1,0,3,5,9,12], target = 9 → 4
-    # Constraints: 1 <= nums.length <= 10^4, 10^4 < nums[i], target < 10^4, All the integers in nums are unique, nums is sorted in ascending order
-    # Time: O(log n), Space: O(1)
-    # -----------------------------------------------------------------------
-    def search(self, nums: List[int], target: int) -> int:
-        # Initialize left and right pointers covering the entire array.
-        l, r = 0, len(nums) - 1
-        while l <= r:
-            # Find the midpoint of the current search interval.
-            m = (l + r) // 2
-            # If target is larger than mid element, search the right half.
-            if nums[m] < target:
-                l = m + 1
-            # If target is smaller than mid element, search the left half.
-            elif nums[m] > target:
-                r = m - 1
-            # Target found, return its index.
-            else:
-                return m
-        # Target not found in the array.
-        return -1
-
-    # -----------------------------------------------------------------------
     # 2. Search in Rotated Sorted Array (LC 33) — T1
     # There is an integer array nums sorted in ascending order (with distinct values). Prior to being passed to your function, nums is possibly left rotated at an unknown index k (1 <= k < nums.length) such that the resulting array is [nums[k], nums[k+1], ..., nums[n-1], nums[0], nums[1], ..., nums[k-1]] (0-indexed). For example, [0,1,2,4,5,6,7] might be left rotated by 3 indices and become [4,5,6,7,0,1,2]. Given the array nums after the possible rotation and an integer target, return the index of target if it is in nums, or -1 if it is not in nums. You must write an algorithm with O(log n) runtime complexity.
     # Example: nums = [4,5,6,7,0,1,2], target = 0 → 4
@@ -155,48 +130,6 @@ class BinarySearchSolutions:
                 return True
         return False
 
-    # -----------------------------------------------------------------------
-    # 5. Median of Two Sorted Arrays (LC 4) — T3
-    # Given two sorted arrays nums1 and nums2 of size m and n respectively, return the median of the two sorted arrays. The overall run time complexity should be O(log (m+n)).
-    # Time: O(log(min(m,n))), Space: O(1)
-    # -----------------------------------------------------------------------
-    def findMedianSortedArrays(self, nums1: List[int], nums2: List[int]) -> float:
-        A, B = nums1, nums2
-        # Ensure A is the smaller array to bound the binary search range.
-        if len(A) > len(B):
-            A, B = B, A
-        
-        total = len(A) + len(B)
-        half = total // 2
-        
-        # Binary search range on partition index of array A.
-        l, r = 0, len(A) - 1
-        while True:
-            # i is the partition index of array A.
-            i = (l + r) // 2
-            # j is the partition index of array B, computed so that the left partition size is constant.
-            j = half - i - 2
-            
-            # Boundary values for left and right partitions of A and B.
-            aLeft = A[i] if i >= 0 else float('-inf')
-            aRight = A[i + 1] if (i + 1) < len(A) else float('inf')
-            bLeft = B[j] if j >= 0 else float('-inf')
-            bRight = B[j + 1] if (j + 1) < len(B) else float('inf')
-            
-            # Check if partitions are correctly placed.
-            if aLeft <= bRight and bLeft <= aRight:
-                # If total length is odd, the median is the minimum of the right partition.
-                if total % 2:
-                    return float(min(aRight, bRight))
-                # If total length is even, median is average of max of lefts and min of rights.
-                return (max(aLeft, bLeft) + min(aRight, bRight)) / 2
-            elif aLeft > bRight:
-                # Left side of partition A is too large; reduce the partition size in A.
-                r = i - 1
-            else:
-                # Right side of partition A is too small; increase the partition size in A.
-                l = i + 1
-
 class BinarySearchSolutionsT2:
     # -----------------------------------------------------------------------
     # 6. Capacity to Ship Packages Within D Days (LC 1011) — T2
@@ -227,29 +160,6 @@ class BinarySearchSolutionsT2:
             else:
                 l = cap + 1
         return res
-
-    # -----------------------------------------------------------------------
-    # 7. Find Minimum in Rotated Sorted Array II (LC 154) — T2
-    # Suppose an array of length n sorted in ascending order is rotated between 1 and n times. For example, the array nums = [0,1,4,4,5,6,7] might become: Notice that rotating an array [a[0], a[1], a[2], ..., a[n-1]] 1 time results in the array [a[n-1], a[0], a[1], a[2], ..., a[n-2]]. Given the sorted rotated array nums that may contain duplicates, return the minimum element of this array. You must decrease the overall operation steps as much as possible.
-    # Example: nums = [1,3,5] → 1
-    # Constraints: n == nums.length, 1 <= n <= 5000, 5000 <= nums[i] <= 5000, nums is sorted and rotated between 1 and n times, Follow up: This problem is similar to Find Minimum in Rotated Sorted Array, but nums may contain, duplicates. Would this affect the runtime complexity? How and why?
-    # Time: O(n) worst case, O(log n) average, Space: O(1)
-    # -----------------------------------------------------------------------
-    def findMinII(self, nums: List[int]) -> int:
-        # Initialize boundaries covering the array indices.
-        l, r = 0, len(nums) - 1
-        while l < r:
-            m = l + (r - l) // 2
-            # If mid element is greater than right boundary, min lies in the right side.
-            if nums[m] > nums[r]:
-                l = m + 1
-            # If mid element is less than right boundary, min is at or to the left of mid.
-            elif nums[m] < nums[r]:
-                r = m
-            # If mid element equals right boundary, we cannot determine; shrink right pointer.
-            else:
-                r -= 1
-        return nums[l]
 
     # -----------------------------------------------------------------------
     # 8. Search in Rotated Sorted Array II (LC 81) — T2
@@ -317,36 +227,6 @@ class BinarySearchSolutionsT2:
                 else:
                     r = m - 1
             return res
-
-    # -----------------------------------------------------------------------
-    # 13. Sqrt(x) (LC 69) — T2
-    # Given a non-negative integer x, return the square root of x rounded down to the nearest integer. The returned integer should be non-negative as well. You must not use any built-in exponent function or operator.
-    # Example: x = 4 → 2
-    # Constraints: 0 <= x <= 2^31 - 1
-    # Time: O(log x), Space: O(1)
-    # -----------------------------------------------------------------------
-    def mySqrt(self, x: int) -> int:
-        if x == 0:
-            return 0
-
-        left, right = 1, x
-        res = 0
-
-        while left <= right:
-            mid = left + (right - left) // 2
-
-            # If mid squared exceeds x, target square root must be smaller.
-            if mid * mid > x:
-                right = mid - 1
-            # If mid squared is less than x, record mid as candidate and try larger.
-            elif mid * mid < x:
-                left = mid + 1
-                res = mid
-            # Perfect square found.
-            else:
-                return mid
-
-        return res
 
 class BinarySearchSolutionsL4:
     # -----------------------------------------------------------------------
@@ -475,55 +355,6 @@ class BinarySearchSolutionsL4:
 
 
     # -----------------------------------------------------------------------
-    # 7. Count of Smaller Numbers After Self (LC 315)
-    # For each nums[i], count elements to its right that are smaller.
-    # Time: O(n log n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def countSmaller(self, nums: List[int]) -> List[int]:
-        from bisect import bisect_left, insort
-        sorted_list: List[int] = []
-        result: List[int] = []
-        # Traverse right-to-left.
-        for num in reversed(nums):
-            # The rank of num in our sorted list of elements seen so far
-            # is exactly the count of elements smaller than num to its right.
-            result.append(bisect_left(sorted_list, num))
-            # Insert the current element to keep our seen list sorted.
-            insort(sorted_list, num)
-        # Reverse the collected result to restore original left-to-right order.
-        return result[::-1]
-
-    # -----------------------------------------------------------------------
-    # 8. Split Array Largest Sum (LC 410)
-    # Split nums into m non-empty subarrays to minimize the largest subarray sum.
-    # Time: O(n log(sum)), Space: O(1)
-    # -----------------------------------------------------------------------
-    def splitArray(self, nums: List[int], m: int) -> int:
-        # Greedy feasibility check: can we partition nums with max subarray sum <= max_sum?
-        def feasible(max_sum: int) -> bool:
-            """Predicate helper used by binary search on the answer."""
-            splits, curr = 1, 0
-            for n in nums:
-                # If current subarray sum exceeds max_sum, start a new subarray split.
-                if curr + n > max_sum:
-                    splits += 1
-                    curr = 0
-                curr += n
-            # Return True if the number of splits required doesn't exceed m.
-            return splits <= m
-
-        l, r = max(nums), sum(nums)
-        while l < r:
-            mid = l + (r - l) // 2
-            # If mid is feasible, try to find a smaller maximum sum.
-            if feasible(mid):
-                r = mid
-            # Otherwise, mid is too small; we need a larger limit.
-            else:
-                l = mid + 1
-        return l
-
-    # -----------------------------------------------------------------------
     # 9. Maximum Side Length of a Square with Sum <= Threshold (LC 1292)
     # Return the max side length of a square submatrix with sum <= threshold.
     # Time: O(m * n * log(min(m,n))), Space: O(m * n)
@@ -567,10 +398,6 @@ if __name__ == "__main__":
     sol = BinarySearchSolutions()
     sol2 = BinarySearchSolutionsT2()
 
-    # search
-    assert sol.search([-1, 0, 3, 5, 9, 12], 9) == 4
-    assert sol.search([-1, 0, 3, 5, 9, 12], 2) == -1
-
     # searchMatrix
     assert sol.searchMatrix([[1, 3, 5, 7], [10, 11, 16, 20], [23, 30, 34, 60]], 3) == True
     assert sol.searchMatrix([[1, 3, 5, 7], [10, 11, 16, 20], [23, 30, 34, 60]], 13) == False
@@ -587,10 +414,6 @@ if __name__ == "__main__":
     # searchRotated
     assert sol.searchRotated([4, 5, 6, 7, 0, 1, 2], 0) == 4
     assert sol.searchRotated([4, 5, 6, 7, 0, 1, 2], 3) == -1
-
-    # findMedianSortedArrays
-    assert sol.findMedianSortedArrays([1, 3], [2]) == 2.0
-    assert sol.findMedianSortedArrays([1, 2], [3, 4]) == 2.5
 
     # shipWithinDays
     assert sol2.shipWithinDays([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 5) == 15
@@ -609,11 +432,6 @@ if __name__ == "__main__":
     tm.set("foo", "bar2", 4)
     assert tm.get("foo", 4) == "bar2"
     assert tm.get("foo", 5) == "bar2"
-
-    # mySqrt
-    assert sol2.mySqrt(4) == 2
-    assert sol2.mySqrt(8) == 2
-    assert sol2.mySqrt(0) == 0
 
     sol4 = BinarySearchSolutionsL4()
 
@@ -644,15 +462,6 @@ if __name__ == "__main__":
     # findClosestElements (LC 658)
     assert sol4.findClosestElements([1, 2, 3, 4, 5], 4, 3) == [1, 2, 3, 4]
     assert sol4.findClosestElements([1, 2, 3, 4, 5], 4, -1) == [1, 2, 3, 4]
-
-    # countSmaller (LC 315)
-    assert sol4.countSmaller([5, 2, 6, 1]) == [2, 1, 1, 0]
-    assert sol4.countSmaller([-1]) == [0]
-    assert sol4.countSmaller([-1, -1]) == [0, 0]
-
-    # splitArray (LC 410)
-    assert sol4.splitArray([7, 2, 5, 10, 8], 2) == 18
-    assert sol4.splitArray([1, 2, 3, 4, 5], 2) == 9
 
     # maxSideLength (LC 1292)
     assert sol4.maxSideLength([[1, 1, 3, 2, 4, 3, 2],

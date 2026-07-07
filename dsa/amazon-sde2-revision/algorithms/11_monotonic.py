@@ -48,31 +48,6 @@ class MonotonicSolutions:
         return answer
 
     # -------------------------------------------------------------------------
-    # 2. Next Greater Element I (LC 496) — T1
-    # nums1 is a subset of nums2 (all unique). For each x in nums1 find the
-    # first element in nums2 to the right of x that is greater than x.
-    # Return -1 if none exists.
-    # Example: nums1=[4,1,2], nums2=[1,3,4,2] → [-1,3,-1]
-    # Constraints: 1 <= m <= 1000, 1 <= n <= 1e4, all unique
-    # Time: O(m+n), Space: O(m+n)
-    # -------------------------------------------------------------------------
-    def nextGreaterElement(self, nums1: List[int], nums2: List[int]) -> List[int]:
-        # Map to store the next greater element for each value in nums2
-        next_greater = {}
-        # Monotonically decreasing stack of values
-        stack = []
-        # Iterate through values in nums2
-        for val in nums2:
-            # While stack is not empty and current value is greater than the stack top value
-            while stack and stack[-1] < val:
-                # Pop from stack and map its next greater value to the current val
-                next_greater[stack.pop()] = val
-            # Push the current value onto the stack
-            stack.append(val)
-        # For each element in nums1, query the map or return -1 if not present
-        return [next_greater.get(x, -1) for x in nums1]
-
-    # -------------------------------------------------------------------------
     # 3. Next Greater Element II (LC 503) — T1
     # Circular array — wrap around. Return next greater element for each pos.
     # Example: nums=[1,2,1] → [2,-1,2]
@@ -158,32 +133,6 @@ class MonotonicSolutions:
             # Push the current index onto the stack
             stack.append(i)
         return result
-
-    # -------------------------------------------------------------------------
-    # 6. Largest Rectangle in Histogram (LC 84) — T2
-    # Given bar heights, find the largest rectangle area.
-    # Example: heights=[2,1,5,6,2,3] → 10
-    # Constraints: 1 <= n <= 1e5, 0 <= heights[i] <= 1e4
-    # Time: O(n), Space: O(n)
-    # -------------------------------------------------------------------------
-    def largestRectangleArea(self, heights: List[int]) -> int:
-        # Monotonic increasing stack initialized with a sentinel -1
-        stack = [-1]
-        # Track the maximum area found so far
-        max_area = 0
-        # Iterate over heights with a trailing sentinel 0 to flush the remaining bars
-        for i, h in enumerate(heights + [0]):
-            # While stack contains elements (other than sentinel) and current height is less than stack top height
-            while stack[-1] != -1 and heights[stack[-1]] >= h:
-                # Pop the bar index to calculate its rectangle area
-                height = heights[stack.pop()]
-                # The width extends from the popped index to the new top of stack
-                width = i - stack[-1] - 1
-                # Update max_area if the current rectangle is larger
-                max_area = max(max_area, height * width)
-            # Push current index onto the stack
-            stack.append(i)
-        return max_area
 
     # -------------------------------------------------------------------------
     # 7. Sum of Subarray Minimums (LC 907) — T2
@@ -314,65 +263,6 @@ class MonotonicSolutions:
         return max_width
 
     # -------------------------------------------------------------------------
-    # 11. Sliding Window Maximum (LC 239) — T2
-    # Return the max of each window of size k as it slides over nums.
-    # Example: nums=[1,3,-1,-3,5,3,6,7], k=3 → [3,3,5,5,6,7]
-    # Constraints: 1 <= n <= 1e5, -1e4 <= nums[i] <= 1e4, 1 <= k <= n
-    # Time: O(n), Space: O(k)
-    # -------------------------------------------------------------------------
-    def maxSlidingWindow(self, nums: List[int], k: int) -> List[int]:
-        # Deque to store indices, maintaining monotonic decreasing order of values
-        dq = collections.deque()
-        # List to store maximum values of each window
-        result = []
-        # Iterate over array elements
-        for i, val in enumerate(nums):
-            # Remove indices that have slid out of the current window boundary
-            while dq and dq[0] < i - k + 1:
-                dq.popleft()
-            # Remove elements from back that are smaller than current value to maintain decreasing order
-            while dq and nums[dq[-1]] < val:
-                dq.pop()
-            # Append current index to the deque
-            dq.append(i)
-            # Once we've processed at least k elements, record the maximum (at the front of deque)
-            if i >= k - 1:
-                result.append(nums[dq[0]])
-        return result
-
-    # -------------------------------------------------------------------------
-    # 12. Constrained Subsequence Sum (LC 1425) — T3
-    # Choose a non-empty subsequence of nums such that for any two consecutive
-    # chosen indices i < j, j - i <= k. Maximise the sum.
-    # Example: nums=[10,2,-10,5,20], k=2 → 37
-    # Constraints: 1 <= n <= 1e5, -1e4 <= nums[i] <= 1e4, 1 <= k <= n
-    # Time: O(n), Space: O(n)
-    # -------------------------------------------------------------------------
-    def constrainedSubsetSum(self, nums: List[int], k: int) -> int:
-        # Get length of nums
-        n = len(nums)
-        # DP array to store the maximum subsequence sum ending at each index
-        dp = [0] * n
-        # Deque to store indices of DP values, keeping them in monotonic decreasing order
-        dq = collections.deque()
-        # Iterate through the elements
-        for i in range(n):
-            # Remove indices that are further than k distance back from current index
-            while dq and dq[0] < i - k:
-                dq.popleft()
-            # Get the best previous sum from the front of the deque (or 0 if empty/negative)
-            best_prev = dp[dq[0]] if dq else 0
-            # Calculate DP value: current number plus the best valid previous subsequence sum (if positive)
-            dp[i] = nums[i] + max(0, best_prev)
-            # Maintain decreasing order in the deque
-            while dq and dp[dq[-1]] <= dp[i]:
-                dq.pop()
-            # Add current index to deque
-            dq.append(i)
-        # The answer is the maximum value in the DP array
-        return max(dp)
-
-    # -------------------------------------------------------------------------
     # 13. Jump Game VI (LC 1696) — T2
     # You start at index 0. Each turn from index i you can jump to any index
     # in [i+1, i+k]. Score = sum of nums at visited indices. Maximise score.
@@ -403,38 +293,6 @@ class MonotonicSolutions:
             dq.append(i)
         # Return the score to reach the last index
         return dp[-1]
-
-    # -------------------------------------------------------------------------
-    # 14. Shortest Subarray with Sum at Least K (LC 862) — T3
-    # Find the length of the shortest subarray with sum >= k. Return -1 if none.
-    # Example: nums=[2,-1,2], k=3 → 3
-    # Constraints: 1 <= n <= 5e4, -1e5 <= nums[i] <= 1e5, 1 <= k <= 1e9
-    # Time: O(n), Space: O(n)
-    # -------------------------------------------------------------------------
-    def shortestSubarray(self, nums: List[int], k: int) -> int:
-        # Get length of array
-        n = len(nums)
-        # Initialize prefix sum array of size n + 1
-        prefix = [0] * (n + 1)
-        # Build the prefix sum array
-        for i in range(n):
-            prefix[i + 1] = prefix[i] + nums[i]
-        # Deque to store prefix indices, maintaining monotonic increasing prefix values
-        dq = collections.deque()
-        # Track minimum length found, initialized to infinity
-        result = float('inf')
-        # Iterate through prefix sum indices
-        for j in range(n + 1):
-            # If current prefix sum minus front prefix sum is at least k, update result
-            while dq and prefix[j] - prefix[dq[0]] >= k:
-                result = min(result, j - dq.popleft())
-            # Maintain increasing order of prefix sum values in deque
-            while dq and prefix[dq[-1]] >= prefix[j]:
-                dq.pop()
-            # Append current index to deque
-            dq.append(j)
-        # Return result if a valid subarray was found, otherwise -1
-        return result if result != float('inf') else -1
 
     # -------------------------------------------------------------------------
     # 15. Remove Duplicate Letters (LC 316) — T2
@@ -519,68 +377,6 @@ class MonotonicSolutions:
         return False
 
     # -------------------------------------------------------------------------
-    # 18. Trapping Rain Water (LC 42) — T2
-    # Given elevation map heights, compute total trapped water.
-    # Example: height=[0,1,0,2,1,0,1,3,2,1,2,1] → 6
-    # Constraints: 1 <= n <= 2e4, 0 <= height[i] <= 1e5
-    # Time: O(n), Space: O(n)  [also doable O(1) with two pointers]
-    # -------------------------------------------------------------------------
-    def trap(self, height: List[int]) -> int:
-        # Monotonically decreasing stack to store index of bars
-        stack = []
-        # Track total trapped water volume
-        water = 0
-        # Iterate through the height map
-        for i, h in enumerate(height):
-            # While stack is not empty and current height is greater than height at stack top index
-            while stack and height[stack[-1]] < h:
-                # Pop the bottom of the valley (the floor)
-                bottom = stack.pop()
-                # If stack becomes empty, there is no left wall to contain water; break
-                if not stack:
-                    break
-                # The index of the left wall is the current stack top
-                left = stack[-1]
-                # Calculate width between left wall and current bar
-                width = i - left - 1
-                # Bounded height is min of left and right walls minus the floor height
-                bounded_height = min(height[left], h) - height[bottom]
-                # Add trapped water volume to total
-                water += bounded_height * width
-            # Push current index onto stack
-            stack.append(i)
-        return water
-
-    # -------------------------------------------------------------------------
-    # 19. Maximal Rectangle (LC 85) — T3
-    # Given binary matrix, find the largest rectangle containing only 1s.
-    # Example: matrix=[["1","0","1","0","0"],
-    #                   ["1","0","1","1","1"],
-    #                   ["1","1","1","1","1"],
-    #                   ["1","0","0","1","0"]] → 6
-    # Constraints: rows,cols <= 200
-    # Time: O(rows * cols), Space: O(cols)
-    # -------------------------------------------------------------------------
-    def maximalRectangle(self, matrix: List[List[str]]) -> int:
-        # If matrix is empty, return 0
-        if not matrix or not matrix[0]:
-            return 0
-        # Number of columns
-        cols = len(matrix[0])
-        # Heights array representing histogram bar height for each column
-        heights = [0] * cols
-        # Track maximum area rectangle found
-        max_area = 0
-        # Iterate row by row
-        for row in matrix:
-            for j in range(cols):
-                # Update histogram height: increment by 1 if '1', reset to 0 if '0'
-                heights[j] = heights[j] + 1 if row[j] == '1' else 0
-            # Calculate maximum rectangle area using the histogram values for current row
-            max_area = max(max_area, self.largestRectangleArea(heights))
-        return max_area
-
-    # -------------------------------------------------------------------------
     # 20. Maximum Score of a Good Subarray (LC 2104) — T2
     # A "good subarray" contains index k. Score = min(nums[i..j]) * (j-i+1).
     # Maximise the score.
@@ -659,11 +455,6 @@ if __name__ == "__main__":
           sol.dailyTemperatures([73,74,75,71,69,72,76,73]),
           [1,1,4,2,1,1,0,0])
 
-    # 2. Next Greater Element I
-    check("nextGreaterElement",
-          sol.nextGreaterElement([4,1,2], [1,3,4,2]),
-          [-1,3,-1])
-
     # 3. Next Greater Element II
     check("nextGreaterElements",
           sol.nextGreaterElements([1,2,1]),
@@ -678,14 +469,6 @@ if __name__ == "__main__":
     check("nextSmallerElement",
           sol.nextSmallerElement([4,5,2,10,8]),
           [2,2,-1,4,-1])
-
-    # 6. Largest Rectangle in Histogram
-    check("largestRectangleArea [2,1,5,6,2,3]",
-          sol.largestRectangleArea([2,1,5,6,2,3]),
-          10)
-    check("largestRectangleArea [2,4]",
-          sol.largestRectangleArea([2,4]),
-          4)
 
     # 7. Sum of Subarray Minimums
     check("sumSubarrayMins [3,1,2,4]",
@@ -713,22 +496,6 @@ if __name__ == "__main__":
           sol.maxWidthRamp([9,8,1,0,1,9,4,0,4,1]),
           7)
 
-    # 11. Sliding Window Maximum
-    check("maxSlidingWindow k=3",
-          sol.maxSlidingWindow([1,3,-1,-3,5,3,6,7], 3),
-          [3,3,5,5,6,7])
-    check("maxSlidingWindow k=1",
-          sol.maxSlidingWindow([1], 1),
-          [1])
-
-    # 12. Constrained Subsequence Sum
-    check("constrainedSubsetSum k=2",
-          sol.constrainedSubsetSum([10,2,-10,5,20], 2),
-          37)
-    check("constrainedSubsetSum k=1 all neg",
-          sol.constrainedSubsetSum([-1,-2,-3], 1),
-          -1)
-
     # 13. Jump Game VI
     check("maxResult k=2",
           sol.maxResult([1,-1,-2,4,-7,3], 2),
@@ -736,17 +503,6 @@ if __name__ == "__main__":
     check("maxResult k=1",
           sol.maxResult([10,-5,-2,4,0,3], 3),
           17)
-
-    # 14. Shortest Subarray with Sum >= K
-    check("shortestSubarray [2,-1,2] k=3",
-          sol.shortestSubarray([2,-1,2], 3),
-          3)
-    check("shortestSubarray [1] k=1",
-          sol.shortestSubarray([1], 1),
-          1)
-    check("shortestSubarray [1,2] k=4",
-          sol.shortestSubarray([1,2], 4),
-          -1)
 
     # 15. Remove Duplicate Letters
     check("removeDuplicateLetters bcabc",
@@ -771,23 +527,6 @@ if __name__ == "__main__":
     check("find132pattern [3,1,4,2]", sol.find132pattern([3,1,4,2]), True)
     check("find132pattern [1,2,3,4]", sol.find132pattern([1,2,3,4]), False)
     check("find132pattern [3,5,0,3,4]", sol.find132pattern([3,5,0,3,4]), True)
-
-    # 18. Trapping Rain Water
-    check("trap [0,1,0,2,1,0,1,3,2,1,2,1]",
-          sol.trap([0,1,0,2,1,0,1,3,2,1,2,1]),
-          6)
-    check("trap [4,2,0,3,2,5]",
-          sol.trap([4,2,0,3,2,5]),
-          9)
-
-    # 19. Maximal Rectangle
-    matrix = [
-        ["1","0","1","0","0"],
-        ["1","0","1","1","1"],
-        ["1","1","1","1","1"],
-        ["1","0","0","1","0"],
-    ]
-    check("maximalRectangle", sol.maximalRectangle(matrix), 6)
 
     # 20. Maximum Score of a Good Subarray
     check("maximumScore [1,4,3,7,4,5] k=3",

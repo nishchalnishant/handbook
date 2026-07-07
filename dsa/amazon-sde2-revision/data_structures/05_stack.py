@@ -18,52 +18,6 @@ from typing import List
 
 class StackSolutions:
     # -----------------------------------------------------------------------
-    # 1. Valid Parentheses (LC 20) — T1
-    # Given a string s containing just the characters '(', ')', '{', '}', '[' and ']', determine if the input string is valid. An input string is valid if:
-    # Example: s = "()" → true
-    # Constraints: 1 <= s.length <= 10^4, s consists of parentheses only '()[]{}'
-    # Time: O(n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def isValid(self, s: str) -> bool:
-        """Valid Parentheses (LC 20): Use a stack to track unmatched open brackets."""
-        stack = []
-        mapping = {")": "(", "}": "{", "]": "["}
-        for char in s:
-            if char in mapping:
-                top_element = stack.pop() if stack else '#'
-                if mapping[char] != top_element:
-                    return False
-            else:
-                stack.append(char)
-        return not stack
-
-    # -----------------------------------------------------------------------
-    # 2. Trapping Rain Water (LC 42) — T1
-    # Given n non-negative integers representing an elevation map where the width of each bar is 1, compute how much water it can trap after raining.
-    # Example: height = [0,1,0,2,1,0,1,3,2,1,2,1] → 6
-    # Constraints: n == height.length, 1 <= n <= 2 * 10^4, 0 <= height[i] <= 10^5
-    # Time: O(n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def trap_stack(self, height: List[int]) -> int:
-        # Stack storing indices of boundaries
-        stack = []
-        res = 0
-        for i, h in enumerate(height):
-            # While stack is not empty and current height is greater than stack top
-            while stack and h > height[stack[-1]]:
-                top = stack.pop()
-                # Break if no left boundary exists
-                if not stack: break
-                # Calculate distance between current index and new top of the stack
-                distance = i - stack[-1] - 1
-                # Bounded height is the min of boundaries minus the floor height
-                bounded_height = min(h, height[stack[-1]]) - height[top]
-                res += distance * bounded_height
-            # Add current index to the stack
-            stack.append(i)
-        return res
-
-    # -----------------------------------------------------------------------
     # 3. Daily Temperatures — T1
     # Given an array of integers temperatures represents the daily temperatures, return an array answer such that answer[i] is the number of days you have to wait after the i^th day to get a warmer temperature. If there is no future day for which this is possible, keep answer[i] == 0 instead.
     # Example: temperatures = [73,74,75,71,69,72,76,73] → [1,1,4,2,1,1,0,0]
@@ -132,36 +86,6 @@ class MinStack:
 
     def getMin(self) -> int:
         return self.min_stack[-1]
-
-class MyQueue:
-    # -----------------------------------------------------------------------
-    # 2. Implement Queue using Stacks (LC 232) — T2
-    # Implement a first in first out (FIFO) queue using only two stacks. The implemented queue should support all the functions of a normal queue (push, peek, pop, and empty). Implement the MyQueue class: Notes: size, and is empty operations are valid. using a list or deque (double-ended queue) as long as you use only a stack's standard operations.
-    # Constraints: 1 <= x <= 9, At most 100 calls will be made to push, pop, peek, and empty, All the calls to pop and peek are valid, Follow-up: Can you implement the queue such that each operation is amortized O(1) time complexity?, In other words, performing n operations will take overall O(n) time even if one of those operations, may take longer
-    # Time: O(1) amortized per operation, Space: O(n)
-    # -----------------------------------------------------------------------
-    def __init__(self):
-        self.s1 = []
-        self.s2 = []
-
-    def push(self, x: int) -> None:
-        # Always append incoming elements to s1
-        self.s1.append(x)
-
-    def pop(self) -> int:
-        self.peek()
-        return self.s2.pop()
-
-    def peek(self) -> int:
-        # If output stack s2 is empty, transfer all elements from s1 to s2
-        if not self.s2:
-            while self.s1:
-                self.s2.append(self.s1.pop())
-        # Return top of output stack s2
-        return self.s2[-1]
-
-    def empty(self) -> bool:
-        return max(len(self.s1), len(self.s2)) == 0
 
 class StackSolutionsT2:
     # -----------------------------------------------------------------------
@@ -252,36 +176,6 @@ class StackSolutionsT2:
         return "".join(stack)
 
     # -----------------------------------------------------------------------
-    # 7. Maximal Rectangle (LC 85) — T2
-    # Given a rows x cols binary matrix filled with 0's and 1's, find the largest rectangle containing only 1's and return its area.
-    # Example: matrix = → 6
-    # Constraints: rows == matrix.length, cols == matrix[i].length, 1 <= rows, cols <= 200, matrix[i][j] is '0' or '1'
-    # Time: O(rows * cols), Space: O(cols)
-    # -----------------------------------------------------------------------
-    def maximalRectangle(self, matrix: List[List[str]]) -> int:
-        if not matrix: return 0
-        max_area = 0
-        dp = [0] * len(matrix[0])
-
-        for r in range(len(matrix)):
-            for c in range(len(matrix[0])):
-                if matrix[r][c] == "1": dp[c] += 1
-                else: dp[c] = 0
-
-            # Re-use largest rectangle in histogram logic
-            stack = []
-            for i, h in enumerate(dp):
-                start = i
-                while stack and stack[-1][1] > h:
-                    index, height = stack.pop()
-                    max_area = max(max_area, height * (i - index))
-                    start = index
-                stack.append((start, h))
-            for i, h in stack:
-                max_area = max(max_area, h * (len(dp) - i))
-        return max_area
-
-    # -----------------------------------------------------------------------
     # 8. Asteroid Collision (LC 735) — T2
     # We are given an array asteroids of integers representing asteroids in a row. The indices of the asteroid in the array represent their relative position in space. For each asteroid, the absolute value represents its size, and the sign represents its direction (positive meaning right, negative meaning left). Each asteroid moves at the same speed. Find out the state of the asteroids after all collisions. If two asteroids meet, the smaller one will explode. If both are the same size, both will explode. Two asteroids moving in the same direction will never meet.
     # Example: asteroids = [5,10,-5] → [5,10]
@@ -326,40 +220,6 @@ class StackSolutionsT2:
         res = "".join(stack).lstrip("0")
         # Return result or '0' if empty
         return res if res else "0"
-
-    # -----------------------------------------------------------------------
-    # 10. Basic Calculator (LC 224) — T2
-    # Given a string s representing a valid expression, implement a basic calculator to evaluate it, and return the result of the evaluation. Note: You are not allowed to use any built-in function which evaluates strings as mathematical expressions, such as eval().
-    # Example: s = "1 + 1" → 2
-    # Constraints: 1 <= s.length <= 3 * 10^5, s consists of digits, '+', '-', '(', ')', and ' ', s represents a valid expression, '+' is not used as a unary operation (i.e., "+1" and "+(2 + 3)" is invalid), '-' could be used as a unary operation (i.e., "-1" and "-(2 + 3)" is valid), There will be no two consecutive operators in the input, Every number and running calculation will fit in a signed 32-bit integer
-    # Time: O(n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def calculate(self, s: str) -> int:
-        # res: current level result, num: active parsing number, sign: +1 or -1
-        res, num, sign, stack = 0, 0, 1, []
-        for c in s:
-            # Accumulate multi-digit numbers
-            if c.isdigit():
-                num = 10 * num + int(c)
-            # Add previous number to result and update sign
-            elif c in "+-":
-                res += sign * num
-                num = 0
-                sign = 1 if c == "+" else -1
-            # Push current result and sign onto stack, reset for sub-expression
-            elif c == "(":
-                stack.append(res)
-                stack.append(sign)
-                sign = 1
-                res = 0
-            # Resolve sub-expression: add last number and apply popped sign/result
-            elif c == ")":
-                res += sign * num
-                num = 0
-                res *= stack.pop()
-                res += stack.pop()
-        # Add the final parsed number to the result
-        return res + sign * num
 
     # -----------------------------------------------------------------------
     # 11. Basic Calculator II (LC 227) — T2
@@ -412,95 +272,6 @@ class StockSpanner:
 
 
 class StackSolutionsL4:
-    # -----------------------------------------------------------------------
-    # 1. Longest Valid Parentheses (LC 32)
-    # Given a string containing just '(' and ')', return the length of the longest valid (well-formed) parentheses substring.
-    # Constraints: ─────────────────────────────────────────────────────────────────────────
-    # Time: O(n), Space: O(n)
-    # -----------------------------------------------------------------------
-    """Online Stock Span (LC 901). O(1) amortized per next()."""
-    def longestValidParentheses(self, s: str) -> int:
-        """Longest Valid Parentheses (LC 32): Use a stack initialized with sentinel -1."""
-        # Stack initialized with index base sentinel -1
-        stack = [-1]
-        max_len = 0
-        for i, c in enumerate(s):
-            # Push index of opening parenthesis
-            if c == '(':
-                stack.append(i)
-            # Encountered closing parenthesis
-            else:
-                # Pop matching index / sentinel
-                stack.pop()
-                # If stack is empty, push current index as new base sentinel
-                if not stack:
-                    stack.append(i)
-                # Compute valid window length
-                else:
-                    max_len = max(max_len, i - stack[-1])
-        return max_len
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # -----------------------------------------------------------------------
-    # 2. Maximum Score of a Good Subarray (LC 1793)
-    # Given an integer array nums (0-indexed) and an integer k, return the maximum score of a good subarray. A subarray [i..j] is good if i <= k <= j. The score of [i..j] is min(nums[i..j]) * (j - i + 1).
-    # Constraints: ─────────────────────────────────────────────────────────────────────────
-    # Time: O(n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def maximumScore(self, nums: List[int], k: int) -> int:
-        n = len(nums)
-        # Left boundary index where nums[left] < nums[i]
-        left = [-1] * n
-        # Right boundary index where nums[right] < nums[i]
-        right = [n] * n
-        stack: List[int] = []
-
-        # Find boundaries using a monotonic stack
-        for i in range(n):
-            # Resolve right boundaries for popped elements
-            while stack and nums[stack[-1]] >= nums[i]:
-                right[stack.pop()] = i
-            # Node on stack is the left boundary for current element
-            if stack:
-                left[i] = stack[-1]
-            stack.append(i)
-
-        ans = 0
-        # Calculate scores of all subarrays that contain index k
-        for i in range(n):
-            # Subarray spans left[i]+1 to right[i]-1 and must include index k
-            if left[i] < k < right[i]:
-                # Score is minimum height * width
-                ans = max(ans, nums[i] * (right[i] - left[i] - 1))
-        return ans
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # -----------------------------------------------------------------------
-    # 3. Number of Visible People in a Queue (LC 1944)
-    # There are n people standing in a queue, each with a distinct height heights[i]. Person i can see person j (j > i) iff for all k with i < k < j, heights[k] < min(heights[i], heights[j]). Return an array answer where answer[i] is the number of people person i can see.
-    # Time: O(n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def canSeePersonsCount(self, heights: List[int]) -> List[int]:
-        n = len(heights)
-        # Result array for each person's visible count
-        ans = [0] * n
-        # Monotonically decreasing heights stack from right to left
-        stack: List[int] = []
-        for i in range(n - 1, -1, -1):
-            count = 0
-            # Pop shorter people who are directly visible and then blocked
-            while stack and heights[i] > stack[-1]:
-                stack.pop()
-                count += 1
-            # If stack is not empty, the next taller person is also visible
-            if stack:
-                count += 1
-            ans[i] = count
-            # Push current person's height
-            stack.append(heights[i])
-        return ans
-
-    # ─────────────────────────────────────────────────────────────────────────
     # -----------------------------------------------------------------------
     # 4. Buildings With an Ocean View (LC 1762)
     # There are n buildings in a row. The ocean is to the right. A building has an ocean view if all buildings to its right are shorter. Return a list of indices (ascending) of buildings with an ocean view.
@@ -609,87 +380,10 @@ class StackSolutionsL4:
                 prev = ts + 1
         return res
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # -----------------------------------------------------------------------
-    # 8. Tag Validator (LC 591)
-    # Given a code snippet, validate it according to: CDATA (<![CDATA[...]]>), or text.
-    # Time: O(n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def isValidTag(self, code: str) -> bool:
-        stack: List[str] = []
-        i = 0
-        n = len(code)
-        # Must start with an open tag
-        if not code.startswith('<') or code.startswith('</'):
-            return False
-        while i < n:
-            if code[i] == '<':
-                if code[i:i+9] == '<![CDATA[':
-                    end = code.find(']]>', i + 9)
-                    if end == -1:
-                        return False
-                    i = end + 3
-                elif code[i+1:i+2] == '/':
-                    end = code.find('>', i + 2)
-                    if end == -1:
-                        return False
-                    tag = code[i+2:end]
-                    if not stack or stack[-1] != tag:
-                        return False
-                    stack.pop()
-                    i = end + 1
-                    # After outermost tag closed, nothing should remain valid
-                    if not stack and i < n:
-                        return False
-                else:
-                    end = code.find('>', i + 1)
-                    if end == -1:
-                        return False
-                    tag = code[i+1:end]
-                    if not (1 <= len(tag) <= 9 and tag.isupper() and tag.isalpha()):
-                        return False
-                    stack.append(tag)
-                    i = end + 1
-            else:
-                if not stack:
-                    return False
-                i += 1
-        return not stack
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # -----------------------------------------------------------------------
-    # 9. Make the String Great (LC 1544)
-    # Given a string s of lower and upper case letters. A string is "great" if there are no two adjacent characters s[i] and s[i+1] where they are the same letter but different cases. Remove such pairs repeatedly. Return the resulting great string (answer is unique).
-    # Time: O(n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def makeGood(self, s: str) -> str:
-        """Make the String Great (LC 1544): Use a stack and process each character."""
-        # Stack to build the good string
-        stack: List[str] = []
-        for c in s:
-            # Check if stack top and current char are same letter but opposite case
-            if stack and abs(ord(stack[-1]) - ord(c)) == 32:
-                # Remove canceling characters
-                stack.pop()
-            else:
-                # Push valid character
-                stack.append(c)
-        # Return resulting good string
-        return "".join(stack)
-
 
 if __name__ == "__main__":
     sol = StackSolutions()
     sol2 = StackSolutionsT2()
-
-    # isValid
-    assert sol.isValid("()[]{}") == True
-    assert sol.isValid("(]") == False
-    assert sol.isValid("{[]}") == True
-
-    # trap_stack
-    assert sol.trap_stack([0, 1, 0, 2, 1, 0, 1, 3, 2, 1, 2, 1]) == 6
-    assert sol.trap_stack([4, 2, 0, 3, 2, 5]) == 9
 
     # dailyTemperatures
     assert sol.dailyTemperatures([73, 74, 75, 71, 69, 72, 76, 73]) == [1, 1, 4, 2, 1, 1, 0, 0]
@@ -707,13 +401,6 @@ if __name__ == "__main__":
     assert ms.top() == 0
     assert ms.getMin() == -2
 
-    # MyQueue
-    q = MyQueue()
-    q.push(1); q.push(2)
-    assert q.peek() == 1
-    assert q.pop() == 1
-    assert q.empty() == False
-
     # nextGreaterElement
     assert sol2.nextGreaterElement([4, 1, 2], [1, 3, 4, 2]) == [-1, 3, -1]
     assert sol2.nextGreaterElement([2, 4], [1, 2, 3, 4]) == [3, -1]
@@ -729,10 +416,6 @@ if __name__ == "__main__":
     assert sol2.decodeString("3[a]2[bc]") == "aaabcbc"
     assert sol2.decodeString("3[a2[c]]") == "accaccacc"
 
-    # maximalRectangle
-    assert sol2.maximalRectangle([["1","0","1","0","0"],["1","0","1","1","1"],
-                                   ["1","1","1","1","1"],["1","0","0","1","0"]]) == 6
-
     # asteroidCollision
     assert sol2.asteroidCollision([5, 10, -5]) == [5, 10]
     assert sol2.asteroidCollision([8, -8]) == []
@@ -742,11 +425,6 @@ if __name__ == "__main__":
     assert sol2.removeKdigits("1432219", 3) == "1219"
     assert sol2.removeKdigits("10200", 1) == "200"
     assert sol2.removeKdigits("10", 2) == "0"
-
-    # calculate (Basic Calculator I)
-    assert sol2.calculate("1 + 1") == 2
-    assert sol2.calculate(" 2-1 + 2 ") == 3
-    assert sol2.calculate("(1+(4+5+2)-3)+(6+8)") == 23
 
     # calculateII (Basic Calculator II)
     assert sol2.calculateII("3+2*2") == 7
@@ -766,21 +444,6 @@ if __name__ == "__main__":
     # ── StackSolutionsL4 tests ────────────────────────────────────────────
     l4 = StackSolutionsL4()
 
-    # longestValidParentheses (LC 32)
-    assert l4.longestValidParentheses("(()") == 2
-    assert l4.longestValidParentheses(")()())") == 4
-    assert l4.longestValidParentheses("") == 0
-    assert l4.longestValidParentheses("()") == 2
-    assert l4.longestValidParentheses("()()") == 4
-
-    # maximumScore (LC 2104)
-    assert l4.maximumScore([1, 4, 3, 7, 4, 5], 3) == 15
-    assert l4.maximumScore([5, 5, 4, 5, 4, 1, 1, 1], 0) == 20
-
-    # canSeePersonsCount (LC 1944)
-    assert l4.canSeePersonsCount([10, 6, 8, 5, 11, 9]) == [3, 1, 2, 1, 1, 0]
-    assert l4.canSeePersonsCount([5, 1, 2, 3, 10]) == [4, 1, 1, 1, 0]
-
     # findBuildings (LC 1762)
     assert l4.findBuildings([4, 2, 3, 1]) == [0, 2, 3]
     assert l4.findBuildings([4, 3, 2, 1]) == [0, 1, 2, 3]
@@ -799,17 +462,5 @@ if __name__ == "__main__":
     # exclusiveTime (LC 636)
     assert l4.exclusiveTime(2, ["0:start:0","1:start:2","1:end:5","0:end:6"]) == [3, 4]
     assert l4.exclusiveTime(1, ["0:start:0","0:start:2","0:end:5","0:start:6","0:end:6","0:end:7"]) == [8]
-
-    # isValidTag (LC 591)
-    assert l4.isValidTag("<DIV>This is the first line <![CDATA[<div>]]></DIV>") == True
-    assert l4.isValidTag("<DIV>>>  ![cdata[]] <![CDATA[<div>]]>]]>>]</DIV>") == True
-    assert l4.isValidTag("<A>  <B> </A>   </B>") == False
-    assert l4.isValidTag("<DIV>  div tag is not closed  <DIV>") == False
-    assert l4.isValidTag("<DIV>  unmatched <  </DIV>") == False
-
-    # makeGood (LC 1544)
-    assert l4.makeGood("leEeetcode") == "leetcode"
-    assert l4.makeGood("abBAcC") == ""
-    assert l4.makeGood("s") == "s"
 
     print("All stack tests passed.")

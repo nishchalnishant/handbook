@@ -91,24 +91,6 @@ class IntervalSolutions:
         return res
 
     # -----------------------------------------------------------------------
-    # 4. Meeting Rooms (LC 252) — T2
-    # Given an array of meeting time intervals where intervals[i] = [starti, endi], determine if a person could attend all meetings.
-    # Example: intervals = [[0,30],[5,10],[15,20]] → false
-    # Constraints: 0 <= intervals.length <= 10^4
-    # Time: O(n log n), Space: O(1)
-    # -----------------------------------------------------------------------
-    def canAttendMeetings(self, intervals: List[List[int]]) -> bool:
-        # Sort meetings by their start times.
-        intervals.sort(key=lambda i: i[0])
-        for i in range(1, len(intervals)):
-            i1 = intervals[i - 1]
-            i2 = intervals[i]
-            # Conflict: if previous meeting ends after current meeting starts.
-            if i1[1] > i2[0]:
-                return False
-        return True
-
-    # -----------------------------------------------------------------------
     # 5. Meeting Rooms II (LC 253) — T2
     # Given an array of meeting time intervals where intervals[i] = [starti, endi], determine if a person could attend all meetings.
     # Example: intervals = [[0,30],[5,10],[15,20]] → false
@@ -176,28 +158,6 @@ class IntervalSolutions:
         return res
 
     # -----------------------------------------------------------------------
-    # 8. Employee Free Time (LC 759) — L4
-    # We are given a list schedule of employees, which represents the working time for each employee. Each employee has a list of non-overlapping Intervals, and these intervals are in sorted order. Return the list of finite intervals representing common, positive-length free time for all employees, also in sorted order.
-    # Example: schedule = [[[1,2],[5,6]],[[1,3]],[[4,10]]] → [[3,4]]
-    # Constraints: 1 <= schedule.length , schedule[i].length <= 50, Flatten all intervals from all employees, sort, then find gaps
-    # Time: O(N log N), Space: O(N)
-    # -----------------------------------------------------------------------
-    def employeeFreeTime(self, schedule: List[List[List[int]]]) -> List[List[int]]:
-        # Flatten and sort all intervals across all employees by start time.
-        all_intervals = sorted([iv for emp in schedule for iv in emp])
-        res = []
-        # prev_end tracks the end of the current contiguous busy period.
-        prev_end = all_intervals[0][1]
-        for start, end in all_intervals[1:]:
-            # If the next busy interval starts after the current busy period ends,
-            # the gap in between represents common free time.
-            if start > prev_end:
-                res.append([prev_end, start])
-            # Extend the end of the current busy period.
-            prev_end = max(prev_end, end)
-        return res
-
-    # -----------------------------------------------------------------------
     # 9. My Calendar I — sorted list / BST for interval conflict detection (LC 729)
     # Implement a MyCalendarI class to store events. When a new event is booked, check if it conflicts with any existing event. Two events conflict if they overlap (not just touch). Return True if the event can be booked.
     # Time: O(log n) per booking, Space: O(n)
@@ -239,58 +199,6 @@ class IntervalSolutions:
         return True
 
     # -----------------------------------------------------------------------
-    # 11. My Calendar III — max k-booking using sweep line (LC 732)
-    # Return an integer k representing the largest integer such that there exists a k-booking in the calendar after each call to book.
-    # Time: O(n log n) per booking (SortedDict sweep), Space: O(n)
-    # -----------------------------------------------------------------------
-    def myCalendarIIIBook(self, diff: dict, start: int, end: int) -> int:
-        # Increment diff at the start time and decrement diff at the end time.
-        diff[start] = diff.get(start, 0) + 1
-        diff[end] = diff.get(end, 0) - 1
-        cur = res = 0
-        # Sweep through events in ascending order to find the peak overlap count.
-        for k in sorted(diff):
-            cur += diff[k]
-            res = max(res, cur)
-        return res
-
-    # -----------------------------------------------------------------------
-    # 12. Data Stream as Disjoint Intervals — maintain sorted non-overlapping intervals (LC 352)
-    # Given a data stream of integers, summarize them as a list of disjoint intervals. Support addNum(val) and getIntervals().
-    # Time: O(log n) amortized for addNum, O(n) for getIntervals, Space: O(n)
-    # -----------------------------------------------------------------------
-    def dsAddNum(self, intervals: SortedList, val: int) -> None:
-        new_start, new_end = val, val
-        # Locate insertion point using binary search.
-        idx = intervals.bisect_left((val, val))
-        # Check if predecessor interval is adjacent to or contains val.
-        if idx > 0:
-            ls, le = intervals[idx - 1]
-            if ls <= val <= le:
-                return  # val is already covered by ls..le
-            if le >= val - 1:
-                # Merge val with predecessor.
-                new_start = min(new_start, ls)
-                new_end = max(new_end, le)
-                intervals.remove((ls, le))
-                idx -= 1
-        # Check if successor interval is adjacent to or contains val.
-        if idx < len(intervals):
-            rs, re = intervals[idx]
-            if rs <= val + 1:
-                # Merge val with successor.
-                new_start = min(new_start, rs)
-                new_end = max(new_end, re)
-                intervals.remove((rs, re))
-        # Add the final merged interval back.
-        intervals.add((new_start, new_end))
-
-    def dsGetIntervals(self, intervals: SortedList) -> List[List[int]]:
-        # Convert all tuple intervals stored inside SortedList to lists.
-        return [list(iv) for iv in intervals]
-
-
-    # -----------------------------------------------------------------------
     # 13. Count of Smaller Numbers After Self — interval tree approach
     # NOTE: This is an alternative to the BIT/merge-sort approach; in interviews the BIT approach is more common but interval trees are conceptually related. Given integer array nums, return counts[i] = number of smaller elements to the right of nums[i]. Space: O(n)
     # Time: O(n log n) average with BST, O(n^2) worst case; BIT is preferred
@@ -328,33 +236,6 @@ class IntervalSolutions:
             update(r)
         # Reverse the result to match the original index ordering.
         return res[::-1]
-
-    # -----------------------------------------------------------------------
-    # 14. Minimum Interval to Include Each Query — offline queries + heap (LC 1851)
-    # Given intervals and queries, for each query find the size of the smallest interval that contains the query point. Size = end - start + 1. Return -1 if no such interval exists.
-    # Time: O((n + q) log n), Space: O(n + q)
-    # -----------------------------------------------------------------------
-    def minInterval(self, intervals: List[List[int]], queries: List[int]) -> List[int]:
-        # Sort intervals by their start coordinates.
-        intervals.sort()
-        # Sort queries while keeping track of their original indices.
-        sorted_queries = sorted((q, i) for i, q in enumerate(queries))
-        ans = [-1] * len(queries)
-        heap = []  # min-heap storing (size, end)
-        j = 0
-        for q, qi in sorted_queries:
-            # Push all intervals starting at or before current query point.
-            while j < len(intervals) and intervals[j][0] <= q:
-                s, e = intervals[j]
-                heapq.heappush(heap, (e - s + 1, e))
-                j += 1
-            # Pop all intervals ending before the current query point (no longer covering it).
-            while heap and heap[0][1] < q:
-                heapq.heappop(heap)
-            # If the heap is not empty, the top element has the smallest valid interval size.
-            if heap:
-                ans[qi] = heap[0][0]
-        return ans
 
     # -----------------------------------------------------------------------
     # 15. Remove Covered Intervals (LC 1288)
@@ -412,10 +293,6 @@ if __name__ == "__main__":
     assert sol.eraseOverlapIntervals([[1,2],[2,3],[3,4],[1,3]]) == 1
     assert sol.eraseOverlapIntervals([[1,2],[1,2],[1,2]]) == 2
 
-    # canAttendMeetings
-    assert sol.canAttendMeetings([[0,30],[5,10],[15,20]]) == False
-    assert sol.canAttendMeetings([[7,10],[2,4]]) == True
-
     # minMeetingRooms
     assert sol.minMeetingRooms([[0,30],[5,10],[15,20]]) == 2
     assert sol.minMeetingRooms([[7,10],[2,4]]) == 1
@@ -429,11 +306,6 @@ if __name__ == "__main__":
     B = [[1,5],[8,12],[15,24],[25,26]]
     assert sol.intervalIntersection(A, B) == [[1,2],[5,5],[8,10],[15,23],[24,24],[25,25]]
     assert sol.intervalIntersection([], [[1,3]]) == []
-
-    # employeeFreeTime (L4 — gaps across all employees)
-    # schedule: [[emp1_intervals], [emp2_intervals], ...]
-    schedule = [[[1,3],[6,7]], [[2,4]], [[2,5],[9,12]]]
-    assert sol.employeeFreeTime(schedule) == [[5,6],[7,9]]
 
     # myCalendarIBook (LC 729)
     cal1 = SortedList()
@@ -450,33 +322,10 @@ if __name__ == "__main__":
     assert sol.myCalendarIIBook(cal2, overlaps2, 5, 10) == True
     assert sol.myCalendarIIBook(cal2, overlaps2, 25, 55) == True
 
-    # myCalendarIIIBook (LC 732)
-    diff3 = {}
-    assert sol.myCalendarIIIBook(diff3, 10, 20) == 1
-    assert sol.myCalendarIIIBook(diff3, 50, 60) == 1
-    assert sol.myCalendarIIIBook(diff3, 10, 40) == 2
-    assert sol.myCalendarIIIBook(diff3, 5, 15) == 3
-    assert sol.myCalendarIIIBook(diff3, 5, 10) == 3
-    assert sol.myCalendarIIIBook(diff3, 25, 55) == 3
-
-    # dsAddNum / dsGetIntervals (LC 352)
-    ds = SortedList()
-    sol.dsAddNum(ds, 1)
-    sol.dsAddNum(ds, 3)
-    assert sol.dsGetIntervals(ds) == [[1, 1], [3, 3]]
-    sol.dsAddNum(ds, 7)
-    sol.dsAddNum(ds, 2)
-    sol.dsAddNum(ds, 6)
-    assert sol.dsGetIntervals(ds) == [[1, 3], [6, 7]]
-
     # countSmaller (BIT / interval tree alt)
     assert sol.countSmaller([5, 2, 6, 1]) == [2, 1, 1, 0]
     assert sol.countSmaller([-1]) == [0]
     assert sol.countSmaller([-1, -1]) == [0, 0]
-
-    # minInterval (LC 1851)
-    assert sol.minInterval([[1,4],[2,4],[3,6],[4,4]], [2,3,4,5]) == [3,3,1,4]
-    assert sol.minInterval([[2,3],[2,5],[1,8],[20,25]], [2,19,22]) == [2,-1,6]
 
     # removeCoveredIntervals (LC 1288)
     assert sol.removeCoveredIntervals([[1,4],[3,6],[2,8]]) == 2

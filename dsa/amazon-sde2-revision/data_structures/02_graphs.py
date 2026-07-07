@@ -203,89 +203,7 @@ class GraphSolutions:
             if not dfs(c): return []
         return output
 
-    # -----------------------------------------------------------------------
-    # 6. Alien Dictionary (LC 269) — T1
-    # There is a new alien language that uses the English alphabet. However, the order among the letters is unknown to you. You are given a list of strings words from the alien language's dictionary, where the strings in words are sorted lexicographically by the rules of this new language. Return a string of the unique letters in the new alien language sorted in lexicographically increasing order by the new language's rules. If there is no solution, return "". If there are multiple solutions, return any of them.
-    # Example: words = ["wrt","wrf","er","ett","rftt"] → "wertf"
-    # Constraints: 1 <= words.length <= 100, 1 <= words[i].length <= 100
-    # Time: O(C), Space: O(U) where C = total characters in all words, U = unique characters
-    # -----------------------------------------------------------------------
-    def alienOrder(self, words: List[str]) -> str:
-        # Initialize empty adjacency lists for every unique character
-        adj = {c: set() for w in words for c in w}
-
-        # Compare consecutive words to find character ordering constraints
-        for i in range(len(words) - 1):
-            w1, w2 = words[i], words[i + 1]
-            minLen = min(len(w1), len(w2))
-            # Invalid order: shorter prefix word comes after longer word
-            if len(w1) > len(w2) and w1[:minLen] == w2[:minLen]:
-                return ""
-            # Find the first mismatch to establish directed edge
-            for j in range(minLen):
-                if w1[j] != w2[j]:
-                    adj[w1[j]].add(w2[j])
-                    break
-
-        # State tracking: True (in active path), False (safely visited)
-        visit = {}
-        # Stores reverse topological order
-        res = []
-
-        def dfs(c):
-            """Depth-first-search helper for the enclosing solution."""
-            # Base case: return state of node if already visited
-            if c in visit: return visit[c]
-            # Mark node as in active path
-            visit[c] = True
-            # Recurse through neighbors
-            for nei in adj[c]:
-                if dfs(nei): return True
-            # Mark node as safe and backtrack active path
-            visit[c] = False
-            res.append(c)
-            return False
-
-        # Run topological sort on all character nodes
-        for c in adj:
-            if dfs(c): return ""
-        # Reverse to get the correct lexicographical order
-        res.reverse()
-        return "".join(res)
-
 class GraphSolutionsT2:
-    # -----------------------------------------------------------------------
-    # 7. Flood Fill (LC 733) — T1
-    # An image is represented by an m x n integer grid image where image[i][j] represents the pixel value of the image. You are also given three integers sr, sc, and color. You should perform a flood fill on the image starting from the pixel image[sr][sc].
-    # Example: image = [[1,1,1],[1,1,0],[1,0,1]], sr = 1, sc = 1, color = 2 → [[2,2,2],[2,2,0],[2,0,1]]
-    # Constraints: m == image.length, n == image[i].length, 1 <= m, n <= 50
-    # Time: O(m*n), Space: O(m*n)
-    # -----------------------------------------------------------------------
-    def floodFill(self, image: List[List[int]], sr: int, sc: int, color: int) -> List[List[int]]:
-        # Capture the original color of the starting pixel
-        oldColor = image[sr][sc]
-        # Guard: return early if target color is same as old color
-        if oldColor == color: return image
-        # Initialize image dimensions
-        rows, cols = len(image), len(image[0])
-
-        def dfs(r, c):
-            """Depth-first-search helper for the enclosing solution."""
-            # Boundary checks and matching color check
-            if r < 0 or r >= rows or c < 0 or c >= cols or image[r][c] != oldColor:
-                return
-            # Recolor current cell
-            image[r][c] = color
-            # Recurse on all adjacent neighbors
-            dfs(r+1, c)
-            dfs(r-1, c)
-            dfs(r, c+1)
-            dfs(r, c-1)
-
-        # Trigger flood fill
-        dfs(sr, sc)
-        return image
-
     # -----------------------------------------------------------------------
     # 8. Pacific Atlantic Water Flow (LC 417) — T1
     # There is an m x n rectangular island that borders both the Pacific Ocean and Atlantic Ocean. The Pacific Ocean touches the island's left and top edges, and the Atlantic Ocean touches the island's right and bottom edges. Return a 2D list of grid coordinates result where result[i] = [ri, ci] denotes that rain water can flow from cell (ri, ci) to both the Pacific and Atlantic oceans.
@@ -684,64 +602,6 @@ class GraphSolutionsT2:
         return max(dist.values()) if len(dist) == n else -1
 
     # -----------------------------------------------------------------------
-    # 19. Swim in Rising Water — Dijkstra min-of-max (LC 778) — T2
-    # You are given an n x n integer matrix grid where each value grid[i][j] represents the elevation at that point (i, j). The rain starts to fall. At time t, the depth of the water everywhere is t. You can swim from a square to another 4-directionally adjacent square if and only if the elevation of both squares individually are at most t. Return the least time until you can reach the bottom right square (n - 1, n - 1) if you start at the top left square (0, 0).
-    # Example: grid = [[0,2],[1,3]] → 3
-    # Constraints: n == grid.length, n == grid[i].length
-    # Time: O(n^2 log n), Space: O(n^2)
-    # -----------------------------------------------------------------------
-    def swimInWater(self, grid: List[List[int]]) -> int:
-        import heapq
-        # Dimensions of square grid
-        N = len(grid)
-        # Visited tracking set
-        visit = {(0, 0)}
-        # Min-heap initialized with (time/elevation, r, c)
-        minH = [(grid[0][0], 0, 0)]
-        # Four cardinal directions
-        dirs = [(0,1),(0,-1),(1,0),(-1,0)]
-        while minH:
-            # Extract cell with lowest reachable elevation
-            t, r, c = heapq.heappop(minH)
-            # Reached target bottom-right cell
-            if r == N - 1 and c == N - 1: return t
-            # Check neighbors
-            for dr, dc in dirs:
-                nr, nc = r + dr, c + dc
-                # Check bounds and visited status
-                if 0 <= nr < N and 0 <= nc < N and (nr, nc) not in visit:
-                    # Mark neighbor as visited immediately
-                    visit.add((nr, nc))
-                    # Push to heap with updated peak path elevation
-                    heapq.heappush(minH, (max(t, grid[nr][nc]), nr, nc))
-
-    # -----------------------------------------------------------------------
-    # 20. Shortest Path with Obstacle Elimination — BFS + state (r,c,k) (LC 1293) — T2
-    # You are given an m x n integer matrix grid where each cell is either 0 (empty) or 1 (obstacle). You can move up, down, left, or right from and to an empty cell in one step. Return the minimum number of steps to walk from the upper left corner (0, 0) to the lower right corner (m - 1, n - 1) given that you can eliminate at most k obstacles. If it is not possible to find such walk return -1.
-    # Example: grid = [[0,0,0],[1,1,0],[0,0,0],[0,1,1],[0,0,0]], k = 1 → 6
-    # Constraints: m == grid.length, n == grid[i].length, 1 <= m, n <= 40
-    # Time: O(m*n*k), Space: O(m*n*k)
-    # -----------------------------------------------------------------------
-    def shortestPath(self, grid: List[List[int]], k: int) -> int:
-        ROWS, COLS = len(grid), len(grid[0])
-        if ROWS == 1 and COLS == 1: return 0
-        q = deque([(0, 0, k, 0)])  # r, c, remaining eliminations, steps
-        visited = {(0, 0, k)}
-        dirs = [(0,1),(0,-1),(1,0),(-1,0)]
-        while q:
-            r, c, elim, steps = q.popleft()
-            for dr, dc in dirs:
-                nr, nc = r + dr, c + dc
-                if 0 <= nr < ROWS and 0 <= nc < COLS:
-                    new_elim = elim - grid[nr][nc]
-                    if new_elim >= 0 and (nr, nc, new_elim) not in visited:
-                        if nr == ROWS - 1 and nc == COLS - 1:
-                            return steps + 1
-                        visited.add((nr, nc, new_elim))
-                        q.append((nr, nc, new_elim, steps + 1))
-        return -1
-
-    # -----------------------------------------------------------------------
     # 21. Sequence Reconstruction (LC 444) — T1
     # You are given an integer array nums of length n where nums is a permutation of the integers in the range [1, n]. You are also given a 2D integer array sequences where sequences[i] is a subsequence of nums. Check if nums is the shortest possible and the only supersequence.
     # Example: nums = [1,2,3], sequences = [[1,2],[1,3]] → false
@@ -846,49 +706,6 @@ class GraphSolutionsT2:
         return sum(find(i) == i for i in range(4 * n * n))
 
     # -----------------------------------------------------------------------
-    # 14. Minimum Cost to Make at Least One Valid Path in a Grid (LC 1368) — T3
-    # Given an m x n grid. Each cell of the grid has a sign pointing to the next cell you should visit if you are currently in this cell. The sign of grid[i][j] can be: Notice that there could be some signs on the cells of the grid that point outside the grid. You will initially start at the upper left cell (0, 0). A valid path in the grid is a path that starts from the upper left cell (0, 0) and ends at the bottom-right cell (m - 1, n - 1) following the signs on the grid. The valid path does not have to be the shortest. You can modify the sign on a cell with cost = 1. You can modify the sign on a cell one time only. Return the minimum cost to make the grid have at least one valid path.
-    # Example: grid = [[1,1,1,1],[2,2,2,2],[1,1,1,1],[2,2,2,2]] → 3
-    # Constraints: m == grid.length, n == grid[i].length, 1 <= m, n <= 100, 1 <= grid[i][j] <= 4
-    # Time: O(m*n), Space: O(m*n)
-    # -----------------------------------------------------------------------
-    def minCost(self, grid: List[List[int]]) -> int:
-        from collections import deque
-        # Retrieve grid dimensions
-        m, n = len(grid), len(grid[0])
-        # Right, Left, Down, Up (matching index + 1 value in grid)
-        dirs = [(0, 1), (0, -1), (1, 0), (-1, 0)]
-        # Min cost array to reach each cell, initialized to infinity
-        dist = [[float('inf')] * n for _ in range(m)]
-        # Cost to reach start cell is zero
-        dist[0][0] = 0
-
-        # Deque for 0-1 BFS
-        q = deque([(0, 0)])
-
-        while q:
-            r, c = q.popleft()
-
-            # Process all 4 neighbor directions
-            for i, (dr, dc) in enumerate(dirs):
-                nr, nc = r + dr, c + dc
-                # Check grid boundary bounds
-                if 0 <= nr < m and 0 <= nc < n:
-                    # cost is 0 if move matches arrow direction, else 1
-                    cost = 0 if grid[r][c] == i + 1 else 1
-                    # Relax cost if a cheaper path is found
-                    if dist[r][c] + cost < dist[nr][nc]:
-                        dist[nr][nc] = dist[r][c] + cost
-                        # If cost-0, prioritize at front of queue; if cost-1, append to back
-                        if cost == 0:
-                            q.appendleft((nr, nc))
-                        else:
-                            q.append((nr, nc))
-
-        # Return cost to reach destination
-        return dist[m - 1][n - 1]
-
-    # -----------------------------------------------------------------------
     # 15. Transitive Closure (Graph classic) — T2
     # Given a directed graph, find the transitive closure of the graph. The transitive closure is a boolean matrix representing whether there is a path from each node to every other node.
     # Example: n = 4, edges = [[0,1], [1,2], [2,3]] → [[1,1,1,1],[0,1,1,1],[0,0,1,1],[0,0,0,1]]
@@ -943,14 +760,6 @@ if __name__ == "__main__":
            sol1.findOrder(4, [[1,0],[2,0],[3,1],[3,2]]) in [[0,2,1,3], [0,1,2,3]]
     assert sol1.findOrder(1, []) == [0]
 
-    # alienOrder
-    result = sol1.alienOrder(["wrt","wrf","er","ett","rftt"])
-    assert result in ["wertf", "wrtef"] or len(result) == 5  # valid topo order
-
-    # floodFill
-    img = [[1,1,1],[1,1,0],[1,0,1]]
-    assert sol2.floodFill(img, 1, 1, 2) == [[2,2,2],[2,2,0],[2,0,1]]
-
     # pacificAtlantic
     heights = [[1,2,2,3,5],[3,2,3,4,4],[2,4,5,3,1],[6,7,1,4,5],[5,1,1,2,4]]
     result = sol2.pacificAtlantic(heights)
@@ -993,14 +802,6 @@ if __name__ == "__main__":
     assert sol2.networkDelayTime([[2,1,1],[2,3,1],[3,4,1]], 4, 2) == 2
     assert sol2.networkDelayTime([[1,2,1]], 2, 2) == -1  # unreachable
 
-    # swimInWater
-    assert sol2.swimInWater([[0,2],[1,3]]) == 3
-    assert sol2.swimInWater([[0,1,2,3,4],[24,23,22,21,5],[12,13,14,15,16],[11,17,18,19,20],[10,9,8,7,6]]) == 16
-
-    # shortestPath (BFS with at most k obstacles)
-    assert sol2.shortestPath([[0,0,0],[1,1,0],[0,0,0],[0,1,1],[0,0,0]], 1) == 6
-    assert sol2.shortestPath([[0,1,1],[1,1,1],[1,0,0]], 1) == -1
-
     # sequenceReconstruction
     assert sol2.sequenceReconstruction([1,2,3], [[1,2],[1,3],[2,3]]) == True
     assert sol2.sequenceReconstruction([1,2,3], [[1,2],[2,3],[1,3],[3,2]]) == False
@@ -1008,9 +809,6 @@ if __name__ == "__main__":
     # regionsBySlashes
     assert sol2.regionsBySlashes([" /","/ "]) == 2
     assert sol2.regionsBySlashes(["/\\"]) == 2  # LC example
-
-    # minCost (0-1 BFS)
-    assert sol2.minCost([[1,1,1,1],[2,2,2,2],[1,1,1,1],[2,2,2,2]]) == 3
 
     # transitiveClosure
     g = [[1,1,0,1],[0,1,1,0],[0,0,1,1],[0,0,0,1]]

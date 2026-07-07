@@ -17,7 +17,11 @@ Coding rounds are ~45 min each; expect 1–2 medium problems per round, occasion
 
 For scope control, the advanced L4 sections (Bitmask DP, Digit DP, Advanced
 Strings, Game Theory DP, Max Flow) are kept as reference but are **out of
-Amazon SDE-2 scope** — do not prioritize them before your interview.
+Amazon SDE-2 scope** — do not prioritize them before your interview. This
+branch (`leetcode-medium-only`) has additionally been pruned to keep only
+**LeetCode Medium-difficulty** problems for focused interview revision; Easy
+and Hard problems are intentionally removed here (they remain available on
+`main`).
 
 Segment Tree, Fenwick Tree (`data_structures/11_segment_tree_fenwick.py`), and
 Bellman-Ford / Floyd-Warshall / Prim's (`algorithms/15_advanced_graph.py`) are

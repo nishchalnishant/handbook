@@ -71,23 +71,6 @@ from typing import List
 
 class BitManipulationSolutions:
     # -----------------------------------------------------------------------
-    # 1. Single Number I (LC 136) — T1
-    # Given a non-empty array of integers nums, every element appears twice except for one. Find that single one. You must implement a solution with a linear runtime complexity and use only constant extra space.
-    # Example: nums = [2,2,1] → 1
-    # Constraints: 1 <= nums.length <= 3 * 10^4
-    # Time: O(n), Space: O(1)
-    # -----------------------------------------------------------------------
-    def singleNumber(self, nums: List[int]) -> int:
-        # Initialize the running XOR accumulator to 0 (since 0 ^ x = x).
-        res = 0
-        
-        # Iterate through all numbers in the array. Since XOR is commutative and associative,
-        # duplicate pairs will cancel each other out (n ^ n = 0), leaving only the unique number.
-        for n in nums:
-            res = res ^ n
-        return res
-
-    # -----------------------------------------------------------------------
     # 2. Single Number II (LC 137) — T1
     # Given a non-empty array of integers nums, every element appears twice except for one. Find that single one. You must implement a solution with a linear runtime complexity and use only constant extra space.
     # Example: nums = [2,2,1] → 1
@@ -135,77 +118,6 @@ class BitManipulationSolutions:
         # The other unique number (b) is found by XORing the first unique number (a)
         # with the combined XOR sum (xor = a ^ b).
         return [a, xor ^ a]
-
-    # -----------------------------------------------------------------------
-    # 4. Number of 1 Bits (LC 191) — T2
-    # Given a positive integer n, write a function that returns the number of set bits in its binary representation (also known as the Hamming weight).
-    # Example: n = 11 → 3
-    # Constraints: 1 <= n <= 2^31 - 1, Follow up: If this function is called many times, how would you optimize it?
-    # Time: O(k) where k = number of set bits, Space: O(1)
-    # -----------------------------------------------------------------------
-    def hammingWeight(self, n: int) -> int:
-        res = 0
-        # Iterate while there are set bits remaining in n
-        while n:
-            # Kernighan's bit trick: clears the lowest set bit of n
-            n &= (n - 1)
-            # Increment count of set bits found
-            res += 1
-        return res
-
-    # -----------------------------------------------------------------------
-    # 5. Counting Bits (LC 338) — T2
-    # Given an integer n, return an array ans of length n + 1 such that for each i (0 <= i <= n), ans[i] is the number of 1's in the binary representation of i.
-    # Example: n = 2 → [0,1,1]
-    # Constraints: 0 <= n <= 10^5, Follow up:, It is very easy to come up with a solution with a runtime of O(n log n). Can you do it in linear, time O(n) and possibly in a single pass?, Can you do it without using any built-in function (i.e., like __builtin_popcount in C++)?
-    # Time: O(n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def countBits(self, n: int) -> List[int]:
-        # Initialize DP table with zeros, representing counts for 0 to n.
-        dp = [0] * (n + 1)
-        # offset tracks the most significant power of 2 seen so far.
-        offset = 1
-        for i in range(1, n + 1):
-            # When we reach a new power of 2, update the offset.
-            if offset * 2 == i:
-                offset = i
-            # The count for i is 1 (for the MSB) plus the count of the remainder.
-            dp[i] = 1 + dp[i - offset]
-        return dp
-
-    # -----------------------------------------------------------------------
-    # 6. Reverse Bits (LC 190) — T2
-    # Reverse bits of a given 32 bits signed integer.
-    # Example: n = 43261596 → 964176192
-    # Constraints: 0 <= n <= 2^31 - 2, n is even, Follow up: If this function is called many times, how would you optimize it?
-    # Time: O(1), Space: O(1)
-    # -----------------------------------------------------------------------
-    def reverseBits(self, n: int) -> int:
-        res = 0
-        # Iterate over all 32 bit positions from 0 to 31.
-        for i in range(32):
-            # Extract the i-th bit from the input n.
-            bit = (n >> i) & 1
-            # Shift the extracted bit to its reversed position (31 - i) and merge it.
-            res = res | (bit << (31 - i))
-        return res
-
-    # -----------------------------------------------------------------------
-    # 7. Missing Number (LC 268) — T2
-    # Given an array nums containing n distinct numbers in the range [0, n], return the only number in the range that is missing from the array.
-    # Example: nums = [3,0,1] → 2
-    # Constraints: n == nums.length, 1 <= n <= 10^4, 0 <= nums[i] <= n, All the numbers of nums are unique, Follow up: Could you implement a solution using only O(1) extra space complexity and O(n) runtime, complexity?
-    # Time: O(n), Space: O(1)
-    # -----------------------------------------------------------------------
-    def missingNumber(self, nums: List[int]) -> int:
-        # Initialize result with the maximum index n (which equals len(nums)).
-        res = len(nums)
-        # For each index i, add i and subtract nums[i].
-        # If nums contains all elements 0..n except one, matching elements
-        # cancel each other out, leaving exactly the missing element.
-        for i in range(len(nums)):
-            res += (i - nums[i])
-        return res
 
     # -----------------------------------------------------------------------
     # 8. Sum of Two Integers (LC 371) — T2
@@ -390,55 +302,6 @@ class XORBasisSolutions:
                 max_xor = candidate
         return max_xor
 
-    # Maximum XOR With an Element From Array (LC 1707) — offline queries + linear basis
-    # Details: You are given an array nums consisting of non-negative integers. You are also given a queries array, where queries[i] = [xi, mi]. The answer to the ith query is the maximum bitwise XOR value of xi and any element of nums that does not exceed mi. If all elements in nums are larger than mi, then the answer is -1.
-    # Example 1:
-    # Input: nums = [0,1,2,3,4], queries = [[3,1],[1,3],[5,6]]
-    # Output: [3,3,7]
-    # Constraints:
-    # - 1 <= nums.length, queries.length <= 10^5
-    # Time: O((n + q) log n) where q = number of queries, Space: O(n + q)
-    def maximizeXor(self, nums: List[int], queries: List[List[int]]) -> List[int]:
-        """Maximum XOR of Two Numbers in Array (LC 421). O((n + q) log n) where q = number of queries."""
-        # Sort input numbers to allow linear scan sweep based on limits
-        nums.sort()
-        # Sort queries based on their limit values (mi), preserving original query indices
-        indexed_queries = sorted(enumerate(queries), key=lambda x: x[1][1])
-        basis = []
-        result = [-1] * len(queries)
-        j = 0
-
-        # Helper function to insert a number into the local basis
-        def insert_basis(num):
-            for i, b in enumerate(basis):
-                num = min(num, num ^ b)
-            if num:
-                basis.append(num)
-                # Keep basis sorted descending
-                basis.sort(reverse=True)
-
-        def query_max_xor(x):
-            res = 0
-            # Greedily search elements in linear basis to maximize XOR
-            for b in basis:
-                res = max(res, res ^ b)
-            # Return max XOR value
-            return res ^ x if basis else -1
-
-        # Process each sorted query one-by-one
-        for qi, (x, limit) in indexed_queries:
-            # Insert all elements that are <= current query limit into our linear basis
-            while j < len(nums) and nums[j] <= limit:
-                insert_basis(nums[j])
-                j += 1
-            # If our linear basis has elements, find the maximum XOR of x
-            if basis:
-                r = x
-                for b in basis:
-                    r = max(r, r ^ b)
-                result[qi] = r
-        return result
-
 class SubmaskEnumSolutions:
     # Submask enumeration — iterate all submasks of a mask in O(3^n) total (L4)
 
@@ -534,30 +397,12 @@ if __name__ == "__main__":
     xb = XORBasisSolutions()
     sm = SubmaskEnumSolutions()
 
-    # singleNumber I
-    assert sol.singleNumber([2, 2, 1]) == 1
-    assert sol.singleNumber([4, 1, 2, 1, 2]) == 4
-
     # singleNumber II (appears 3x, one appears once)
     assert sol.singleNumberII([2, 2, 3, 2]) == 3
     assert sol.singleNumberII([0, 1, 0, 1, 0, 1, 99]) == 99
 
     # singleNumber III (two singles)
     assert sorted(sol.singleNumberIII([1, 2, 1, 3, 2, 5])) == [3, 5]
-
-    # hammingWeight
-    assert sol.hammingWeight(0b00000000000000000000000000001011) == 3
-    assert sol.hammingWeight(0b10000000000000000000000000000000) == 1
-
-    # countBits
-    assert sol.countBits(5) == [0, 1, 1, 2, 1, 2]
-
-    # reverseBits
-    assert sol.reverseBits(0b00000010100101000001111010011100) == 964176192
-
-    # missingNumber
-    assert sol.missingNumber([3, 0, 1]) == 2
-    assert sol.missingNumber([0, 1]) == 2
 
     # getSum (without + or -)
     assert sol.getSum(1, 2) == 3
@@ -579,10 +424,6 @@ if __name__ == "__main__":
 
     # XOR Basis findMaximumXOR (pairwise)
     assert xb.findMaximumXOR([3, 10, 5, 25, 2, 8]) == 28
-
-    # maximizeXor (offline queries)
-    result = xb.maximizeXor([0, 1, 2, 3, 4], [[3, 1], [1, 3], [5, 6]])
-    assert result == [3, 3, 7]
 
     # enumerate_submasks
     subs = sm.enumerate_submasks(0b1010)

@@ -99,32 +99,6 @@ class SortingSolutions:
         return str(int("".join(nums)))
 
 
-    # Imp
-    # -----------------------------------------------------------------------
-    # 4. Russian Doll Envelopes (LC 354) — T2
-    # You are given a 2D array of integers envelopes where envelopes[i] = [wi, hi] represents the width and the height of an envelope. One envelope can fit into another if and only if both the width and height of one envelope are greater than the other envelope's width and height. Return the maximum number of envelopes you can Russian doll (i.e., put one inside the other). Note: You cannot rotate an envelope.
-    # Example: envelopes = [[5,4],[6,4],[6,7],[2,3]] → 3
-    # Constraints: 1 <= envelopes.length <= 10^5, envelopes[i].length == 2, 1 <= wi, hi <= 10^5
-    # Time: O(n log n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def maxEnvelopes(self, envelopes: List[List[int]]) -> int:
-        import bisect   #bisect is Python's built-in module for performing Binary Search. Instead of searching through an array one by one from left to right (which takes $O(N)$ time),
-        # Sort envelopes by width ascending, and height descending for equal widths.
-        envelopes.sort(key=lambda x: (x[0], -x[1]))
-        # dp[i] will store the minimum tail of all increasing subsequences of length i+1.
-        dp = []
-        # Find the length of LIS based on heights.
-        for _, h in envelopes:
-            # Locate insertion position using binary search.
-            idx = bisect.bisect_left(dp, h)
-            # If h is larger than all elements, append to extend LIS.
-            if idx == len(dp):
-                dp.append(h)
-            # Otherwise, replace the element to optimize the subsequence tail.
-            else:
-                dp[idx] = h
-        return len(dp)
-
     # -----------------------------------------------------------------------
     # 5. Maximum Gap (LC 164) — T2
     # Given an integer array nums, return the maximum difference between two successive elements in its sorted form. If the array contains less than two elements, return 0. You must write an algorithm that runs in linear time and uses linear extra space.
@@ -291,79 +265,6 @@ class SortingSolutions:
         return nums
 
     # -----------------------------------------------------------------------
-    # 10. Count of Range Sum (LC 327) — T3
-    # Given an integer array nums and two integers lower and upper, return the number of range sums that lie in [lower, upper] inclusive. Range sum S(i, j) is defined as the sum of the elements in nums between indices i and j inclusive, where i <= j.
-    # Example: nums = [-2,5,-1], lower = -2, upper = 2 → 3
-    # Constraints: 1 <= nums.length <= 10^5, 2^31 <= nums[i] <= 2^31 - 1, 10^5 <= lower <= upper <= 10^5, The answer is guaranteed to fit in a 32-bit integer
-    # Time: O(n log n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def countRangeSum(self, nums: List[int], lower: int, upper: int) -> int:
-        # Initialize prefix sum array with 0 as the first element to handle ranges starting at index 0.
-        prefix = [0]
-        for n in nums:
-            # Build prefix sums: prefix[k] = sum(nums[0...k-1]).
-            prefix.append(prefix[-1] + n)
-
-        def sort(lo, hi):
-            """Sorts the current range or collection for the enclosing algorithm."""
-            mid = (lo + hi) // 2
-            # Base case: if the range has only one prefix sum element, no pairs can be formed.
-            if mid == lo:
-                return 0
-            # Recursively count range sums within the left and right halves.
-            count = sort(lo, mid) + sort(mid, hi)
-            # Initialize pointers for the sliding window in the right half.
-            i = j = mid
-            # Iterate through each prefix sum in the left half.
-            for left in prefix[lo:mid]:
-                # Advance pointer i until prefix[i] - left is >= lower boundary.
-                while i < hi and prefix[i] - left < lower:
-                    i += 1
-                # Advance pointer j until prefix[j] - left is > upper boundary.
-                while j < hi and prefix[j] - left <= upper:
-                    j += 1
-                # All indices in [i, j) are valid right endpoints for the current left endpoint.
-                count += j - i
-            # Sort the combined range of the prefix array to maintain sorted order for upper recursion levels.
-            prefix[lo:hi] = sorted(prefix[lo:hi])
-            # Return total range sums counted within prefix[lo:hi].
-            return count
-
-        # Sort the entire prefix array to count all valid range sum pairs.
-        return sort(0, len(prefix))
-
-    # -----------------------------------------------------------------------
-    # 11. Reverse Pairs (LC 493) — T3
-    # Given an integer array nums, return the number of reverse pairs in the array. A reverse pair is a pair (i, j) where:
-    # Example: nums = [1,3,2,3,1] → 2
-    # Constraints: 1 <= nums.length <= 5 * 10^4, 2^31 <= nums[i] <= 2^31 - 1
-    # Time: O(n log n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def reversePairs(self, nums: List[int]) -> int:
-        def mergeSort(l, r):
-            # Base case: if the subarray has 0 or 1 elements, it cannot form any reverse pairs.
-            if l >= r:
-                return 0
-            # Find the midpoint of the current subarray.
-            mid = (l + r) // 2
-            # Recursively count reverse pairs in the left and right halves.
-            count = mergeSort(l, mid) + mergeSort(mid + 1, r)
-            # Initialize pointer j for the right half.
-            j = mid + 1
-            # Iterate through each element in the sorted left half.
-            for i in range(l, mid + 1):
-                # Advance pointer j in the right half as long as the current left element is greater than 2 * nums[j].
-                while j <= r and nums[i] > 2 * nums[j]:
-                    j += 1
-                # Since the right half is sorted, all elements from mid + 1 to j-1 are valid matches for nums[i].
-                count += j - (mid + 1)
-            # Merge the two sorted halves by sorting the slice in place.
-            nums[l:r + 1] = sorted(nums[l:r + 1])
-            # Return the total count of reverse pairs for this subarray range.
-            return count
-        return mergeSort(0, len(nums) - 1)
-
-    # -----------------------------------------------------------------------
     # 12. Pancake Sorting (LC 969) — T2
     # Given an array of integers arr, sort the array by performing a series of pancake flips. In one pancake flip we do the following steps: For example, if arr = [3,2,1,4] and we performed a pancake flip choosing k = 3, we reverse the sub- array [3,2,1], so arr = [1,2,3,4] after the pancake flip at k = 3. Return an array of the k-values corresponding to a sequence of pancake flips that sort arr. Any valid answer that sorts the array within 10 * arr.length flips will be judged as correct.
     # Example: arr = [3,2,4,1] → [4,2,4,3]
@@ -423,23 +324,6 @@ class SortingSolutions:
                 # Move write index rightwards.
                 idx += 1
         return res
-
-    # -----------------------------------------------------------------------
-    # 14. Move Zeroes (LC 283) — T1
-    # Given an integer array nums, move all 0's to the end of it while maintaining the relative order of the non-zero elements. Note that you must do this in-place without making a copy of the array.
-    # Example: nums = [0,1,0,3,12] → [1,3,12,0,0]
-    # Constraints: 1 <= nums.length <= 10^4, 2^31 <= nums[i] <= 2^31 - 1, Follow up: Could you minimize the total number of operations done?
-    # Time: O(n), Space: O(1)
-    # -----------------------------------------------------------------------
-    def moveZeroes(self, nums: List[int]) -> None:
-        # Pointer for the next non-zero write position.
-        l = 0
-        # Iterate through the array with pointer r.
-        for r in range(len(nums)):
-            # If the current element is non-zero, swap it to the left side and advance the write pointer.
-            if nums[r]:
-                nums[l], nums[r] = nums[r], nums[l]
-                l += 1
 
     # -----------------------------------------------------------------------
     # 15. Sort Characters By Frequency (LC 451) — T2
@@ -583,44 +467,6 @@ class SortingSolutions:
         return nums
 
     # -----------------------------------------------------------------------
-    # 20. Minimum Number of Moves to Seat Everyone (LC 2037)
-    # There are n seats and n students in a room. seats[i] is the position of the ith seat, students[j] is the position of the jth student. In one move, a student can move one position. Return the minimum number of moves to seat every student.
-    # Example: seats = [3,1,5], students = [2,7,4] → 4
-    # Time: O(n log n), Space: O(1)
-    # -----------------------------------------------------------------------
-    def minMovesToSeat(self, seats: List[int], students: List[int]) -> int:
-        # Sort both seats and students arrays ascending to pair them greedily.
-        seats.sort()
-        students.sort()
-        # Sum the absolute differences between each paired seat and student.
-        return sum(abs(a - b) for a, b in zip(seats, students))
-
-    # -----------------------------------------------------------------------
-    # 21. Relative Sort Array (LC 1122)
-    # Given two arrays arr1 and arr2, the elements of arr2 are distinct, and all elements in arr2 are also in arr1. Sort the elements of arr1 such that the relative ordering of items in arr1 are the same as in arr2. Elements that do not appear in arr2 should be placed at the end of arr1 in ascending order.
-    # Example: arr1 = [2,3,1,3,2,4,3,1,2], arr2 = [2,3,1] → [2,2,2,3,3,3,1,1]  (then remaining sorted)
-    # Time: O(n log n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def relativeSortArray(self, arr1: List[int], arr2: List[int]) -> List[int]:
-        # Map each element in arr2 to its index rank.
-        rank = {v: i for i, v in enumerate(arr2)}
-        # Sort arr1: elements in rank sort by primary rank; others sort by value and are pushed to the end.
-        return sorted(arr1, key=lambda x: (rank[x], 0) if x in rank else (len(arr2), x))
-
-    # -----------------------------------------------------------------------
-    # 22. Rank Transform of an Array (LC 1331)
-    # Given an array of integers arr, replace each element with its rank. The rank represents how large the element is. Rank 1 is the smallest, consecutive ranks differ by 1 if adjacent sorted values differ.
-    # Example: arr = [40,10,20,30] → [4,1,2,3]
-    # Time: O(n log n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def arrayRankTransform(self, arr: List[int]) -> List[int]:
-        # Map each unique sorted value to its 1-based rank.
-        rank = {v: i + 1 for i, v in enumerate(sorted(set(arr)))}
-        # Replace each element in the original array with its computed rank.
-        return [rank[x] for x in arr]
-
-
-    # -----------------------------------------------------------------------
     # 24. Smallest Value After Replacing With Sum of Prime Factors (LC 2507)
     # Given a positive integer n, continuously replace n with the sum of its prime factors (with repetition) until n does not change. Return the smallest value n will take on.
     # Example: n = 15 → 5  (15 -> 3+5=8 -> 2+2+2=6 -> 2+3=5 -> 5, stable)
@@ -651,20 +497,6 @@ class SortingSolutions:
             n = nxt
 
     # -----------------------------------------------------------------------
-    # 25. Sort Array by Increasing Frequency (LC 1636)
-    # Given an array of integers nums, sort the array in increasing order based on the frequency of the values. If multiple values have the same frequency, sort them in decreasing order of value.
-    # Example: nums = [1,1,2,2,2,3] → [3,1,1,2,2,2]
-    # Time: O(n log n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def frequencySortArray(self, nums: List[int]) -> List[int]:
-        from collections import Counter
-        # Count the frequency of each value in the array.
-        count = Counter(nums)
-        # Sort values: primary key is frequency ascending, secondary key is value descending.
-        return sorted(nums, key=lambda x: (count[x], -x))
-
-    # -----------------------------------------------------------------------
-    # 26. Rank Transform of an Array — already covered as arrayRankTransform above. (LC 1331)
     # 27. Maximum Number of Events That Can Be Attended (LC 1353) — greedy + heap Given an array of events where events[i] = [startDay, endDay], attend at most one event per day. Return the maximum number of events you can attend.
     # Example: events = [[1,2],[2,3],[3,4]] → 3
     # Time: O(n log n), Space: O(n)
@@ -716,10 +548,6 @@ if __name__ == "__main__":
     assert sol.largestNumber([3, 30, 34, 5, 9]) == "9534330"
     assert sol.largestNumber([0, 0]) == "0"
 
-    # maxEnvelopes (Russian dolls / 2D LIS)
-    assert sol.maxEnvelopes([[5,4],[6,4],[6,7],[2,3]]) == 3
-    assert sol.maxEnvelopes([[1,1],[1,1],[1,1]]) == 1
-
     # hIndex
     assert sol.hIndex([3, 0, 6, 1, 5]) == 3
     assert sol.hIndex([1, 3, 1]) == 1
@@ -734,19 +562,6 @@ if __name__ == "__main__":
 
     # quickSort
     assert sol.quickSort([3, 6, 8, 10, 1, 2, 1]) == [1, 1, 2, 3, 6, 8, 10]
-
-    # countRangeSum
-    assert sol.countRangeSum([-2, 5, -1], -2, 2) == 3
-    assert sol.countRangeSum([0], 0, 0) == 1
-
-    # reversePairs (LC 493)
-    assert sol.reversePairs([1, 3, 2, 3, 1]) == 2
-    assert sol.reversePairs([2, 4, 3, 5, 1]) == 3
-
-    # moveZeroes
-    arr = [0, 1, 0, 3, 12]
-    sol.moveZeroes(arr)
-    assert arr == [1, 3, 12, 0, 0]
 
     # frequencySort
     assert sol.frequencySort("tree") in ["eert", "eetr"]
@@ -781,28 +596,10 @@ if __name__ == "__main__":
     assert sol.sortArray([5, 2, 3, 1]) == [1, 2, 3, 5]
     assert sol.sortArray([5, 1, 1, 2, 0, 0]) == [0, 0, 1, 1, 2, 5]
 
-    # minMovesToSeat (LC 2037)
-    assert sol.minMovesToSeat([3, 1, 5], [2, 7, 4]) == 4
-    assert sol.minMovesToSeat([4, 1, 5, 9], [1, 3, 2, 6]) == 7
-
-    # relativeSortArray (LC 1122)
-    assert sol.relativeSortArray([2,3,1,3,2,4,3,1,2], [2,3,1]) == [2,2,2,3,3,3,1,1,4]
-    assert sol.relativeSortArray([28,6,22,8,44,17], [22,28,8,6]) == [22,28,8,6,17,44]
-
-    # arrayRankTransform (LC 1331)
-    assert sol.arrayRankTransform([40,10,20,30]) == [4,1,2,3]
-    assert sol.arrayRankTransform([100,100,100]) == [1,1,1]
-    assert sol.arrayRankTransform([37,12,28,9,100,56,80,5,12]) == [5,3,4,2,8,6,7,1,3]
-
     # smallestValue (LC 2507)
     assert sol.smallestValue(15) == 5
     assert sol.smallestValue(4) == 4
     assert sol.smallestValue(7) == 7
-
-    # frequencySortArray (LC 1636)
-    assert sol.frequencySortArray([1,1,2,2,2,3]) == [3,1,1,2,2,2]
-    assert sol.frequencySortArray([2,3,1,3,2]) == [1,3,3,2,2]
-    assert sol.frequencySortArray([-1,1,-6,4,5,-6,1,4,1]) == [5,-1,4,4,-6,-6,1,1,1]
 
     # maxEvents (LC 1353)
     assert sol.maxEvents([[1,2],[2,3],[3,4]]) == 3

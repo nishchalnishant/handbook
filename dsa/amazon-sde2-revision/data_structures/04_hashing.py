@@ -21,24 +21,6 @@ import random
 
 class HashingSolutions:
     # -----------------------------------------------------------------------
-    # 1. Two Sum (LC 1) — T1
-    # Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target. You may assume that each input would have exactly one solution, and you may not use the same element twice. You can return the answer in any order.
-    # Example: nums = [2,7,11,15], target = 9 → [0,1]
-    # Constraints: 2 <= nums.length <= 10^4, 10^9 <= nums[i] <= 10^9, 10^9 <= target <= 10^9, Only one valid answer exists, Follow-up: Can you come up with an algorithm that is less than O(n^2) time complexity?
-    # Time: O(n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def twoSum(self, nums: List[int], target: int) -> List[int]:
-        # Map to store number to its index
-        seen = {}
-        for i, num in enumerate(nums):
-            # Check if complement exists in seen map
-            if target - num in seen:
-                return [seen[target - num], i]
-            # Record current number and its index
-            seen[num] = i
-        return []
-
-    # -----------------------------------------------------------------------
     # 2. Group Anagrams (LC 49) — T1
     # Given an array of strings strs, group the anagrams together. You can return the answer in any order.
     # Example: strs = ["eat","tea","tan","ate","nat","bat"] → [["bat"],["nat","tan"],["ate","eat","tea"]]
@@ -65,20 +47,6 @@ class HashingSolutions:
         count = Counter(nums)
         # O(N log K) using heap
         return heapq.nlargest(k, count.keys(), key=count.get)
-
-    # -----------------------------------------------------------------------
-    # 4. Valid Anagram (LC 242) — T1
-    # Given two strings s and t, return true if t is an anagram of s, and false otherwise.
-    # Example: s = "anagram", t = "nagaram" → true
-    # Constraints: 1 <= s.length, t.length <= 5 * 10^4, s and t consist of lowercase English letters, Follow up: What if the inputs contain Unicode characters? How would you adapt your solution to such, a case?
-    # Time: O(n), Space: O(1)
-    # -----------------------------------------------------------------------
-    def isAnagram(self, s: str, t: str) -> bool:
-        # Anagrams must be of equal length
-        if len(s) != len(t): 
-            return False
-        # Compare character frequency counts
-        return Counter(s) == Counter(t)
 
     # -----------------------------------------------------------------------
     # 5. Longest Consecutive Sequence (LC 128) — T1
@@ -187,24 +155,6 @@ class LRUCache:
 
 class HashingSolutionsT2:
     # -----------------------------------------------------------------------
-    # 2. Ransom Note (LC 383) — T2
-    # Given two strings ransomNote and magazine, return true if ransomNote can be constructed by using the letters from magazine and false otherwise. Each letter in magazine can only be used once in ransomNote.
-    # Example: ransomNote = "a", magazine = "b" → false
-    # Constraints: 1 <= ransomNote.length, magazine.length <= 10^5, ransomNote and magazine consist of lowercase English letters
-    # Time: O(n + m), Space: O(1)
-    # -----------------------------------------------------------------------
-    def canConstruct(self, ransomNote: str, magazine: str) -> bool:
-        # Get character counts for magazine
-        count_mag = Counter(magazine)
-        # Get character counts for ransomNote
-        count_ran = Counter(ransomNote)
-        # Verify that magazine provides enough of each required character
-        for c in count_ran:
-            if count_mag[c] < count_ran[c]:
-                return False
-        return True
-
-    # -----------------------------------------------------------------------
     # 3. 4Sum II (LC 454) — T2
     # Given four integer arrays nums1, nums2, nums3, and nums4 all of length n, return the number of tuples (i, j, k, l) such that:
     # Example: nums1 = [1,2], nums2 = [-2,-1], nums3 = [-1,2], nums4 = [0,2] → 2
@@ -270,36 +220,6 @@ class RandomizedSet:
         return random.choice(self.numList)
 
 class HashingSolutionsAdditional:
-    # -----------------------------------------------------------------------
-    # 7. Subarrays with K Different Integers (LC 992) — T1
-    # Given an integer array nums and an integer k, return the number of good subarrays of nums. A good array is an array where the number of different integers in that array is exactly k. A subarray is a contiguous part of an array.
-    # Example: nums = [1,2,1,2,3], k = 2 → 7
-    # Constraints: 1 <= nums.length <= 2 * 10^4, 1 <= nums[i], k <= nums.length
-    # Time: O(n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def subarraysWithKDistinct(self, nums: List[int], k: int) -> int:
-        def atMost(k):
-            from collections import defaultdict
-            count = defaultdict(int)
-            res = 0
-            l = 0
-            # Expand right boundary of window
-            for r in range(len(nums)):
-                if count[nums[r]] == 0:
-                    k -= 1
-                count[nums[r]] += 1
-                # Shrink left boundary of window if distinct values exceed k
-                while k < 0:
-                    count[nums[l]] -= 1
-                    if count[nums[l]] == 0:
-                        k += 1
-                    l += 1
-                # Add count of valid subarrays ending at r
-                res += r - l + 1
-            return res
-        # Return exactly k as difference of atMost(k) and atMost(k-1)
-        return atMost(k) - atMost(k - 1)
-
     # -----------------------------------------------------------------------
     # 8. Subarray Sums Divisible by K (LC 974) — T2
     # Given an integer array nums and an integer k, return the number of non-empty subarrays that have a sum divisible by k. A subarray is a contiguous part of an array.
@@ -420,57 +340,6 @@ class HashingSolutionsAdditional:
         return res if res < len(nums) else -1
 
 class HashingSolutionsL4:
-    # LC 205 — Isomorphic Strings
-    # Details: Given two strings s and t, determine if they are isomorphic.
-    # Two strings s and t are isomorphic if the characters in s can be replaced to get t.
-    # All occurrences of a character must be replaced with another character while preserving
-    # the order of characters. No two characters may map to the same character, but a character
-    # may map to itself.
-    # Example 1: s = "egg", t = "add" -> True
-    # Example 2: s = "foo", t = "bar" -> False
-    # Example 3: s = "paper", t = "title" -> True
-    # Constraints: 1 <= s.length <= 5 * 10^4, s and t consist of any valid ASCII characters.
-    # Time: O(n), Space: O(1) (bounded alphabet)
-    """imp"""
-    def isIsomorphic(self, s: str, t: str) -> bool:
-        """Isomorphic Strings (LC 205). O(n)."""
-        s_to_t = {}
-        t_to_s = {}
-        # Iterate over character pairs of both strings
-        for cs, ct in zip(s, t):
-            # Check mapping bijection consistency
-            if s_to_t.get(cs, ct) != ct or t_to_s.get(ct, cs) != cs:
-                return False
-            s_to_t[cs] = ct
-            t_to_s[ct] = cs
-        return True
-
-    # LC 290 — Word Pattern
-    # Details: Given a pattern and a string s, find if s follows the same pattern.
-    # "Follows" means a full match, such that there is a bijection between a letter in pattern
-    # and a non-empty word in s.
-    # Example 1: pattern = "abba", s = "dog cat cat dog" -> True
-    # Example 2: pattern = "abba", s = "dog cat cat fish" -> False
-    # Example 3: pattern = "aaaa", s = "dog cat cat dog" -> False
-    # Constraints: 1 <= pattern.length <= 300, s contains only lowercase English letters and spaces.
-    # Time: O(n), Space: O(n)
-    """imp"""
-    def wordPattern(self, pattern: str, s: str) -> bool:
-        """Word Pattern (LC 290). O(n)."""
-        words = s.split()
-        # Word count must match pattern character count
-        if len(pattern) != len(words):
-            return False
-        c_to_w = {}
-        w_to_c = {}
-        # Verify bijection between characters and words
-        for c, w in zip(pattern, words):
-            if c_to_w.get(c, w) != w or w_to_c.get(w, c) != c:
-                return False
-            c_to_w[c] = w
-            w_to_c[w] = c
-        return True
-
     # LC 609 — Find Duplicate File in System
     # Details: Given a list of directory info strings in the format
     # "root/d1/d2/.../dm f1.txt(f1_content) f2.txt(f2_content) ..."
@@ -579,114 +448,6 @@ class HashingSolutionsL4:
         # Filter words matching pattern
         return [w for w in words if matches(w)]
 
-    # LC 599 — Minimum Index Sum of Two Lists
-    # Details: Given two arrays of strings list1 and list2, find all strings that appear in
-    # both lists with the minimum index sum (index in list1 + index in list2). Return those
-    # strings. If there is a tie, return all of them in any order.
-    # Example: list1 = ["Shogun","Tapioca Express","Burger King","KFC"],
-    #          list2 = ["Piatti","The Grill at Torrey Pines","Hungry Hunter Steakhouse","Shogun"]
-    #          -> ["Shogun"]
-    # Constraints: 1 <= list1.length, list2.length <= 1000, strings are lowercase English letters.
-    # Time: O(n + m), Space: O(n)
-    def findRestaurant(self, list1: List[str], list2: List[str]) -> List[str]:
-        """Minimum Index Sum of Two Lists (LC 599). O(n + m)."""
-        # Map restaurant name to its index in list1
-        index_map = {s: i for i, s in enumerate(list1)}
-        res = []
-        min_sum = float('inf')
-        # Iterate over list2 and calculate index sums
-        for j, s in enumerate(list2):
-            if s in index_map:
-                total = index_map[s] + j
-                # Update minimum index sum and result list
-                if total < min_sum:
-                    min_sum = total
-                    res = [s]
-                elif total == min_sum:
-                    res.append(s)
-        return res
-
-
-# LC 359 — Logger Rate Limiter (standalone class)
-class Logger:
-    def __init__(self):
-        """Logger Rate Limiter (standalone class) (LC 359). Time: O(1) per call, Space: O(n) where n = distinct messages seen."""
-        self._last_printed = {}
-
-    def shouldPrintMessage(self, timestamp: int, message: str) -> bool:
-        # Check if enough time has passed since the last print of the message
-        if timestamp - self._last_printed.get(message, float('-inf')) >= 10:
-            self._last_printed[message] = timestamp
-            return True
-        return False
-
-
-# Standalone class implementations for Design HashMap and Design HashSet (LC 706 / LC 705)
-class MyHashMap:
-    def __init__(self):
-        """Design HashMap (LC 706). Time: O(n/k) average per operation, Space: O(n + k)."""
-        self.size = 1009
-        self.buckets = [[] for _ in range(self.size)]
-
-    def _bucket(self, key):
-        return self.buckets[key % self.size]
-
-    def put(self, key: int, value: int) -> None:
-        """Stores or updates the value associated with the requested key."""
-        chain = self._bucket(key)
-        # Update if key already exists in the chain
-        for i, (k, v) in enumerate(chain):
-            if k == key:
-                chain[i] = (key, value)
-                return
-        # Otherwise append new key-value pair to bucket chain
-        chain.append((key, value))
-
-    def get(self, key: int) -> int:
-        """Returns the value associated with the requested key or index."""
-        # Find key in the matching hash bucket chain
-        for k, v in self._bucket(key):
-            if k == key:
-                return v
-        return -1
-
-    def remove(self, key: int) -> None:
-        """Removes a value from the underlying data structure when present."""
-        chain = self._bucket(key)
-        # Delete entry if key exists in bucket chain
-        for i, (k, v) in enumerate(chain):
-            if k == key:
-                del chain[i]
-                return
-
-
-class MyHashSet:
-    def __init__(self):
-        """Design HashSet (LC 705). Time: O(n/k) average per operation, Space: O(n + k)."""
-        self.size = 1009
-        self.buckets = [[] for _ in range(self.size)]
-
-    def _bucket(self, key):
-        return self.buckets[key % self.size]
-
-    def add(self, key: int) -> None:
-        """Adds a value to the underlying data structure."""
-        chain = self._bucket(key)
-        # Add key if it is not already in the bucket chain
-        if key not in chain:
-            chain.append(key)
-
-    def contains(self, key: int) -> bool:
-        # Check if key is present in matching bucket chain
-        return key in self._bucket(key)
-
-    def remove(self, key: int) -> None:
-        """Removes a value from the underlying data structure when present."""
-        chain = self._bucket(key)
-        # Remove key from chain if it exists
-        if key in chain:
-            chain.remove(key)
-
 
 if __name__ == "__main__":
     sol = HashingSolutions()
@@ -694,20 +455,12 @@ if __name__ == "__main__":
     sol3 = HashingSolutionsAdditional()
     sol4 = HashingSolutionsL4()
 
-    # twoSum
-    assert sol.twoSum([2, 7, 11, 15], 9) == [0, 1]
-    assert sol.twoSum([3, 2, 4], 6) == [1, 2]
-
     # groupAnagrams
     res = sol.groupAnagrams(["eat","tea","tan","ate","nat","bat"])
     assert sorted([sorted(g) for g in res]) == [["ate","eat","tea"],["bat"],["nat","tan"]]
 
     # topKFrequent
     assert sorted(sol.topKFrequent([1,1,1,2,2,3], 2)) == [1, 2]
-
-    # isAnagram
-    assert sol.isAnagram("anagram", "nagaram") == True
-    assert sol.isAnagram("rat", "car") == False
 
     # longestConsecutive
     assert sol.longestConsecutive([100, 4, 200, 1, 3, 2]) == 4
@@ -724,10 +477,6 @@ if __name__ == "__main__":
     lru.put(3, 3)
     assert lru.get(2) == -1
 
-    # canConstruct
-    assert sol2.canConstruct("a", "b") == False
-    assert sol2.canConstruct("aa", "aab") == True
-
     # fourSumCount
     assert sol2.fourSumCount([1,2],[-2,-1],[-1,2],[0,2]) == 2
 
@@ -741,10 +490,6 @@ if __name__ == "__main__":
     assert val in [1, 2]
     assert rs.remove(1) == True
     assert rs.getRandom() == 2
-
-    # subarraysWithKDistinct
-    assert sol3.subarraysWithKDistinct([1,2,1,2,3], 2) == 7
-    assert sol3.subarraysWithKDistinct([1,2,1,3,4], 3) == 3
 
     # subarraysDivByK
     assert sol3.subarraysDivByK([4, 5, 0, -2, -3, 1], 5) == 7
@@ -761,17 +506,6 @@ if __name__ == "__main__":
     assert sol3.findMaxLength([0, 1]) == 2
     assert sol3.findMaxLength([0, 1, 0]) == 2
 
-    # isIsomorphic (LC 205)
-    assert sol4.isIsomorphic("egg", "add") == True
-    assert sol4.isIsomorphic("foo", "bar") == False
-    assert sol4.isIsomorphic("paper", "title") == True
-    assert sol4.isIsomorphic("ab", "aa") == False
-
-    # wordPattern (LC 290)
-    assert sol4.wordPattern("abba", "dog cat cat dog") == True
-    assert sol4.wordPattern("abba", "dog cat cat fish") == False
-    assert sol4.wordPattern("aaaa", "dog cat cat dog") == False
-
     # findDuplicate (LC 609)
     dup_res = sol4.findDuplicate(["root/a 1.txt(abcd) 2.txt(efgh)", "root/c 3.txt(abcd)"])
     assert len(dup_res) == 1
@@ -780,15 +514,6 @@ if __name__ == "__main__":
     # topKFrequentWords (LC 692)
     assert sol4.topKFrequentWords(["i","love","leetcode","i","love","coding"], 2) == ["i","love"]
     assert sol4.topKFrequentWords(["the","day","is","sunny","the","the","the","sunny","is","is"], 4) == ["the","is","sunny","day"]
-
-    # Logger (LC 359)
-    logger = Logger()
-    assert logger.shouldPrintMessage(1, "foo") == True
-    assert logger.shouldPrintMessage(2, "bar") == True
-    assert logger.shouldPrintMessage(3, "foo") == False
-    assert logger.shouldPrintMessage(8, "bar") == False
-    assert logger.shouldPrintMessage(10, "foo") == False
-    assert logger.shouldPrintMessage(11, "foo") == True
 
     # leastBricks (LC 554)
     wall = [[1,2,2,1],[3,1,2],[1,3,2],[2,4],[3,1,2],[1,3,1,1]]
@@ -801,35 +526,5 @@ if __name__ == "__main__":
 
     # findAndReplacePattern (LC 890)
     assert sorted(sol4.findAndReplacePattern(["abc","deq","mee","aqq","dkd","ccc"], "abb")) == ["aqq","mee"]
-
-    # findRestaurant (LC 599)
-    assert sol4.findRestaurant(
-        ["Shogun","Tapioca Express","Burger King","KFC"],
-        ["Piatti","The Grill at Torrey Pines","Hungry Hunter Steakhouse","Shogun"]
-    ) == ["Shogun"]
-    assert sorted(sol4.findRestaurant(["Shogun","Tapioca Express","Burger King","KFC","Piatti"],
-                                       ["KFC","Shogun","Burger King"])) == ["Shogun"]
-
-    # MyHashMap (LC 706)
-    hm = MyHashMap()
-    hm.put(1, 1); hm.put(2, 2)
-    assert hm.get(1) == 1
-    assert hm.get(3) == -1
-    hm.put(2, 1)
-    assert hm.get(2) == 1
-    hm.remove(2)
-    assert hm.get(2) == -1
-
-    # MyHashSet (LC 705)
-    hs = MyHashSet()
-    hs.add(1); hs.add(2)
-    assert hs.contains(1) == True
-    assert hs.contains(3) == False
-    hs.add(2)
-    assert hs.contains(2) == True
-    hs.remove(2)
-    assert hs.contains(2) == False
-
-    # subarraySum already verified above (LC 560 exists)
 
     print("All hashing tests passed.")

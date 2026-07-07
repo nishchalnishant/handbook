@@ -105,48 +105,6 @@ class DPProgression:
     # ==================================================================
 
     # ==================================================================
-    # 1. CLIMBING STAIRS (LC 70)
-    # ------------------------------------------------------------------
-    # PROBLEM: +1 or +2 steps per move. Count ways to reach step n.
-    # STATE:   ways_at_step[i] = ways to stand on step i
-    # RECURRENCE: ways[i] = ways[i-1] + ways[i-2]
-    # ==================================================================
-
-    # STAGE 1 — Pure recursion (O(2^n), recomputes overlapping subproblems)
-    def climb_stairs_recursion(self, n: int) -> int:
-        # Base: 1 way to be on step 1; 2 ways to be on step 2.
-        if n <= 2:
-            return n
-        ways_from_one_below = self.climb_stairs_recursion(n - 1)
-        ways_from_two_below = self.climb_stairs_recursion(n - 2)
-        return ways_from_one_below + ways_from_two_below
-
-    # STAGE 2 — Top-down memo (O(n), dict cache avoids recomputation)
-    def climb_stairs_memo(self, n: int) -> int:
-        cache: Dict[int, int] = {}
-
-        def ways_to_reach(step: int) -> int:
-            if step <= 2:
-                return step
-            if step not in cache:
-                from_one = ways_to_reach(step - 1)
-                from_two = ways_to_reach(step - 2)
-                cache[step] = from_one + from_two
-            return cache[step]
-
-        return ways_to_reach(n)
-
-    # STAGE 3 — Bottom-up tabulation (O(n) time, O(1) space)
-    def climb_stairs_tabulation(self, n: int) -> int:
-        ways_at_prev_step = 1  # standing on step 1
-        ways_at_curr_step = 1  # also step 1 before loop advances
-        for _ in range(n - 1):
-            ways_at_next_step = ways_at_curr_step + ways_at_prev_step
-            ways_at_prev_step = ways_at_curr_step
-            ways_at_curr_step = ways_at_next_step
-        return ways_at_curr_step
-
-    # ==================================================================
     # 2. HOUSE ROBBER (LC 198)
     # ------------------------------------------------------------------
     # PROBLEM: Max money robbing non-adjacent houses.
@@ -731,70 +689,6 @@ class DPProgression:
     #                Min Cost Cut Stick, Job Scheduling → see IntervalDP
     # ==================================================================
 
-    # ==================================================================
-    # 12. BURST BALLOONS / MAX COINS (LC 312)
-    # ==================================================================
-
-    # STAGE 1 — Pure recursion
-    def max_coins_recursion(self, nums: List[int]) -> int:
-        padded = [1] + nums + [1]
-
-        def max_score(left: int, right: int) -> int:
-            if left + 1 >= right:
-                return 0
-            best = 0
-            for last_burst in range(left + 1, right):
-                coins = (
-                    padded[left] * padded[last_burst] * padded[right]
-                    + max_score(left, last_burst)
-                    + max_score(last_burst, right)
-                )
-                best = max(best, coins)
-            return best
-
-        return max_score(0, len(padded) - 1)
-
-    # STAGE 2 — Top-down memo
-    def max_coins_memo(self, nums: List[int]) -> int:
-        padded = [1] + nums + [1]
-        memo: Dict[Tuple[int, int], int] = {}
-
-        def max_score(left: int, right: int) -> int:
-            if left + 1 >= right:
-                return 0
-            if (left, right) in memo:
-                return memo[(left, right)]
-            best = 0
-            for last_burst in range(left + 1, right):
-                coins = (
-                    padded[left] * padded[last_burst] * padded[right]
-                    + max_score(left, last_burst)
-                    + max_score(last_burst, right)
-                )
-                best = max(best, coins)
-            memo[(left, right)] = best
-            return best
-
-        return max_score(0, len(padded) - 1)
-
-    # STAGE 3 — Bottom-up tabulation
-    def max_coins_tabulation(self, nums: List[int]) -> int:
-        padded = [1] + nums + [1]
-        n = len(padded)
-        max_score = [[0] * n for _ in range(n)]
-        for interval_len in range(3, n + 1):
-            for left in range(0, n - interval_len + 1):
-                right = left + interval_len - 1
-                best_for_interval = 0
-                for last_burst in range(left + 1, right):
-                    burst_coins = padded[left] * padded[last_burst] * padded[right]
-                    left_part = max_score[left][last_burst]
-                    right_part = max_score[last_burst][right]
-                    candidate = burst_coins + left_part + right_part
-                    best_for_interval = max(best_for_interval, candidate)
-                max_score[left][right] = best_for_interval
-        return max_score[0][n - 1]
-
 
 # REFERENCE SOLUTIONS BY PATTERN (Google L4 scope)
 # =============================================================================
@@ -809,10 +703,6 @@ class DPProgression:
 
 class LinearDP:
     """Reference solutions — LinearDP."""
-
-    def climbStairs(self, n: int) -> int:
-        """Climbing Stairs (LC 70)."""
-        return DPProgression().climb_stairs_tabulation(n)
 
     # -------------------------------------------------------------------------
     # 4. House Robber (LC 198) — T2
@@ -858,20 +748,6 @@ class LinearDP:
     def numDecodings(self, s: str) -> int:
         """Decode Ways (LC 91)."""
         return DPProgression().num_decodings_tabulation(s)
-
-    # -------------------------------------------------------------------------
-    # Min Cost Climbing Stairs (LC 746) — same 1-D linear recurrence
-    # Pay cost[i] to leave step i; reach the top with minimum total cost.
-    # Example: cost=[10,15,20] → 15
-    # -------------------------------------------------------------------------
-    def minCostClimbingStairs(self, cost: List[int]) -> int:
-        # Append 0 for the top step.
-        cost.append(0)
-        # Traverse backwards and update costs in-place.
-        for i in range(len(cost) - 3, -1, -1):
-            cost[i] += min(cost[i + 1], cost[i + 2])
-        # Return min cost starting at index 0 or index 1.
-        return min(cost[0], cost[1])
 
     # -------------------------------------------------------------------------
     # Delete and Earn (LC 740) — House Robber on value indices
@@ -998,38 +874,10 @@ class GridDP:
                 dp[i] = triangle[r][i] + min(dp[i], dp[i + 1])
         return dp[0]
 
-    # -------------------------------------------------------------------------
-    # 34. Maximal Rectangle (LC 85) — T3
-    # Largest rectangle of 1s in binary matrix; use histogram DP + stack.
-    # Time: O(m*n), Space: O(n)
-    # -------------------------------------------------------------------------
     def maximalSquare(self, matrix: List[List[str]]) -> int:
         """Maximal Square (LC 221): largest square of 1s; return area."""
         return DPProgression().maximal_square_tabulation(matrix)
-    def maximalRectangle(self, matrix: List[List[str]]) -> int:
-        if not matrix or not matrix[0]:
-            return 0
-        n = len(matrix[0])
-        heights = [0] * n
-        max_area = 0
-        for row in matrix:
-            for c in range(n):
-                heights[c] = heights[c] + 1 if row[c] == '1' else 0
-            # Largest rectangle in histogram
-            stack = []
-            for i, h in enumerate(heights + [0]):
-                while stack and heights[stack[-1]] > h:
-                    height = heights[stack.pop()]
-                    width = i if not stack else i - stack[-1] - 1
-                    max_area = max(max_area, height * width)
-                stack.append(i)
-        return max_area
 
-    # -------------------------------------------------------------------------
-    # 35. Longest Turbulent Subarray (LC 978) — T2
-    # Longest subarray where comparisons alternate between > and <.
-    # Time: O(n), Space: O(1)
-    # -------------------------------------------------------------------------
 # =============================================================================
 # PATTERN 3: 2-D STRING DP
 # =============================================================================
@@ -1091,55 +939,9 @@ class StringDP:
                     dp[i][j] = True
         return dp[0][0]
 
-    # -------------------------------------------------------------------------
-    # 16. House Robber III (LC 337) — T2
-    # Max money from binary tree; cannot rob directly-linked parent-child nodes.
-    # Example: root=[3,2,3,null,3,null,1] → 7  (3+3+1)
-    # Constraints: 1 <= tree nodes <= 10^4, 0 <= Node.val <= 10^4
-    # Time: O(n), Space: O(n)
-    # -------------------------------------------------------------------------
     def wordBreak(self, s: str, wordDict: List[str]) -> bool:
         """Word Break (LC 139): can s be split into dictionary words?"""
         return DPProgression().word_break_tabulation(s, wordDict)
-
-    # -------------------------------------------------------------------------
-    # Distinct Subsequences (LC 115) — 2-D string DP (space-optimized 1-D)
-    # -------------------------------------------------------------------------
-    def numDistinct(self, s: str, t: str) -> int:
-        # dp[i][j] = number of distinct subsequences of s[:i] which equals t[:j]
-        m, n = len(s), len(t)
-        # We can space optimize this to a 1D array
-        dp = [0] * (n + 1)
-        dp[0] = 1 # Empty string t is a subsequence of any string s 1 time
-
-        for i in range(1, m + 1):
-            # Iterate backwards to avoid using updated values from the same row
-            for j in range(n, 0, -1):
-                if s[i - 1] == t[j - 1]:
-                    dp[j] += dp[j - 1]
-
-        return dp[n]
-
-    # -------------------------------------------------------------------------
-    # Minimum Insertions for Palindrome (LC 1312) — n - LPS(s)
-    # -------------------------------------------------------------------------
-    def minInsertions(self, s: str) -> int:
-        n = len(s)
-        # Reversed string t.
-        t = s[::-1]
-        # dp[i][j] will store the LCS of s[:i] and t[:j].
-        dp = [[0] * (n + 1) for _ in range(n + 1)]
-        # Populate 2D grid bottom-up.
-        for i in range(1, n + 1):
-            for j in range(1, n + 1):
-                # If characters match, increment.
-                if s[i - 1] == t[j - 1]:
-                    dp[i][j] = dp[i - 1][j - 1] + 1
-                else:
-                    # Otherwise, carry over max from adjacent subproblems.
-                    dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
-        # Min insertions is total length minus LPS length.
-        return n - dp[n][n]
 
 
 # =============================================================================
@@ -1280,24 +1082,6 @@ class StockDP:
                 profit += (prices[i] - prices[i-1])
         return profit
 
-    def maxProfitIII(self, prices: List[int]) -> int:
-        if not prices:
-            return 0
-        # buy1, buy2 initialized to negative of first day's price.
-        buy1, sell1 = -prices[0], 0
-        buy2, sell2 = -prices[0], 0
-        # Single pass to update all four states.
-        for price in prices[1:]:
-            # Best cost after first buy.
-            buy1 = max(buy1, -price)
-            # Best profit after first sell.
-            sell1 = max(sell1, buy1 + price)
-            # Best net after second buy.
-            buy2 = max(buy2, sell1 - price)
-            # Best profit after second sell.
-            sell2 = max(sell2, buy2 + price)
-        return sell2
-
 
 # =============================================================================
 # PATTERN 7: INTERVAL DP
@@ -1310,9 +1094,6 @@ class StockDP:
 class IntervalDP:
     """Reference solutions — IntervalDP."""
 
-    def maxCoins(self, nums: List[int]) -> int:
-        """Burst Balloons (LC 312)."""
-        return DPProgression().max_coins_tabulation(nums)
     def predictTheWinner(self, nums: List[int]) -> bool:
         n = len(nums)
         # dp[i][j] = max score difference (cur_player - other) for nums[i..j]
@@ -1383,34 +1164,6 @@ class IntervalDP:
 
         return score_from(0, 1)
 
-    def minCost(self, n: int, cuts: List[int]) -> int:
-        # Sort cuts and add virtual cuts at boundaries 0 and n.
-        cuts = sorted([0] + cuts + [n])
-        m = len(cuts)
-        # dp[i][j] stores the min cost to make all cuts between cuts[i] and cuts[j].
-        dp = [[0] * m for _ in range(m)]
-        # Solve for increasing interval lengths.
-        for length in range(2, m):
-            for i in range(m - length):
-                j = i + length
-                dp[i][j] = float('inf')
-                # Try all intermediate cuts k.
-                for k in range(i + 1, j):
-                    dp[i][j] = min(dp[i][j], dp[i][k] + dp[k][j] + cuts[j] - cuts[i])
-        return dp[0][m - 1]
-
-    def jobScheduling(self, startTime: List[int], endTime: List[int], profit: List[int]) -> int:
-        import bisect
-        jobs = sorted(zip(endTime, startTime, profit))
-        # dp[i] = max profit using first i jobs (1-indexed)
-        dp = [0] * (len(jobs) + 1)
-        end_times = [0] + [j[0] for j in jobs]
-        for i, (end, start, p) in enumerate(jobs, 1):
-            # Latest job that ends <= start of current job
-            j = bisect.bisect_right(end_times, start, 0, i) - 1
-            dp[i] = max(dp[i - 1], dp[j] + p)
-        return dp[len(jobs)]
-
 
 # =============================================================================
 # PATTERN 8: TREE DP
@@ -1442,11 +1195,9 @@ class TreeDP:
 # =============================================================================
 
 PRACTICE_QUESTIONS = [
-    {"id": 1, "pattern": "1-D Linear", "lc": 70, "name": "Climbing Stairs", "progression": True},
     {"id": 2, "pattern": "1-D Linear", "lc": 198, "name": "House Robber", "progression": True},
     {"id": 3, "pattern": "1-D Linear", "lc": 91, "name": "Decode Ways", "progression": True},
     {"id": 4, "pattern": "1-D Linear", "lc": 213, "name": "House Robber II", "progression": False},
-    {"id": 5, "pattern": "1-D Linear", "lc": 746, "name": "Min Cost Climbing Stairs", "progression": False},
     {"id": 6, "pattern": "1-D Linear", "lc": 152, "name": "Maximum Product Subarray", "progression": False},
     {"id": 44, "pattern": "1-D Linear", "lc": 740, "name": "Delete and Earn", "progression": False},
     {"id": 7, "pattern": "2-D Grid", "lc": 62, "name": "Unique Paths", "progression": True},
@@ -1454,14 +1205,11 @@ PRACTICE_QUESTIONS = [
     {"id": 9, "pattern": "2-D Grid", "lc": 64, "name": "Minimum Path Sum", "progression": False},
     {"id": 10, "pattern": "2-D Grid", "lc": 120, "name": "Triangle", "progression": False},
     {"id": 11, "pattern": "2-D Grid", "lc": 221, "name": "Maximal Square", "progression": True},
-    {"id": 12, "pattern": "2-D Grid", "lc": 85, "name": "Maximal Rectangle", "progression": False},
     {"id": 13, "pattern": "2-D String", "lc": 72, "name": "Edit Distance", "progression": True},
     {"id": 14, "pattern": "2-D String", "lc": 1143, "name": "Longest Common Subsequence", "progression": True},
     {"id": 15, "pattern": "2-D String", "lc": 139, "name": "Word Break", "progression": True},
     {"id": 16, "pattern": "2-D String", "lc": 97, "name": "Interleaving String", "progression": False},
-    {"id": 19, "pattern": "2-D String", "lc": 115, "name": "Distinct Subsequences", "progression": False},
     {"id": 20, "pattern": "2-D String", "lc": 516, "name": "Longest Palindromic Subsequence", "progression": False},
-    {"id": 21, "pattern": "2-D String", "lc": 1312, "name": "Min Insertions for Palindrome", "progression": False},
     {"id": 22, "pattern": "Knapsack", "lc": 322, "name": "Coin Change", "progression": True},
     {"id": 23, "pattern": "Knapsack", "lc": 518, "name": "Coin Change II", "progression": False},
     {"id": 24, "pattern": "Knapsack", "lc": 416, "name": "Partition Equal Subset Sum", "progression": True},
@@ -1470,20 +1218,15 @@ PRACTICE_QUESTIONS = [
     {"id": 27, "pattern": "Knapsack", "lc": 377, "name": "Combination Sum IV", "progression": False},
     {"id": 28, "pattern": "Subsequence", "lc": 300, "name": "Longest Increasing Subsequence", "progression": False},
     {"id": 29, "pattern": "Stock", "lc": 122, "name": "Best Time to Buy/Sell Stock II", "progression": False},
-    {"id": 30, "pattern": "Stock", "lc": 123, "name": "Best Time to Buy/Sell Stock III", "progression": False},
-    {"id": 31, "pattern": "Interval", "lc": 312, "name": "Burst Balloons", "progression": True},
     {"id": 32, "pattern": "Interval", "lc": 486, "name": "Predict the Winner", "progression": False},
     {"id": 33, "pattern": "Interval", "lc": 877, "name": "Stone Game", "progression": False},
     {"id": 34, "pattern": "Interval", "lc": 1140, "name": "Stone Game II", "progression": False},
-    {"id": 36, "pattern": "Interval", "lc": 1547, "name": "Minimum Cost to Cut a Stick", "progression": False},
-    {"id": 37, "pattern": "Interval", "lc": 1235, "name": "Job Scheduling", "progression": False},
     {"id": 38, "pattern": "Tree", "lc": 337, "name": "House Robber III", "progression": False},
 ]
 
 
 if __name__ == "__main__":
     prog = DPProgression()
-    assert prog.climb_stairs_recursion(10) == prog.climb_stairs_memo(10) == prog.climb_stairs_tabulation(10)
     assert prog.rob_recursion([1, 2, 3, 1]) == prog.rob_memo([1, 2, 3, 1]) == prog.rob_tabulation([1, 2, 3, 1])
     assert prog.coin_change_recursion([1, 5, 11], 15) == prog.coin_change_memo([1, 5, 11], 15) == prog.coin_change_tabulation([1, 5, 11], 15)
 
@@ -1497,11 +1240,9 @@ if __name__ == "__main__":
     tree = TreeDP()
 
     # --- Linear ---
-    assert linear.climbStairs(10) == 89
     assert linear.rob([1, 2, 3, 1]) == 4
     assert linear.robII([2, 3, 2]) == 3
     assert linear.numDecodings("226") == 3
-    assert linear.minCostClimbingStairs([10, 15, 20]) == 15
     assert linear.deleteAndEarn([3, 4, 2]) == 6
     assert linear.maxProduct([2, 3, -2, 4]) == 6
 
@@ -1512,16 +1253,12 @@ if __name__ == "__main__":
     assert grid.minimumTotal([[2],[3,4],[6,5,7],[4,1,8,3]]) == 11
     assert grid.maximalSquare([["1","0","1","0","0"],["1","0","1","1","1"],
                                ["1","1","1","1","1"],["1","0","0","1","0"]]) == 4
-    assert grid.maximalRectangle([["1","0","1","0","0"],["1","0","1","1","1"],
-                                  ["1","1","1","1","1"],["1","0","0","1","0"]]) == 6
 
     # --- String ---
     assert string_dp.minDistance("horse", "ros") == 3
     assert string_dp.longestCommonSubsequence("abcde", "ace") == 3
     assert string_dp.wordBreak("leetcode", ["leet", "code"]) == True
     assert string_dp.isInterleave("aabcc", "dbbca", "aadbbcbcac") == True
-    assert string_dp.numDistinct("rabbbit", "rabbit") == 3
-    assert string_dp.minInsertions("mbadm") == 2
 
     # --- Knapsack ---
     assert knapsack.coinChange([1, 5, 11], 15) == 3
@@ -1535,15 +1272,11 @@ if __name__ == "__main__":
 
     # --- Stock ---
     assert stock.maxProfitII([7,1,5,3,6,4]) == 7
-    assert stock.maxProfitIII([3,3,5,0,0,3,1,4]) == 6
 
     # --- Interval ---
-    assert interval.maxCoins([3, 1, 5, 8]) == 167
     assert interval.predictTheWinner([1, 5, 233, 7]) == True
     assert interval.stoneGame([5, 3, 4, 5]) == True
     assert interval.stoneGameII([2, 7, 9, 4, 4]) == 10
-    assert interval.minCost(7, [1,3,4,5]) == 16
-    assert interval.jobScheduling([1,2,3,3], [3,4,5,6], [50,10,40,70]) == 120
 
     # --- Tree ---
     # robIII needs tree node — skip unless we have stub

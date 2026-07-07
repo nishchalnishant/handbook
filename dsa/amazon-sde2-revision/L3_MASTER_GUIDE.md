@@ -30,16 +30,12 @@
 
 | # | Problem | LC | Difficulty | ✅ |
 |---|---------|-----|-----------|---|
-| 1 | Two Sum | 1 | Easy | |
-| 2 | Contains Duplicate | 217 | Easy | |
-| 3 | Product of Array Except Self | 238 | Medium | |
-| 4 | Subarray Sum Equals K | 560 | Medium | |
-| 5 | Longest Consecutive Sequence | 128 | Medium | |
-| 6 | Group Anagrams | 49 | Medium | |
-| 7 | Top K Frequent Elements | 347 | Medium | |
-| 8 | Minimum Window Substring | 76 | Hard | |
-| 9 | Trapping Rain Water | 42 | Hard | |
-| 10 | 4Sum | 18 | Medium | |
+| 1 | Product of Array Except Self | 238 | Medium | |
+| 2 | Subarray Sum Equals K | 560 | Medium | |
+| 3 | Longest Consecutive Sequence | 128 | Medium | |
+| 4 | Group Anagrams | 49 | Medium | |
+| 5 | Top K Frequent Elements | 347 | Medium | |
+| 6 | 4Sum | 18 | Medium | |
 
 ---
 
@@ -57,13 +53,12 @@
 
 | # | Problem | LC | Difficulty | ✅ |
 |---|---------|-----|-----------|---|
-| 1 | Valid Palindrome | 125 | Easy | |
-| 2 | 3Sum | 15 | Medium | |
-| 3 | Container With Most Water | 11 | Medium | |
-| 4 | Longest Substring Without Repeating Characters | 3 | Medium | |
-| 5 | Longest Repeating Character Replacement | 424 | Medium | |
-| 6 | Permutation in String | 567 | Medium | |
-| 7 | Fruit Into Baskets | 904 | Medium | |
+| 1 | 3Sum | 15 | Medium | |
+| 2 | Container With Most Water | 11 | Medium | |
+| 3 | Longest Substring Without Repeating Characters | 3 | Medium | |
+| 4 | Longest Repeating Character Replacement | 424 | Medium | |
+| 5 | Permutation in String | 567 | Medium | |
+| 6 | Fruit Into Baskets | 904 | Medium | |
 
 ---
 
@@ -80,14 +75,12 @@
 
 | # | Problem | LC | Difficulty | ✅ |
 |---|---------|-----|-----------|---|
-| 1 | Binary Search | 704 | Easy | |
-| 2 | Search in Rotated Sorted Array | 33 | Medium | |
-| 3 | Find Minimum in Rotated Sorted Array | 153 | Medium | |
-| 4 | Search a 2D Matrix | 74 | Medium | |
-| 5 | Koko Eating Bananas | 875 | Medium | |
-| 6 | Minimum in Rotated Array II (with duplicates) | 154 | Hard | |
-| 7 | Capacity to Ship Packages Within D Days | 1011 | Medium | |
-| 8 | Find Peak Element | 162 | Medium | |
+| 1 | Search in Rotated Sorted Array | 33 | Medium | |
+| 2 | Find Minimum in Rotated Sorted Array | 153 | Medium | |
+| 3 | Search a 2D Matrix | 74 | Medium | |
+| 4 | Koko Eating Bananas | 875 | Medium | |
+| 5 | Capacity to Ship Packages Within D Days | 1011 | Medium | |
+| 6 | Find Peak Element | 162 | Medium | |
 
 ---
 
@@ -105,14 +98,10 @@
 
 | # | Problem | LC | Difficulty | ✅ |
 |---|---------|-----|-----------|---|
-| 1 | Reverse Linked List | 206 | Easy | |
-| 2 | Merge Two Sorted Lists | 21 | Easy | |
-| 3 | Linked List Cycle | 141 | Easy | |
-| 4 | Remove Nth Node From End | 19 | Medium | |
-| 5 | Reorder List | 143 | Medium | |
-| 6 | LRU Cache | 146 | Medium | |
-| 7 | Merge K Sorted Lists | 23 | Hard | |
-| 8 | Copy List with Random Pointer | 138 | Medium | |
+| 1 | Remove Nth Node From End | 19 | Medium | |
+| 2 | Reorder List | 143 | Medium | |
+| 3 | LRU Cache | 146 | Medium | |
+| 4 | Copy List with Random Pointer | 138 | Medium | |
 
 ---
 
@@ -130,20 +119,13 @@
 
 | # | Problem | LC | Difficulty | ✅ |
 |---|---------|-----|-----------|---|
-| 1 | Invert Binary Tree | 226 | Easy | |
-| 2 | Maximum Depth of Binary Tree | 104 | Easy | |
-| 3 | Balanced Binary Tree | 110 | Easy | |
-| 4 | Diameter of Binary Tree | 543 | Easy | |
-| 5 | Same Tree | 100 | Easy | |
-| 6 | Binary Tree Level Order Traversal | 102 | Medium | |
-| 7 | Binary Tree Right Side View | 199 | Medium | |
-| 8 | Count Good Nodes in Binary Tree | 1448 | Medium | |
-| 9 | Lowest Common Ancestor of BST | 235 | Medium | |
-| 10 | Lowest Common Ancestor of Binary Tree | 236 | Medium | |
-| 11 | Binary Tree Maximum Path Sum | 124 | Hard | |
-| 12 | Serialize and Deserialize Binary Tree | 297 | Hard | |
-| 13 | Validate BST | 98 | Medium | |
-| 14 | Kth Smallest Element in BST | 230 | Medium | |
+| 1 | Binary Tree Level Order Traversal | 102 | Medium | |
+| 2 | Binary Tree Right Side View | 199 | Medium | |
+| 3 | Count Good Nodes in Binary Tree | 1448 | Medium | |
+| 4 | Lowest Common Ancestor of BST | 235 | Medium | |
+| 5 | Lowest Common Ancestor of Binary Tree | 236 | Medium | |
+| 6 | Validate BST | 98 | Medium | |
+| 7 | Kth Smallest Element in BST | 230 | Medium | |
 
 ---
 
@@ -182,9 +164,8 @@
 | 7 | Course Schedule II | 210 | Medium | |
 | 8 | Number of Connected Components in Undirected Graph | 323 | Medium | |
 | 9 | Redundant Connection | 684 | Medium | |
-| 10 | Word Ladder | 127 | Hard | |
-| 11 | Network Delay Time (Dijkstra) | 743 | Medium | |
-| 12 | Walls and Gates | 286 | Medium | |
+| 10 | Network Delay Time (Dijkstra) | 743 | Medium | |
+| 11 | Walls and Gates | 286 | Medium | |
 
 ### Google-specific additions (beyond Amazon SDE-2 scope)
 
@@ -193,10 +174,9 @@
 
 | # | Problem | LC | Difficulty | ✅ |
 |---|---------|-----|-----------|---|
-| 13 | Cheapest Flights Within K Stops (Bellman-Ford) | 787 | Medium | |
-| 14 | Find the City With the Smallest Number of Neighbors (Floyd-Warshall) | 1334 | Medium | |
-| 15 | Min Cost to Connect All Points (Prim's) | 1584 | Medium | |
-| 16 | Detect Negative Cycle (Bellman-Ford) | — | — | |
+| 1 | Cheapest Flights Within K Stops (Bellman-Ford) | 787 | Medium | |
+| 2 | Find the City With the Smallest Number of Neighbors (Floyd-Warshall) | 1334 | Medium | |
+| 3 | Min Cost to Connect All Points (Prim's) | 1584 | Medium | |
 
 ---
 
@@ -216,11 +196,9 @@
 |---|---------|-----|-----------|---|
 | 1 | Kth Largest Element in Array | 215 | Medium | |
 | 2 | K Closest Points to Origin | 973 | Medium | |
-| 3 | Find Median from Data Stream | 295 | Hard | |
-| 4 | Task Scheduler | 621 | Medium | |
-| 5 | Design Twitter | 355 | Medium | |
-| 6 | Merge K Sorted Lists | 23 | Hard | |
-| 7 | Reorganize String | 767 | Medium | |
+| 3 | Task Scheduler | 621 | Medium | |
+| 4 | Design Twitter | 355 | Medium | |
+| 5 | Reorganize String | 767 | Medium | |
 
 ---
 
@@ -238,20 +216,18 @@
 
 | # | Problem | LC | Difficulty | ✅ |
 |---|---------|-----|-----------|---|
-| 1 | Climbing Stairs | 70 | Easy | |
-| 2 | House Robber | 198 | Medium | |
-| 3 | House Robber II | 213 | Medium | |
-| 4 | Coin Change | 322 | Medium | |
-| 5 | Longest Increasing Subsequence | 300 | Medium | |
-| 6 | Longest Common Subsequence | 1143 | Medium | |
-| 7 | Word Break | 139 | Medium | |
-| 8 | Unique Paths | 62 | Medium | |
-| 9 | Jump Game | 55 | Medium | |
-| 10 | Jump Game II | 45 | Medium | |
-| 11 | Partition Equal Subset Sum | 416 | Medium | |
-| 12 | Edit Distance | 72 | Hard | |
-| 13 | Decode Ways | 91 | Medium | |
-| 14 | Palindromic Substrings | 647 | Medium | |
+| 1 | House Robber | 198 | Medium | |
+| 2 | House Robber II | 213 | Medium | |
+| 3 | Coin Change | 322 | Medium | |
+| 4 | Longest Increasing Subsequence | 300 | Medium | |
+| 5 | Longest Common Subsequence | 1143 | Medium | |
+| 6 | Word Break | 139 | Medium | |
+| 7 | Unique Paths | 62 | Medium | |
+| 8 | Jump Game | 55 | Medium | |
+| 9 | Jump Game II | 45 | Medium | |
+| 10 | Partition Equal Subset Sum | 416 | Medium | |
+| 11 | Decode Ways | 91 | Medium | |
+| 12 | Palindromic Substrings | 647 | Medium | |
 
 ---
 
@@ -269,13 +245,11 @@
 
 | # | Problem | LC | Difficulty | ✅ |
 |---|---------|-----|-----------|---|
-| 1 | Valid Parentheses | 20 | Easy | |
-| 2 | Min Stack | 155 | Medium | |
-| 3 | Daily Temperatures | 739 | Medium | |
-| 4 | Largest Rectangle in Histogram | 84 | Hard | |
-| 5 | Car Fleet | 853 | Medium | |
-| 6 | Evaluate Reverse Polish Notation | 150 | Medium | |
-| 7 | Generate Parentheses | 22 | Medium | |
+| 1 | Min Stack | 155 | Medium | |
+| 2 | Daily Temperatures | 739 | Medium | |
+| 3 | Car Fleet | 853 | Medium | |
+| 4 | Evaluate Reverse Polish Notation | 150 | Medium | |
+| 5 | Generate Parentheses | 22 | Medium | |
 
 ---
 
@@ -299,8 +273,7 @@
 | 5 | Combination Sum | 39 | Medium | |
 | 6 | Combination Sum II | 40 | Medium | |
 | 7 | Word Search | 79 | Medium | |
-| 8 | N-Queens | 51 | Hard | |
-| 9 | Palindrome Partitioning | 131 | Medium | |
+| 8 | Palindrome Partitioning | 131 | Medium | |
 
 ---
 
@@ -312,15 +285,14 @@
 
 | # | Problem | LC | Difficulty | ✅ |
 |---|---------|-----|-----------|---|
-| 1 | Meeting Rooms | 252 | Easy | |
-| 2 | Meeting Rooms II | 253 | Medium | |
-| 3 | Merge Intervals | 56 | Medium | |
-| 4 | Insert Interval | 57 | Medium | |
-| 5 | Non-overlapping Intervals | 435 | Medium | |
-| 6 | Jump Game | 55 | Medium | |
-| 7 | Gas Station | 134 | Medium | |
-| 8 | Hand of Straights | 846 | Medium | |
-| 9 | Task Scheduler | 621 | Medium | |
+| 1 | Meeting Rooms II | 253 | Medium | |
+| 2 | Merge Intervals | 56 | Medium | |
+| 3 | Insert Interval | 57 | Medium | |
+| 4 | Non-overlapping Intervals | 435 | Medium | |
+| 5 | Jump Game | 55 | Medium | |
+| 6 | Gas Station | 134 | Medium | |
+| 7 | Hand of Straights | 846 | Medium | |
+| 8 | Task Scheduler | 621 | Medium | |
 
 ---
 
@@ -334,8 +306,7 @@
 |---|---------|-----|-----------|---|
 | 1 | Implement Trie (Prefix Tree) | 208 | Medium | |
 | 2 | Design Add and Search Words Data Structure | 211 | Medium | |
-| 3 | Word Search II | 212 | Hard | |
-| 4 | Replace Words | 648 | Medium | |
+| 3 | Replace Words | 648 | Medium | |
 
 ---
 
@@ -355,9 +326,6 @@
 | # | Problem | LC | Difficulty | ✅ |
 |---|---------|-----|-----------|---|
 | 1 | Range Sum Query - Mutable | 307 | Medium | |
-| 2 | Range Sum Query 2D - Mutable | 308 | Hard | |
-| 3 | Count of Smaller Numbers After Self | 315 | Hard | |
-| 4 | The Skyline Problem | 218 | Hard | |
 
 ---
 
@@ -369,14 +337,8 @@
 
 | # | Problem | LC | Difficulty | ✅ |
 |---|---------|-----|-----------|---|
-| 1 | Number of 1 Bits | 191 | Easy | |
-| 2 | Counting Bits | 338 | Easy | |
-| 3 | Reverse Bits | 190 | Easy | |
-| 4 | Single Number | 136 | Easy | |
-| 5 | Missing Number | 268 | Easy | |
-| 6 | Sum of Two Integers (no + operator) | 371 | Medium | |
-| 7 | Pow(x, n) | 50 | Medium | |
-| 8 | Happy Number | 202 | Easy | |
+| 1 | Sum of Two Integers (no + operator) | 371 | Medium | |
+| 2 | Pow(x, n) | 50 | Medium | |
 
 ---
 
