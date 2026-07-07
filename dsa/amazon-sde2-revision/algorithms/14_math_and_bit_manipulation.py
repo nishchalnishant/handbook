@@ -407,24 +407,11 @@ class MathAndBitManipulation:
         return [i for i, v in enumerate(is_prime) if v]
 
     # -----------------------------------------------------------------------
-    # 23. Strobogrammatic Numbers (LC 246)
-    # LC 246: A strobogrammatic number is a number that looks the same when rotated 180 degrees. Given a string num, return true if the number is strobogrammatic. LC 247: Given an integer n, return all strobogrammatic numbers of length n. Example LC 246: "69" → True, "88" → True, "962" → False Example LC 247: n=2 → ["11","69","88","96"]
-    # Constraints: Time LC 246: O(n), Space: O(1). Time LC 247: O(5^(n/2)), Space: O(5^(n/2))
+    # 23. Strobogrammatic Number II (LC 247)
+    # Given an integer n, return all strobogrammatic numbers of length n.
+    # Example: n=2 → ["11","69","88","96"]
+    # Time: O(5^(n/2)), Space: O(5^(n/2))
     # -----------------------------------------------------------------------
-    def isStrobogrammatic(self, num: str) -> bool:
-        # Dict mapping strobogrammatic counterpart digits.
-        mapping = {0: 0, 1: 1, 6: 9, 8: 8, 9: 6}
-        left, right = 0, len(num) - 1
-        # Check digit pairs from both ends inwards.
-        while left <= right:
-            d = int(num[left])
-            # If digit is invalid or its counterpart doesn't match the other end, return False.
-            if d not in mapping or mapping[d] != int(num[right]):
-                return False
-            left += 1
-            right -= 1
-        return True
-
     def findStrobogrammatic(self, n: int) -> List[str]:
         # Symmetric strobogrammatic pairs.
         pairs = [('0', '0'), ('1', '1'), ('6', '9'), ('8', '8'), ('9', '6')]
@@ -542,13 +529,6 @@ if __name__ == "__main__":
     assert sol.sieveOfEratosthenes(20) == [2, 3, 5, 7, 11, 13, 17, 19]
     assert sol.sieveOfEratosthenes(1) == []
     assert sol.sieveOfEratosthenes(2) == [2]
-
-    # isStrobogrammatic (LC 246)
-    assert sol.isStrobogrammatic("69") == True
-    assert sol.isStrobogrammatic("88") == True
-    assert sol.isStrobogrammatic("962") == False
-    assert sol.isStrobogrammatic("1") == True
-    assert sol.isStrobogrammatic("818") == True
 
     # findStrobogrammatic (LC 247)
     assert sorted(sol.findStrobogrammatic(2)) == sorted(["11", "69", "88", "96"])

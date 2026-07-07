@@ -226,29 +226,6 @@ class Codec:
 
 class StringSolutionsT2:
     # -----------------------------------------------------------------------
-    # 2. Valid Palindrome (LC 125) — T2
-    # A phrase is a palindrome if, after converting all uppercase letters into lowercase letters and removing all non-alphanumeric characters, it reads the same forward and backward. Alphanumeric characters include letters and numbers. Given a string s, return true if it is a palindrome, or false otherwise.
-    # Example: s = "A man, a plan, a canal: Panama" → true
-    # Constraints: 1 <= s.length <= 2 * 10^5, s consists only of printable ASCII characters
-    # Time: O(n), Space: O(1)
-    # -----------------------------------------------------------------------
-    def isPalindrome(self, s: str) -> bool:
-        # Initialize left and right pointers.
-        l, r = 0, len(s) - 1
-        # Loop until the pointers meet or cross.
-        while l < r:
-            # Skip non-alphanumeric characters from the left.
-            while l < r and not s[l].isalnum(): l += 1
-            # Skip non-alphanumeric characters from the right.
-            while l < r and not s[r].isalnum(): r -= 1
-            # Compare the characters case-insensitively.
-            if s[l].lower() != s[r].lower():
-                return False
-            # Move both pointers inward.
-            l, r = l + 1, r - 1
-        return True
-
-    # -----------------------------------------------------------------------
     # 3. Longest Palindromic Substring (LC 5) — T2
     # Given a string s, return the longest palindromic substring in s.
     # Example: s = "babad" → "bab"
@@ -401,30 +378,6 @@ class StringSolutionsT2:
         return roman_num
 
     # -----------------------------------------------------------------------
-    # 9. Roman to Integer (LC 13) — T2
-    # Roman numerals are represented by seven different symbols: I, V, X, L, C, D and M. Symbol Value I 1 V 5 X 10 L 50 C 100 D 500 M 1000 For example, 2 is written as II in Roman numeral, just two ones added together. 12 is written as XII, which is simply X + II. The number 27 is written as XXVII, which is XX + V + II. Roman numerals are usually written largest to smallest from left to right. However, the numeral for four is not IIII. Instead, the number four is written as IV. Because the one is before the five we subtract it making four. The same principle applies to the number nine, which is written as IX. There are six instances where subtraction is used: Given a roman numeral, convert it to an integer.
-    # Example: s = "III" → 3
-    # Constraints: 1 <= s.length <= 15, s contains only the characters ('I', 'V', 'X', 'L', 'C', 'D', 'M'), It is guaranteed that s is a valid roman numeral in the range [1, 3999]
-    # Time: O(n), Space: O(1)
-    # -----------------------------------------------------------------------
-    def romanToInt(self, s: str) -> int:
-        # Lookup table mapping Roman characters to their integer values.
-        roman = {
-            "I": 1, "V": 5, "X": 10, "L": 50,
-            "C": 100, "D": 500, "M": 1000
-        }
-        res = 0
-        # Process each Roman character.
-        for i in range(len(s)):
-            # If a smaller value character is followed by a larger one, subtract it.
-            if i + 1 < len(s) and roman[s[i]] < roman[s[i + 1]]:
-                res -= roman[s[i]]
-            # Otherwise, add its value.
-            else:
-                res += roman[s[i]]
-        return res
-
-    # -----------------------------------------------------------------------
     # 10. Shortest Palindrome — T3
     # You are given a string s. You can convert s to a palindrome by adding characters in front of it. Return the shortest palindrome you can find by performing this transformation.
     # Example: s = "aacecaaa" → "aaacecaaa"
@@ -451,58 +404,6 @@ class StringSolutionsT2:
                 p[i] = j + 1
         # Prepend the non-palindromic suffix of rev_s to the original string.
         return rev_s[:len(s) - p[-1]] + s
-
-    # -----------------------------------------------------------------------
-    # 11. Repeated Substring Pattern (LC 459) — T2
-    # Given a string s, check if it can be constructed by taking a substring of it and appending multiple copies of the substring together.
-    # Example: s = "abab" → true
-    # Constraints: 1 <= s.length <= 10^4, s consists of lowercase English letters
-    # Time: O(n), Space: O(n)
-    # -----------------------------------------------------------------------
-    def repeatedSubstringPattern(self, s: str) -> bool:
-        return s in (s + s)[1:-1]
-
-    # -----------------------------------------------------------------------
-    # 12. Distinct Echo Substrings (LC 1316) — T3
-    # Return the number of distinct non-empty substrings of text that can be written as the concatenation of some string with itself (i.e. it can be written as a + a where a is some string).
-    # Example: text = "abcabcabc" → 3
-    # Constraints: 1 <= text.length <= 2000, text has only lowercase English letters
-    # Time: O(n^2), Space: O(n^2)
-    # -----------------------------------------------------------------------
-    def distinctEchoSubstrings(self, text: str) -> int:
-        n = len(text)
-        # Set to store all unique valid echo substrings.
-        res = set()
-
-        BASE = 29
-        MOD = 10**9 + 7
-
-        # Hash array stores prefix rolling hashes.
-        hash_arr = [0] * (n + 1)
-        # Power array precomputes powers of the base for hash comparison.
-        pow_arr = [1] * (n + 1)
-
-        # Precompute the prefix hashes and base powers in O(n).
-        for i in range(n):
-            hash_arr[i + 1] = (hash_arr[i] * BASE + ord(text[i]) - 96) % MOD
-            pow_arr[i + 1] = (pow_arr[i] * BASE) % MOD
-
-        # Helper function to retrieve the hash of slice text[l:r] in O(1).
-        def get_hash(l, r):
-            return (hash_arr[r] - hash_arr[l] * pow_arr[r - l]) % MOD
-
-        # Iterate over all possible candidate substring half-lengths.
-        for length in range(1, n // 2 + 1):
-            # Check adjacent substrings of length 'length' starting at each position.
-            for i in range(n - 2 * length + 1):
-                hash1 = get_hash(i, i + length)
-                hash2 = get_hash(i + length, i + 2 * length)
-                # If their hashes match, verify and record the echo substring.
-                if hash1 == hash2:
-                    res.add(text[i:i + length])
-
-        # Return the count of unique echo substrings.
-        return len(res)
 
     # -----------------------------------------------------------------------
     # 13. Longest Happy Prefix — T3
@@ -556,10 +457,6 @@ if __name__ == "__main__":
     assert codec.decode(codec.encode(words)) == words
     assert codec.decode(codec.encode(["", "abc", "def"])) == ["", "abc", "def"]
 
-    # isPalindrome
-    assert sol2.isPalindrome("A man, a plan, a canal: Panama") == True
-    assert sol2.isPalindrome("race a car") == False
-
     # longestPalindrome
     assert sol2.longestPalindrome("babad") in ["bab", "aba"]
     assert sol2.longestPalindrome("cbbd") == "bb"
@@ -584,11 +481,6 @@ if __name__ == "__main__":
     # shortestPalindrome
     assert sol2.shortestPalindrome("aacecaaa") == "aaacecaaa"
     assert sol2.shortestPalindrome("abcd") == "dcbabcd"
-
-    # repeatedSubstringPattern
-    assert sol2.repeatedSubstringPattern("abab") == True
-    assert sol2.repeatedSubstringPattern("aba") == False
-    assert sol2.repeatedSubstringPattern("abcabcabcabc") == True
 
     # longestPrefix (KMP happy prefix)
     assert sol2.longestPrefix("level") == "l"
