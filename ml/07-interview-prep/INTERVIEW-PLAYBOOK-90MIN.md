@@ -1,7 +1,7 @@
-# PART 17: INTERVIEW PLAYBOOK — THE 90-MINUTE BLUEPRINT
+# Interview Playbook — The 90-Minute Blueprint
 
 ## Goal
-To give candidates a precise, repeatable time allocation strategy for a 90-minute AI system design interview that maximizes signal across all evaluation dimensions.
+A precise, repeatable time allocation strategy for a 90-minute AI system design interview that maximizes signal across all evaluation dimensions.
 
 ## Mental Model
 **The interviewer is evaluating five things simultaneously:**
@@ -190,10 +190,10 @@ Show strategic thinking. The best candidates transition from "here's what I buil
 ## Pre-Interview Ritual (30 minutes before)
 
 ```text
-5 min  → Review the SJTF answer template (Part 15).
-5 min  → Review the universal decision tree (Part 3).
-5 min  → Review your top 3 EA-specific domain scenarios (Part 16).
-5 min  → Review the deployment strategies (Part 7).
+5 min  → Review the SJTF answer template (see COMMUNICATION-FRAMEWORK.md).
+5 min  → Review the universal ML system design decision tree.
+5 min  → Review your top 3 EA-specific domain scenarios.
+5 min  → Review deployment strategies (batch vs. real-time, canary, rollback).
 5 min  → Practice one 60-second system summary out loud.
 5 min  → Write the constraint checklist on paper: scale, latency, cost, privacy, data.
 ```
@@ -223,3 +223,4 @@ DEPLOYMENT DEFAULTS:            MONITORING DEFAULTS:
 □ Release → Canary              □ Business → Custom dashboard
 □ Rollback → MLflow registry    □ Alerts → P99, PSI>0.2, KPI-5%
 ```
+</content>

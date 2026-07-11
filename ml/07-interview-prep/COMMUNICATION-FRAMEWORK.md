@@ -1,7 +1,7 @@
-# PART 15: COMMUNICATION FRAMEWORK
+# Communication Framework
 
 ## Goal
-To teach candidates how senior AI engineers communicate: concisely, structured, confident, and always connected to engineering reasoning.
+How to communicate concisely, in a structured way, and always connected to engineering reasoning.
 
 ## Mental Model
 **"State → Justify → Tradeoff → Improve."**
@@ -9,7 +9,7 @@ Every answer should follow this pattern: what you chose, why you chose it, what 
 
 ---
 
-## 15.1 The SJTF Answer Template
+## The SJTF Answer Template
 
 For any design or decision question, use:
 ```
@@ -27,7 +27,7 @@ F — FUTURE: "Given more time/resources, I would [improvement]."
 
 ---
 
-## 15.2 Answering "Why did you choose this?"
+## Answering "Why did you choose this?"
 
 ### Framework
 1. State the choice explicitly.
@@ -43,7 +43,7 @@ F — FUTURE: "Given more time/resources, I would [improvement]."
 
 ---
 
-## 15.3 Answering "What are the tradeoffs?"
+## Answering "What are the tradeoffs?"
 
 ### Framework: Identify the Tension
 Every tradeoff has two valid values in tension. Name them explicitly.
@@ -67,7 +67,7 @@ Common tension pairs:
 
 ---
 
-## 15.4 Answering "What would you improve?"
+## Answering "What would you improve?"
 
 ### Framework: Pyramid of Improvements
 ```text
@@ -84,7 +84,7 @@ Level 3 (Research): What would require experimentation.
 
 ---
 
-## 15.5 Answering "What would break first?"
+## Answering "What would break first?"
 
 ### Framework: Single Point of Failure Analysis
 1. Identify all external dependencies.
@@ -99,7 +99,7 @@ Level 3 (Research): What would require experimentation.
 
 ---
 
-## 15.6 Answering "What assumptions are you making?"
+## Answering "What assumptions are you making?"
 
 ### Framework
 1. Be transparent — interviewers respect engineers who know their assumptions.
@@ -114,7 +114,7 @@ Level 3 (Research): What would require experimentation.
 
 ---
 
-## 15.7 Answering "How would you scale this?"
+## Answering "How would you scale this?"
 
 ### Framework: Scale in Three Dimensions
 ```text
@@ -128,7 +128,7 @@ Level 3 (Research): What would require experimentation.
 
 ---
 
-## 15.8 Whiteboarding Communication
+## Whiteboarding Communication
 
 ### Rules
 1. **Think out loud.** Silence is your enemy. Interviewers want to see your thinking.
@@ -139,9 +139,9 @@ Level 3 (Research): What would require experimentation.
 
 ---
 
-## 15.9 Recovering from a Wrong Answer
+## Recovering from a Wrong Answer
 
-### How Senior Engineers Handle Mistakes
+### How to Handle Mistakes
 ```text
 WRONG approach:
 → "Actually wait, uh... let me... hmm..." [long silence, losing confidence]
@@ -155,7 +155,7 @@ Interviewers explicitly value candidates who can self-correct with reasoning, no
 
 ---
 
-## 15.10 Structuring a 5-Minute Answer
+## Structuring a 5-Minute Answer
 
 ```text
 [0:00 – 0:30] Restate the question. "So the question is about [X]."
@@ -185,3 +185,4 @@ Interviewers explicitly value candidates who can self-correct with reasoning, no
 2. **Serving:** Batch inference (nightly) for home screen recommendations, real-time inference only for live game actions — balances cost and freshness.
 3. **Monitoring:** Feature PSI for data drift, CTR tracking for concept drift, with auto-rollback if P99 exceeds 200ms.
 These three choices directly address our constraints: 10k QPS, < 200ms SLA, and the requirement for model interpretability for the game team."
+</content>
