@@ -887,3 +887,159 @@ class Lot {
 That's aggregation (passed in) **plus** an interface type (DIP). The aggregation makes it
 injectable; the interface makes it swappable. Two decisions, both deliberate — which is
 exactly why `WeekendFee` is addable without editing `Lot` in the parking-lot exercise.
+
+---
+
+# Part 5 — Design patterns
+
+Proof file: `notes/oop_proofs/PatternProofs.java`
+
+## ✅ Correct
+
+**The three-way split is right, and it's the thing worth knowing.** Creational /
+Behavioural / Structural, described as object creation / object behaviour / object
+structure — that's the correct taxonomy and the correct one-line gloss for each.
+
+**Your category assignments are all correct.** Every pattern you listed is filed under
+the right heading — 21 of them, no misfiles. That's the part people get wrong.
+
+**Definitions given:**
+- **singleton** — "only one instance of a class available" ✅ (but see below — it's a
+  goal, not something the obvious code delivers)
+- **builder** — "builds a complex object step by step" ✅ exactly right
+- **prototype** — "duplicates an existing object to save time and space" ✅ right, and
+  you correctly tied it to *repeatable* objects, which is the actual use case
+
+## ❌ Wrong / imprecise
+
+**1. "factory — gives responsibility of creating concrete objects to the subclasses."**
+
+That's the definition of **Factory Method** specifically, not "factory" generally. Three
+different things get called factory:
+
+| | who decides the concrete type | subclass needed? |
+|---|---|---|
+| **Simple Factory** (not GoF) | a `switch` in one method | no |
+| **Factory Method** (GoF) | **a subclass overriding a method** ← your definition | yes |
+| **Abstract Factory** (GoF) | a factory object, producing a **family** | no (composition) |
+
+```java
+Shape s = SimpleFactory.create("circle");     // switch, no subclass at all
+new CircleDialog().render();                  // subclass chose -> factory method
+```
+
+Both run in `PatternProofs.java` section B. So your definition is right but attached to
+the wrong name — say "factory method" and it's correct.
+
+**2. `abstract factory` is listed with no definition** — and it's the one most likely to
+be asked next, precisely because it sounds like the previous line.
+
+**Abstract factory = a factory that produces a *family* of related products, guaranteed
+to match.**
+
+```java
+interface GuiFactory { Button button(); Checkbox checkbox(); }   // TWO products
+class MacFactory implements GuiFactory { ... }                   // both Mac
+class WinFactory implements GuiFactory { ... }                   // both Windows
+```
+
+The point is you can't accidentally pair a Mac button with a Windows checkbox. Factory
+method makes **one** product; abstract factory makes a **matched set**.
+
+**3. Singleton's definition hides the interview follow-up.** "Only one instance" is the
+*intent*. The code everyone writes doesn't achieve it:
+
+```java
+static Naive get() {
+    if (instance == null) instance = new Naive();   // two threads both pass this
+    return instance;
+}
+```
+
+Run with 8 threads → **8 distinct instances** (verified, section A). The follow-up
+question is always "is that thread safe?" Answers worth memorising:
+
+```java
+// initialization-on-demand holder — lazy AND safe, no synchronization cost
+class Holder {
+    private Holder() {}
+    private static class H { static final Holder INSTANCE = new Holder(); }
+    static Holder get() { return H.INSTANCE; }
+}
+enum EnumSingleton { INSTANCE; }   // simplest correct one; serialization-safe too
+```
+
+Also worth knowing: singleton is the most-criticised pattern — it's global mutable state
+and it makes testing hard (you can't inject a fake). Saying that unprompted reads well.
+
+**4. Two spellings:** `flywheel` → **flyweight** (it shares immutable state to save
+memory; nothing to do with wheels). `mediatior` → **mediator**. Also `chain or
+responsibility` → **chain of**.
+
+## ➕ Missing
+
+**1. Nine of your behavioural and structural patterns have no definition** — you defined
+all five creational ones, then stopped. The one-liners:
+
+**Behavioural**
+| | |
+|---|---|
+| observer | one-to-many: subject notifies all subscribers on change |
+| strategy | swap an algorithm at runtime behind one interface |
+| command | wrap a request as an object (enables undo, queue, log) |
+| state | object changes behaviour when its internal state changes |
+| visitor | add a new operation to a class hierarchy without editing it |
+| mediator | objects talk through a hub instead of to each other |
+| iterator | walk a collection without exposing its internals |
+| chain of responsibility | pass a request along handlers until one handles it |
+| template method | parent fixes the algorithm's skeleton, subclass fills the steps |
+
+**Structural**
+| | |
+|---|---|
+| adapter | make an incompatible interface fit an expected one |
+| bridge | split abstraction from implementation so both vary independently |
+| composite | treat individual objects and groups uniformly (trees) |
+| decorator | wrap an object to add behaviour, same interface |
+| flyweight | share common immutable state across many objects |
+| facade | one simple entry point over a complicated subsystem |
+| proxy | a stand-in controlling access (lazy, remote, security) |
+
+**2. The pairs that get confused — worth learning as pairs, not singly.**
+
+**Adapter vs Decorator** — both wrap. The difference is what happens to the interface:
+
+```java
+new PrinterAdapter(legacy).print("hello");        // CHANGES interface, adds nothing
+new TimestampPrinter(plain).print("hello");       // KEEPS interface, ADDS behaviour
+```
+
+**Strategy vs State** — near-identical code, opposite intent. Strategy: the **caller**
+picks and it doesn't change. State: the **object** swaps its own state and transitions
+itself:
+
+```
+new -> paid -> shipped     // state drives its own successor (verified, section D)
+```
+
+**Factory Method vs Abstract Factory** — one product vs a matched family (above).
+
+**Decorator vs Proxy** — decorator adds behaviour you asked for; proxy controls *access*
+to something (lazy-loads it, checks permission, calls it remotely).
+
+**3. Patterns you've already used in this repo** — worth naming, since concrete beats
+abstract:
+
+- `FeeStrategy` / `HourlyFee` / `FlatFee` in `lld/01_parking_lot/` — **strategy**,
+  injected through the constructor.
+- `record Ticket(...)` — not a pattern, but the compiler-generated constructor is
+  effectively **builder**'s simple case.
+- The `lld/04_cache/` spec will want **proxy** (lazy load) or **decorator** (add TTL).
+- `lld/03_rate_limiter/` is naturally **strategy** again (token bucket vs sliding window).
+
+**4. The honest framing for interviews.** Don't pattern-match a name onto a problem.
+The sequence that scores is: *what varies here?* → extract that → **then** notice the
+result already has a name. Naming a pattern you didn't need is a YAGNI violation, which
+is exactly the tension flagged in Part 2. Roughly five patterns cover most LLD rounds:
+**strategy, factory method, observer, builder, singleton** — know those cold, recognise
+the rest.

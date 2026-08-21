@@ -72,3 +72,31 @@ realization
 - using an interface 
 
 
+Design patterns --
+
+Creation -- deals with object creation 
+- singleton - makes sure there is only one instance of a class available
+- factory - gives the responsibility of creating the concerete objects to the subclasses
+- abstract factory
+- builder - builds a complex objet step by step
+- prototye - duplicates an existing object to save time and space for repeatable objects
+
+behavioural - deals with the behaviour of the object
+- Observer - 
+- strategy
+- command
+- state
+- visitor
+- mediatior
+- iterator
+- chain or reponsibility 
+- template
+
+structural - deals with the structure of the object 
+- Adapter
+- bridge
+- composite
+- decorator
+- flywheel
+- facade
+- proxy
