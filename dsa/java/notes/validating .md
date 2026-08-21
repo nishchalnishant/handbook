@@ -49,3 +49,12 @@ NOW that we are sure of what we have on the OOPS concept lets mode to OOPS princ
 - DRY - Dont repeat your self
 - - this talks about in oops paradigm we should avoid repeating our code and make sure that the code is reused instead of rewritten
 
+how the relationship works between the classes and how closly binded they are
+
+Association - USES-A
+Aggregation - HAS-A (Weak)
+composition - HAS-A (Strong)
+Inheritnce  - IS-A
+Abstraction - IS-A
+interface   - CAN-DO
+Realization - 

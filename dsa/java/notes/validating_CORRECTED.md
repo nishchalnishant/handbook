@@ -597,3 +597,154 @@ than reciting all five letters.
 ## Run these yourself
 
     cd notes/oop_proofs && javac SolidProofs.java && java SolidProofs
+
+---
+
+# Part 3 — Class relationships
+
+Your table:
+
+```
+Association - USES-A
+Aggregation - HAS-A (Weak)
+composition - HAS-A (Strong)
+Inheritnce  - IS-A
+Abstraction - IS-A
+interface   - CAN-DO
+Realization -
+```
+
+Proof file: `notes/oop_proofs/RelationshipProofs.java`
+
+## ✅ Correct
+
+- **Association – USES-A.** Right.
+- **Aggregation – HAS-A (weak).** Right.
+- **Composition – HAS-A (strong).** Right.
+- **Inheritance – IS-A.** Right.
+- **interface – CAN-DO.** Right.
+
+Five of seven rows correct, and you got the hard one right: weak vs strong HAS-A is
+the distinction most people blur.
+
+## ❌ Wrong
+
+**1. "Abstraction – IS-A" does not belong in this table.**
+
+Abstraction is a *pillar* — a way of thinking (hide detail, expose intent). It is not
+a relationship between two classes. This table answers "how are class A and class B
+wired together"; abstraction answers "how much of A do I show anyone".
+
+If you meant *abstract class*, then the relationship is already listed: `Sparrow extends Bird`
+is Inheritance. An abstract parent doesn't create a new kind of link — it's the same
+IS-A arrow, just with a parent that can't be instantiated.
+
+In UML the generalization arrow is identical whether the parent is abstract or concrete.
+
+**2. "Realization" is blank — but it's the row directly above it.**
+
+Realization *is* the UML name for `implements`. Your `interface – CAN-DO` row and your
+`Realization` row are the same relationship written twice:
+
+```
+Realization = a class realizes (implements) an interface = CAN-DO
+```
+
+So the correct table has six rows, not seven: drop `Abstraction`, and merge
+`interface` into `Realization`.
+
+## ➕ Missing
+
+**1. Dependency — the weakest link, and the true "uses-a".**
+
+You have no row for it. This matters because you labelled Association as USES-A, and
+interviewers usually reserve USES-A for Dependency:
+
+| | link lives in | lifetime |
+|---|---|---|
+| **Dependency** | a parameter, return type, or local variable | one method call |
+| **Association** | a **field** | as long as the object |
+
+```java
+class Desk {
+    void work() { new Printer().print(new Report()); }  // dependency: no field
+}
+class Course {
+    Teacher teacher;                                     // association: a field
+}
+```
+
+Sharper labels: Dependency = "uses-a briefly", Association = "knows-a".
+
+**2. The test that actually separates aggregation from composition: who controls the lifecycle.**
+
+"Weak" and "strong" are the labels, not the test. The test is: **when the whole is
+destroyed, does the part die with it?**
+
+```java
+// AGGREGATION — part handed in from outside, survives the whole
+class Department {
+    private final List<Student> students;
+    Department(List<Student> students) { this.students = students; }  // received
+}
+// department gone -> asha and ben still exist
+
+// COMPOSITION — part created inside, never leaks out, dies with the whole
+class Car {
+    private final Engine engine;
+    Car(int hp) { this.engine = new Engine(hp); }   // created here
+    String spec() { return "car with " + engine; }  // never RETURNS the Engine
+}
+```
+
+Code tells for composition: the part is `new`ed in the constructor, the field is
+`private final`, and **no getter hands it out**. The moment you write
+`Engine getEngine()`, you've downgraded to aggregation — the caller can now keep a
+reference that outlives the Car.
+
+Java has no destructors, so nothing enforces this; it's a design intent you express
+by controlling construction and access.
+
+**3. The full table, ordered by coupling strength (weakest → tightest).**
+
+| Relationship | Reads as | Java shape | Coupling |
+|---|---|---|---|
+| Dependency | uses-a briefly | parameter / local var | weakest |
+| Association | knows-a | a field, either side | weak |
+| Aggregation | has-a (weak) | field passed in; part outlives whole | medium |
+| Composition | has-a (strong) | field created inside; part dies with whole | strong |
+| Realization | can-do | `implements Interface` | strong (contract only) |
+| Inheritance (Generalization) | is-a | `extends Parent` | tightest |
+
+Note that Realization is strong on *contract* but weak on *implementation* — you're
+bound to a set of method signatures and nothing else. Inheritance binds you to
+signatures **plus** state **plus** behaviour, which is exactly why "composition over
+inheritance" is the standing advice.
+
+**4. UML notation** — asked for surprisingly often:
+
+```
+Dependency    A ----------> B     dashed line, open arrow
+Association   A ----------- B     solid line (arrow if one-way)
+Aggregation   A <>--------- B     hollow diamond at the WHOLE
+Composition   A <#>-------- B     filled diamond at the WHOLE
+Realization   A - - - - -|> B     dashed line, hollow triangle
+Inheritance   A ---------|> B     solid line, hollow triangle
+```
+
+The diamond always sits on the **owner** side. Mixing up which end the diamond goes on
+is the classic slip.
+
+**5. Why this table is the core LLD skill.**
+
+Every LLD question is answered by picking edges from this table. In
+`lld/01_parking_lot/ParkingLot.java`:
+
+- `Lot` → `Spot` — **composition**: the Lot's spots have no meaning without the Lot.
+- `Spot` → `Vehicle` — **association**: the car exists before and after it parks.
+- `Lot` → `FeeStrategy` — **dependency inversion via association**: injected, swappable.
+- `HourlyFee` → `FeeStrategy` — **realization**.
+- `Ticket` → `Vehicle`, `Spot` — **association**: the ticket references, doesn't own.
+
+Notice there is **no inheritance anywhere** in that design. That's typical of good LLD —
+the tightest arrow is used least.
