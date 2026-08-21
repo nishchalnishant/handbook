@@ -748,3 +748,142 @@ Every LLD question is answered by picking edges from this table. In
 
 Notice there is **no inheritance anywhere** in that design. That's typical of good LLD —
 the tightest arrow is used least.
+
+---
+
+# Part 4 — How each relationship is implemented
+
+Your notes:
+
+```
+Realization - CAN-DO          <-- fixed from last round, good
+
+How are these implemented
+association  - it can be implemented in code using
+aggregation  - it can be implmented using an interface
+composition  - using an interface
+inheritance  - superclass and subclass, or an abstract class
+realization  - using an interface
+```
+
+Proof file: `notes/oop_proofs/ImplementationProofs.java`
+
+## ✅ Correct
+
+- **You merged `interface` into `Realization`.** That was the Part 3 fix and you applied it.
+- **realization – using an interface.** Correct, and it's the one row where "an interface"
+  is genuinely the answer.
+- **inheritance – superclass and subclass, or an abstract class.** Correct. `extends`,
+  and the parent may be concrete or abstract.
+
+## ❌ Wrong
+
+**1. Aggregation is not "implemented using an interface". Neither is composition.**
+
+Both are implemented with a **field**. Whether that field is *typed* as an interface or
+as a concrete class is a separate, independent decision. Proof — aggregation and
+composition with zero interfaces in sight:
+
+```java
+class Trailer {                                  // AGGREGATION
+    private final List<Wheel> wheels;
+    Trailer(List<Wheel> wheels) { this.wheels = wheels; }   // passed in
+}
+class Bicycle {                                  // COMPOSITION
+    private final Frame frame;
+    Bicycle() { this.frame = new Frame(); }                 // created inside
+}
+```
+
+Both compile and behave correctly. `Wheel` and `Frame` are plain classes.
+
+**2. This is the important one: you are collapsing two independent axes.**
+
+| | question | answer decides |
+|---|---|---|
+| **Axis 1 — ownership** | who creates the part, who outlives whom? | aggregation vs composition |
+| **Axis 2 — field type** | is the field declared as an interface or a class? | how coupled you are (DIP) |
+
+All four combinations are legal:
+
+| | interface-typed field | class-typed field |
+|---|---|---|
+| **created inside** | composition, swappable internals | composition, rigid |
+| **passed in** | **aggregation + DIP ← the sweet spot** | aggregation, rigid |
+
+`ImplementationProofs.java` section B compiles and runs all four. So "uses an interface"
+tells you nothing about which relationship you have.
+
+**3. The association row is unfinished** — it trails off at "using".
+
+Answer: **a field**. That's it.
+
+```java
+class Course { Teacher teacher; }    // association
+```
+
+Which raises the obvious question — if association is a field and aggregation is a field
+and composition is a field, what actually separates them? See below.
+
+## ➕ Missing
+
+**1. The single table you actually need.**
+
+| Relationship | Implemented by | Code tell |
+|---|---|---|
+| Dependency | **no field** — parameter, return type, or local var | appears only inside a method |
+| Association | **a field** | plain reference, no ownership claim |
+| Aggregation | **a field passed in** | assigned from a constructor/setter argument |
+| Composition | **a field created inside** | `new`ed in the constructor, never returned |
+| Realization | **`implements`** | keyword |
+| Inheritance | **`extends`** | keyword |
+
+Read the middle column top to bottom: **only the last two are implemented by a keyword.**
+The first four are all "a field, or no field" — they differ by *where the object comes
+from* and *who outlives whom*, not by syntax. That is why they're the ones people mix up:
+Java gives you no keyword to tell them apart, so it's a design intent you signal through
+construction and access control.
+
+**2. Composition's three code tells, together.**
+
+```java
+class Bicycle {
+    private final Frame frame;                     // 1. private final
+    Bicycle() { this.frame = new Frame(); }        // 2. new'ed inside
+    String spec(){ return "bicycle with " + frame; } // 3. NEVER returns frame
+}
+```
+
+Add `Frame getFrame()` and you've silently downgraded to aggregation — the caller can
+now hold a reference that outlives the Bicycle. Java has no destructors, so nothing
+enforces composition for you; points 1–3 *are* the enforcement.
+
+**3. Abstract class vs interface for the inheritance row.**
+
+You listed both under inheritance, which is right, but they're different relationships in UML:
+
+```java
+class Contractor extends Employee implements Payable { ... }
+//                ^ inheritance (is-a)  ^ realization (can-do)
+```
+
+`extends` = inheritance/generalization, one parent only, inherits state + behaviour.
+`implements` = realization, many allowed, inherits contract only.
+
+**4. What "implemented using an interface" is actually the answer to.**
+
+Your instinct wasn't random — interfaces *are* central, just to a different question:
+**Dependency Inversion**. Not "what relationship is this" but "how loosely coupled is it".
+
+```java
+class Lot {
+    private final FeeStrategy feeStrategy;              // interface type
+    Lot(List<Spot> spots, FeeStrategy feeStrategy) {    // passed in
+        this.feeStrategy = feeStrategy;
+    }
+}
+```
+
+That's aggregation (passed in) **plus** an interface type (DIP). The aggregation makes it
+injectable; the interface makes it swappable. Two decisions, both deliberate — which is
+exactly why `WeekendFee` is addable without editing `Lot` in the parking-lot exercise.

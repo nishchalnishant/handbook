@@ -56,5 +56,19 @@ Aggregation - HAS-A (Weak)
 composition - HAS-A (Strong)
 Inheritnce  - IS-A
 Abstraction - IS-A
-interface   - CAN-DO
-Realization - 
+Realization   - CAN-DO
+
+How are these implemented 
+
+association 
+- it can be implemented in code using  
+aggregation 
+- it can be implmented using an interface
+composition 
+- using an interface
+inheritance 
+- it can be implementing using a superclass and a subclass or using a abstrsact class
+realization 
+- using an interface 
+
+
