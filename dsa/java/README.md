@@ -18,9 +18,13 @@ because you need one model of what "done" looks like.)
    Four mental models Python let you skip. This is the actual fix.
 2. `drills/d01` through `d10` — one per session, in order.
 3. `lld/00_HOW_TO_DO_LLD.md` — the 6-step procedure.
-4. `lld/01_parking_lot` — the one fully worked example. Study it, then do
-   its 5 exercises.
-5. `lld/02`–`05` — specs only. You build them.
+4. `notes/THE_SCRIPT.md` — **the one thing to internalise.** The same six
+   phases on a 45-minute clock, with the sentences to say in each. Every LLD
+   answer in this repo follows it.
+5. `lld/01_parking_lot` — the one fully worked example. Study it, then do
+   its 5 exercises. `INTERVIEW.md` there shows THE SCRIPT run end to end.
+6. `lld/02`–`05` — specs only. You build them. Each has an `INTERVIEW.md`
+   to compare against **after** your own attempt, never before.
 
 ## Running anything
 

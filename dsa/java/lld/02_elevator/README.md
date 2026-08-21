@@ -1,5 +1,10 @@
 # LLD 02 — Elevator System (you build this)
 
+> **Spoiler warning.** `INTERVIEW.md` in this folder is a full worked answer
+> following `notes/THE_SCRIPT.md`. Do Phases 1–4 (scope, nouns, decisions, API
+> signatures) yourself first — 20 minutes, no bodies — and only then open it to
+> compare. Opening it first turns production practice back into reading.
+
 Work the 6 steps from 00_HOW_TO_DO_LLD.md. Write the step-1 scope and the
 step-5 API signatures in a comment block at the top of your file BEFORE
 implementing anything. That habit is what interviewers score.

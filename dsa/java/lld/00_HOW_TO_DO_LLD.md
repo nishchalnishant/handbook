@@ -3,6 +3,15 @@
 LLD is not memorizing 23 design patterns. It is a repeatable procedure.
 Interviewers are watching the procedure, not the answer.
 
+> **This file is the *what*. `notes/THE_SCRIPT.md` is the *how*** — the same six
+> steps placed on a 45-minute clock, with the sentences to say in each phase and
+> the six follow-up kinds that always come. Read this once; practise that.
+>
+> Each of `01`–`05` has an **`INTERVIEW.md`** showing THE SCRIPT run end to end on
+> that problem. For `02`–`05` those are spoilers: attempt Phases 1–4 yourself
+> first, then compare. Every number quoted in them is produced by
+> `notes/oop_proofs/LldInterviewProofs.java`.
+
 ## The 6 steps, every single time
 
 1. **Clarify + scope.** Ask 3-5 questions. Say out loud what you are NOT
@@ -30,6 +39,10 @@ Interviewers are watching the procedure, not the answer.
 
 6. **Then implement, compile, and run a main() that proves it.**
    Working code beats a whiteboard drawing every time.
+
+   > And then step 7, which this list used to be missing: **absorb the
+   > follow-ups.** Interviews are won in the last ten minutes, not the first
+   > thirty. `notes/THE_SCRIPT.md` Phase 6 has the six that get asked.
 
 ## The design principles, in plain words
 

@@ -1,5 +1,9 @@
 # LLD 01 — Parking Lot (FULLY WORKED — study this one)
 
+> **`INTERVIEW.md`** in this folder is the same design spoken aloud as a
+> 45-minute interview answer, following `notes/THE_SCRIPT.md`. Read the code
+> first, then that.
+
 This is the only problem here that is finished. Read it as a demonstration
 of the 6 steps in 00_HOW_TO_DO_LLD.md, then do the exercises at the bottom.
 

@@ -1,5 +1,10 @@
 # LLD 03 — Rate Limiter (you build this)
 
+> **Spoiler warning.** `INTERVIEW.md` in this folder is a full worked answer
+> following `notes/THE_SCRIPT.md`. Do Phases 1–4 (scope, nouns, decisions, API
+> signatures) yourself first — 20 minutes, no bodies — and only then open it to
+> compare. Opening it first turns production practice back into reading.
+
 ## Requirements
 `boolean allow(String clientId)` — true if the request may proceed.
 
