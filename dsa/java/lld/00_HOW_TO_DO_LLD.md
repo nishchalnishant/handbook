@@ -19,6 +19,11 @@ Interviewers are watching the procedure, not the answer.
    types of" or "multiple strategies for" becomes an interface with several
    implementations. Fee rules. Vehicle types. Eviction policies.
 
+   > Not sure whether something should be a class, an abstract class, an enum,
+   > or an interface? That decision has its own procedure:
+   > **`notes/TEXT_TO_CODE.md`** — a yes/no tree, trigger-phrase table, and a
+   > spec worked end to end into declarations.
+
 5. **Write the API before the bodies.** Method signatures only. Ask
    yourself: could someone USE this without reading the implementation?
    If the signature is confusing, the design is wrong. Fix it now, not later.
