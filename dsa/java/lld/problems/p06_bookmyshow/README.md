@@ -17,15 +17,24 @@ Design a movie ticket booking system where users can browse shows, select and te
 
 ## How to use this folder
 
+This folder now holds a **worked solution**. That makes the order matter:
+
 1. Open `ATTEMPT.md` and fill it in. Six phases, 45 minutes, out loud.
    Procedure: `../../../notes/THE_SCRIPT.md`.
-2. Write the code in this folder. `javac X.java && java X`.
-3. **Only then** open the answer key:
+2. Write your own code in this folder. `javac X.java && java X`.
+3. **Only then** read `INTERVIEW.md` (the design spoken as a 45-minute answer)
+   and `BookMyShow.java` (a complete, self-asserting implementation):
+
+   ```
+   javac BookMyShow.java && java BookMyShow
+   ```
+
+4. The original source key, for a third opinion:
+
    `../../../../SystemDesign/06-lld/06-problems/02-frequent-problems/06-design-bookmyshow.md`
 
-The key is a full worked solution with Java. Opening it before you attempt
-turns production practice back into reading — which is the exact gap this
-repo exists to close.
+Reading either before you attempt turns production practice back into
+reading — which is the exact gap this repo exists to close.
 
 ## Calibration
 
