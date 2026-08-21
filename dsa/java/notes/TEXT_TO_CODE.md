@@ -231,6 +231,10 @@ Verified: `Push` was added without editing `Notifier` or `Channel`. Mechanical r
 
 ## Worked example: read a spec, produce declarations
 
+> **Three more, on real interview questions:** `notes/WORKED_EXAMPLES.md`
+> — BookMyShow (concurrency), Chess (the one case where abstract class wins),
+> Vending Machine (State pattern). Runnable: `notes/oop_proofs/WorkedExampleProofs.java`
+
 > "Design a food delivery system. A customer places an order containing several items
 > from one restaurant. Orders can be paid by card, UPI, or wallet. An order moves
 > through placed, preparing, out-for-delivery, delivered. Notify the customer on every
