@@ -69,6 +69,20 @@ Interviewers are watching the procedure, not the answer.
 - **Builder** — construct objects with many optional fields readably,
   instead of a constructor with nine arguments.
 
+## Where the reps come from
+
+`00`–`05` in this folder are five problems. Five is not enough to make the
+procedure automatic. **`problems/INDEX.md`** holds the other 39 — vending
+machine, chess, BookMyShow, ATM, text editor, lock-free queue — each with a
+distilled spec and a blank `ATTEMPT.md` that is THE SCRIPT's six phases with
+empty slots.
+
+No answers are written there, deliberately. Each folder links to its full
+worked solution in the SystemDesign repo; that link is the answer key and
+opening it before you attempt turns production practice back into reading.
+
+Order: the five here first, then Core, then Easy/Medium, then Hard.
+
 ## The trap you must avoid
 
 Do not start by drawing a giant class diagram. Start with the smallest

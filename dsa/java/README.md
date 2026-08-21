@@ -25,6 +25,10 @@ because you need one model of what "done" looks like.)
    its 5 exercises. `INTERVIEW.md` there shows THE SCRIPT run end to end.
 6. `lld/02`–`05` — specs only. You build them. Each has an `INTERVIEW.md`
    to compare against **after** your own attempt, never before.
+7. `lld/problems/INDEX.md` — **39 more problems**, spec + blank six-phase
+   worksheet each, no answers. This is where the reps come from once the
+   five above stop being hard. Each links to its full worked solution in the
+   SystemDesign repo, to open *after* you attempt it.
 
 ## Running anything
 
