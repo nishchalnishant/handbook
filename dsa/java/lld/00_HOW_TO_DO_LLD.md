@@ -8,9 +8,9 @@ Interviewers are watching the procedure, not the answer.
 > the six follow-up kinds that always come. Read this once; practise that.
 >
 > Each of `01`–`05` has an **`INTERVIEW.md`** showing THE SCRIPT run end to end on
-> that problem. For `02`–`05` those are spoilers: attempt Phases 1–4 yourself
-> first, then compare. Every number quoted in them is produced by
-> `notes/oop_proofs/LldInterviewProofs.java`.
+> that problem, and a **runnable Java solution** beside it. Both are spoilers:
+> attempt Phases 1–4 yourself first, then compare. Every number quoted in an
+> `INTERVIEW.md` comes from actually running that folder's Java file.
 
 ## The 6 steps, every single time
 

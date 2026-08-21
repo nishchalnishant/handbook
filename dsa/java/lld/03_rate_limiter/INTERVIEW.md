@@ -220,4 +220,5 @@ then allowed after time advances — **fake clock, no `Thread.sleep` anywhere.**
 - [ ] Named the accuracy-vs-memory trade-off across all three
 - [ ] Gave all three concurrency layers, ending at Redis
 
-Verified backing: `notes/oop_proofs/LldInterviewProofs.java` — class `Section3RateLimiterAndCache`, the rate-limiter half.
+Verified backing: `RateLimiterDemo.java` in this folder — `javac RateLimiterDemo.java && java RateLimiterDemo`
+prints 11 PASS lines, and every number quoted above is copied from that run.

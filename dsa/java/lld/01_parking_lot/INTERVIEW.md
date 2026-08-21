@@ -214,4 +214,5 @@ Committing to a trade-off with a reason scores higher than picking the "right" a
 - [ ] Gave all three concurrency layers, including "smallest correct block"
 - [ ] Reached Phase 6 with time to spare
 
-Verified backing: `notes/oop_proofs/LldInterviewProofs.java` — class `Section1ParkingLot`.
+Verified backing: `ParkingLot.java` in this folder — `javac ParkingLot.java && java ParkingLot`
+prints 4 PASS lines, and every number quoted above is copied from that run.

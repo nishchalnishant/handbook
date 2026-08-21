@@ -245,4 +245,5 @@ Reusing a technique across problems shows the toolkit is real.
 - [ ] Answered the singly-vs-doubly question crisply
 - [ ] Differential-tested against `LinkedHashMap`
 
-Verified backing: `notes/oop_proofs/LldInterviewProofs.java` — class `Section3RateLimiterAndCache`, the cache half.
+Verified backing: `CacheDemo.java` in this folder — `javac CacheDemo.java && java CacheDemo`
+prints 6 PASS lines, and every number quoted above is copied from that run.

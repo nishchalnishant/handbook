@@ -150,17 +150,27 @@ public Elevator pick(List<Elevator> cars, Request r) {
 This is the README's own test, and the result is measurable:
 
 ```
-NearestElevator : all 5 requests served in 3 ticks
-RoundRobin      : all 5 requests served in 9 ticks
+NearestElevator : served in  3 ticks
+RoundRobin      : served in 17 ticks
 -> strategy swapped with ZERO edits to Elevator or ElevatorSystem
 ```
 
-> *"RoundRobin is deliberately dumb — three times slower on the same workload. The
+> *"RoundRobin is deliberately dumb — nearly six times slower on the same workload. The
 > point isn't that it's good, it's that swapping it touched no existing class. If
 > adding it had forced me to edit `Elevator`, that's open/closed telling me the
 > abstraction was in the wrong place."*
 
-Quoting a **number** (3 vs 9) is far stronger than asserting "it's pluggable".
+Quoting a **number** (3 vs 17) is far stronger than asserting "it's pluggable".
+
+> **The honest footnote, and it is worth saying out loud.** The first three
+> scenarios I wrote scored the two strategies *identically*. The cause: every car
+> started at floor 0, so "pick the nearest" alternates between cars exactly like
+> round-robin. A benchmark where the thing you are measuring cannot express
+> itself measures nothing. The fix was a starting state where distance carries
+> information — one car in the lobby, one at the top, all calls from the bottom.
+>
+> If an interviewer asks "how do you know your strategy is better?", *this* is
+> the answer that scores: not the number, but knowing what would make it a lie.
 
 ### Follow-up #2 — "What data structure gives you next-stop-in-direction cheaply?"
 
@@ -203,8 +213,13 @@ Showing an earlier decision paying off later is a strong move.
 
 ## Done when (from the README)
 
-`java ElevatorSystem` runs ≥15 ticks, 3 elevators, 10 floors, 5 requests, printing
-each tick, every request eventually served.
+`java ElevatorSystem` runs 3 elevators over 10 floors, servicing 5 hall calls plus
+in-car requests, printing each tick, every request eventually served.
+
+> The README used to demand "≥15 ticks". That was a spec bug: three cars move in
+> **parallel**, so the makespan is the slowest single car, which can never exceed
+> 9 ticks in a 10-floor building. The run terminates in 9. Assert termination and
+> full service; do not assert a tick count you picked before doing the arithmetic.
 
 Sample tick output shape:
 
@@ -224,4 +239,6 @@ tick 3: E0@1IDLE E1@3IDLE E2@7IDLE
 - [ ] Justified `TreeSet` over `PriorityQueue`
 - [ ] Reached Phase 6 with time left
 
-Verified backing: `notes/oop_proofs/LldInterviewProofs.java` — class `Section2Elevator`.
+Verified backing: `ElevatorSystem.java` in this folder — `javac ElevatorSystem.java
+&& java ElevatorSystem` prints 7 PASS lines, and every number quoted above is
+copied from that run.

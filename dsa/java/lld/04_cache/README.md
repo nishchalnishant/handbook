@@ -1,9 +1,16 @@
-# LLD 04 — LRU Cache (you build this)
+# LLD 04 — LRU Cache
 
-> **Spoiler warning.** `INTERVIEW.md` in this folder is a full worked answer
-> following `notes/THE_SCRIPT.md`. Do Phases 1–4 (scope, nouns, decisions, API
-> signatures) yourself first — 20 minutes, no bodies — and only then open it to
-> compare. Opening it first turns production practice back into reading.
+> **Spoiler warning — this folder now contains a worked solution.**
+> `CacheDemo.java` is a complete, compiling reference implementation and
+> `INTERVIEW.md` is the same design spoken aloud as a 45-minute answer,
+> following `notes/THE_SCRIPT.md`.
+>
+> **Write your own version first.** Do Phases 1–4 (scope, nouns, decisions, API
+> signatures) yourself — 20 minutes, no bodies — then implement, and only then
+> read either file. Opening them first turns production practice back into
+> reading, which is the exact gap this repo exists to close.
+>
+>     javac CacheDemo.java && java CacheDemo
 
 ## Requirements
     class Cache<K, V>

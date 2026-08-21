@@ -255,4 +255,5 @@ Saying "NP-hard, and here's why greedy is still right" is a senior-level answer.
 - [ ] Admitted greedy isn't optimal and named why
 - [ ] Reached Phase 6 with time left
 
-Verified backing: `notes/oop_proofs/LldInterviewProofs.java` — class `Section5Splitwise`.
+Verified backing: `Splitwise.java` in this folder — `javac Splitwise.java && java Splitwise`
+prints 9 PASS lines, and every number quoted above is copied from that run.
