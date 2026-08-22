@@ -39,7 +39,7 @@ Tick when the ATTEMPT is filled in **and** the code runs.
 |---|---|---|---|---|---|
 | ✅ | 06 | Design BookMyShow | Hard | State (booking status), Strategy (payment), TTL-based seat locking, Template Method (booking flow) | [`p06_bookmyshow/`](p06_bookmyshow/) — **worked** |
 | ✅ | 07 | Design Chess | Hard | Polymorphism (piece hierarchy), State enum, Template Method | [`p07_chess/`](p07_chess/) — **worked** |
-| [ ] | 08 | Design Snake and Ladder | Easy | Strategy (dice), Observer (position events), Factory (board setup) | [`p08_snake_and_ladder/`](p08_snake_and_ladder/) |
+| ✅ | 08 | Design Snake and Ladder | Easy | Strategy (dice), Observer (position events), Factory (board setup) | [`p08_snake_and_ladder/`](p08_snake_and_ladder/) — **worked** |
 | ✅ | 09 | Design Elevator System | Hard | State (elevator state), Strategy (scheduling), Observer (floor requests) | [`02_elevator/`](../02_elevator/) — **worked** |
 | [ ] | 10 | Design a Nested Comment System | Medium | Composite (tree of comments), Strategy (sort), Observer (notifications) | [`p10_nested_comment_system/`](p10_nested_comment_system/) |
 | [ ] | 11 | Design a Hotel Management System | Medium | Factory (room types), State (room/reservation status), Strategy (pricing) | [`p11_hotel_management_system/`](p11_hotel_management_system/) |
@@ -94,7 +94,7 @@ Tick when the ATTEMPT is filled in **and** the code runs.
 
 ## Counts
 
-- 44 problems total — **9 worked** (`lld/01`–`05`, plus p03/p04/p06/p07), **35 to attempt**
+- 44 problems total — **10 worked** (`lld/01`–`05`, plus p03/p04/p06/p07/p08), **34 to attempt**
 - Easy 2 · Medium 24 · Hard 18
 
 ## A note on the source's pseudocode
