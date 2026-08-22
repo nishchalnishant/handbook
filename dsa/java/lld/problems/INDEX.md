@@ -3,9 +3,11 @@
 Specs and blank `ATTEMPT.md` skeletons for every problem in the SystemDesign
 repo, all driven by the same procedure: **`../../notes/THE_SCRIPT.md`**.
 
-**There are no answers here on purpose.** Each folder links to its worked solution
-in the source repo. Attempt first, compare second. The five problems already worked
-end to end live one level up in `lld/` and have `INTERVIEW.md` files instead.
+**Attempt first, compare second.** Folders marked ✅ now carry a worked answer —
+an `INTERVIEW.md` (THE SCRIPT run end to end) and a runnable Java file whose every
+quoted number comes from actually running it. Folders still marked `[ ]` have the
+spec and a blank `ATTEMPT.md` only; each links to its answer key in the source repo.
+Opening either before you attempt turns production practice back into reading.
 
 ## How to work through this
 
@@ -27,16 +29,16 @@ Tick when the ATTEMPT is filled in **and** the code runs.
 |---|---|---|---|---|---|
 | ✅ | 01 | Design a Parking Lot | Medium | Singleton (ParkingLot), Strategy (pricing), Factory (spot assignment), Template Method | [`01_parking_lot/`](../01_parking_lot/) — **worked** |
 | ✅ | 02 | Design a Rate Limiter | Medium | Strategy (algorithm), per-user bucket isolation, lazy refill | [`03_rate_limiter/`](../03_rate_limiter/) — **worked** |
-| [ ] | 03 | Design Tic-Tac-Toe | Easy | Strategy (win checker), State enum, counter-based O(1) win detection | [`p03_tic_tac_toe/`](p03_tic_tac_toe/) |
-| [ ] | 04 | Design a Vending Machine | Medium | State pattern (machine states), Strategy (payment), Command (dispense) | [`p04_vending_machine/`](p04_vending_machine/) |
+| ✅ | 03 | Design Tic-Tac-Toe | Easy | Strategy (win checker), State enum, counter-based O(1) win detection | [`p03_tic_tac_toe/`](p03_tic_tac_toe/) — **worked** |
+| ✅ | 04 | Design a Vending Machine | Medium | State pattern (machine states), Strategy (payment), Command (dispense) | [`p04_vending_machine/`](p04_vending_machine/) — **worked** |
 | ✅ | 05 | Design Splitwise | Medium | Strategy (split type), Graph (debt simplification), net balance tracking | [`05_splitwise/`](../05_splitwise/) — **worked** |
 
 ### Frequently asked
 
 | ? | # | Problem | Diff | Patterns | Folder |
 |---|---|---|---|---|---|
-| [ ] | 06 | Design BookMyShow | Hard | State (booking status), Strategy (payment), TTL-based seat locking, Template Method (booking flow) | [`p06_bookmyshow/`](p06_bookmyshow/) |
-| [ ] | 07 | Design Chess | Hard | Polymorphism (piece hierarchy), State enum, Template Method | [`p07_chess/`](p07_chess/) |
+| ✅ | 06 | Design BookMyShow | Hard | State (booking status), Strategy (payment), TTL-based seat locking, Template Method (booking flow) | [`p06_bookmyshow/`](p06_bookmyshow/) — **worked** |
+| ✅ | 07 | Design Chess | Hard | Polymorphism (piece hierarchy), State enum, Template Method | [`p07_chess/`](p07_chess/) — **worked** |
 | [ ] | 08 | Design Snake and Ladder | Easy | Strategy (dice), Observer (position events), Factory (board setup) | [`p08_snake_and_ladder/`](p08_snake_and_ladder/) |
 | ✅ | 09 | Design Elevator System | Hard | State (elevator state), Strategy (scheduling), Observer (floor requests) | [`02_elevator/`](../02_elevator/) — **worked** |
 | [ ] | 10 | Design a Nested Comment System | Medium | Composite (tree of comments), Strategy (sort), Observer (notifications) | [`p10_nested_comment_system/`](p10_nested_comment_system/) |
@@ -92,7 +94,7 @@ Tick when the ATTEMPT is filled in **and** the code runs.
 
 ## Counts
 
-- 44 problems total — **5 worked** (`lld/01`–`05`), **39 to attempt**
+- 44 problems total — **9 worked** (`lld/01`–`05`, plus p03/p04/p06/p07), **35 to attempt**
 - Easy 2 · Medium 24 · Hard 18
 
 ## A note on the source's pseudocode
