@@ -90,7 +90,7 @@ Design the backend of a text editor supporting efficient insert, delete, cursor 
 | Requirement | What GapBuffer must track |
 |-------------|--------------------------|
 | "O(1) insert/delete at cursor" | char array with gap at cursor position |
-| "Gap boundaries" | gap_start, gap_end (exclusive) |
+| "Gap boundaries" | gapStart, gapEnd (exclusive) |
 
 ```
 class GapBuffer:
@@ -562,6 +562,8 @@ Each InsertCommand stores the inserted text (typically 1-N chars) and position (
 
 **Senior**: Gap Buffer growth strategy. Rope vs Gap Buffer trade-off. Line index for O(log n) line/col lookup. Clipboard extension. Replace right-to-left to preserve earlier positions.
 
+**Staff (SDE-3)**: Add real-time collaborative editing. Compare OT and CRDT for this specific data structure, pick one, and defend it on implementation complexity and memory overhead — not just correctness. Then explain what happens to your Gap Buffer and line index under concurrent remote edits, and whether they survive the redesign.
+
 ---
 
 ## Common Interview Questions
@@ -570,7 +572,7 @@ Each InsertCommand stores the inserted text (typically 1-N chars) and position (
   **A**: Plain array insert at position i requires shifting O(n) elements right. Gap buffer keeps free space at the cursor — insert fills the gap in O(1). The shifting cost is paid only when the cursor moves, which matches the typical access pattern of real editing.
 
 - **Q**: How does the Command pattern enable undo/redo?
-  **A**: Every mutating operation creates a Command with enough state to reverse itself. `execute()` applies the change; `undo()` reverses it using stored state (deleted char, insertion position). Commands are pushed to a bounded undo stack; undo pops and reverses.
+  **A**: Every mutating operation creates a Command with enough state to reverse itthis. `execute()` applies the change; `undo()` reverses it using stored state (deleted char, insertion position). Commands are pushed to a bounded undo stack; undo pops and reverses.
 
 - **Q**: What happens to the redo stack when the user makes a new edit?
   **A**: It's cleared. Redo only applies to commands undone from the current branch. A new edit starts a new branch — the undone commands are no longer reachable.

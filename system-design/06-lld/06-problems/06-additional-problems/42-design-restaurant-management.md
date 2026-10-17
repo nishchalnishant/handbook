@@ -309,10 +309,10 @@ public class RestaurantTable {
 ### Core Method: placeOrder (creates OrderItems, notifies kitchen)
 
 **Core logic:**
-1. Reject items whose `menu_item.is_available == false`
+1. Reject items whose `menuItem.isAvailable == false`
 2. Create an `OrderItem` in `PLACED` state for each requested line
 3. Append to `Order.items`
-4. Call `notify_new_order()` — fans out to every registered `OrderObserver` (e.g., the KDS)
+4. Call `notifyNewOrder()` — fans out to every registered `OrderObserver` (e.g., the KDS)
 
 **Edge cases:**
 - Ordering an unavailable item — reject that line, don't fail the whole order (configurable; we choose per-line rejection with a returned error list)
@@ -477,10 +477,10 @@ public class OrderItem {
 ### Core Method: generateBill (sum with tax, optional split)
 
 **Core logic:**
-1. Sum `menu_item.price * quantity` across all order items that are not already `PAID`
-2. Apply `tax_rate` to get `total`
-3. `split_evenly(n)` divides `total` into `n` shares, pushing any rounding remainder onto the last share so shares sum exactly to `total`
-4. `split_by_guest()` groups items by `guest_assignment`, taxes each group's subtotal proportionally
+1. Sum `menuItem.price * quantity` across all order items that are not already `PAID`
+2. Apply `taxRate` to get `total`
+3. `splitEvenly(n)` divides `total` into `n` shares, pushing any rounding remainder onto the last share so shares sum exactly to `total`
+4. `splitByGuest()` groups items by `guestAssignment`, taxes each group's subtotal proportionally
 
 ```java
 public class Bill {
@@ -581,7 +581,7 @@ public class Bill {
 
 ### 1. "How would you handle split billing among multiple guests at a table?"
 
-Two modes are common: even split (divide total by N, handling rounding remainder) and itemized split (each `OrderItem` carries an optional `guest_assignment`). The even-split remainder problem — `$34.02 / 3` doesn't divide evenly to the cent — is solved by giving every guest the floor share and dumping the leftover cents on the last guest, which is exactly what `Bill.splitEvenly` above does. For itemized splits, unassigned items (shared appetizers) need a policy — the simplest is to bucket them under `"UNASSIGNED"` and let the app layer decide whether to divide that bucket evenly across the table:
+Two modes are common: even split (divide total by N, handling rounding remainder) and itemized split (each `OrderItem` carries an optional `guestAssignment`). The even-split remainder problem — `$34.02 / 3` doesn't divide evenly to the cent — is solved by giving every guest the floor share and dumping the leftover cents on the last guest, which is exactly what `Bill.splitEvenly` above does. For itemized splits, unassigned items (shared appetizers) need a policy — the simplest is to bucket them under `"UNASSIGNED"` and let the app layer decide whether to divide that bucket evenly across the table:
 
 ```java
 public Map<String, BigDecimal> splitByGuestWithSharedItems(List<String> allGuests) {
@@ -672,6 +672,8 @@ public class InKitchenState implements OrderItemState {
 **Mid-level**: Implement `placeOrder` and `updateOrderItemStatus` with correct locking. Explain why the State pattern is preferable to an enum with `if/else` transition checks scattered across the codebase. Implement even bill-splitting with correct rounding. Explain how `Reservation` overlap detection works.
 
 **Senior**: Identify the single-lock-per-table bottleneck versus a single restaurant-wide lock and justify the tradeoff. Design the Observer wiring so a new consumer (analytics, customer app) requires zero changes to `Order`. Discuss the `OUT_OF_STOCK` escape hatch and why it's modeled as a separate terminal branch rather than reusing existing states. Discuss idempotency: what happens if the kitchen sends `IN_KITCHEN` twice for the same item?
+
+**Staff (SDE-3)**: Peak dinner rush: the kitchen is the bottleneck, not the software. Model kitchen capacity explicitly and design the order-throttling and quoted-wait-time system. Defend degrading gracefully (longer quoted times, temporarily hiding slow items) over accepting orders you can't fulfill. Then design the POS offline mode — service must not stop when the network does.
 
 ---
 

@@ -141,7 +141,7 @@ class VendingMachineState:           # abstract
 ```
 class IdleState(VendingMachineState):
 - machine: VendingMachine
-# Only select_item is valid; all others raise InvalidOperationError
+# Only select_item is valid; all others throw InvalidOperationException
 
 class ItemSelectedState(VendingMachineState):
 - machine: VendingMachine
@@ -177,7 +177,7 @@ class VendingMachine:
 
 ## Implementation
 
-### Core Method: select_item (in IdleState)
+### Core Method: selectItem (in IdleState)
 
 **Core logic:**
 1. Validate item code exists in inventory
@@ -227,12 +227,12 @@ public class IdleState implements VendingMachineState {
 }
 ```
 
-### Core Method: insert_coin (in PaymentState)
+### Core Method: insertCoin (in PaymentState)
 
 **Core logic:**
-1. Accumulate inserted_amount
+1. Accumulate insertedAmount
 2. Add coin to machine's CoinChanger pool
-3. If inserted_amount >= item price, automatically attempt purchase
+3. If insertedAmount >= item price, automatically attempt purchase
 
 ```java
 public class PaymentState implements VendingMachineState {
@@ -283,7 +283,7 @@ public class PaymentState implements VendingMachineState {
 }
 ```
 
-### Core Method: CoinChanger.make_change
+### Core Method: CoinChanger.makeChange
 
 **Core logic:**
 Uses a greedy algorithm with available denominations (works correctly when denominations are standard currency coins).
@@ -362,14 +362,14 @@ public class DispensingState implements VendingMachineState {
 
 **Scenario**: User selects "Cola" ($1.50), inserts $1.00 then $1.00, receives Cola and $0.50 change.
 
-1. `select_item("COLA")` in IdleState → Cola exists, qty=5 → `selected_item=Cola`, → ItemSelectedState
-2. `insert_coin(100)` in ItemSelectedState → transitions to PaymentState, then calls `insert_coin(100)`: `inserted_amount=100`, 100 < 150, stay in PaymentState
-3. `insert_coin(100)` in PaymentState: `inserted_amount=200`, 200 >= 150 → `complete_purchase()`
-4. `change = 200 - 150 = 50 cents`. `can_make_change(50)` checks coin pool → True (has quarters)
+1. `selectItem("COLA")` in IdleState → Cola exists, qty=5 → `selectedItem=Cola`, → ItemSelectedState
+2. `insertCoin(100)` in ItemSelectedState → transitions to PaymentState, then calls `insertCoin(100)`: `insertedAmount=100`, 100 < 150, stay in PaymentState
+3. `insertCoin(100)` in PaymentState: `insertedAmount=200`, 200 >= 150 → `completePurchase()`
+4. `change = 200 - 150 = 50 cents`. `canMakeChange(50)` checks coin pool → True (has quarters)
 5. Transition to DispensingState → `dispense()`
 6. `inventory.decrement("COLA")` → qty=4
-7. `make_change(50)` → `{25: 2}` returned (two quarters)
-8. `inserted_amount=0`, `selected_item=None` → IdleState
+7. `makeChange(50)` → `{25: 2}` returned (two quarters)
+8. `insertedAmount=0`, `selectedItem=None` → IdleState
 
 ---
 
@@ -458,11 +458,11 @@ VendingMachine accepts a `PaymentMethod` at construction or per-session. The Pay
 
 Two options depending on business rules:
 
-**Option A (strict)**: Check `can_make_change` before accepting the transaction. On `complete_purchase`, if change can't be made, refund all inserted coins and transition back to IDLE. User keeps their coins, item stays in inventory.
+**Option A (strict)**: Check `canMakeChange` before accepting the transaction. On `completePurchase`, if change can't be made, refund all inserted coins and transition back to IDLE. User keeps their coins, item stays in inventory.
 
 **Option B (lenient)**: Show a "Exact change only" warning before purchase. Accept exact-payment amounts only when coins are low.
 
-The implementation above uses Option A. The `can_make_change` simulation runs without modifying the coin pool — it creates a temporary copy of `available_coins` and tests greedily. This is O(D) where D is the number of denomination types (constant in practice).
+The implementation above uses Option A. The `canMakeChange` simulation runs without modifying the coin pool — it creates a temporary copy of `availableCoins` and tests greedily. This is O(D) where D is the number of denomination types (constant in practice).
 
 ### 4. "How would you add an admin restocking interface?"
 
@@ -505,22 +505,24 @@ The machine tracks `revenue: float` incrementing on each successful purchase. Ad
 
 ## Interviewer Questions by Level
 
-**Junior**: Draw the state transition diagram. Identify what actions are valid in each state. Explain why the machine has a "selected_item" field.
+**Junior**: Draw the state transition diagram. Identify what actions are valid in each state. Explain why the machine has a "selectedItem" field.
 
-**Mid-level**: Implement `select_item` and `insert_coin` in their respective state classes. Implement `CoinChanger.make_change` using greedy algorithm. Explain why the State pattern makes testing easier.
+**Mid-level**: Implement `selectItem` and `insertCoin` in their respective state classes. Implement `CoinChanger.makeChange` using greedy algorithm. Explain why the State pattern makes testing easier.
 
-**Senior**: Explain why `can_make_change` must simulate without modifying coin state. Design the credit card payment extension. Discuss thread safety — what happens if two users interact with the machine concurrently and how to prevent it.
+**Senior**: Explain why `canMakeChange` must simulate without modifying coin state. Design the credit card payment extension. Discuss thread safety — what happens if two users interact with the machine concurrently and how to prevent it.
+
+**Staff (SDE-3)**: Fleet of 10k machines, intermittent connectivity, and finance needs the revenue ledger to reconcile exactly. Design the offline-first sync: what's the source of truth for coin inventory, how do you handle a machine that dispensed but never reported, and what's your reconciliation job? Defend at-least-once reporting with idempotent ledger writes over trying to achieve exactly-once at the device.
 
 ---
 
 ## Common Interview Questions
 
 - Q: What happens if power cuts mid-transaction? A: Without persistence, all in-flight state is lost. Inserted coins can't be tracked. In a real system, store transaction state to non-volatile memory (EEPROM or a small DB). On restart, check for incomplete transactions and dispense coins or refund.
-- Q: Draw the state transition diagram. A: IDLE →(select_item)→ ITEM_SELECTED →(insert_coin)→ PAYMENT →(sufficient funds)→ DISPENSING →(auto)→ IDLE. Cancel from any state returns to IDLE. Out-of-stock in IDLE stays in IDLE.
+- Q: Draw the state transition diagram. A: IDLE →(selectItem)→ ITEM_SELECTED →(insertCoin)→ PAYMENT →(sufficient funds)→ DISPENSING →(auto)→ IDLE. Cancel from any state returns to IDLE. Out-of-stock in IDLE stays in IDLE.
 - Q: Why does ItemSelectedState transition to PaymentState on first coin insert? A: To model that payment has begun. Once coins are inserted, different rules apply (cancel must refund). Separating "item chosen, no money yet" from "money inserted" makes each state's valid operations clearer.
 - Q: How do you test each state in isolation? A: Construct a VendingMachine with its state manually set to the target state. Mock the machine context. Call the state's methods and assert transitions and outputs. No need to drive through the full flow each time.
-- Q: What if the user inserts the exact amount — what change is returned? A: `change = inserted - price = 0`. Skip the `make_change` call entirely. Dispense the item. No coins returned.
-- Q: How is partial payment handled? A: Payment accumulates in `inserted_amount`. Each `insert_coin` call adds to it. The state stays in PaymentState until `inserted_amount >= item.price_cents`. This allows multiple coin insertions before reaching the required amount.
+- Q: What if the user inserts the exact amount — what change is returned? A: `change = inserted - price = 0`. Skip the `makeChange` call entirely. Dispense the item. No coins returned.
+- Q: How is partial payment handled? A: Payment accumulates in `insertedAmount`. Each `insertCoin` call adds to it. The state stays in PaymentState until `insertedAmount >= item.priceCents`. This allows multiple coin insertions before reaching the required amount.
 
 ---
 
@@ -820,9 +822,9 @@ public class VendingMachineConcurrencyTest {
 ```
 
 **What each test verifies:**
-- `test_inventory_never_negative`: The `_transaction_lock` serializes select→insert→dispense triples. Without it, two threads can both pass the "quantity > 0" check and both decrement, driving stock negative.
-- `test_revenue_consistency`: Revenue is incremented inside the same lock as inventory decrement; they update atomically per transaction with no partial writes visible between threads.
-- `test_cancel_resets_state`: A barrier coordinates A's cancel before B's transaction to confirm that cancel fully resets `_selected_code` and `_inserted_cents`, leaving the machine in `IdleState` for the next user.
+- `testInventoryNeverNegative`: The `transactionLock` serializes select→insert→dispense triples. Without it, two threads can both pass the "quantity > 0" check and both decrement, driving stock negative.
+- `testRevenueConsistency`: Revenue is incremented inside the same lock as inventory decrement; they update atomically per transaction with no partial writes visible between threads.
+- `testCancelResetsState`: A barrier coordinates A's cancel before B's transaction to confirm that cancel fully resets `selectedCode` and `insertedCents`, leaving the machine in `IdleState` for the next user.
 
 ---
 

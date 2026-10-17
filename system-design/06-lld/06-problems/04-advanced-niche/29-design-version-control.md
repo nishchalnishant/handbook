@@ -61,11 +61,11 @@ Design a Git-like version control system supporting repository initialization, f
 
 **In scope:**
 1. `init()` — create a new repository
-2. `stage(file_path, content)` — add file to staging area
+2. `stage(filePath, content)` — add file to staging area
 3. `commit(message)` — snapshot staged files, return commit hash
-4. `create_branch(name)` — create branch pointing to current commit
-5. `checkout(branch_or_hash)` — switch HEAD
-6. `diff(commit1_hash, commit2_hash)` — show added/removed/modified files
+4. `createBranch(name)` — create branch pointing to current commit
+5. `checkout(branchOrHash)` — switch HEAD
+6. `diff(commit1Hash, commit2Hash)` — show added/removed/modified files
 7. Content-addressed storage: SHA of content = object key
 8. Branching: branch is a pointer to a commit hash
 
@@ -105,7 +105,7 @@ Design a Git-like version control system supporting repository initialization, f
 
 | Requirement | What Tree must track |
 |-------------|---------------------|
-| File map | `files: dict[str, str]` — path -> blob_hash |
+| File map | `files: dict[str, str]` — path -> blobHash |
 | Hash | `hash: str` — SHA256 of sorted serialized file map |
 
 ```
@@ -125,8 +125,8 @@ class Tree:
 | Requirement | What Commit must track |
 |-------------|----------------------|
 | Identity | `hash: str` |
-| Parent | `parent_hash: str or None` |
-| Tree snapshot | `tree_hash: str` |
+| Parent | `parentHash: str or None` |
+| Tree snapshot | `treeHash: str` |
 | Metadata | `message: str, author: str, timestamp: float` |
 
 ```
@@ -166,7 +166,7 @@ class Repository:
 
 **Core logic:**
 1. For each staged file, create a Blob and store it in ObjectStore
-2. Create a Tree from (path -> blob_hash) mapping, store it
+2. Create a Tree from (path -> blobHash) mapping, store it
 3. Create a Commit object with parent=current HEAD commit hash, tree=tree hash
 4. Hash the commit content to get the commit hash; store it
 5. Advance the current branch pointer to the new commit hash
@@ -174,7 +174,7 @@ class Repository:
 
 **Edge cases:**
 - Empty staging area — raise error or no-op
-- First commit — parent_hash is None
+- First commit — parentHash is None
 - Detached HEAD — update HEAD directly to new commit hash, not a branch
 
 ```java
@@ -459,12 +459,12 @@ public class Repository {
 **Scenario: Init, two commits, create branch, checkout, diff**
 
 1. `repo.init()` -> branches={'main': None}, HEAD='main'
-2. `repo.stage('README.md', '# Hello')` -> staging_area={'README.md': '# Hello'}
-3. `repo.commit('initial commit')` -> blob created, tree created, commit C1 created; branches={'main': C1.hash}; staging_area cleared
-4. `repo.stage('main.py', 'print("hi")')` -> staging_area={'main.py': '...'}
-5. `repo.commit('add main.py')` -> C2 created; C2.parent_hash = C1.hash; tree2 has both README.md and main.py
-6. `repo.create_branch('feature')` -> branches={'main': C2.hash, 'feature': C2.hash}
-7. `repo.checkout('feature')` -> HEAD='feature'; working_dir restored from C2's tree
+2. `repo.stage('README.md', '# Hello')` -> stagingArea={'README.md': '# Hello'}
+3. `repo.commit('initial commit')` -> blob created, tree created, commit C1 created; branches={'main': C1.hash}; stagingArea cleared
+4. `repo.stage('main.py', 'print("hi")')` -> stagingArea={'main.py': '...'}
+5. `repo.commit('add main.py')` -> C2 created; C2.parentHash = C1.hash; tree2 has both README.md and main.py
+6. `repo.createBranch('feature')` -> branches={'main': C2.hash, 'feature': C2.hash}
+7. `repo.checkout('feature')` -> HEAD='feature'; workingDir restored from C2's tree
 8. `repo.stage('main.py', 'print("world")')` -> modified content
 9. `repo.commit('modify main.py')` -> C3 on feature branch
 10. `repo.diff(C2.hash, C3.hash)` -> DiffResult(added=[], removed=[], modified=['main.py'])
@@ -491,7 +491,7 @@ Git uses SHA-1 for its object store (`.git/objects`). The first 2 hex chars beco
 
 ### 2. "How does the commit DAG work and why a DAG?"
 
-Each commit has a `parent_hash` pointer. This forms a directed acyclic graph where:
+Each commit has a `parentHash` pointer. This forms a directed acyclic graph where:
 - Edges point from child to parent (time flows against edge direction)
 - A merge commit has two parents
 - A branch is just a named pointer to a commit node
@@ -639,6 +639,8 @@ public int garbageCollect() {
 
 **Senior**: Walk me through a 3-way merge. What is the role of the LCA? What happens when both branches modify the same file?
 
+**Staff (SDE-3)**: Repository is now 8GB with 2M commits and clone takes 40 minutes. Design partial/shallow clone and explain the trade-offs you're imposing on the user. Then handle the hard operational case: a secret was committed 200 commits ago. Walk through the rewrite, the coordination cost across 50 developers, and why you'd still rotate the secret regardless.
+
 ---
 
 ## Common Interview Questions
@@ -647,7 +649,7 @@ public int garbageCollect() {
   A: It gives automatic deduplication, integrity verification (re-hash the content), and immutability. Two identical files share one blob; any corruption changes the hash.
 
 - **Q: How do you compute a diff between two commits?**
-  A: Get each commit's tree. Compare the (path -> blob_hash) maps: paths in tree2 not in tree1 are added; paths in tree1 not in tree2 are removed; paths in both with different hashes are modified.
+  A: Get each commit's tree. Compare the (path -> blobHash) maps: paths in tree2 not in tree1 are added; paths in tree1 not in tree2 are removed; paths in both with different hashes are modified.
 
 - **Q: What is fast-forward merge?**
   A: When one branch is a direct ancestor of the other, you just move the branch pointer forward — no new merge commit is needed and history stays linear.
@@ -659,7 +661,7 @@ public int garbageCollect() {
   A: A branch is just a named pointer (string) to a commit hash stored in a dictionary. Moving a branch is O(1) — just update the pointer value.
 
 - **Q: How do you recover from a bad commit?**
-  A: In Git terms, `git reset --hard <prev_hash>` moves the branch pointer back. The "bad" commit object still exists in the object store until garbage collection runs, so it is recoverable via `git reflog`.
+  A: In Git terms, `git reset --hard <prevHash>` moves the branch pointer back. The "bad" commit object still exists in the object store until garbage collection runs, so it is recoverable via `git reflog`.
 
 - **Q: What is the difference between merge and rebase?**
   A: Merge creates a new commit with two parents, preserving the original branch history. Rebase replays commits on a new base, creating new commit objects and producing linear history but rewriting hashes.

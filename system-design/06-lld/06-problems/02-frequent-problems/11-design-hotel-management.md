@@ -87,7 +87,7 @@ Design a hotel booking system where guests can search for available rooms by typ
 | PricingStrategy | Interface — computes nightly rate for a room |
 | BillingService | Computes total bill at check-out |
 
-`Hotel` owns a list of `Room` objects. `Reservation` owns its status transitions. `BillingService` uses a `PricingStrategy` to compute total cost. Room subtypes override `base_price()` for the Factory pattern.
+`Hotel` owns a list of `Room` objects. `Reservation` owns its status transitions. `BillingService` uses a `PricingStrategy` to compute total cost. Room subtypes override `basePrice()` for the Factory pattern.
 
 ---
 
@@ -97,10 +97,10 @@ Design a hotel booking system where guests can search for available rooms by typ
 
 | Requirement | What Room must track |
 |-------------|---------------------|
-| Identity | room_id, room_number, floor |
-| Type | room_type: RoomType |
+| Identity | roomId, roomNumber, floor |
+| Type | roomType: RoomType |
 | State | status: RoomStatus |
-| Pricing | base_price() -> float |
+| Pricing | basePrice() -> float |
 
 ```
 class Room (abstract):
@@ -126,9 +126,9 @@ class Suite(Room):
 
 | Requirement | What Reservation must track |
 |-------------|----------------------------|
-| Identity | reservation_id |
+| Identity | reservationId |
 | Parties | guest: Guest, room: Room |
-| Dates | check_in: date, check_out: date |
+| Dates | checkIn: date, checkOut: date |
 | State | status: ReservationStatus |
 
 ```
@@ -184,18 +184,18 @@ class Bill:
 
 ## Implementation
 
-### Core Method: search_available_rooms / _has_conflict
+### Core Method: searchAvailableRooms / hasConflict
 
 **Core logic:**
-1. Filter rooms by `room_type` if specified
+1. Filter rooms by `roomType` if specified
 2. Filter rooms where `status != MAINTENANCE`
-3. For each candidate room, check whether any existing CONFIRMED or CHECKED_IN reservation overlaps with `[check_in, check_out)`
-4. Two date ranges overlap if: `existing.check_in < check_out AND existing.check_out > check_in`
+3. For each candidate room, check whether any existing CONFIRMED or CHECKED_IN reservation overlaps with `[checkIn, checkOut)`
+4. Two date ranges overlap if: `existing.checkIn < checkOut AND existing.checkOut > checkIn`
 5. Return rooms with no conflict
 
 **Edge cases:**
-- check_in == check_out → raise `ValueError` (zero-night stay)
-- check_in > check_out → raise `ValueError`
+- checkIn == checkOut → raise `ValueError` (zero-night stay)
+- checkIn > checkOut → raise `ValueError`
 - Room in MAINTENANCE → never returned even if no reservation
 
 ```java
@@ -536,11 +536,11 @@ class Hotel {
 
 Trace: Guest Alice books Room 101 (Double, $150/night) for 3 nights, checks in, checks out.
 
-1. `search_available_rooms(date(2024,6,1), date(2024,6,4), RoomType.DOUBLE)` → returns [Room 101] (no conflicts)
-2. `create_reservation(alice, room_101, ...)` → Reservation(id="r1"), room_101.status = RESERVED
-3. `search_available_rooms(date(2024,6,2), date(2024,6,3), RoomType.DOUBLE)` → Room 101 NOT returned (conflict: r1.check_in=6/1 < 6/3, r1.check_out=6/4 > 6/2)
-4. `check_in("r1")` → r1.status = CHECKED_IN, room_101.status = OCCUPIED
-5. `check_out("r1")` → r1.status = CHECKED_OUT, room_101.status = AVAILABLE, Bill(nights=3, amount=450.0)
+1. `searchAvailableRooms(date(2024,6,1), date(2024,6,4), RoomType.DOUBLE)` → returns [Room 101] (no conflicts)
+2. `createReservation(alice, room101, ...)` → Reservation(id="r1"), room101.status = RESERVED
+3. `searchAvailableRooms(date(2024,6,2), date(2024,6,3), RoomType.DOUBLE)` → Room 101 NOT returned (conflict: r1.checkIn=6/1 < 6/3, r1.checkOut=6/4 > 6/2)
+4. `checkIn("r1")` → r1.status = CHECKED_IN, room101.status = OCCUPIED
+5. `checkOut("r1")` → r1.status = CHECKED_OUT, room101.status = AVAILABLE, Bill(nights=3, amount=450.0)
 
 ---
 
@@ -561,7 +561,7 @@ public boolean overlaps(LocalDate aStart, LocalDate aEnd, LocalDate bStart, Loca
 }
 ```
 
-In SQL: `WHERE check_in < :check_out AND check_out > :check_in AND status NOT IN ('CANCELLED', 'CHECKED_OUT')`
+In SQL: `WHERE checkIn < :checkOut AND checkOut > :checkIn AND status NOT IN ('CANCELLED', 'CHECKED_OUT')`
 
 ### 2. "How would you implement dynamic pricing?"
 
@@ -690,7 +690,7 @@ On cancellation: check each waiting entry against the newly freed dates. If comp
 
 ### 5. "How do you extend this to multiple hotels?"
 
-Add a `HotelChain` (or `HotelRepository`) that holds a list of `Hotel` objects. The search API takes location as a parameter; use geolocation to find hotels near the user, then delegate `search_available_rooms` to each.
+Add a `HotelChain` (or `HotelRepository`) that holds a list of `Hotel` objects. The search API takes location as a parameter; use geolocation to find hotels near the user, then delegate `searchAvailableRooms` to each.
 
 ```java
 import java.time.LocalDate;
@@ -722,18 +722,20 @@ class HotelChain {
 
 ## Interviewer Questions by Level
 
-**Junior**: Walk me through the date overlap formula. Why is `check_in < check_out_B AND check_out > check_in_B` the right condition?
+**Junior**: Walk me through the date overlap formula. Why is `checkIn < check_out_B AND checkOut > check_in_B` the right condition?
 
 **Mid-level**: The Room has a `status` field, but availability is determined by reservations, not just status. Could they get out of sync? How do you prevent that?
 
-**Senior**: At 100k concurrent users on a booking site, two users try to book the last available room simultaneously. Your `_has_conflict` check passes for both, then both create reservations. How do you prevent this in production?
+**Senior**: At 100k concurrent users on a booking site, two users try to book the last available room simultaneously. Your `hasConflict` check passes for both, then both create reservations. How do you prevent this in production?
+
+**Staff (SDE-3)**: Inventory now syncs with 5 external OTAs (Booking, Expedia, ...) that each cache availability. Overbooking is now a business decision, not just a bug. Design the overbooking policy engine and the compensation flow when it fires. Defend holding a small oversell buffer against strict availability, in revenue terms, and name who owns that decision.
 
 ---
 
 ## Common Interview Questions
 
 - **Q: What's the date range overlap formula?**  
-  A: `a_start < b_end AND a_end > b_start`. Two ranges don't overlap only if one ends before the other starts.
+  A: `aStart < bEnd AND aEnd > bStart`. Two ranges don't overlap only if one ends before the other starts.
 
 - **Q: Why have both Room.status and Reservation.status?**  
   A: Room.status reflects physical state (is it physically occupied right now?). Reservation.status tracks the booking lifecycle. A room can be RESERVED (has a future booking) but physically AVAILABLE (nobody checked in yet).
@@ -748,7 +750,7 @@ class HotelChain {
   A: Add a `Set[str]` amenities field to Room. Search can filter by required amenities. No structural change to the class hierarchy needed.
 
 - **Q: Why use abstract Room instead of a RoomType enum + single Room class?**  
-  A: Factory pattern via subclasses lets each type override `base_price()` and potentially other behaviors. A single class with an enum is simpler but requires conditionals whenever behavior differs by type.
+  A: Factory pattern via subclasses lets each type override `basePrice()` and potentially other behaviors. A single class with an enum is simpler but requires conditionals whenever behavior differs by type.
 
 ---
 

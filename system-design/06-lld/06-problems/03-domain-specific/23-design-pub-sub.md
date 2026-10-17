@@ -62,7 +62,7 @@ Design a publish-subscribe messaging system where publishers send messages to na
 2. Subscribers subscribe to topics; pull messages from their subscription
 3. Consumer groups: each group sees every message; only one member in the group processes it
 4. At-least-once delivery: unacknowledged messages redelivered after timeout
-5. Dead letter queue after `max_retries` failed deliveries
+5. Dead letter queue after `maxRetries` failed deliveries
 6. Message ordering preserved per topic
 
 **Out of scope:**
@@ -81,10 +81,10 @@ Design a publish-subscribe messaging system where publishers send messages to na
 | Message | Immutable payload with id, topic, data, timestamp |
 | Publisher | Produces messages to a topic |
 | Subscription | Consumer's view into a topic; tracks read offset |
-| ConsumerGroup | Set of subscriptions sharing a group_id; load-balance delivery |
+| ConsumerGroup | Set of subscriptions sharing a groupId; load-balance delivery |
 | InFlightMessage | Tracks messages delivered but not yet acked (for redelivery) |
 | DeadLetterQueue | Receives messages that exceeded max retries |
-| DeliveryPolicy | Config: ack_timeout_sec, max_retries |
+| DeliveryPolicy | Config: ackTimeoutSec, maxRetries |
 
 ---
 
@@ -94,7 +94,7 @@ Design a publish-subscribe messaging system where publishers send messages to na
 
 | Requirement | What Message must track |
 |-------------|-------------------------|
-| Identity | message_id, topic_name, payload, published_at |
+| Identity | messageId, topicName, payload, publishedAt |
 
 ```
 class Message:
@@ -109,7 +109,7 @@ class Message:
 | Requirement | What Topic must track |
 |-------------|------------------------|
 | Message log | ordered list of Messages |
-| Consumer groups | dict of group_id -> ConsumerGroup |
+| Consumer groups | dict of groupId -> ConsumerGroup |
 
 ```
 class Topic:
@@ -126,7 +126,7 @@ class Topic:
 | Requirement | What Subscription must track |
 |-------------|------------------------------|
 | Position | offset into topic.messages |
-| In-flight | dict of message_id -> InFlightMessage |
+| In-flight | dict of messageId -> InFlightMessage |
 
 ```
 class Subscription:
@@ -167,16 +167,16 @@ class ConsumerGroup:
 ### Core Method: `consume` (pull delivery)
 
 **Core logic:**
-1. Look up the ConsumerGroup for the given group_id.
-2. Verify `subscriber_id` is the next member in round-robin rotation.
+1. Look up the ConsumerGroup for the given groupId.
+2. Verify `subscriberId` is the next member in round-robin rotation.
 3. If the group offset is within the topic message list, fetch the message.
-4. Create an `InFlightMessage` record with deadline = now + ack_timeout.
+4. Create an `InFlightMessage` record with deadline = now + ackTimeout.
 5. Advance group offset by 1.
 6. Return the message to the caller (who must ack or nack).
 
 **Edge cases:**
 - No messages at current offset — return None.
-- Subscriber not in group — raise ValueError.
+- Subscriber not in group — throw new IllegalArgumentException.
 - Message already in-flight for another subscriber in the group — skip (already being processed).
 
 ```java
@@ -471,11 +471,11 @@ Scenario: Topic "orders"; group "billing" with two members (B1, B2); publisher s
 1. `publish("orders", "order-1")` → appended to topic.messages[0].
 2. `publish("orders", "order-2")` → topic.messages[1].
 3. `publish("orders", "order-3")` → topic.messages[2].
-4. B1 calls `consume("orders", "billing", "B1")` → round-robin says B1's turn → returns "order-1", offset=1, in_flight["msg1"] set.
+4. B1 calls `consume("orders", "billing", "B1")` → round-robin says B1's turn → returns "order-1", offset=1, inFlight["msg1"] set.
 5. B2 calls `consume` → returns "order-2", offset=2.
-6. B1 acks "msg1" → in_flight entry removed.
+6. B1 acks "msg1" → inFlight entry removed.
 7. B1 calls consume again → returns "order-3", offset=3.
-8. B2 never acks "msg2" → `reap_expired()` detects timeout → redeliver or DLQ.
+8. B2 never acks "msg2" → `reapExpired()` detects timeout → redeliver or DLQ.
 
 ---
 
@@ -487,7 +487,7 @@ Scenario: Topic "orders"; group "billing" with two members (B1, B2); publisher s
 
 **At-most-once**: deliver and forget; no redelivery. Can lose messages. Good for metrics/logging.
 
-**Exactly-once**: requires idempotent producers (message_id dedup) + transactional consumers (commit offset atomically with processing). Expensive — needs a distributed transaction or an idempotency store.
+**Exactly-once**: requires idempotent producers (messageId dedup) + transactional consumers (commit offset atomically with processing). Expensive — needs a distributed transaction or an idempotency store.
 
 ```java
 import java.util.Set;
@@ -524,11 +524,11 @@ Group "audit"   (A1):       A1 gets m1, m2, m3, m4 (all)
 
 ### 3. "How do you guarantee message ordering?"
 
-Within a single partition (the topic's message list), ordering is preserved because messages are appended sequentially and the offset advances monotonically. Multiple partitions improve throughput but require a partition key to route related messages to the same partition (e.g., order_id % num_partitions).
+Within a single partition (the topic's message list), ordering is preserved because messages are appended sequentially and the offset advances monotonically. Multiple partitions improve throughput but require a partition key to route related messages to the same partition (e.g., orderId % numPartitions).
 
 ### 4. "How does the dead letter queue work?"
 
-After `max_retries` failed deliveries (ack timeout + nack), the message is moved to a per-topic DLQ. Operations teams can inspect and replay DLQ messages after fixing the root cause.
+After `maxRetries` failed deliveries (ack timeout + nack), the message is moved to a per-topic DLQ. Operations teams can inspect and replay DLQ messages after fixing the root cause.
 
 ```java
 void reapExpired() {
@@ -591,6 +591,8 @@ class Topic {
 **Mid-level**: How does consumer group load balancing work, and why does each group maintain its own offset?  
 **Senior**: Explain how you'd achieve exactly-once delivery semantics end-to-end.
 
+**Staff (SDE-3)**: Consumers are now 40 teams with wildly different processing speeds, and one slow consumer is causing broker disk pressure. Design consumer isolation and the retention policy you'd enforce. Then design schema evolution: how does a producer add a field without breaking 40 consumers, what's the compatibility mode you enforce, and how do you roll out a breaking change when you must?
+
 ---
 
 ## Common Interview Questions
@@ -598,10 +600,10 @@ class Topic {
 - **Q: At-least-once vs exactly-once trade-offs?** A: At-least-once is simple — redeliver on timeout, consumer deduplicates. Exactly-once requires idempotent producers + transactional offset commits, adding significant complexity.
 - **Q: How do consumer groups work?** A: Each group has an independent offset into the topic. Publishing one message means every group eventually processes it; within a group, members share the load via round-robin.
 - **Q: How is message ordering maintained?** A: Append-only message log + monotonically advancing offset per group. All groups read in the same order; ordering is only guaranteed within a partition.
-- **Q: What happens to unacknowledged messages?** A: A reaper thread runs periodically, finds in-flight messages past their ack deadline, and either redelivers them or moves them to the DLQ after max_retries.
+- **Q: What happens to unacknowledged messages?** A: A reaper thread runs periodically, finds in-flight messages past their ack deadline, and either redelivers them or moves them to the DLQ after maxRetries.
 - **Q: Push vs pull — which is better?** A: Pull is better for high-throughput systems (consumer controls pace, natural backpressure); push is better for low-latency event-driven use cases.
 - **Q: How does the DLQ help operations?** A: It quarantines poison messages that repeatedly fail, letting the main queue continue processing while giving operators time to inspect and replay.
-- **Q: How would you handle a slow consumer in a pull system?** A: The consumer simply doesn't call consume() fast enough; messages accumulate at the offset. Implement lag monitoring (current_offset - consumer_offset) and alert when lag exceeds a threshold.
+- **Q: How would you handle a slow consumer in a pull system?** A: The consumer simply doesn't call consume() fast enough; messages accumulate at the offset. Implement lag monitoring (currentOffset - consumerOffset) and alert when lag exceeds a threshold.
 
 ---
 
@@ -970,7 +972,7 @@ public class PubSubConcurrencyTest {
 - `testNoDuplicateDelivery`: The group's `fetch` is guarded by a `ReentrantLock`; two threads cannot both fetch the same offset. Without the lock, two threads could both read `offset=5`, both deliver `messages[5]`, and both advance the counter.
 - `testEachGroupSeesAllMessages`: Each `ConsumerGroup` maintains its own independent offset; publishing to a topic does not advance any group's offset automatically. All three groups start at offset 0 and consume independently.
 - `testConcurrentPublishersNoLoss`: `Topic.messages` is a `CopyOnWriteArrayList`. Unlike a plain `ArrayList`, concurrent `add()` calls from multiple publisher threads are safe without external locking — each write copies the underlying array, so readers never see a partially-updated structure.
-- `testDlqAfterMaxRetries`: The DLQ path exercises the expiry-based redelivery loop; after `max_retries` attempts, the message must be quarantined rather than silently dropped or re-queued indefinitely.
+- `testDlqAfterMaxRetries`: The DLQ path exercises the expiry-based redelivery loop; after `maxRetries` attempts, the message must be quarantined rather than silently dropped or re-queued indefinitely.
 
 ---
 

@@ -81,7 +81,7 @@ Design a library management system where members can search for books, borrow an
 | CopyStatus | Enum: AVAILABLE, CHECKED_OUT, RESERVED, LOST |
 | Member | Library member; tracks tier, active borrowals, fines |
 | MemberTier | Enum: STANDARD (limit=3), PREMIUM (limit=10) |
-| Borrowal | Links member + copy; records due_date, return_date |
+| Borrowal | Links member + copy; records dueDate, returnDate |
 | Reservation | Queued request; links member + book (title-level) |
 | FineCalculator | Strategy: computes fine from overdue days |
 
@@ -110,9 +110,9 @@ class Book:
 
 | Requirement | What BookCopy must track |
 |-------------|--------------------------|
-| Physical identity | copy_id, book reference |
+| Physical identity | copyId, book reference |
 | Availability | status: CopyStatus |
-| Current loan | active_borrowal: Optional[Borrowal] |
+| Current loan | activeBorrowal: Optional[Borrowal] |
 
 ```
 class BookCopy:
@@ -126,9 +126,9 @@ class BookCopy:
 
 | Requirement | What Member must track |
 |-------------|------------------------|
-| Identity | member_id, name, email |
+| Identity | memberId, name, email |
 | Tier | tier: MemberTier → borrow limit |
-| Activity | active_borrowals: list[Borrowal], pending_fines: float |
+| Activity | activeBorrowals: list[Borrowal], pendingFines: float |
 
 ```
 class Member:
@@ -146,8 +146,8 @@ class Member:
 
 | Requirement | What Borrowal must track |
 |-------------|--------------------------|
-| Loan record | borrowal_id, member, copy, borrow_date, due_date |
-| Return | return_date (None until returned) |
+| Loan record | borrowalId, member, copy, borrowDate, dueDate |
+| Return | returnDate (None until returned) |
 
 ```
 class Borrowal:
@@ -179,14 +179,14 @@ class Library:
 
 ## Implementation
 
-### Core Method: `return_book`
+### Core Method: `returnBook`
 
 **Core logic:**
 1. Look up the Borrowal by id.
-2. Mark `return_date = today`.
-3. Compute fine if overdue; add to member's `pending_fines`.
-4. Set copy status back to AVAILABLE; detach `active_borrowal`.
-5. Remove borrowal from member's `active_borrowals`.
+2. Mark `returnDate = today`.
+3. Compute fine if overdue; add to member's `pendingFines`.
+4. Set copy status back to AVAILABLE; detach `activeBorrowal`.
+5. Remove borrowal from member's `activeBorrowals`.
 6. Check reservation queue for this book's isbn; if non-empty, pop the first reservation, set copy status to RESERVED, and notify that member.
 
 **Edge cases:**
@@ -504,11 +504,11 @@ class Library {
 
 Scenario: Alice (STANDARD) borrows "Clean Code"; Bob reserves it; Alice returns it late.
 
-1. `library.borrow_book("alice", isbn)` — available copy found, status → CHECKED_OUT, borrowal created.
-2. Bob calls `reserve_book("bob", isbn)` — queued in `reservations[isbn]`.
-3. Alice calls `return_book(borrowal_id)` 5 days overdue → fine = 5.0, added to Alice's `pending_fines`.
+1. `library.borrowBook("alice", isbn)` — available copy found, status → CHECKED_OUT, borrowal created.
+2. Bob calls `reserveBook("bob", isbn)` — queued in `reservations[isbn]`.
+3. Alice calls `returnBook(borrowalId)` 5 days overdue → fine = 5.0, added to Alice's `pendingFines`.
 4. Reservation queue non-empty → copy status → RESERVED, Bob notified.
-5. Next `borrow_book` attempt by Alice fails (`pending_fines > 0`).
+5. Next `borrowBook` attempt by Alice fails (`pendingFines > 0`).
 
 ---
 
@@ -526,7 +526,7 @@ book.getCopies().add(newCopy);
 
 ### 2. "How does fine calculation work with a cap?"
 
-Strategy pattern: `FineCalculator.calculate(borrowal)` computes `min(days * rate, max_fine)`. To change the policy (weekend exclusion, per-genre rates), subclass `FineCalculator` and swap it in Library.
+Strategy pattern: `FineCalculator.calculate(borrowal)` computes `min(days * rate, maxFine)`. To change the policy (weekend exclusion, per-genre rates), subclass `FineCalculator` and swap it in Library.
 
 ```java
 class WeekdayFineCalculator extends FineCalculator {
@@ -551,7 +551,7 @@ class WeekdayFineCalculator extends FineCalculator {
 
 ### 3. "How does the reservation queue work?"
 
-Per-isbn `deque` of `Reservation` objects ordered by `reserved_date`. On return, `popleft()` gives the earliest reserver. The copy is set to RESERVED (not AVAILABLE) so it cannot be grabbed by a walk-in borrower before the notified member arrives.
+Per-isbn `deque` of `Reservation` objects ordered by `reservedDate`. On return, `popleft()` gives the earliest reserver. The copy is set to RESERVED (not AVAILABLE) so it cannot be grabbed by a walk-in borrower before the notified member arrives.
 
 ```java
 // Hold period: if reserver doesn't pick up within N days, release
@@ -573,11 +573,11 @@ public void expireReservations() {
 
 ### 4. "How do membership tiers set borrow limits?"
 
-`MemberTier` enum stores the limit as its value (`STANDARD=3, PREMIUM=10`). `Member.borrow_limit()` returns `self.tier.value`. Upgrading a member is a single assignment: `member.tier = MemberTier.PREMIUM`.
+`MemberTier` enum stores the limit as its value (`STANDARD=3, PREMIUM=10`). `Member.borrowLimit()` returns `this.tier.value`. Upgrading a member is a single assignment: `member.tier = MemberTier.PREMIUM`.
 
 ### 5. "How would you send overdue reminders?"
 
-Observer pattern: register an `OverdueObserver` that the Library calls on a daily scheduler task. The observer iterates all active borrowals and emails members whose due_date has passed.
+Observer pattern: register an `OverdueObserver` that the Library calls on a daily scheduler task. The observer iterates all active borrowals and emails members whose dueDate has passed.
 
 ```java
 class OverdueObserver {
@@ -605,17 +605,19 @@ class OverdueObserver {
 **Mid-level**: How does the reservation queue prevent a walk-in borrower from taking a reserved copy?  
 **Senior**: How would you scale fine calculation to support per-genre, per-member-tier, and time-window policies without modifying Library?
 
+**Staff (SDE-3)**: Policy complexity is now the product: per-genre, per-tier, per-window, plus promotional overrides that stack. Design the rules engine and defend it against the alternative (hardcoded strategies) with a maintenance-cost argument. Then explain how a librarian — a non-engineer — safely authors and tests a new policy without a deploy.
+
 ---
 
 ## Common Interview Questions
 
 - **Q: Why Book vs BookCopy?** A: Book is a catalog entry (one record per title); BookCopy is a physical item that can be independently checked out, lost, or reserved.
 - **Q: How does the reservation queue work?** A: Per-isbn FIFO deque; on return the copy is set to RESERVED and the first reserver is notified, blocking other borrowers until the hold expires.
-- **Q: What are the fine calculation edge cases?** A: Cap at max_fine, weekends/holidays excluded if policy requires, zero fine if returned on due_date, fine added to member balance not collected immediately.
-- **Q: What if a member with overdue books tries to borrow?** A: `can_borrow()` returns False if any active borrowal is overdue or `pending_fines > 0`; the borrow call raises ValueError.
+- **Q: What are the fine calculation edge cases?** A: Cap at maxFine, weekends/holidays excluded if policy requires, zero fine if returned on dueDate, fine added to member balance not collected immediately.
+- **Q: What if a member with overdue books tries to borrow?** A: `canBorrow()` returns False if any active borrowal is overdue or `pendingFines > 0`; the borrow call raises ValueError.
 - **Q: ISBN vs internal ID — which do you use as the key?** A: ISBN for external search (standard, human-readable); internal UUID for copies to handle re-acquisitions of the same edition.
-- **Q: How do you handle a copy going LOST?** A: Staff marks it LOST via `copy.status = CopyStatus.LOST`; it no longer appears in `available_copies()`; the borrowal may accrue a replacement charge.
-- **Q: How would you support book renewal?** A: Add `renew_borrowal(borrowal_id, extra_days)` that extends `due_date` if no reservation is pending for that isbn.
+- **Q: How do you handle a copy going LOST?** A: Staff marks it LOST via `copy.status = CopyStatus.LOST`; it no longer appears in `availableCopies()`; the borrowal may accrue a replacement charge.
+- **Q: How would you support book renewal?** A: Add `renewBorrowal(borrowalId, extraDays)` that extends `dueDate` if no reservation is pending for that isbn.
 
 ---
 

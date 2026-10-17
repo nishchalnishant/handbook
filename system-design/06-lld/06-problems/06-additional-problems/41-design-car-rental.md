@@ -99,8 +99,8 @@ Design a car rental system operating across multiple branches. Customers search 
 
 | Requirement | What Vehicle must track |
 |-------------|--------------------------|
-| Identity & category | vehicle_id, license_plate, category: VehicleCategory |
-| Home location | home_branch_id |
+| Identity & category | vehicleId, licensePlate, category: VehicleCategory |
+| Home location | homeBranchId |
 | Own bookings for overlap checks | reservations: list[Reservation] |
 | Physical state | status: VehicleStatus (AVAILABLE, RESERVED, RENTED, MAINTENANCE) |
 
@@ -594,11 +594,11 @@ try {
 }
 ```
 
-Per-vehicle locking (rather than one global lock) gives parallelism proportional to fleet size — a booking attempt on vehicle A never blocks a booking attempt on vehicle B. In a distributed system, replace the in-memory lock with a DB transaction using `SELECT ... FOR UPDATE` on the vehicle row, or an exclusion constraint (`EXCLUDE USING gist (vehicle_id WITH =, daterange(start_date, end_date) WITH &&)` in Postgres) so the database itself rejects overlapping inserts even across multiple application servers.
+Per-vehicle locking (rather than one global lock) gives parallelism proportional to fleet size — a booking attempt on vehicle A never blocks a booking attempt on vehicle B. In a distributed system, replace the in-memory lock with a DB transaction using `SELECT ... FOR UPDATE` on the vehicle row, or an exclusion constraint (`EXCLUDE USING gist (vehicleId WITH =, daterange(startDate, endDate) WITH &&)` in Postgres) so the database itself rejects overlapping inserts even across multiple application servers.
 
 ### 2. "How would you support one-way rentals (pick up at branch A, return at branch B)?"
 
-Add `pickup_branch_id` and `return_branch_id` to `Reservation`, and an optional `one_way_fee` in `PricingStrategy`. The vehicle's `home_branch_id` no longer determines where it must be returned — instead, `Vehicle.status` transitions to `AVAILABLE` at the *return* branch, not the pickup branch, meaning the vehicle effectively "moves" between branches' fleets.
+Add `pickupBranchId` and `returnBranchId` to `Reservation`, and an optional `oneWayFee` in `PricingStrategy`. The vehicle's `homeBranchId` no longer determines where it must be returned — instead, `Vehicle.status` transitions to `AVAILABLE` at the *return* branch, not the pickup branch, meaning the vehicle effectively "moves" between branches' fleets.
 
 ```java
 class Reservation {
@@ -701,17 +701,19 @@ Because `RentalAgreement.close()` only calls `pricingStrategy.dailyRate(category
 
 **Senior**: Two customers hit "Book Now" on the same SUV for overlapping dates within milliseconds of each other in a distributed, multi-instance deployment — the in-memory lock in this design does not help. How do you guarantee exactly one succeeds? (Expect: DB transaction + row lock or exclusion constraint, idempotency key on the request.) Design one-way rentals and discuss the fleet-imbalance consequence. Discuss how you'd evolve `PricingStrategy` into a full rules engine without an explosion of `if` statements.
 
+**Staff (SDE-3)**: Fleet utilization is the business metric and it conflicts with availability guarantees. Design the overbooking-and-upgrade policy, quantify the cost of a walk (no car available), and explain the pricing/inventory feedback loop. Then design the one-way-rental problem: cars accumulate in the wrong cities. What's the rebalancing signal and who acts on it?
+
 ---
 
 ## Common Interview Questions
 
 - Q: Why is the reservation list stored per-`Vehicle` instead of a single global reservation table scanned on every search? A: Locality — checking availability for one vehicle only touches that vehicle's reservations, keeping the check O(reservations for that vehicle) rather than O(all reservations system-wide), and lets the lock scope match the conflict scope exactly.
 - Q: What's the date-range overlap formula and why? A: `existing.start < requestedEnd AND existing.end > requestedStart`. Two ranges fail to overlap only when one ends at or before the other starts; this formula is the direct negation of that and correctly covers full/partial containment in either direction.
-- Q: Why model a walk-up rental as a reservation starting "now" instead of a separate code path? A: One code path for availability checking avoids duplicating the overlap logic and locking discipline; the only difference is `start_date = today`.
+- Q: Why model a walk-up rental as a reservation starting "now" instead of a separate code path? A: One code path for availability checking avoids duplicating the overlap logic and locking discipline; the only difference is `startDate = today`.
 - Q: Why keep `RentalAgreement` separate from `Reservation`? A: `Reservation` is a booking intent (dates, customer, vehicle) that can be cancelled before pickup. `RentalAgreement` is created only at pickup and carries operational data (odometer, damage) irrelevant to a reservation that never gets picked up.
 - Q: How do you stop a vehicle from being rented out from under a customer who already reserved it? A: The vehicle's status alone is not the source of truth — a vehicle can be `AVAILABLE` today but have a future `CONFIRMED` reservation. Availability is always derived from the overlap check against reservations, never from `status` in isolation.
 - Q: How would you test for double-booking under concurrency? A: Spin up N threads calling `createReservation` for the same category/dates against a branch with one matching vehicle. Assert exactly one succeeds and the rest raise `NoSuchElementException`, and that the vehicle's reservation list has exactly one non-cancelled entry for that window.
-- Q: How is a late fee different from a cancellation no-show fee? A: Late fee is computed at `completeReturn` from the gap between the reservation's `end_date` and the actual return date. A no-show is a reservation that's still `CONFIRMED` past its start date with no pickup — that's a separate lifecycle rule (auto-expire or auto-cancel), not part of billing.
+- Q: How is a late fee different from a cancellation no-show fee? A: Late fee is computed at `completeReturn` from the gap between the reservation's `endDate` and the actual return date. A no-show is a reservation that's still `CONFIRMED` past its start date with no pickup — that's a separate lifecycle rule (auto-expire or auto-cancel), not part of billing.
 
 ---
 

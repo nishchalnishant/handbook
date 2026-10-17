@@ -146,7 +146,7 @@ These are the interrupts that catch people who memorized a diagram.
 
 Drill these against the real problems:
 
-- [HLD Problems](../../../05-hld-problems/) — pick one per tier, answer its by-level interviewer questions cold
+- [HLD Problems](../../05-hld-problems/) — pick one per tier, answer its by-level interviewer questions cold
 - [Mock Interview Problems](./03-mock-interview-problems.md) — timed practice
 - [45-Minute Walkthrough](./06-45-minute-walkthrough.md) — pacing rubric
 - [The "Gotcha" Question Bank](./02-interview-question-bank.md) — the SDE-2 foundation layer

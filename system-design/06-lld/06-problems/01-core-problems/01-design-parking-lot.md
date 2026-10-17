@@ -95,9 +95,9 @@ ParkingLot delegates spot finding to each Floor in order. Floor returns the firs
 
 | Requirement | What ParkingSpot must track |
 |-------------|----------------------------|
-| Spot size compatibility | spot_type: SpotType enum |
-| Occupancy state | is_occupied: bool |
-| Location for nearest-first ordering | floor_number, spot_number |
+| Spot size compatibility | spotType: SpotType enum |
+| Occupancy state | isOccupied: bool |
+| Location for nearest-first ordering | floorNumber, spotNumber |
 | Which vehicle is parked | vehicle: Vehicle or None |
 
 ```
@@ -192,13 +192,13 @@ class ParkingLot:
 
 ## Implementation
 
-### Core Method: park_vehicle
+### Core Method: parkVehicle
 
 **Core logic:**
-1. Check active_tickets for duplicate license plate (lock the tickets dict)
-2. Scan floors in order; call `floor.find_and_assign(vehicle)` which atomically finds and marks the spot
+1. Check activeTickets for duplicate license plate (lock the tickets dict)
+2. Scan floors in order; call `floor.findAndAssign(vehicle)` which atomically finds and marks the spot
 3. If no spot found on any floor, raise `ParkingLotFullError`
-4. Create Ticket with entry timestamp, store in active_tickets
+4. Create Ticket with entry timestamp, store in activeTickets
 5. Return ticket to caller
 
 **Edge cases:**
@@ -242,16 +242,16 @@ public Ticket parkVehicle(Vehicle vehicle) {
 }
 ```
 
-### Core Method: exit_vehicle
+### Core Method: exitVehicle
 
 **Core logic:**
-1. Remove ticket from active_tickets under lock (prevents double-exit)
-2. Record exit_time, compute fee via pricing_strategy
-3. Call `floor.release_spot(spot)` to free the spot and update availability counts
+1. Remove ticket from activeTickets under lock (prevents double-exit)
+2. Record exitTime, compute fee via pricingStrategy
+3. Call `floor.releaseSpot(spot)` to free the spot and update availability counts
 4. Return fee
 
 **Edge cases:**
-- Invalid ticket_id — raise KeyError
+- Invalid ticketId — throw new NoSuchElementException
 - Double exit — ticket already removed on first call
 
 ```java
@@ -276,7 +276,7 @@ public double exitVehicle(String ticketId) {
 }
 ```
 
-### Core Method: Floor.find_and_assign
+### Core Method: Floor.findAndAssign
 
 **Core logic:**
 1. Acquire floor-level lock (per-floor locking avoids global bottleneck)
@@ -336,18 +336,18 @@ public class HourlyPricing implements PricingStrategy {
 
 **Scenario**: Car parks at 10:00 AM, exits at 12:30 PM.
 
-1. `park_vehicle(Car("ABC123"))` — no existing ticket for ABC123
-2. Floor 0: `find_and_assign` scans, finds CarSpot(floor=0, spot=3) unoccupied, size compatible (car=1 >= car=1)
-3. `spot.assign(car)` — `is_occupied=True`, vehicle=Car("ABC123")
+1. `parkVehicle(Car("ABC123"))` — no existing ticket for ABC123
+2. Floor 0: `findAndAssign` scans, finds CarSpot(floor=0, spot=3) unoccupied, size compatible (car=1 >= car=1)
+3. `spot.assign(car)` — `isOccupied=True`, vehicle=Car("ABC123")
 4. `availability[CAR]`: 10 → 9 on Floor 0
-5. Ticket T001 created with `entry_time=10:00 AM`, stored in active_tickets
+5. Ticket T001 created with `entryTime=10:00 AM`, stored in activeTickets
 6. T001 returned
 
 **Exit at 12:30 PM**:
-1. `exit_vehicle("T001")` — ticket popped from active_tickets atomically
-2. `exit_time = 12:30 PM`; duration = 2.5 hours → `ceil(2.5) = 3` billable hours
+1. `exitVehicle("T001")` — ticket popped from activeTickets atomically
+2. `exitTime = 12:30 PM`; duration = 2.5 hours → `ceil(2.5) = 3` billable hours
 3. Fee = 3 × $4.00 = **$12.00**
-4. `floor.release_spot(spot)` — `is_occupied=False`, `availability[CAR]`: 9 → 10
+4. `floor.releaseSpot(spot)` — `isOccupied=False`, `availability[CAR]`: 9 → 10
 5. $12.00 returned
 
 ---
@@ -377,11 +377,11 @@ public class Floor {
 }
 ```
 
-The `active_tickets` dict uses its own lock. This gives parallelism proportional to number of floors. For even finer granularity, use per-spot locks with CAS semantics, but that's rarely needed for parking lots (< thousands of spots).
+The `activeTickets` dict uses its own lock. This gives parallelism proportional to number of floors. For even finer granularity, use per-spot locks with CAS semantics, but that's rarely needed for parking lots (< thousands of spots).
 
 ### 2. "How would you add EV charging spots?"
 
-EV charging is an attribute, not a new size category. Add `has_charger: bool` to `ParkingSpot` and `needs_charging: bool` to `Vehicle`.
+EV charging is an attribute, not a new size category. Add `hasCharger: bool` to `ParkingSpot` and `needsCharging: bool` to `Vehicle`.
 
 ```java
 public ParkingSpot findAndAssign(Vehicle vehicle) {
@@ -405,7 +405,7 @@ public ParkingSpot findAndAssign(Vehicle vehicle) {
 }
 ```
 
-Pricing: add `charge_start_time` to ParkingSpot. On exit, compute kWh from duration × charge rate, add to base parking fee. EV spots get a `charger_fee_per_kwh` field.
+Pricing: add `chargeStartTime` to ParkingSpot. On exit, compute kWh from duration × charge rate, add to base parking fee. EV spots get a `chargerFeePerKwh` field.
 
 ### 3. "How would you add a reservation system?"
 
@@ -422,7 +422,7 @@ public class Reservation {
 }
 ```
 
-Each ParkingSpot holds `reservations: list[Reservation]` sorted by start_time. In `find_and_assign`, skip spots that have an overlapping reservation:
+Each ParkingSpot holds `reservations: list[Reservation]` sorted by startTime. In `findAndAssign`, skip spots that have an overlapping reservation:
 
 ```java
 public boolean hasConflict(ParkingSpot spot, LocalDateTime start, LocalDateTime end) {
@@ -438,7 +438,7 @@ public boolean hasConflict(ParkingSpot spot, LocalDateTime start, LocalDateTime 
 }
 ```
 
-A background job (or lazy cleanup on each `find_and_assign` call) expires reservations whose end_time has passed with no vehicle arrival.
+A background job (or lazy cleanup on each `findAndAssign` call) expires reservations whose endTime has passed with no vehicle arrival.
 
 ### 4. "How would dynamic pricing based on occupancy work?"
 
@@ -487,9 +487,11 @@ The multiplier is capped to prevent gouging. Occupancy rate = `occupied / total`
 
 **Junior**: Define the Ticket class and explain what fields it needs. Describe how spot assignment works and which classes are involved. Can sketch a basic class diagram.
 
-**Mid-level**: Implement `park_vehicle` and `exit_vehicle` with correct locking. Explain why Singleton for ParkingLot. Implement `HourlyPricing` via Strategy pattern. Handle size compatibility correctly (smaller vehicle in larger spot).
+**Mid-level**: Implement `parkVehicle` and `exitVehicle` with correct locking. Explain why Singleton for ParkingLot. Implement `HourlyPricing` via Strategy pattern. Handle size compatibility correctly (smaller vehicle in larger spot).
 
 **Senior**: Identify the global lock bottleneck and propose per-floor locking. Design the reservation system with interval overlap detection. Discuss EV charging as an attribute vs. a subclass. Explain why pricing as a Strategy is better than a method on ParkingLot.
+
+**Staff (SDE-3)**: You've shipped this for one lot. Now product wants 500 lots across 12 cities, with a single app showing live availability. What breaks first, and what's your migration path from the in-memory `Floor` maps to a distributed availability index without a maintenance window? Defend eventual consistency on the availability count (a user occasionally sees a spot that's gone) versus strong consistency on the ticket itself (never double-charge). Name the SLO you'd put on each.
 
 ---
 
@@ -499,9 +501,9 @@ The multiplier is capped to prevent gouging. Occupancy rate = `occupied / total`
 - Q: How does size compatibility work — can a motorcycle park in a car spot? A: Yes, smaller vehicles can use larger spots as a fallback. Assign a numeric size (motorcycle=0, car=1, truck=2); a vehicle parks in any spot with size >= its own.
 - Q: What happens if two threads both see the same spot as available? A: Without a lock they both assign it — double-booking. The per-floor lock makes find-and-assign atomic, so only one thread succeeds.
 - Q: Why store Ticket separately from the Spot? A: Ticket holds time-stamped billing data. A spot only needs occupancy state. Separating them allows ticket history after the spot is released and keeps each class focused.
-- Q: Can a truck park in a car spot? A: No. The size rule is one-directional — smaller in larger is allowed, larger in smaller is not. If no truck spot is available, raise ParkingLotFullError for the truck.
+- Q: Can a truck park in a car spot? A: No. The size rule is one-directional — smaller in larger is allowed, larger in smaller is not. If no truck spot is available, throw new ParkingLotFullError for the truck.
 - Q: How do you round partial hours in HourlyPricing? A: Round up with `math.ceil`. 2.1 hours = 3 billable hours. This is a business rule — expose it as a configurable rounding strategy if needed.
-- Q: How would you test for double-booking under concurrency? A: Spin up 100 threads simultaneously calling `park_vehicle` on a lot with 50 car spots. Assert that exactly 50 succeed and 50 raise ParkingLotFullError, and that no spot has two vehicles assigned.
+- Q: How would you test for double-booking under concurrency? A: Spin up 100 threads simultaneously calling `parkVehicle` on a lot with 50 car spots. Assert that exactly 50 succeed and 50 throw new ParkingLotFullError, and that no spot has two vehicles assigned.
 
 ---
 
@@ -870,9 +872,9 @@ class ParkingLotConcurrencyTest {
 ```
 
 **What each test verifies:**
-- `test_no_double_booking`: The per-floor lock prevents two threads assigning the same spot simultaneously. If `find_and_assign` had no lock, two threads could both see `is_occupied=False` and both assign the same spot.
-- `test_concurrent_park_and_exit`: Spot availability counts are correctly updated under concurrent exit; freed spots become available for new arrivals.
-- `test_duplicate_plate_rejected`: The `active_tickets` lock ensures the duplicate check + insert is atomic. Without the lock, two threads could both pass the duplicate check before either inserts.
+- `testNoDoubleBooking`: The per-floor lock prevents two threads assigning the same spot simultaneously. If `findAndAssign` had no lock, two threads could both see `isOccupied=False` and both assign the same spot.
+- `testConcurrentParkAndExit`: Spot availability counts are correctly updated under concurrent exit; freed spots become available for new arrivals.
+- `testDuplicatePlateRejected`: The `activeTickets` lock ensures the duplicate check + insert is atomic. Without the lock, two threads could both pass the duplicate check before either inserts.
 
 ---
 

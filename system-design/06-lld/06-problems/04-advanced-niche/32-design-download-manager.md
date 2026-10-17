@@ -132,7 +132,7 @@ class DownloadManager:
 
 ## Implementation
 
-### Core Method: `start_download`
+### Core Method: `startDownload`
 
 **Core logic:**
 1. HTTP HEAD → get Content-Length and Accept-Ranges
@@ -144,7 +144,7 @@ class DownloadManager:
 **Edge cases:**
 - Server doesn't support Range → single chunk, no parallelism
 - File size unknown → single-stream, progress indeterminate
-- num_chunks > file_size → clamp to 1 chunk per byte
+- numChunks > fileSize → clamp to 1 chunk per byte
 
 ```java
 public String startDownload(String url, String outputPath, int numChunks) {
@@ -199,12 +199,12 @@ private List<Chunk> splitIntoChunks(String downloadId, long fileSize, int numChu
 }
 ```
 
-### Core Method: `_download_chunk`
+### Core Method: `downloadChunk`
 
 **Core logic:**
 - Poll `download.state` before and during download
 - HTTP GET with `Range: bytes=start-end`
-- Write response bytes to temp file, update `bytes_downloaded`
+- Write response bytes to temp file, update `bytesDownloaded`
 - On failure: retry up to 3 times with exponential backoff
 - On all chunks complete: trigger FileMerger
 
@@ -267,7 +267,7 @@ private void checkAndMerge(Download download) {
 }
 ```
 
-Note on `download.state`, `chunk.bytes_downloaded`, etc.: because multiple chunk threads read/write these fields concurrently, the Java port backs them with `volatile` fields (state flags) and `AtomicLong` (`bytesDownloaded`, `retryCount`) rather than plain `int`/enum fields — Python's GIL made the equivalent read-modify-write on plain attributes safe by accident (each bytecode-level attribute access is atomic under the GIL), but the JVM has no such guarantee, so unsynchronized access here would be a real data race.
+Note on `download.state`, `chunk.bytesDownloaded`, etc.: because multiple chunk threads read/write these fields concurrently, the Java port backs them with `volatile` fields (state flags) and `AtomicLong` (`bytesDownloaded`, `retryCount`) rather than plain `int`/enum fields — Python's GIL made the equivalent read-modify-write on plain attributes safe by accident (each bytecode-level attribute access is atomic under the GIL), but the JVM has no such guarantee, so unsynchronized access here would be a real data race.
 
 ### FileMerger
 
@@ -368,7 +368,7 @@ get_progress("D1") → 1.0
 
 ### 1. "How does pause work when a chunk is mid-download?"
 
-In-flight threads poll `download.state` between buffer writes (inside `iter_content` loop). On seeing PAUSED, they stop writing, exit cleanly, and mark the chunk PENDING. Partial bytes are in the temp file but the chunk restarts from scratch on resume (simpler). For true partial resume, track bytes downloaded and send `Range: bytes=(start + bytes_downloaded)-(end)`.
+In-flight threads poll `download.state` between buffer writes (inside `iterContent` loop). On seeing PAUSED, they stop writing, exit cleanly, and mark the chunk PENDING. Partial bytes are in the temp file but the chunk restarts from scratch on resume (simpler). For true partial resume, track bytes downloaded and send `Range: bytes=(start + bytesDownloaded)-(end)`.
 
 ### 2. "How would you add bandwidth throttling?"
 
@@ -461,9 +461,11 @@ Add a `priority: int` field to each download request. Use a `PriorityQueue` inst
 
 **Junior**: Single-threaded download. Track progress (bytes / total). Save to file. Basic error handling.
 
-**Mid-level**: Split into N chunks. Thread pool for parallel downloads. Merge in chunk_id order. Retry with backoff. Pause/resume via cooperative state flag.
+**Mid-level**: Split into N chunks. Thread pool for parallel downloads. Merge in chunkId order. Retry with backoff. Pause/resume via cooperative state flag.
 
 **Senior**: Partial resume (restart from partial byte offset). Bandwidth throttling via token bucket. File integrity verification via checksum. Priority queue for download scheduling. Thread-safe progress tracking.
+
+**Staff (SDE-3)**: This now ships to 10M desktop clients and your CDN bill is the constraint. Design the client-side behavior that reduces origin load: range-request coalescing, peer-assisted delivery trade-offs, and retry backoff that doesn't stampede after a CDN outage. Quantify the retry storm your naive backoff would produce at 10M clients.
 
 ---
 
@@ -476,13 +478,13 @@ Add a `priority: int` field to each download request. Use a `PriorityQueue` inst
   **A**: Retry up to 3 times with exponential backoff (2^attempt seconds). If all retries fail, mark chunk FAILED and download FAILED. On resume, restart only PENDING/FAILED chunks.
 
 - **Q**: How do you merge chunks correctly?
-  **A**: Sort chunks by chunk_id (ascending) and concatenate their temp files into the output file. chunk_id maps directly to byte order since chunks are created left-to-right.
+  **A**: Sort chunks by chunkId (ascending) and concatenate their temp files into the output file. chunkId maps directly to byte order since chunks are created left-to-right.
 
 - **Q**: How does cooperative pause work?
   **A**: Threads poll `download.state` between buffer writes inside the streaming loop. On seeing PAUSED, they return cleanly. Forced `Thread.stop()` is unsafe (can leave locks held). Cooperative cancellation via a shared flag is safe.
 
 - **Q**: How do you track overall progress?
-  **A**: Sum `bytes_downloaded` across all chunks, divide by `file_size`. Each chunk's counter is incremented as data arrives. For thread safety, use an atomic counter or a lock around the increment.
+  **A**: Sum `bytesDownloaded` across all chunks, divide by `fileSize`. Each chunk's counter is incremented as data arrives. For thread safety, use an atomic counter or a lock around the increment.
 
 ---
 

@@ -102,9 +102,9 @@ Design the core game engine for Tetris: spawning falling tetromino pieces, detec
 | Requirement | What Tetromino must track |
 |-------------|--------------------------|
 | Shape in all 4 rotations | `rotations: list[list[tuple]]` — offset lists per rotation state |
-| Current rotation index | `rotation_index: int` |
+| Current rotation index | `rotationIndex: int` |
 | Position on board | `x: int, y: int` (top-left anchor) |
-| Piece type/color | `piece_type: str` |
+| Piece type/color | `pieceType: str` |
 
 ```
 class Tetromino:
@@ -143,7 +143,7 @@ class Board:
 | Requirement | What Game must track |
 |-------------|---------------------|
 | Active board | `board: Board` |
-| Score and level | managed by `score_tracker` |
+| Score and level | managed by `scoreTracker` |
 | Piece queue | `queue: PieceQueue` |
 | Game state | `state: GameState` enum |
 
@@ -167,7 +167,7 @@ class Game:
 
 ## Implementation
 
-### Core Method: clear_lines()
+### Core Method: clearLines()
 
 **Core logic:**
 1. Scan all rows; collect rows where every cell is non-None
@@ -564,13 +564,13 @@ class Game {
 
 1. `game.start()` -> I-piece spawns at x=3, y=0, rotation=0 (horizontal cells at row=0, cols 3-6)
 2. `game.move(1)` -> x=4; `game.move(1)` -> x=5
-3. `game.rotate_cw()` -> rotation_index=1 (vertical I-piece, cells at col 7, rows 0-3)
-4. `board.is_valid_position(piece)` checks pass; piece is at column 7
-5. `game.hard_drop()` -> loop moves piece down until row=16 (board nearly full at bottom); rows_dropped=16; score += 32
-6. `board.lock_piece(piece)` -> columns 7, rows 16-19 filled
-7. `board.clear_lines()` -> if row 19 is now full, returns 1; `new_grid` removes row 19, prepends empty row
-8. `score_tracker.add_lines(1)` -> score += 100; lines_cleared=1; level still 1
-9. `spawn_piece()` -> next piece from queue, if spawn position is valid, game continues
+3. `game.rotateCw()` -> rotationIndex=1 (vertical I-piece, cells at col 7, rows 0-3)
+4. `board.isValidPosition(piece)` checks pass; piece is at column 7
+5. `game.hardDrop()` -> loop moves piece down until row=16 (board nearly full at bottom); rowsDropped=16; score += 32
+6. `board.lockPiece(piece)` -> columns 7, rows 16-19 filled
+7. `board.clearLines()` -> if row 19 is now full, returns 1; `newGrid` removes row 19, prepends empty row
+8. `scoreTracker.addLines(1)` -> score += 100; linesCleared=1; level still 1
+9. `spawnPiece()` -> next piece from queue, if spawn position is valid, game continues
 
 ---
 
@@ -578,7 +578,7 @@ class Game {
 
 ### 1. "How does the Super Rotation System (SRS) differ from basic rotation?"
 
-Basic rotation reverts immediately on collision. SRS tries up to 4 additional "wall kick" offset positions before reverting. Each piece type has a lookup table of kick offsets indexed by (from_rotation, to_rotation).
+Basic rotation reverts immediately on collision. SRS tries up to 4 additional "wall kick" offset positions before reverting. Each piece type has a lookup table of kick offsets indexed by (fromRotation, toRotation).
 
 ```java
 // Wall kick offsets for J, L, S, T, Z (I-piece has different kicks)
@@ -617,7 +617,7 @@ The practical impact: with SRS, a T-piece wedged against a wall can still rotate
 
 ### 2. "How does collision detection work without moving the piece?"
 
-`is_valid_position` accepts delta offsets `(dx, dy)` and tests hypothetical positions without mutating state. This avoids the move-then-revert pattern which could leave the piece in an invalid state if code throws mid-revert.
+`isValidPosition` accepts delta offsets `(dx, dy)` and tests hypothetical positions without mutating state. This avoids the move-then-revert pattern which could leave the piece in an invalid state if code throws mid-revert.
 
 ```java
 public boolean isValidPosition(Tetromino piece, int dx, int dy) {
@@ -690,11 +690,11 @@ class Board {
 }
 ```
 
-Game loop: lock piece -> `detect_full_lines()` -> enter CLEARING state -> call `tick_clear_animation()` each frame -> on True, call `finalize_clear()` -> spawn next piece.
+Game loop: lock piece -> `detectFullLines()` -> enter CLEARING state -> call `tickClearAnimation()` each frame -> on True, call `finalizeClear()` -> spawn next piece.
 
 ### 4. "How do you implement the next piece preview?"
 
-`PieceQueue` maintains a list of pre-generated pieces. `next()` pops from the front and `_refill()` appends new random pieces to keep the queue at `preview_size + 1`. The UI reads `queue.preview()` which returns a view without consuming pieces.
+`PieceQueue` maintains a list of pre-generated pieces. `next()` pops from the front and `_refill()` appends new random pieces to keep the queue at `previewSize + 1`. The UI reads `queue.preview()` which returns a view without consuming pieces.
 
 For fair distribution, use a 7-bag randomizer: shuffle all 7 types, deal in order, reshuffle when exhausted. This guarantees at most 12 pieces between any two of the same type.
 
@@ -745,7 +745,7 @@ class SevenBagQueue {
 
 ### 5. "Explain the scoring system and multipliers"
 
-Standard Tetris scoring: points = base[lines_cleared] * level. The base values jump non-linearly to reward clearing 4 lines (Tetris) at once.
+Standard Tetris scoring: points = base[linesCleared] * level. The base values jump non-linearly to reward clearing 4 lines (Tetris) at once.
 
 ```java
 class ScoreTracker {
@@ -783,9 +783,11 @@ The 4:1 ratio between double and tetris (300 vs 800 * 2 = 1600 relative) makes s
 
 **Junior**: What data structure represents a tetromino piece on the board?
 
-**Mid-level**: How does `is_valid_position` check collisions without actually moving the piece?
+**Mid-level**: How does `isValidPosition` check collisions without actually moving the piece?
 
 **Senior**: How would you implement SRS wall kicks? What is the trade-off between pre-computed rotation tables vs computing rotations with a 2D rotation matrix at runtime?
+
+**Staff (SDE-3)**: Ship this as a competitive ranked mode. Design deterministic lockstep so two clients agree on the piece sequence without trusting either, and explain how you detect and handle desync. Then define the anti-cheat boundary: what must be server-validated versus what you can let the client compute, given a 16ms frame budget.
 
 ---
 
@@ -797,17 +799,17 @@ The 4:1 ratio between double and tetris (300 vs 800 * 2 = 1600 relative) makes s
 - **Q: Why store 4 pre-computed rotations instead of computing them with a rotation matrix?**
   A: Pre-computation is simpler and faster. Matrix rotation introduces floating-point precision issues for integer grids. With only 7 pieces x 4 rotations, the lookup table is trivially small.
 
-- **Q: Why does `rotate_ccw` use `(rotationIndex + 3) % 4` instead of subtraction?**
+- **Q: Why does `rotateCcw` use `(rotationIndex + 3) % 4` instead of subtraction?**
   A: Java's `%` operator can return negative results for negative operands (unlike Python's `%`, which always returns a non-negative result for a positive divisor). Adding 3 before taking mod 4 keeps the result non-negative without needing a branch or `Math.floorMod`.
 
 - **Q: How does line clearing shift rows down efficiently?**
   A: Filter full rows from the grid array, then prepend the same number of empty rows at the top. This is O(rows) with simple array copy operations.
 
 - **Q: How do you detect game over?**
-  A: When `spawn_piece()` places a new piece and `is_valid_position()` returns False immediately — the spawn zone (top 2 rows) is blocked by locked pieces.
+  A: When `spawnPiece()` places a new piece and `isValidPosition()` returns False immediately — the spawn zone (top 2 rows) is blocked by locked pieces.
 
 - **Q: How does the game loop timing work for gravity?**
-  A: A timer fires `game.tick()` every `drop_interval` seconds. The interval shortens as level increases (e.g., 1.0s at level 1, 0.1s at level 10). Player inputs are processed synchronously between ticks.
+  A: A timer fires `game.tick()` every `dropInterval` seconds. The interval shortens as level increases (e.g., 1.0s at level 1, 0.1s at level 10). Player inputs are processed synchronously between ticks.
 
 - **Q: How does hard drop differ from soft drop?**
   A: Hard drop instantly moves the piece to the lowest valid position and locks it, awarding 2 points per row. Soft drop moves down one row per input, awarding 1 point per row.

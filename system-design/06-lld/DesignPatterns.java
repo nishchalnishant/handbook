@@ -3,42 +3,174 @@ import java.util.function.*;
 
 /**
  * DesignPatterns.java
- * A single runnable reference implementing every pattern from
- * "Foundations of Object-Oriented Programming & Software Design".
  *
- * Each pattern lives in its own static nested container class so names
- * never collide. Run with: java DesignPatterns.java
+ * ONE runnable file containing every classic (Gang of Four) design pattern,
+ * plus the six class relationships that all of them are built out of.
+ *
+ * Run it with:  java DesignPatterns.java
+ *
+ * ---------------------------------------------------------------------------
+ * HOW TO READ THIS FILE IF YOU ARE NEW TO LOW LEVEL DESIGN
+ * ---------------------------------------------------------------------------
+ * Read Section 0 first. It teaches the six ways one class can be connected to
+ * another class. Every pattern after that is just those six connections
+ * arranged in a particular shape. If you skip Section 0, the patterns will
+ * look like twenty unrelated tricks instead of variations on one idea.
+ *
+ * Each pattern is wrapped in its own `static class` container. That is only a
+ * namespace trick so that two patterns can both have a class called `Button`
+ * without clashing. It is not part of the pattern.
+ *
+ * Every pattern block is written in the same order:
+ *   INTENT        - the one sentence problem the pattern solves.
+ *   PARTICIPANTS  - the named roles, and which class in this file plays each.
+ *   IMPLEMENTATION- how the code below actually wires those roles together.
+ *   vs SOME OTHER - how to tell it apart from the pattern it is confused with.
+ *   WHEN TO USE   - realistic situations, including real Java library examples.
+ *   PITFALL       - the mistake people make when they first apply it.
+ *
+ * ---------------------------------------------------------------------------
+ * VOCABULARY USED THROUGHOUT (do not guess at these words - they are defined)
+ * ---------------------------------------------------------------------------
+ * CONTEXT       A role name, not a piece of data. It means "the class that
+ *               holds the swappable field". When you read "the Context calls
+ *               the Strategy", read it as "the holder class calls the object
+ *               stored in its field".
+ * CLIENT        Whoever uses the pattern from outside. In this file the
+ *               `demo()` method is always the client.
+ * CONTRACT      An interface. It lists what can be asked for, never how it is
+ *               done.
+ * DELEGATE      Class A "delegates" to B when A's method body just calls a
+ *               method on B and returns the result. A does no work itself.
+ * COUPLING      How much one class needs to know about another. Less is
+ *               better, because the less A knows about B, the more freely B
+ *               can change without breaking A.
+ * POLYMORPHISM  Calling one method name and having the correct version run
+ *               based on the actual object stored in the variable at runtime.
+ *
+ * Three design principles are referred to by name in the notes below:
+ *   OCP  (Open/Closed Principle)   Add new behaviour by writing a NEW class,
+ *                                  not by editing an existing, tested one.
+ *   DIP  (Dependency Inversion)    Fields and parameters should be typed as
+ *                                  interfaces, never as concrete classes, so
+ *                                  any implementation can be substituted.
+ *   LSP  (Liskov Substitution)     If B extends A, then handing a B to code
+ *                                  that expects an A must never surprise it.
+ *                                  This is the honest test for "should this
+ *                                  be inheritance?".
+ *
+ * ---------------------------------------------------------------------------
+ * LEGEND for the relationship notes above each pattern
+ * ---------------------------------------------------------------------------
+ *   A --is-a-->     B   INHERITANCE   A extends B                      tightest
+ *   A --can-do-->   B   REALISATION   A implements B                   strong
+ *   A --has-a-->    B   COMPOSITION   B is built INSIDE A, dies with A
+ *   A --has-a-->    B   AGGREGATION   B is passed INTO A, outlives A
+ *   A --has-many--> B   the same, but over a collection of B
+ *   A --knows-a-->  B   ASSOCIATION   peers, independent lifetimes
+ *   A --uses-a-->   B   DEPENDENCY    method parameter or local only   loosest
+ *
+ * ---------------------------------------------------------------------------
+ * REVERSE LOOKUP - naming a pattern from its wiring alone
+ * ---------------------------------------------------------------------------
+ * This is the fastest way to identify a pattern in unfamiliar code, and the
+ * fastest way to answer "which pattern is this?" in an interview. Look only at
+ * the FIELDS of the class:
+ *
+ *   a field of its OWN type ................. Singleton, or Chain of Responsibility
+ *   a LIST of one interface ................. Observer, or Composite
+ *   ONE field of the interface it implements  Decorator, or Proxy
+ *   a field of a DIFFERENT interface
+ *       than the one it implements .......... Adapter, or Bridge
+ *   an abstract method that subclasses
+ *       are required to override ............ Factory Method, or Template Method
+ *   a swappable field typed as an interface . Strategy, or State
+ *
+ * Each line has two answers on purpose. The wiring narrows it to a pair; the
+ * INTENT decides which of the two it is. The "vs" block inside each pattern
+ * below tells you how to make that final call. Here are those final calls
+ * collected in one place:
+ *
+ *   Strategy vs State
+ *     Identical structure. The question is WHO calls the setter. If the client
+ *     outside picks the object, it is Strategy. If the object currently in the
+ *     field picks its own replacement, it is State.
+ *
+ *   Adapter vs Decorator
+ *     Both wrap one object. Adapter CHANGES the interface and keeps behaviour
+ *     the same (a plug converter). Decorator KEEPS the interface and changes
+ *     behaviour (adding milk to coffee).
+ *
+ *   Decorator vs Proxy
+ *     Both implement the interface they wrap. Decorator adds behaviour you
+ *     asked for. Proxy controls ACCESS to the real object - blocking it,
+ *     delaying its creation, or caching its answers - without adding features.
+ *
+ *   Composite vs Decorator
+ *     Composite holds MANY children and exists to build a tree. Decorator
+ *     holds exactly ONE and exists to stack behaviour.
+ *
+ *   Composite vs Chain of Responsibility
+ *     Composite passes the call to ALL of its children. Chain passes it to
+ *     AT MOST ONE, and stops as soon as somebody handles it.
+ *
+ *   Factory Method vs Abstract Factory
+ *     Factory Method makes ONE product and varies it by subclassing. Abstract
+ *     Factory makes a FAMILY of matching products behind one object.
+ *
+ *   Builder vs Abstract Factory
+ *     Builder assembles ONE complicated object step by step. Abstract Factory
+ *     produces several related objects in a single call.
+ *
+ *   Command vs Strategy
+ *     Both wrap behaviour in an object. Strategy answers "HOW should this be
+ *     done". Command answers "WHAT should be done", and can be stored, queued,
+ *     logged, and undone.
+ *
+ *   Template Method vs Strategy
+ *     Same goal, opposite mechanism. Template Method varies steps through
+ *     INHERITANCE, fixed at compile time. Strategy varies the whole algorithm
+ *     through COMPOSITION, swappable at run time.
+ *
+ *   Facade vs Mediator
+ *     Facade is one-directional: it simplifies a subsystem for outside callers,
+ *     and the subsystem does not know it exists. Mediator is two-directional:
+ *     the peers know it and talk through it.
+ *
+ *   Observer vs Mediator
+ *     Observer is one-to-many broadcast from a single subject. Mediator is
+ *     many-to-many routing where any peer can start the conversation.
  */
 public class DesignPatterns {
 
     // =====================================================================
-    // SECTION 0 — THE SIX CLASS RELATIONSHIPS (the vocabulary everything uses)
+    // SECTION 0 - THE SIX CLASS RELATIONSHIPS (the vocabulary everything uses)
     // =====================================================================
     /**
-     * THE SIX CLASS RELATIONSHIPS — The foundation vocabulary for every pattern below.
+     * THE SIX CLASS RELATIONSHIPS - The foundation vocabulary for every pattern below.
      *
      * Every design pattern is built from one or more of these six relationships.
-     * Understanding them is the prerequisite to understanding WHY a pattern is structured
-     * the way it is.
+     * Understanding them is the prerequisite to understanding WHY a pattern is structured the way
+     * it is.
      *
      * Ordered from tightest to loosest coupling:
      *
-     *  1. INHERITANCE  (Is-A)        — subclass extends superclass; reuses & overrides
-     *  2. REALISATION  (Can-Do)      — class implements interface; declares a capability
-     *  3. COMPOSITION  (Has-A, own)  — part is created inside the owner; dies with it
-     *  4. AGGREGATION  (Has-A, borrow) — part is injected from outside; outlives the owner
-     *  5. ASSOCIATION  (Knows-A)     — peer reference stored as a field; independent lifecycles
-     *  6. DEPENDENCY   (Uses-A)      — transient reference via a method parameter; shortest lived
+     * 1. INHERITANCE (Is-A) - subclass extends superclass; reuses & overrides 2. REALISATION
+     *   (Can-Do) - class implements interface; declares a capability 3. COMPOSITION (Has-A, own)
+     *   - part is created inside the owner; dies with it 4. AGGREGATION (Has-A, borrow) - part
+     *   is injected from outside; outlives the owner 5. ASSOCIATION (Knows-A) - peer reference
+     *   stored as a field; independent lifecycles 6. DEPENDENCY (Uses-A) - transient reference
+     *   via a method parameter; shortest lived
      *
      * UML coupling rule: prefer the loosest relationship that satisfies the requirement.
      */
     static class Relationships {
 
-        // 1. INHERITANCE — "Is-A" — tightest coupling
-        //    UML: solid arrow with closed hollow arrowhead  (Car ──▷ Vehicle)
-        //    The subclass inherits ALL non-private state and behaviour.
-        //    Use ONLY when every instance of the child truly IS a parent (Liskov test).
-        //    Pitfall: breaks encapsulation — child depends on parent internals.
+        // 1. INHERITANCE - "Is-A" - tightest coupling
+        // UML: solid arrow with closed hollow arrowhead (Car --> Vehicle)
+        // The subclass inherits ALL non-private state and behaviour.
+        // Use ONLY when every instance of the child truly IS a parent (Liskov test).
+        // Pitfall: breaks encapsulation - child depends on parent internals.
         static abstract class Vehicle {
             protected String fuelType = "petrol";
 
@@ -52,11 +184,12 @@ public class DesignPatterns {
             }
         }
 
-        // 2. REALISATION — "Can-Do" — strong, but capability-only
-        //    UML: dashed arrow with closed hollow arrowhead  (ElectricCar - - ▷ Chargeable)
-        //    Commits the class to a contract (interface) without inheriting any state.
-        //    Java best practice: prefer interfaces over abstract classes for shared types.
-        //    This is how Strategy, Observer, Command, etc. achieve polymorphism without inheritance.
+        // 2. REALISATION - "Can-Do" - strong, but capability-only
+        // UML: dashed arrow with closed hollow arrowhead (ElectricCar - - > Chargeable)
+        // Commits the class to a contract (interface) without inheriting any state.
+        // Java best practice: prefer interfaces over abstract classes for shared types.
+        // This is how Strategy, Observer, Command, etc. achieve polymorphism without
+        // inheritance.
         interface Chargeable {
             void plugIn();
         }
@@ -68,11 +201,11 @@ public class DesignPatterns {
             }
         }
 
-        // 3. COMPOSITION — "Has-A" strong ownership — part dies with the whole
-        //    UML: solid diamond at the owner end  (ComposedCar ◆── Engine)
-        //    Key signal: the part is created with `new` INSIDE the owner constructor.
-        //    The part has no meaning or existence outside the owner.
-        //    Used in: Singleton (Holder), Facade, Flyweight pool, Builder.
+        // 3. COMPOSITION - "Has-A" strong ownership - part dies with the whole
+        // UML: solid diamond at the owner end (ComposedCar #-- Engine)
+        // Key signal: the part is created with `new` INSIDE the owner constructor.
+        // The part has no meaning or existence outside the owner.
+        // Used in: Singleton (Holder), Facade, Flyweight pool, Builder.
         static class Engine {
             void fire() {
                 System.out.println("  [Has-A strong] Cylinders firing.");
@@ -91,11 +224,13 @@ public class DesignPatterns {
             }
         }
 
-        // 4. AGGREGATION — "Has-A" weak ownership — part outlives the whole
-        //    UML: hollow diamond at the owner end  (AggregatedCar ◇── Wheel)
-        //    Key signal: the part is INJECTED (constructor/setter) from the outside.
-        //    This is the basis of Dependency Injection and most GoF patterns (Strategy, Decorator, Bridge).
-        //    Prefer this over Composition when the part is shared or has independent meaning.
+        // 4. AGGREGATION - "Has-A" weak ownership - part outlives the whole
+        // UML: hollow diamond at the owner end (AggregatedCar o-- Wheel)
+        // Key signal: the part is INJECTED (constructor/setter) from the outside.
+        // This is the basis of Dependency Injection and most GoF patterns (Strategy,
+        // Decorator, Bridge).
+        // Prefer this over Composition when the part is shared or has independent
+        // meaning.
         static class Wheel {
             void roll() {
                 System.out.println("  [Has-A weak] Wheel rolling.");
@@ -114,11 +249,12 @@ public class DesignPatterns {
             }
         }
 
-        // 5. PLAIN ASSOCIATION — "Knows-A" — peers, independent lifecycles
-        //    UML: plain arrow  (Doctor ──> Patient)
-        //    Both objects are created independently; one stores a reference to the other.
-        //    Can be unidirectional (Doctor → Patient) or bidirectional (Doctor ↔ Patient).
-        //    Used in: Mediator (users know the mediator), Observer (subject knows observers).
+        // 5. PLAIN ASSOCIATION - "Knows-A" - peers, independent lifecycles
+        // UML: plain arrow (Doctor --> Patient)
+        // Both objects are created independently; one stores a reference to the other.
+        // Can be unidirectional (Doctor -> Patient) or bidirectional (Doctor <-> Patient).
+        // Used in: Mediator (users know the mediator), Observer (subject knows
+        // observers).
         static class Doctor {
             private final List<Patient> patients = new ArrayList<>();
 
@@ -139,11 +275,13 @@ public class DesignPatterns {
             }
         }
 
-        // 6. DEPENDENCY — "Uses-A" — loosest, exists only for the method call
-        //    UML: dashed arrow  (RefuelableCar - -> FuelPump)
-        //    The dependency appears only in a method signature (parameter, local variable, return type).
-        //    No field is stored — the relationship ends when the method returns.
-        //    Golden rule: if you can express a relationship as Dependency instead of Association, do it.
+        // 6. DEPENDENCY - "Uses-A" - loosest, exists only for the method call
+        // UML: dashed arrow (RefuelableCar - -> FuelPump)
+        // The dependency appears only in a method signature (parameter, local variable,
+        // return type).
+        // No field is stored - the relationship ends when the method returns.
+        // Golden rule: if you can express a relationship as Dependency instead of
+        // Association, do it.
         static class FuelPump {
             void pumpGas() {
                 System.out.println("  [Uses-A] Pumping fuel.");
@@ -172,35 +310,36 @@ public class DesignPatterns {
     }
 
     // =====================================================================
-    // SECTION 1 — CREATIONAL PATTERNS
+    // SECTION 1 - CREATIONAL PATTERNS
     // =====================================================================
 
     /**
-     * 1.1 SINGLETON — "There Can Be Only One"
+     * 1.1 SINGLETON - "There Can Be Only One"
      * Relationship used: Self-referencing Composition (the class owns its own single instance).
      *
      * INTENT: Ensure a class has exactly one instance and provide a global access point to it.
      *
-     * IMPLEMENTATION (Initialization-on-demand Holder idiom — Bill Pugh Singleton):
-     *   - The outer class `DatabaseConnection` has a PRIVATE constructor, so no one can call `new`.
-     *   - A private static inner class `Holder` contains the sole instance as a static final field.
-     *   - The JVM guarantees that static fields are initialized exactly once, lazily, and thread-safely
-     *     the first time the class is loaded — so we get lazy init WITHOUT synchronization overhead.
-     *   - `getInstance()` simply returns `Holder.INSTANCE`.
+     * IMPLEMENTATION (Initialization-on-demand Holder idiom - Bill Pugh Singleton):
+     * - The outer class `DatabaseConnection` has a PRIVATE constructor, so no one can call `new`.
+     * - A private static inner class `Holder` contains the sole instance as a static final field.
+     * - The JVM guarantees that static fields are initialized exactly once, lazily, and
+     *   thread-safely the first time the class is loaded - so we get lazy init WITHOUT
+     *   synchronization overhead.
+     * - `getInstance()` simply returns `Holder.INSTANCE`.
      *
      * KEY SIGNALS IN CODE:
-     *   - `private` constructor
-     *   - `static final` instance inside a nested `Holder`
-     *   - `static getInstance()` factory method
+     * - `private` constructor
+     * - `static final` instance inside a nested `Holder`
+     * - `static getInstance()` factory method
      *
      * WHEN TO USE:
-     *   - Database connection pools, configuration managers, loggers, thread pools.
-     *   - When exactly one object must coordinate actions across the system.
+     * - Database connection pools, configuration managers, loggers, thread pools.
+     * - When exactly one object must coordinate actions across the system.
      *
      * PITFALLS:
-     *   - Hard to unit-test (global state is hard to mock).
-     *   - Breaks Single Responsibility if the singleton also controls its own lifecycle.
-     *   - Enum-based singleton (`enum DB { INSTANCE; }`) is the most serialization-safe alternative.
+     * - Hard to unit-test (global state is hard to mock).
+     * - Breaks Single Responsibility if the singleton also controls its own lifecycle.
+     * - Enum-based singleton (`enum DB { INSTANCE; }`) is the most serialization-safe alternative.
      */
     static class SingletonPattern {
         // Eager/holder idiom: thread-safe without synchronization cost.
@@ -232,32 +371,32 @@ public class DesignPatterns {
     }
 
     /**
-     * 1.2 FACTORY METHOD — "Let Subclasses Choose"
+     * 1.2 FACTORY METHOD - "Let Subclasses Choose"
      * Relationships used: Inheritance (App hierarchy) + Realisation (Document interface).
      *
-     * INTENT: Define an interface for creating an object, but let subclasses decide which
-     * concrete class to instantiate. The factory method defers instantiation to subclasses.
+     * INTENT: Define an interface for creating an object, but let subclasses decide which concrete
+     * class to instantiate. The factory method defers instantiation to subclasses.
      *
      * PARTICIPANTS:
-     *   - Product       : `Document` interface — what is created.
-     *   - ConcreteProduct: `PdfDocument`, `WordDocument` — specific implementations.
-     *   - Creator       : `DocumentApp` — declares the abstract factory method `createDocument()`.
-     *   - ConcreteCreator: `PdfApp`, `WordApp` — override the factory method.
+     * - Product : `Document` interface - what is created.
+     * - ConcreteProduct: `PdfDocument`, `WordDocument` - specific implementations.
+     * - Creator : `DocumentApp` - declares the abstract factory method `createDocument()`.
+     * - ConcreteCreator: `PdfApp`, `WordApp` - override the factory method.
      *
      * IMPLEMENTATION:
-     *   - `DocumentApp.openDocument()` is a TEMPLATE METHOD — it calls `createDocument()` but
-     *     doesn't know (or care) which concrete type it gets back.
-     *   - Subclasses override only `createDocument()` — the rest of the algorithm is inherited.
-     *   - Client code works against `DocumentApp`; the concrete type is chosen at construction time.
+     * - `DocumentApp.openDocument()` is a TEMPLATE METHOD - it calls `createDocument()` but
+     *   doesn't know (or care) which concrete type it gets back.
+     * - Subclasses override only `createDocument()` - the rest of the algorithm is inherited.
+     * - Client code works against `DocumentApp`; the concrete type is chosen at construction time.
      *
      * vs ABSTRACT FACTORY: Factory Method creates ONE product; Abstract Factory creates a FAMILY.
      * vs STRATEGY: Strategy swaps the algorithm; Factory Method swaps the object being created.
      *
      * WHEN TO USE:
-     *   - When a framework must create objects but should remain open for extension.
-     *   - Spring `BeanFactory`, JDBC `DriverManager.getConnection()`, `Collection.iterator()`.
+     * - When a framework must create objects but should remain open for extension.
+     * - Spring `BeanFactory`, JDBC `DriverManager.getConnection()`, `Collection.iterator()`.
      *
-     * PITFALL: Can lead to class explosion — one ConcreteCreator per ConcreteProduct.
+     * PITFALL: Can lead to class explosion - one ConcreteCreator per ConcreteProduct.
      */
     static class FactoryMethodPattern {
         interface Document {
@@ -304,32 +443,32 @@ public class DesignPatterns {
     }
 
     /**
-     * 1.3 ABSTRACT FACTORY — "Families of Products"
+     * 1.3 ABSTRACT FACTORY - "Families of Products"
      * Relationships used: Composition (Application owns its widgets) + Dependency Inversion (DIP).
      *
      * INTENT: Provide an interface for creating families of related objects without specifying
      * their concrete classes. Ensures that products from the same family are used together.
      *
      * PARTICIPANTS:
-     *   - AbstractFactory : `UIFactory` — declares creation methods for each product type.
-     *   - ConcreteFactory : `MacFactory`, `WinFactory` — implement creation for one family.
-     *   - AbstractProduct : `Button`, `Checkbox` — interfaces for each product kind.
-     *   - ConcreteProduct : `MacButton`, `WinButton`, etc.
-     *   - Client          : `Application` — uses only the abstract interfaces; never mentions Mac/Win.
+     * - AbstractFactory : `UIFactory` - declares creation methods for each product type.
+     * - ConcreteFactory : `MacFactory`, `WinFactory` - implement creation for one family.
+     * - AbstractProduct : `Button`, `Checkbox` - interfaces for each product kind.
+     * - ConcreteProduct : `MacButton`, `WinButton`, etc.
+     * - Client : `Application` - uses only the abstract interfaces; never mentions Mac/Win.
      *
      * IMPLEMENTATION:
-     *   - `Application` receives a `UIFactory` via its constructor (Dependency Injection).
-     *   - It calls `f.createButton()` and `f.createCheckbox()` — it never uses `new` directly.
-     *   - Swapping `MacFactory` for `WinFactory` gives an entirely different UI family.
+     * - `Application` receives a `UIFactory` via its constructor (Dependency Injection).
+     * - It calls `f.createButton()` and `f.createCheckbox()` - it never uses `new` directly.
+     * - Swapping `MacFactory` for `WinFactory` gives an entirely different UI family.
      *
      * vs FACTORY METHOD: Abstract Factory uses composition; Factory Method uses inheritance.
      *
      * WHEN TO USE:
-     *   - Cross-platform UI toolkits (Swing LAF, JDBC drivers for different DBs).
-     *   - When the system must be independent of how its products are created.
+     * - Cross-platform UI toolkits (Swing LAF, JDBC drivers for different DBs).
+     * - When the system must be independent of how its products are created.
      *
      * PITFALL: Adding a new product type (e.g., `Scrollbar`) requires changing the factory
-     * interface AND all concrete factories — violates OCP for new product kinds.
+     * interface AND all concrete factories - violates OCP for new product kinds.
      */
     static class AbstractFactoryPattern {
         interface Button {
@@ -413,31 +552,32 @@ public class DesignPatterns {
     }
 
     /**
-     * 1.4 BUILDER — "Step-by-Step Construction"
-     * Relationship used: Inner Builder aggregates optional parts before handing off to the product.
+     * 1.4 BUILDER - "Step-by-Step Construction"
+     * Relationship used: Inner Builder aggregates optional parts before handing off to the
+     * product.
      *
-     * INTENT: Separate the construction of a complex object from its representation so that
-     * the same construction process can create different representations.
+     * INTENT: Separate the construction of a complex object from its representation so that the
+     * same construction process can create different representations.
      *
      * PARTICIPANTS:
-     *   - Product  : `Computer` — the immutable result; private constructor enforces use of Builder.
-     *   - Builder  : `Computer.Builder` — holds mutable defaults; exposes fluent setters.
-     *   - Director : (implicit) — the call-chain in `demo()` plays this role.
+     * - Product : `Computer` - the immutable result; private constructor enforces use of Builder.
+     * - Builder : `Computer.Builder` - holds mutable defaults; exposes fluent setters.
+     * - Director : (implicit) - the call-chain in `demo()` plays this role.
      *
      * IMPLEMENTATION:
-     *   - `Computer` has a `private` constructor that only accepts a `Builder` instance.
-     *   - Each setter in `Builder` returns `this`, enabling a FLUENT API / method chaining.
-     *   - `build()` calls `new Computer(this)` — the builder is the only way in.
-     *   - Unset fields keep their defaults (`"500GB"`, `"8GB"`, `false`).
-     *   - The resulting `Computer` is fully immutable — all fields are `final`.
+     * - `Computer` has a `private` constructor that only accepts a `Builder` instance.
+     * - Each setter in `Builder` returns `this`, enabling a FLUENT API / method chaining.
+     * - `build()` calls `new Computer(this)` - the builder is the only way in.
+     * - Unset fields keep their defaults (`"500GB"`, `"8GB"`, `false`).
+     * - The resulting `Computer` is fully immutable - all fields are `final`.
      *
      * WHEN TO USE:
-     *   - Objects with many optional parameters (avoids telescoping constructors).
-     *   - When you want an immutable object but construction requires multiple steps.
-     *   - `StringBuilder`, `HttpRequest.Builder`, `AlertDialog.Builder` (Android).
+     * - Objects with many optional parameters (avoids telescoping constructors).
+     * - When you want an immutable object but construction requires multiple steps.
+     * - `StringBuilder`, `HttpRequest.Builder`, `AlertDialog.Builder` (Android).
      *
-     * PITFALL: The builder itself is mutable and can be reused — calling `build()` twice
-     * creates two independent objects, which may surprise callers.
+     * PITFALL: The builder itself is mutable and can be reused - calling `build()` twice creates
+     * two independent objects, which may surprise callers.
      */
     static class BuilderPattern {
         static final class Computer {
@@ -489,34 +629,34 @@ public class DesignPatterns {
     }
 
     /**
-     * 1.5 PROTOTYPE — "Clone Yourself"
+     * 1.5 PROTOTYPE - "Clone Yourself"
      * Relationship used: Realisation of a `Prototype<T>` copy contract.
      *
-     * INTENT: Specify the kinds of objects to create using a prototypical instance, and
-     * create new objects by COPYING (cloning) this prototype.
+     * INTENT: Specify the kinds of objects to create using a prototypical instance, and create new
+     * objects by COPYING (cloning) this prototype.
      *
      * PARTICIPANTS:
-     *   - Prototype interface : `Prototype<T>` — declares the `copy()` method.
-     *   - ConcretePrototype   : `GameCharacter` and `Loadout` — implement `copy()` with
-     *                           deep-copy semantics for nested mutable state.
+     * - Prototype interface : `Prototype<T>` - declares the `copy()` method.
+     * - ConcretePrototype : `GameCharacter` and `Loadout` - implement `copy()` with deep-copy
+     *   semantics for nested mutable state.
      *
-     * IMPLEMENTATION — DEEP vs SHALLOW:
-     *   - `GameCharacter.copy()` creates a new character AND calls `loadout.copy()` recursively.
-     *   - `Loadout.copy()` creates a new `ArrayList` seeded with the same items — so mutating
-     *     the clone's list does NOT affect the master's list.
-     *   - Primitive fields (`int health`) and immutable fields (`String weapon`) are safe to
-     *     copy by value; only mutable object references need deep copying.
+     * IMPLEMENTATION - DEEP vs SHALLOW:
+     * - `GameCharacter.copy()` creates a new character AND calls `loadout.copy()` recursively.
+     * - `Loadout.copy()` creates a new `ArrayList` seeded with the same items - so mutating the
+     *   clone's list does NOT affect the master's list.
+     * - Primitive fields (`int health`) and immutable fields (`String weapon`) are safe to copy by
+     *   value; only mutable object references need deep copying.
      *
      * SHALLOW vs DEEP rule of thumb:
-     *   - Shallow copy: fast, fine when all fields are primitive or immutable (String, Integer).
-     *   - Deep copy: required when any field points to a MUTABLE object.
+     * - Shallow copy: fast, fine when all fields are primitive or immutable (String, Integer).
+     * - Deep copy: required when any field points to a MUTABLE object.
      *
      * WHEN TO USE:
-     *   - When creating objects is expensive (e.g., DB-loaded configuration) and copies are cheap.
-     *   - Game characters, template documents, undo/snapshot systems.
+     * - When creating objects is expensive (e.g., DB-loaded configuration) and copies are cheap.
+     * - Game characters, template documents, undo/snapshot systems.
      *
      * PITFALL: Java's `Object.clone()` is shallow by default. Prefer an explicit `copy()` method
-     * (as done here) over implementing `Cloneable` — the latter is widely considered broken.
+     * (as done here) over implementing `Cloneable` - the latter is widely considered broken.
      */
     static class PrototypePattern {
         interface Prototype<T> {
@@ -567,38 +707,40 @@ public class DesignPatterns {
     }
 
     // =====================================================================
-    // SECTION 2 — STRUCTURAL PATTERNS
+    // SECTION 2 - STRUCTURAL PATTERNS
     // =====================================================================
 
     /**
-     * 2.1 ADAPTER — "The Translator"
+     * 2.1 ADAPTER - "The Translator"
      * Relationship used: Aggregation (the adapter wraps/holds the adaptee).
      *
      * INTENT: Convert the interface of a class into another interface clients expect.
-     * Adapter lets classes work together that couldn't otherwise because of incompatible interfaces.
+     * Adapter lets classes work together that couldn't otherwise because of incompatible
+     * interfaces.
      *
      * PARTICIPANTS:
-     *   - Target    : `ModernCharging` — the interface the client knows and uses.
-     *   - Adaptee   : `OldPhone` — the existing class with an incompatible interface.
-     *   - Adapter   : `CableAdapter` — implements Target and internally delegates to Adaptee.
-     *   - Client    : code that only sees `ModernCharging`, unaware of `OldPhone`.
+     * - Target : `ModernCharging` - the interface the client knows and uses.
+     * - Adaptee : `OldPhone` - the existing class with an incompatible interface.
+     * - Adapter : `CableAdapter` - implements Target and internally delegates to Adaptee.
+     * - Client : code that only sees `ModernCharging`, unaware of `OldPhone`.
      *
      * IMPLEMENTATION:
-     *   - `CableAdapter` implements `ModernCharging` (the expected interface).
-     *   - It holds an `OldPhone` reference (aggregation — injected via constructor).
-     *   - `chargeWithUsbC()` translates the call to `chargeWithMicroUsb()` internally.
-     *   - This is an OBJECT ADAPTER (delegation). A CLASS ADAPTER would use multiple inheritance
-     *     (not possible in Java — only feasible in C++ or via Kotlin extension functions).
+     * - `CableAdapter` implements `ModernCharging` (the expected interface).
+     * - It holds an `OldPhone` reference (aggregation - injected via constructor).
+     * - `chargeWithUsbC()` translates the call to `chargeWithMicroUsb()` internally.
+     * - This is an OBJECT ADAPTER (delegation). A CLASS ADAPTER would use multiple inheritance
+     *   (not possible in Java - only feasible in C++ or via Kotlin extension functions).
      *
      * vs DECORATOR: Decorator adds behaviour, keeps the same interface.
-     *               Adapter changes the interface, no new behaviour.
-     * vs PROXY:     Proxy keeps the same interface and controls access.
+     * Adapter changes the interface, no new behaviour.
+     * vs PROXY: Proxy keeps the same interface and controls access.
      *
      * WHEN TO USE:
-     *   - Integrating third-party or legacy code without modifying it.
-     *   - `Arrays.asList()`, `InputStreamReader(InputStream)`, Java Streams over Iterators.
+     * - Integrating third-party or legacy code without modifying it.
+     * - `Arrays.asList()`, `InputStreamReader(InputStream)`, Java Streams over Iterators.
      *
-     * PITFALL: Over-adapting creates layers of indirection; prefer redesigning if you own both sides.
+     * PITFALL: Over-adapting creates layers of indirection; prefer redesigning if you own both
+     * sides.
      */
     static class AdapterPattern {
         interface ModernCharging {
@@ -632,33 +774,36 @@ public class DesignPatterns {
     }
 
     /**
-     * 2.2 BRIDGE — "Independent Axes"
+     * 2.2 BRIDGE - "Independent Axes"
      * Relationship used: Aggregation across two separate inheritance hierarchies.
      *
-     * INTENT: Decouple an abstraction from its implementation so that the two can vary independently.
-     * Avoids the multiplicative class explosion that would result from sub-classing every combination.
+     * INTENT: Decouple an abstraction from its implementation so that the two can vary
+     * independently.
+     * Avoids the multiplicative class explosion that would result from sub-classing every
+     * combination.
      *
      * PARTICIPANTS:
-     *   - Abstraction         : `Shape` — the high-level control layer; holds a reference to Implementor.
-     *   - RefinedAbstraction  : `Circle`, `Square` — extend Abstraction with specific behaviour.
-     *   - Implementor         : `Color` interface — the low-level operations.
-     *   - ConcreteImplementor : `Red`, `Blue` — provide the actual implementations.
+     * - Abstraction : `Shape` - the high-level control layer; holds a reference to Implementor.
+     * - RefinedAbstraction : `Circle`, `Square` - extend Abstraction with specific behaviour.
+     * - Implementor : `Color` interface - the low-level operations.
+     * - ConcreteImplementor : `Red`, `Blue` - provide the actual implementations.
      *
      * IMPLEMENTATION:
-     *   - `Shape` has a `protected final Color color` field — THIS is the bridge.
-     *   - The `Color` is injected via `Shape`'s constructor (aggregation / DI).
-     *   - `Circle.draw()` calls `color.applyColor()` — delegating to whichever implementor was injected.
-     *   - Result: 2 shapes × 2 colors = 4 combos from just 4 classes, not 4 subclasses.
-     *   - Adding a new color (e.g., `Green`) doesn't touch any `Shape` code, and vice versa.
+     * - `Shape` has a `protected final Color color` field - THIS is the bridge.
+     * - The `Color` is injected via `Shape`'s constructor (aggregation / DI).
+     * - `Circle.draw()` calls `color.applyColor()` - delegating to whichever implementor was
+     *   injected.
+     * - Result: 2 shapes x 2 colors = 4 combos from just 4 classes, not 4 subclasses.
+     * - Adding a new color (e.g., `Green`) doesn't touch any `Shape` code, and vice versa.
      *
-     * vs STRATEGY: Strategy swaps the whole algorithm at runtime; Bridge separates two
-     *              orthogonal hierarchies at design time.
-     * vs ADAPTER:  Adapter makes incompatible interfaces work together;
-     *              Bridge anticipates variability from the start.
+     * vs STRATEGY: Strategy swaps the whole algorithm at runtime; Bridge separates two orthogonal
+     * hierarchies at design time.
+     * vs ADAPTER: Adapter makes incompatible interfaces work together; Bridge anticipates
+     * variability from the start.
      *
      * WHEN TO USE:
-     *   - GUI toolkits (shape hierarchy vs. rendering backend: OpenGL, DirectX, SVG).
-     *   - JDBC Driver API: `Connection` (abstraction) vs. driver implementation (implementor).
+     * - GUI toolkits (shape hierarchy vs. rendering backend: OpenGL, DirectX, SVG).
+     * - JDBC Driver API: `Connection` (abstraction) vs. driver implementation (implementor).
      *
      * PITFALL: Over-engineering if the two axes never actually vary independently in practice.
      */
@@ -721,7 +866,7 @@ public class DesignPatterns {
     }
 
     /**
-     * 2.3 COMPOSITE — "Tree Hierarchy"
+     * 2.3 COMPOSITE - "Tree Hierarchy"
      * Relationship used: Recursive Aggregation (a container holds a list of the same interface).
      *
      * INTENT: Compose objects into tree structures to represent part-whole hierarchies.
@@ -729,28 +874,30 @@ public class DesignPatterns {
      * (composites) uniformly through a single interface.
      *
      * PARTICIPANTS:
-     *   - Component : `SystemComponent` interface — the uniform interface for both leaf and composite.
-     *   - Leaf      : `FileItem` — has no children; performs the operation directly.
-     *   - Composite : `DirectoryFolder` — stores children and delegates `showDetails()` to them recursively.
-     *   - Client    : calls `showDetails()` on any node, not knowing if it's a file or a directory.
+     * - Component : `SystemComponent` interface - the uniform interface for both leaf and
+     *   composite.
+     * - Leaf : `FileItem` - has no children; performs the operation directly.
+     * - Composite : `DirectoryFolder` - stores children and delegates `showDetails()` to them
+     *   recursively.
+     * - Client : calls `showDetails()` on any node, not knowing if it's a file or a directory.
      *
      * IMPLEMENTATION:
-     *   - `DirectoryFolder` contains a `List<SystemComponent>` — it can hold either `FileItem` or
-     *     another `DirectoryFolder` (self-referential structure).
-     *   - `add()` returns `this` for fluent chaining (see `demo()`).
-     *   - `showDetails()` is recursive: composite calls the method on each child, increasing indent.
-     *   - The client only calls `tree.showDetails("  ")` on the root; the tree handles the rest.
+     * - `DirectoryFolder` contains a `List<SystemComponent>` - it can hold either `FileItem` or
+     *   another `DirectoryFolder` (self-referential structure).
+     * - `add()` returns `this` for fluent chaining (see `demo()`).
+     * - `showDetails()` is recursive: composite calls the method on each child, increasing indent.
+     * - The client only calls `tree.showDetails(" ")` on the root; the tree handles the rest.
      *
-     * vs DECORATOR: Decorator has one child (wraps a single component);
-     *               Composite has multiple children (tree branching).
+     * vs DECORATOR: Decorator has one child (wraps a single component); Composite has multiple
+     * children (tree branching).
      *
      * WHEN TO USE:
-     *   - File-system hierarchies, UI widget trees, parse trees, org charts.
-     *   - Anywhere you need "treat a group like a single item" uniformly.
+     * - File-system hierarchies, UI widget trees, parse trees, org charts.
+     * - Anywhere you need "treat a group like a single item" uniformly.
      *
-     * PITFALL: The common interface forces Leaf classes to expose `add/remove` methods
-     * they don't support — handle by throwing `UnsupportedOperationException` or by
-     * using a separate `Composite` interface (transparency vs safety trade-off).
+     * PITFALL: The common interface forces Leaf classes to expose `add/remove` methods they don't
+     * support - handle by throwing `UnsupportedOperationException` or by using a separate
+     * `Composite` interface (transparency vs safety trade-off).
      */
     static class CompositePattern {
         interface SystemComponent {
@@ -801,35 +948,38 @@ public class DesignPatterns {
     }
 
     /**
-     * 2.4 DECORATOR — "Dynamic Wrapper"
+     * 2.4 DECORATOR - "Dynamic Wrapper"
      * Relationships used: Recursive Aggregation (wraps same interface) + Realisation.
      *
-     * INTENT: Attach additional responsibilities to an object dynamically. Decorators provide
-     * a flexible alternative to subclassing for extending functionality.
+     * INTENT: Attach additional responsibilities to an object dynamically.
+     * Decorators provide a flexible alternative to subclassing for extending functionality.
      *
      * PARTICIPANTS:
-     *   - Component          : `Coffee` interface — defines the common interface.
-     *   - ConcreteComponent  : `PlainCoffee` — the base object being decorated.
-     *   - Decorator (abstract): `CoffeeDecorator` — implements `Coffee` AND holds a `Coffee` reference.
-     *   - ConcreteDecorator  : `Milk`, `Cinnamon` — add cost and description on top of the inner item.
+     * - Component : `Coffee` interface - defines the common interface.
+     * - ConcreteComponent : `PlainCoffee` - the base object being decorated.
+     * - Decorator (abstract): `CoffeeDecorator` - implements `Coffee` AND holds a `Coffee`
+     *   reference.
+     * - ConcreteDecorator : `Milk`, `Cinnamon` - add cost and description on top of the inner
+     *   item.
      *
-     * IMPLEMENTATION — the recursive wrapping:
-     *   - `CoffeeDecorator` holds `protected final Coffee inner` — this IS the item being wrapped.
-     *   - `Milk.getCost()` calls `super.getCost()` which calls `inner.getCost()`, and adds its own delta.
-     *   - Stacking: `new Cinnamon(new Milk(new PlainCoffee()))` builds a call chain:
-     *       Cinnamon.getCost() → Milk.getCost() → PlainCoffee.getCost() = 10 + 3.5 + 1.5 = 15.0
-     *   - Decorators are COMPOSABLE at runtime without changing any existing class.
+     * IMPLEMENTATION - the recursive wrapping:
+     * - `CoffeeDecorator` holds `protected final Coffee inner` - this IS the item being wrapped.
+     * - `Milk.getCost()` calls `super.getCost()` which calls `inner.getCost()`, and adds its own
+     *   delta.
+     * - Stacking: `new Cinnamon(new Milk(new PlainCoffee()))` builds a call chain:
+     * Cinnamon.getCost() -> Milk.getCost() -> PlainCoffee.getCost() = 10 + 3.5 + 1.5 = 15.0
+     * - Decorators are COMPOSABLE at runtime without changing any existing class.
      *
      * vs COMPOSITE: Composite has MANY children; Decorator has exactly ONE.
      * vs INHERITANCE: Inheritance is static (compile-time); Decorator is dynamic (runtime).
      * vs PROXY: Proxy controls access; Decorator adds behaviour.
      *
      * WHEN TO USE:
-     *   - `java.io` streams: `new BufferedReader(new InputStreamReader(new FileInputStream(f)))`
-     *   - Logging, compression, encryption added around a core service.
-     *   - When sub-classing every combination would cause class explosion.
+     * - `java.io` streams: `new BufferedReader(new InputStreamReader(new FileInputStream(f)))`
+     * - Logging, compression, encryption added around a core service.
+     * - When sub-classing every combination would cause class explosion.
      *
-     * PITFALL: Many small wrapper objects can be hard to debug — unwrapping the stack to find
+     * PITFALL: Many small wrapper objects can be hard to debug - unwrapping the stack to find
      * which decorator caused an issue requires careful logging or a visitor.
      */
     static class DecoratorPattern {
@@ -901,35 +1051,37 @@ public class DesignPatterns {
     }
 
     /**
-     * 2.5 FLYWEIGHT — "Shared Optimisation"
+     * 2.5 FLYWEIGHT - "Shared Optimization"
      * Relationship used: Factory pool (Composition of a static Map) + shared references.
      *
      * INTENT: Use sharing to efficiently support a large number of fine-grained objects.
      * Separates state into INTRINSIC (shared, immutable) and EXTRINSIC (unique, passed in).
      *
      * KEY CONCEPTS:
-     *   - INTRINSIC state  : data that is the SAME across many objects (texture, color of a tree type).
-     *                        Stored inside the flyweight object; never changes.
-     *   - EXTRINSIC state  : data that DIFFERS per use (x, y position of a specific tree).
-     *                        NOT stored in the flyweight; passed in at the time of use.
+     * - INTRINSIC state : data that is the SAME across many objects (texture, color of a tree
+     *   type).
+     * Stored inside the flyweight object; never changes.
+     * - EXTRINSIC state : data that DIFFERS per use (x, y position of a specific tree).
+     * NOT stored in the flyweight; passed in at the time of use.
      *
      * PARTICIPANTS:
-     *   - Flyweight        : `TreeType` — holds intrinsic state; `display(x, y)` accepts extrinsic state.
-     *   - FlyweightFactory : `TreeFactory` — manages the pool; creates new flyweights only when needed.
-     *   - Client           : calls `TreeFactory.get(...)` and passes extrinsic state to `display()`.
+     * - Flyweight : `TreeType` - holds intrinsic state; `display(x, y)` accepts extrinsic state.
+     * - FlyweightFactory : `TreeFactory` - manages the pool; creates new flyweights only when
+     *   needed.
+     * - Client : calls `TreeFactory.get(...)` and passes extrinsic state to `display()`.
      *
      * IMPLEMENTATION:
-     *   - `POOL` is a `static final Map<String, TreeType>` — the cache of shared instances.
-     *   - `computeIfAbsent` creates a new `TreeType` only on first request for that key;
-     *     subsequent calls for the same texture-color return the SAME object from the pool.
-     *   - 4 trees drawn, but only 1 `TreeType` object exists in memory (if all are "oak-green").
+     * - `POOL` is a `static final Map<String, TreeType>` - the cache of shared instances.
+     * - `computeIfAbsent` creates a new `TreeType` only on first request for that key; subsequent
+     *   calls for the same texture-color return the SAME object from the pool.
+     * - 4 trees drawn, but only 1 `TreeType` object exists in memory (if all are "oak-green").
      *
      * WHEN TO USE:
-     *   - Rendering engines with millions of similar objects (game trees, particles, characters).
-     *   - Java's `String.intern()`, `Integer.valueOf()` cache (-128 to 127), `Boolean.TRUE/FALSE`.
+     * - Rendering engines with millions of similar objects (game trees, particles, characters).
+     * - Java's `String.intern()`, `Integer.valueOf()` cache (-128 to 127), `Boolean.TRUE/FALSE`.
      *
-     * PITFALL: Flyweights must be IMMUTABLE — sharing a mutable object would corrupt all users.
-     *          The pool itself can be a memory leak if references are never evicted.
+     * PITFALL: Flyweights must be IMMUTABLE - sharing a mutable object would corrupt all users.
+     * The pool itself can be a memory leak if references are never evicted.
      */
     static class FlyweightPattern {
         static class TreeType { // INTRINSIC: shared, immutable
@@ -967,33 +1119,37 @@ public class DesignPatterns {
     }
 
     /**
-     * 2.6 FACADE — "Simplified Gateway"
+     * 2.6 FACADE - "Simplified Gateway"
      * Relationship used: Composition/Aggregation of multiple subsystem objects.
      *
      * INTENT: Provide a unified, simplified interface to a set of interfaces in a subsystem.
      * Facade defines a higher-level interface that makes the subsystem easier to use.
      *
      * PARTICIPANTS:
-     *   - Facade     : `HomeTheaterFacade` — the single entry point; hides the subsystem.
-     *   - Subsystems : `SoundSystem`, `Projector`, `Lights` — the complex parts being wrapped.
-     *   - Client     : only calls `watchMovie()` and knows nothing about the subsystem steps.
+     * - Facade : `HomeTheaterFacade` - the single entry point; hides the subsystem.
+     * - Subsystems : `SoundSystem`, `Projector`, `Lights` - the complex parts being wrapped.
+     * - Client : only calls `watchMovie()` and knows nothing about the subsystem steps.
      *
      * IMPLEMENTATION:
-     *   - `HomeTheaterFacade` creates and owns the subsystem objects as private fields (composition).
-     *   - `watchMovie()` orchestrates the correct sequence: dim lights → start projector → audio on.
-     *   - The client is completely decoupled from the order of operations and the subsystem APIs.
-     *   - Subsystems can still be used directly by advanced clients who need fine-grained control.
+     * - `HomeTheaterFacade` creates and owns the subsystem objects as private fields
+     *   (composition).
+     * - `watchMovie()` orchestrates the correct sequence: dim lights -> start projector -> audio
+     *    on.
+     * - The client is completely decoupled from the order of operations and the subsystem APIs.
+     * - Subsystems can still be used directly by advanced clients who need fine-grained control.
      *
-     * vs ADAPTER: Adapter makes an existing interface compatible; Facade creates a NEW simpler interface.
-     * vs MEDIATOR: Mediator coordinates PEERS that know each other; Facade shields clients from SUBSYSTEMS.
+     * vs ADAPTER: Adapter makes an existing interface compatible; Facade creates a NEW simpler
+     * interface.
+     * vs MEDIATOR: Mediator coordinates PEERS that know each other; Facade shields clients from
+     * SUBSYSTEMS.
      *
      * WHEN TO USE:
-     *   - Layered architecture entry points (Service layer over DAO/Repository layer).
-     *   - SDK or library wrappers: `Hibernate.getSession()`, `SLF4J LoggerFactory`.
-     *   - When you want to structure a subsystem into layers (reduce coupling between layers).
+     * - Layered architecture entry points (Service layer over DAO/Repository layer).
+     * - SDK or library wrappers: `Hibernate.getSession()`, `SLF4J LoggerFactory`.
+     * - When you want to structure a subsystem into layers (reduce coupling between layers).
      *
      * PITFALL: The Facade can become a "God Class" if it grows too large.
-     *          Keep it thin — it should DELEGATE, not IMPLEMENT logic.
+     * Keep it thin - it should DELEGATE, not IMPLEMENT logic.
      */
     static class FacadePattern {
         static class SoundSystem {
@@ -1034,36 +1190,36 @@ public class DesignPatterns {
     }
 
     /**
-     * 2.7 PROXY — "The Gatekeeper"
+     * 2.7 PROXY - "The Gatekeeper"
      * Relationship used: Same-interface Realisation + lazy Composition of the real subject.
      *
      * INTENT: Provide a surrogate or placeholder for another object to control access to it.
      *
-     * PROXY TYPES — all share the same interface as the real object:
-     *   - PROTECTION PROXY  : controls access based on permissions (this example — ban list).
-     *   - VIRTUAL PROXY     : delays expensive object creation until it's actually needed (lazy init).
-     *   - REMOTE PROXY      : represents an object in a different address space (RMI, gRPC stub).
-     *   - CACHING PROXY     : stores results of expensive calls and returns cached data.
+     * PROXY TYPES - all share the same interface as the real object:
+     * - PROTECTION PROXY : controls access based on permissions (this example - ban list).
+     * - VIRTUAL PROXY : delays expensive object creation until it's actually needed (lazy init).
+     * - REMOTE PROXY : represents an object in a different address space (RMI, gRPC stub).
+     * - CACHING PROXY : stores results of expensive calls and returns cached data.
      * (Java's `java.lang.reflect.Proxy` and Spring AOP are runtime proxy examples.)
      *
      * PARTICIPANTS:
-     *   - Subject      : `InternetAccess` — the interface both real and proxy implement.
-     *   - RealSubject  : `RealInternet` — the actual implementation that does the real work.
-     *   - Proxy        : `ProtectedInternetProxy` — intercepts calls, applies logic, then delegates.
+     * - Subject : `InternetAccess` - the interface both real and proxy implement.
+     * - RealSubject : `RealInternet` - the actual implementation that does the real work.
+     * - Proxy : `ProtectedInternetProxy` - intercepts calls, applies logic, then delegates.
      *
      * IMPLEMENTATION:
-     *   - `ProtectedInternetProxy` implements `InternetAccess` — exactly the same contract.
-     *   - `RealInternet real` field starts as `null` (VIRTUAL PROXY — lazy init).
-     *   - On first allowed access, `real = new RealInternet()` is created and reused thereafter.
-     *   - Banned URLs are rejected before the real object is even touched.
+     * - `ProtectedInternetProxy` implements `InternetAccess` - exactly the same contract.
+     * - `RealInternet real` field starts as `null` (VIRTUAL PROXY - lazy init).
+     * - On first allowed access, `real = new RealInternet()` is created and reused thereafter.
+     * - Banned URLs are rejected before the real object is even touched.
      *
      * vs DECORATOR: Decorator adds behaviour; Proxy controls access.
-     * vs ADAPTER:   Adapter changes the interface; Proxy keeps the same interface.
-     * vs FACADE:    Facade simplifies a group of interfaces; Proxy wraps a single object.
+     * vs ADAPTER: Adapter changes the interface; Proxy keeps the same interface.
+     * vs FACADE: Facade simplifies a group of interfaces; Proxy wraps a single object.
      *
      * WHEN TO USE:
-     *   - Security / access control, lazy loading, logging, caching, rate limiting.
-     *   - Spring `@Transactional`, Hibernate lazy-loaded entities, CDN request routing.
+     * - Security / access control, lazy loading, logging, caching, rate limiting.
+     * - Spring `@Transactional`, Hibernate lazy-loaded entities, CDN request routing.
      */
     static class ProxyPattern {
         interface InternetAccess {
@@ -1100,41 +1256,42 @@ public class DesignPatterns {
     }
 
     // =====================================================================
-    // SECTION 3 — BEHAVIORAL PATTERNS
+    // SECTION 3 - BEHAVIORAL PATTERNS
     // =====================================================================
 
     /**
-     * 3.1 OBSERVER — "Publisher / Subscriber"
+     * 3.1 OBSERVER - "Publisher / Subscriber"
      * Relationship used: Dynamic Aggregation (subject holds a list of observers).
      *
      * INTENT: Define a one-to-many dependency between objects so that when one object
-     * (subject/publisher) changes state, all its dependents (observers/subscribers) are
-     * notified and updated automatically.
+     * (subject/publisher) changes state, all its dependents (observers/subscribers) are notified
+     * and updated automatically.
      *
      * PARTICIPANTS:
-     *   - Observer  : `Observer` interface — declares the `update()` callback.
-     *   - Subject   : `NewsAgency` — maintains the list, provides attach/detach, fires notifications.
-     *   - ConcreteObserver : `NewsChannel` — reacts to updates from the subject.
+     * - Observer : `Observer` interface - declares the `update()` callback.
+     * - Subject : `NewsAgency` - maintains the list, provides attach/detach, fires notifications.
+     * - ConcreteObserver : `NewsChannel` - reacts to updates from the subject.
      *
      * IMPLEMENTATION:
-     *   - `NewsAgency` holds a `List<Observer>` — the subscription list (aggregation, not composition,
-     *     because observers outlive the agency).
-     *   - `attach()` / `detach()` manage subscriptions at runtime — observers can come and go.
-     *   - `setNews()` iterates the list and calls `update()` on each observer (push model).
-     *   - After CNN is detached, it no longer receives the second news item.
+     * - `NewsAgency` holds a `List<Observer>` - the subscription list (aggregation, not
+     *   composition, because observers outlive the agency).
+     * - `attach()` / `detach()` manage subscriptions at runtime - observers can come and go.
+     * - `setNews()` iterates the list and calls `update()` on each observer (push model).
+     * - After CNN is detached, it no longer receives the second news item.
      *
      * PUSH vs PULL:
-     *   - PUSH (this example): subject sends the changed data directly in `update(String news)`.
-     *   - PULL: subject sends itself as the argument; observer queries what it needs.
+     * - PUSH (this example): subject sends the changed data directly in `update(String news)`.
+     * - PULL: subject sends itself as the argument; observer queries what it needs.
      *
      * WHEN TO USE:
-     *   - Event systems: Java `EventListener`, `PropertyChangeSupport`, Android `LiveData`.
-     *   - MVC: Model (Subject) notifies View (Observer) of data changes.
-     *   - Reactive streams: RxJava `Observable`, Project Reactor `Flux`.
+     * - Event systems: Java `EventListener`, `PropertyChangeSupport`, Android `LiveData`.
+     * - MVC: Model (Subject) notifies View (Observer) of data changes.
+     * - Reactive streams: RxJava `Observable`, Project Reactor `Flux`.
      *
      * PITFALLS:
-     *   - Memory leaks: failing to `detach()` keeps a reference alive (use `WeakReference` or explicit cleanup).
-     *   - Unexpected update order if observers modify the subject during notification.
+     * - Memory leaks: failing to `detach()` keeps a reference alive (use `WeakReference` or
+     *   explicit cleanup).
+     * - Unexpected update order if observers modify the subject during notification.
      */
     static class ObserverPattern {
         interface Observer {
@@ -1183,36 +1340,38 @@ public class DesignPatterns {
     }
 
     /**
-     * 3.2 STATE — "Contextual Behaviour"
+     * 3.2 STATE - "Contextual Behaviour"
      * Relationships used: Composition (Context holds a State) + Polymorphism.
      *
      * INTENT: Allow an object to alter its behaviour when its internal state changes.
-     * The object will appear to change its class. Replaces complex if/else or switch chains
-     * with a polymorphic dispatch.
+     * The object will appear to change its class. Replaces complex if/else or switch chains with a
+     * polymorphic dispatch.
      *
      * PARTICIPANTS:
-     *   - Context         : `Player` — delegates behaviour to the current state object.
-     *   - State interface : `State` — declares the event methods (here: `pressPlay`).
-     *   - ConcreteState   : `PlayingState`, `PausedState` — implement the behaviour for their state.
+     * - Context : `Player` - delegates behaviour to the current state object.
+     * - State interface : `State` - declares the event methods (here: `pressPlay`).
+     * - ConcreteState : `PlayingState`, `PausedState` - implement the behaviour for their state.
      *
      * IMPLEMENTATION:
-     *   - `Player` holds `private State current` — this IS the current state (composition).
-     *   - `pushButton()` simply calls `current.pressPlay(this)` — NO if/else inside Player.
-     *   - Each state transitions the context itself: `p.setState(new PausedState())`.
-     *     The state object decides the NEXT state — transitions are distributed across states.
-     *   - Adding a new state (e.g., `BufferingState`) requires only a new class, not touching `Player`.
+     * - `Player` holds `private State current` - this IS the current state (composition).
+     * - `pushButton()` simply calls `current.pressPlay(this)` - NO if/else inside Player.
+     * - Each state transitions the context itself: `p.setState(new PausedState())`.
+     * The state object decides the NEXT state - transitions are distributed across states.
+     * - Adding a new state (e.g., `BufferingState`) requires only a new class, not touching
+     *   `Player`.
      *
      * vs STRATEGY: Both delegate behaviour via an interface field.
-     *   - Strategy: the algorithm is swapped by the CLIENT; the strategies don't know each other.
-     *   - State: the STATE itself decides the transition; states know each other (or the context does).
+     * - Strategy: the algorithm is swapped by the CLIENT; the strategies don't know each other.
+     * - State: the STATE itself decides the transition; states know each other (or the context
+     *   does).
      *
      * WHEN TO USE:
-     *   - Finite state machines: vending machines, TCP connections, UI workflows.
-     *   - When an object's behaviour depends on its state and must change at runtime.
-     *   - To eliminate large conditional blocks gated on an "status" field.
+     * - Finite state machines: vending machines, TCP connections, UI workflows.
+     * - When an object's behaviour depends on its state and must change at runtime.
+     * - To eliminate large conditional blocks gated on an "status" field.
      *
      * PITFALL: If there are many states and transitions, the state classes proliferate.
-     *          Consider a State Table / transition map for complex FSMs.
+     * Consider a State Table / transition map for complex FSMs.
      */
     static class StatePattern {
         interface State {
@@ -1255,38 +1414,39 @@ public class DesignPatterns {
     }
 
     /**
-     * 3.3 COMMAND — "Action as an Object"
-     * Relationship used: Realisation of the `Command` interface; Aggregation of receivers in commands.
+     * 3.3 COMMAND - "Action as an Object"
+     * Relationship used: Realisation of the `Command` interface; Aggregation of receivers in
+     * commands.
      *
-     * INTENT: Encapsulate a request as an object, thereby letting you parameterise clients
-     * with different requests, queue or log requests, and support undoable operations.
+     * INTENT: Encapsulate a request as an object, thereby letting you parameterise clients with
+     * different requests, queue or log requests, and support undoable operations.
      *
      * PARTICIPANTS:
-     *   - Command interface  : `Command` — declares `execute()` and `undo()`.
-     *   - ConcreteCommand    : `LightOnCommand` — binds a receiver to an action.
-     *   - Receiver           : `Light` — knows how to perform the operation (`turnOn`, `turnOff`).
-     *   - Invoker            : `RemoteControl` — holds and fires commands; maintains history for undo.
-     *   - Client             : `demo()` — assembles the commands and wires them to the invoker.
+     * - Command interface : `Command` - declares `execute()` and `undo()`.
+     * - ConcreteCommand : `LightOnCommand` - binds a receiver to an action.
+     * - Receiver : `Light` - knows how to perform the operation (`turnOn`, `turnOff`).
+     * - Invoker : `RemoteControl` - holds and fires commands; maintains history for undo.
+     * - Client : `demo()` - assembles the commands and wires them to the invoker.
      *
      * IMPLEMENTATION:
-     *   - `LightOnCommand` stores a `Light` reference (aggregation) and maps `execute()` → `turnOn()`
-     *     and `undo()` → `turnOff()`.
-     *   - `RemoteControl` keeps a `Deque<Command>` as a history stack.
-     *   - `press()` executes AND pushes to history; `pressUndo()` pops and calls `undo()`.
-     *   - The invoker (`RemoteControl`) is DECOUPLED from what the command actually does.
-     *   - Modern Java: simple commands with no undo can be expressed as lambdas (`Runnable`).
+     * - `LightOnCommand` stores a `Light` reference (aggregation) and maps `execute()` ->
+     *   `turnOn()` and `undo()` -> `turnOff()`.
+     * - `RemoteControl` keeps a `Deque<Command>` as a history stack.
+     * - `press()` executes AND pushes to history; `pressUndo()` pops and calls `undo()`.
+     * - The invoker (`RemoteControl`) is DECOUPLED from what the command actually does.
+     * - Modern Java: simple commands with no undo can be expressed as lambdas (`Runnable`).
      *
      * ENABLES:
-     *   - Undo / redo stacks (text editors, IDEs).
-     *   - Transaction queues: commands can be serialized and replayed.
-     *   - Macro recording: store a sequence of commands and replay as a batch.
+     * - Undo / redo stacks (text editors, IDEs).
+     * - Transaction queues: commands can be serialized and replayed.
+     * - Macro recording: store a sequence of commands and replay as a batch.
      *
      * WHEN TO USE:
-     *   - GUI buttons/menu items, job schedulers, task queues, transactional operations.
-     *   - `java.util.concurrent.Callable`, thread pool `Runnable` tasks.
+     * - GUI buttons/menu items, job schedulers, task queues, transactional operations.
+     * - `java.util.concurrent.Callable`, thread pool `Runnable` tasks.
      *
-     * PITFALL: Command can explode into many small classes. Use lambdas for simple cases;
-     *          use full Command classes only when you need undo, serialization, or history.
+     * PITFALL: Command can explode into many small classes. Use lambdas for simple cases; use full
+     * Command classes only when you need undo, serialization, or history.
      */
     static class CommandPattern {
         interface Command {
@@ -1353,39 +1513,44 @@ public class DesignPatterns {
     }
 
     /**
-     * 3.4 VISITOR — "Separate the Operation"
+     * 3.4 VISITOR - "Separate the Operation"
      * Mechanism: Double Dispatch (two runtime polymorphic calls resolve to the right method).
      *
      * INTENT: Represent an operation to be performed on elements of an object structure.
-     * Visitor lets you define a new operation without changing the classes of the elements
-     * on which it operates. Solves the Expression Problem — adding operations without modifying types.
+     * Visitor lets you define a new operation without changing the classes of the elements on
+     * which it operates. Solves the Expression Problem - adding operations without modifying
+     * types.
      *
      * PARTICIPANTS:
-     *   - Visitor interface  : `Visitor` — one `visit(ConcreteElement)` overload per element type.
-     *   - ConcreteVisitor    : `DiscountVisitor` — implements discount logic for each element type.
-     *   - Element interface  : `Element` — declares `accept(Visitor)`.
-     *   - ConcreteElement    : `Book`, `Fruit` — implement `accept()` by calling `v.visit(this)`.
+     * - Visitor interface : `Visitor` - one `visit(ConcreteElement)` overload per element type.
+     * - ConcreteVisitor : `DiscountVisitor` - implements discount logic for each element type.
+     * - Element interface : `Element` - declares `accept(Visitor)`.
+     * - ConcreteElement : `Book`, `Fruit` - implement `accept()` by calling `v.visit(this)`.
      *
      * HOW DOUBLE DISPATCH WORKS:
-     *   1. `element.accept(visitor)` — first dispatch: resolves to `Book.accept()` or `Fruit.accept()`
-     *      based on the runtime type of `element`.
-     *   2. Inside `accept()`: `v.visit(this)` — second dispatch: resolves to `visit(Book b)` or
-     *      `visit(Fruit f)` based on the compile-time type of `this` (which is now known to be exact).
-     *   Together these two calls route to the correct combination of (element type, visitor type).
+     * 1. `element.accept(visitor)` - first dispatch: resolves to `Book.accept()` or
+     *      `Fruit.accept()` based on the runtime type of `element`.
+     * 2. Inside `accept()`: `v.visit(this)` - second dispatch: resolves to `visit(Book b)` or
+     *      `visit(Fruit f)` based on the compile-time type of `this` (which is now known to be
+     *      exact).
+     * Together these two calls route to the correct combination of (element type, visitor type).
      *
      * IMPLEMENTATION:
-     *   - `Book.accept(v)` calls `v.visit(this)` where `this` is a `Book` — picks `visit(Book)`.
-     *   - `Fruit.accept(v)` calls `v.visit(this)` where `this` is a `Fruit` — picks `visit(Fruit)`.
-     *   - To add a NEW operation (e.g., `TaxVisitor`), create a new Visitor class — no element changes.
-     *   - To add a NEW element type, you must update ALL existing visitor interfaces — this is the trade-off.
+     * - `Book.accept(v)` calls `v.visit(this)` where `this` is a `Book` - picks `visit(Book)`.
+     * - `Fruit.accept(v)` calls `v.visit(this)` where `this` is a `Fruit` - picks `visit(Fruit)`.
+     * - To add a NEW operation (e.g., `TaxVisitor`), create a new Visitor class - no element
+     *   changes.
+     * - To add a NEW element type, you must update ALL existing visitor interfaces
+     * - this is the trade-off.
      *
      * WHEN TO USE:
-     *   - Compiler AST traversal (type checking, code generation, pretty printing).
-     *   - Report generation over a fixed set of domain objects.
-     *   - When elements rarely change but new operations are added frequently.
+     * - Compiler AST traversal (type checking, code generation, pretty printing).
+     * - Report generation over a fixed set of domain objects.
+     * - When elements rarely change but new operations are added frequently.
      *
-     * PITFALL: Breaks encapsulation — visitors often need access to element internals.
-     *          Adding a new element type requires updating all visitor interfaces (OCP violation for types).
+     * PITFALL: Breaks encapsulation - visitors often need access to element internals.
+     * Adding a new element type requires updating all visitor interfaces (OCP violation for
+     * types).
      */
     static class VisitorPattern {
         interface Visitor {
@@ -1435,36 +1600,39 @@ public class DesignPatterns {
     }
 
     /**
-     * 3.5 MEDIATOR — "Hub Communication"
-     * Relationship used: Bidirectional Plain Association (users know the mediator; mediator knows users).
+     * 3.5 MEDIATOR - "Hub Communication"
+     * Relationship used: Bidirectional Plain Association (users know the mediator; mediator knows
+     * users).
      *
-     * INTENT: Define an object that encapsulates how a set of objects interact. Mediator promotes
-     * loose coupling by keeping objects from referring to each other explicitly, letting you vary
-     * their interaction independently.
+     * INTENT: Define an object that encapsulates how a set of objects interact.
+     * Mediator promotes loose coupling by keeping objects from referring to each other explicitly,
+     * letting you vary their interaction independently.
      *
      * PARTICIPANTS:
-     *   - Mediator interface : `ChatMediator` — declares `sendMessage()` and `register()`.
-     *   - ConcreteMediator   : `ChatRoom` — holds the list of users; routes messages.
-     *   - Colleague          : `User` abstract class — knows its mediator; sends/receives through it.
-     *   - ConcreteColleague  : `ChatUser` — delegates sending to `mediator.sendMessage()`.
+     * - Mediator interface : `ChatMediator` - declares `sendMessage()` and `register()`.
+     * - ConcreteMediator : `ChatRoom` - holds the list of users; routes messages.
+     * - Colleague : `User` abstract class - knows its mediator; sends/receives through it.
+     * - ConcreteColleague : `ChatUser` - delegates sending to `mediator.sendMessage()`.
      *
      * IMPLEMENTATION:
-     *   - `User` stores a `ChatMediator mediator` field (association — passed at construction).
-     *   - `ChatUser.send()` calls `mediator.sendMessage(msg, this)` instead of messaging peers directly.
-     *   - `ChatRoom.sendMessage()` iterates users and calls `u.receive()` on everyone except the sender.
-     *   - Users have NO references to each other — all coupling goes through the mediator (the hub).
-     *   - Without Mediator: N users × (N-1) direct connections = O(N²) coupling.
-     *     With Mediator: N users × 1 mediator connection = O(N) coupling.
+     * - `User` stores a `ChatMediator mediator` field (association - passed at construction).
+     * - `ChatUser.send()` calls `mediator.sendMessage(msg, this)` instead of messaging peers
+     *   directly.
+     * - `ChatRoom.sendMessage()` iterates users and calls `u.receive()` on everyone except the
+     *   sender.
+     * - Users have NO references to each other - all coupling goes through the mediator (the hub).
+     * - Without Mediator: N users x (N-1) direct connections = O(N^2) coupling.
+     * With Mediator: N users x 1 mediator connection = O(N) coupling.
      *
      * vs OBSERVER: Observer is one-to-many (one subject, many observers); Mediator is many-to-many
-     *              (any peer can initiate communication with any other).
-     * vs FACADE:   Facade shields clients from a subsystem; Mediator coordinates peers.
+     * (any peer can initiate communication with any other).
+     * vs FACADE: Facade shields clients from a subsystem; Mediator coordinates peers.
      *
      * WHEN TO USE:
-     *   - Chat rooms, air traffic controllers, UI form components that react to each other.
-     *   - `javax.swing.ButtonGroup`, Java MVC controllers, message brokers (Kafka, RabbitMQ).
+     * - Chat rooms, air traffic controllers, UI form components that react to each other.
+     * - `javax.swing.ButtonGroup`, Java MVC controllers, message brokers (Kafka, RabbitMQ).
      *
-     * PITFALL: The mediator itself can become a God Object if too much logic is centralised in it.
+     * PITFALL: The mediator itself can become a God Object if too much logic is centralized in it.
      */
     static class MediatorPattern {
         interface ChatMediator {
@@ -1528,32 +1696,34 @@ public class DesignPatterns {
     }
 
     /**
-     * 3.6 ITERATOR — "Sequential Access"
+     * 3.6 ITERATOR - "Sequential Access"
      * Relationship used: Realisation of iterator interfaces; inner class hides traversal state.
      *
-     * INTENT: Provide a way to access elements of a collection sequentially without exposing
-     * the underlying representation (array, list, tree, etc.).
+     * INTENT: Provide a way to access elements of a collection sequentially without exposing the
+     * underlying representation (array, list, tree, etc.).
      *
      * PARTICIPANTS:
-     *   - Iterator interface : `SimpleIterator<T>` — `hasNext()` and `next()`.
-     *   - ConcreteIterator   : `NameIterator` (private inner class) — tracks `index`, accesses `names[]`.
-     *   - Aggregate          : `NameCollection` — provides `getIterator()` and `iterator()` (Java's built-in).
+     * - Iterator interface : `SimpleIterator<T>` - `hasNext()` and `next()`.
+     * - ConcreteIterator : `NameIterator` (private inner class) - tracks `index`, accesses
+     *   `names[]`.
+     * - Aggregate : `NameCollection` - provides `getIterator()` and `iterator()` (Java's
+     *   built-in).
      *
      * IMPLEMENTATION:
-     *   - `NameIterator` is a PRIVATE inner class: it captures `names[]` from the enclosing
-     *     `NameCollection` without the collection needing to expose its internals.
-     *   - `hasNext()` checks `index < names.length`; `next()` returns `names[index++]`.
-     *   - The second iterator (`iterator()`) implements `java.util.Iterator` — making
-     *     `NameCollection` usable with Java's enhanced for-each (`for (String n : c)`).
-     *   - Two distinct iterators can traverse the same collection independently.
+     * - `NameIterator` is a PRIVATE inner class: it captures `names[]` from the enclosing
+     *   `NameCollection` without the collection needing to expose its internals.
+     * - `hasNext()` checks `index < names.length`; `next()` returns `names[index++]`.
+     * - The second iterator (`iterator()`) implements `java.util.Iterator` - making
+     *   `NameCollection` usable with Java's enhanced for-each (`for (String n : c)`).
+     * - Two distinct iterators can traverse the same collection independently.
      *
      * WHEN TO USE:
-     *   - Anytime you need uniform traversal over different collection types.
-     *   - All Java `Collection` types implement `Iterable<E>` and return `Iterator<E>`.
-     *   - `ResultSet` (JDBC), `Scanner` lines, `Files.lines()` are all iterator-like.
+     * - Anytime you need uniform traversal over different collection types.
+     * - All Java `Collection` types implement `Iterable<E>` and return `Iterator<E>`.
+     * - `ResultSet` (JDBC), `Scanner` lines, `Files.lines()` are all iterator-like.
      *
-     * PITFALL: `ConcurrentModificationException` — modifying a collection while iterating
-     *           it with a fail-fast iterator throws. Use `Iterator.remove()` or `CopyOnWriteArrayList`.
+     * PITFALL: `ConcurrentModificationException` - modifying a collection while iterating it with
+     * a fail-fast iterator throws. Use `Iterator.remove()` or `CopyOnWriteArrayList`.
      */
     static class IteratorPattern {
         interface SimpleIterator<T> {
@@ -1610,33 +1780,34 @@ public class DesignPatterns {
     }
 
     /**
-     * 3.7 INTERPRETER — "Grammar Evaluator"
-     * Relationship used: Composite inheritance of rules (non-terminals contain terminals recursively).
+     * 3.7 INTERPRETER - "Grammar Evaluator"
+     * Relationship used: Composite inheritance of rules (non-terminals contain terminals
+     * recursively).
      *
      * INTENT: Given a language, define a representation for its grammar along with an interpreter
      * that uses the representation to interpret sentences in the language.
      *
      * PARTICIPANTS:
-     *   - AbstractExpression : `Expression` interface — declares `interpret(context)`.
-     *   - TerminalExpression  : `Terminal` — a leaf rule; checks if one word is present in context.
-     *   - NonTerminalExpression: `Or`, `And` — composite rules; combine sub-expressions.
-     *   - Context            : the `String` passed to `interpret()` — the sentence to evaluate.
+     * - AbstractExpression : `Expression` interface - declares `interpret(context)`.
+     * - TerminalExpression : `Terminal` - a leaf rule; checks if one word is present in context.
+     * - NonTerminalExpression: `Or`, `And` - composite rules; combine sub-expressions.
+     * - Context : the `String` passed to `interpret()` - the sentence to evaluate.
      *
      * IMPLEMENTATION:
-     *   - This is a COMPOSITE pattern applied to grammar: `Or` holds two `Expression` references
-     *     and delegates `interpret()` to both, combining results with `||`.
-     *   - `Terminal.interpret()` splits the context string and checks for membership.
-     *   - Building a grammar tree: `new Or(new Terminal("John"), new Terminal("Robert"))` creates
-     *     a rule that matches either word.
-     *   - To evaluate: call `expression.interpret("John")` — the tree walks itself.
+     * - This is a COMPOSITE pattern applied to grammar: `Or` holds two `Expression` references and
+     *   delegates `interpret()` to both, combining results with `||`.
+     * - `Terminal.interpret()` splits the context string and checks for membership.
+     * - Building a grammar tree: `new Or(new Terminal("John"), new Terminal("Robert"))` creates a
+     *    rule that matches either word.
+     * - To evaluate: call `expression.interpret("John")` - the tree walks itself.
      *
      * WHEN TO USE:
-     *   - Simple scripting languages, configuration DSLs, rule engines, regular expression engines.
-     *   - SQL parsers, mathematical expression evaluators.
-     *   - When grammar is simple and performance is not critical.
+     * - Simple scripting languages, configuration DSLs, rule engines, regular expression engines.
+     * - SQL parsers, mathematical expression evaluators.
+     * - When grammar is simple and performance is not critical.
      *
      * PITFALL: For complex grammars, the class count explodes and performance degrades.
-     *           Use a proper parser generator (ANTLR, JavaCC) for non-trivial grammars.
+     * Use a proper parser generator (ANTLR, JavaCC) for non-trivial grammars.
      */
     static class InterpreterPattern {
         interface Expression {
@@ -1691,36 +1862,35 @@ public class DesignPatterns {
     }
 
     /**
-     * 3.8 MEMENTO — "Undo / Snapshot"
+     * 3.8 MEMENTO - "Undo / Snapshot"
      * Mechanism: Strict inner-class isolation (only the Originator can create/read its Memento).
      *
-     * INTENT: Without violating encapsulation, capture and externalise an object's internal state
+     * INTENT: Without violating encapsulation, capture and externalize an object's internal state
      * so that the object can be restored to this state later.
      *
      * PARTICIPANTS:
-     *   - Originator : `Editor` — creates Mementos from its state; restores state from them.
-     *   - Memento    : `Editor.Memento` — opaque token that stores state; private to Editor.
-     *   - Caretaker  : `History` — stores and returns Mementos but NEVER reads their contents.
+     * - Originator : `Editor` - creates Mementos from its state; restores state from them.
+     * - Memento : `Editor.Memento` - opaque token that stores state; private to Editor.
+     * - Caretaker : `History` - stores and returns Mementos but NEVER reads their contents.
      *
-     * IMPLEMENTATION — How encapsulation is preserved:
-     *   - `Memento` is a `static final` nested class INSIDE `Editor`.
-     *   - Its `state` field is `private`, and its constructor is `private` — ONLY `Editor` can
-     *     construct or read a `Memento`. `History` (the caretaker) can store and return them,
-     *     but cannot inspect their contents.
-     *   - `Editor.save()` creates `new Memento(content)` and returns it.
-     *   - `Editor.restore(m)` reads `m.state` — allowed because `Editor` is the enclosing class.
-     *   - `History` uses a `Deque<Editor.Memento>` as a stack: `push()` to save, `pop()` to undo.
+     * IMPLEMENTATION - How encapsulation is preserved:
+     * - `Memento` is a `static final` nested class INSIDE `Editor`.
+     * - Its `state` field is `private`, and its constructor is `private` - ONLY `Editor` can
+     *   construct or read a `Memento`. `History` (the caretaker) can store and return them, but
+     *   cannot inspect their contents.
+     * - `Editor.save()` creates `new Memento(content)` and returns it.
+     * - `Editor.restore(m)` reads `m.state` - allowed because `Editor` is the enclosing class.
+     * - `History` uses a `Deque<Editor.Memento>` as a stack: `push()` to save, `pop()` to undo.
      *
-     * UNDO FLOW in demo():
-     *   write("draft one") → save → write("draft two") → save → write("bad edit")
-     *   undo → "draft two", undo → "draft one".
+     * UNDO FLOW in demo(): write("draft one") -> save -> write("draft two") -> save -> write("bad
+     * edit") undo -> "draft two", undo -> "draft one".
      *
      * WHEN TO USE:
-     *   - Text editor undo/redo, game save states, transaction rollback.
-     *   - Anywhere you need to restore an object to a prior state.
+     * - Text editor undo/redo, game save states, transaction rollback.
+     * - Anywhere you need to restore an object to a prior state.
      *
      * PITFALL: Storing many large mementos is expensive. Apply size limits or incremental
-     *           (diff-based) mementos for memory efficiency.
+     * (diff-based) mementos for memory efficiency.
      */
     static class MementoPattern {
         static class Editor {
@@ -1785,36 +1955,40 @@ public class DesignPatterns {
     }
 
     /**
-     * 3.9 CHAIN OF RESPONSIBILITY — "Pass the Request"
-     * Relationship used: Self-referencing Aggregation (handler holds a reference to its `next` handler).
+     * 3.9 CHAIN OF RESPONSIBILITY - "Pass the Request"
+     * Relationship used: Self-referencing Aggregation (handler holds a reference to its `next`
+     * handler).
      *
-     * INTENT: Avoid coupling the sender of a request to its receiver by giving more than one object
-     * a chance to handle the request. Chain the receiving objects and pass the request along the
-     * chain until an object handles it.
+     * INTENT: Avoid coupling the sender of a request to its receiver by giving more than one
+     * object a chance to handle the request. Chain the receiving objects and pass the request
+     * along the chain until an object handles it.
      *
      * PARTICIPANTS:
-     *   - Handler (abstract) : `SupportHandler` — declares `handle()` and `setNext()`; provides `passOn()`.
-     *   - ConcreteHandler    : `Level1`, `Level2`, `Level3` — each handles one severity or forwards.
-     *   - Client             : links the chain with `l1.setNext(new Level2()).setNext(new Level3())`
-     *                         and then just calls `l1.handle(severity)`.
+     * - Handler (abstract) : `SupportHandler` - declares `handle()` and `setNext()`; provides
+     *   `passOn()`.
+     * - ConcreteHandler : `Level1`, `Level2`, `Level3` - each handles one severity or forwards.
+     * - Client : links the chain with `l1.setNext(new Level2()).setNext(new Level3())` and then
+     *    just calls `l1.handle(severity)`.
      *
      * IMPLEMENTATION:
-     *   - `SupportHandler` holds a `protected SupportHandler next` field (self-referential aggregation).
-     *   - `setNext()` stores the next handler AND returns it, enabling fluent chain building:
-     *     `l1.setNext(l2).setNext(l3)` sets l2 as l1's next AND l3 as l2's next.
-     *   - Each `handle()` either processes the request (`LOW` → L1) or calls `passOn()` to forward.
-     *   - `passOn()` in the base class: if `next != null`, forward; else print "Unhandled" (safety net).
-     *   - The sender (`demo()`) doesn't know WHICH handler will process the request.
+     * - `SupportHandler` holds a `protected SupportHandler next` field (self-referential
+     *   aggregation).
+     * - `setNext()` stores the next handler AND returns it, enabling fluent chain building:
+     *   `l1.setNext(l2).setNext(l3)` sets l2 as l1's next AND l3 as l2's next.
+     * - Each `handle()` either processes the request (`LOW` -> L1) or calls `passOn()` to forward.
+     * - `passOn()` in the base class: if `next != null`, forward; else print "Unhandled" (safety
+     *   net).
+     * - The sender (`demo()`) doesn't know WHICH handler will process the request.
      *
      * vs DECORATOR: Decorator always processes AND passes on; CoR either handles OR passes on.
      *
      * WHEN TO USE:
-     *   - Exception handler chains, middleware pipelines (Servlet filters, Spring interceptors).
-     *   - Logging level filters, approval workflows (manager → director → VP).
-     *   - `java.util.logging` Logger hierarchy, Netty pipeline.
+     * - Exception handler chains, middleware pipelines (Servlet filters, Spring interceptors).
+     * - Logging level filters, approval workflows (manager -> director -> VP).
+     * - `java.util.logging` Logger hierarchy, Netty pipeline.
      *
-     * PITFALL: No guarantee any handler will process the request — always add a terminal
-     *          default handler or the `passOn()` safety net shown here.
+     * PITFALL: No guarantee any handler will process the request - always add a terminal default
+     * handler or the `passOn()` safety net shown here.
      */
     static class ChainPattern {
         static abstract class SupportHandler {
@@ -1872,37 +2046,40 @@ public class DesignPatterns {
     }
 
     /**
-     * 3.10 TEMPLATE METHOD — "Define the Skeleton"
+     * 3.10 TEMPLATE METHOD - "Define the Skeleton"
      * Relationship used: Abstract Class Inheritance (subclasses fill in the blanks).
      *
      * INTENT: Define the skeleton of an algorithm in an operation, deferring some steps to
-     * subclasses. Template Method lets subclasses redefine certain steps of an algorithm
-     * without changing the algorithm's structure.
+     * subclasses. Template Method lets subclasses redefine certain steps of an algorithm without
+     * changing the algorithm's structure.
      *
      * PARTICIPANTS:
-     *   - AbstractClass : `GameLoader` — declares the template method (`runPipeline()`) and hooks.
-     *   - ConcreteClass : `MarioGame`, `RacingGame` — override the abstract/hook steps.
+     * - AbstractClass : `GameLoader` - declares the template method (`runPipeline()`) and hooks.
+     * - ConcreteClass : `MarioGame`, `RacingGame` - override the abstract/hook steps.
      *
      * IMPLEMENTATION:
-     *   - `runPipeline()` is marked `final` — the algorithm sequence is LOCKED; subclasses cannot
-     *     reorder initialize → loadAssets → cleanup.
-     *   - `initialize()` and `cleanup()` are `protected` concrete methods — HOOKS: subclasses MAY
-     *     override them (optional extension points). `RacingGame` overrides `cleanup()`.
-     *   - `loadAssets()` is `abstract` — a REQUIRED hook: subclasses MUST provide their own version.
-     *   - The invariant part (memory allocation, server endpoints) lives in the superclass.
-     *     The variant part (asset type) lives in subclasses.
+     * - `runPipeline()` is marked `final` - the algorithm sequence is LOCKED; subclasses cannot
+     *   reorder initialize -> loadAssets -> cleanup.
+     * - `initialize()` and `cleanup()` are `protected` concrete methods - HOOKS: subclasses MAY
+     *   override them (optional extension points). `RacingGame` overrides `cleanup()`.
+     * - `loadAssets()` is `abstract` - a REQUIRED hook: subclasses MUST provide their own version.
+     * - The invariant part (memory allocation, server endpoints) lives in the superclass.
+     * The variant part (asset type) lives in subclasses.
      *
-     * vs STRATEGY: Template Method uses INHERITANCE to vary the algorithm steps;
-     *              Strategy uses COMPOSITION (swaps the whole algorithm object).
-     *   - Prefer Strategy when you need runtime switching or want to avoid inheritance.
-     *   - Template Method is simpler when the skeleton is fixed and variation is minor.
+     * vs STRATEGY: Template Method uses INHERITANCE to vary the algorithm steps; Strategy uses
+     * COMPOSITION (swaps the whole algorithm object).
+     * - Prefer Strategy when you need runtime switching or want to avoid inheritance.
+     * - Template Method is simpler when the skeleton is fixed and variation is minor.
      *
      * WHEN TO USE:
-     *   - Frameworks: `HttpServlet.service()`, JUnit `setUp/tearDown`, Spring `JdbcTemplate`.
-     *   - Build pipelines, test lifecycles, data-processing ETL stages.
+     * - Frameworks: `HttpServlet.service()`, JUnit `setUp/tearDown`, Spring `JdbcTemplate`.
+     * - Build pipelines, test lifecycles, data-processing ETL stages.
      *
-     * PITFALL: The Hollywood Principle — "Don't call us, we'll call you."
-     *          Subclasses must not call the template method themselves to avoid infinite loops.
+     * PITFALL: Control is inverted, which is often called the HOLLYWOOD PRINCIPLE: "Don't call
+     * us, we'll call you." Your subclass does not drive the process; the base class does, and it
+     * calls down into your overridden steps at the moments it chooses. So a subclass must never
+     * call the template method itself from inside one of its own steps - that would restart the
+     * whole pipeline and loop forever.
      */
     static class TemplateMethodPattern {
         static abstract class GameLoader {
@@ -1948,37 +2125,40 @@ public class DesignPatterns {
     }
 
     /**
-     * 3.11 STRATEGY — "Swap the Algorithm"
+     * 3.11 STRATEGY - "Swap the Algorithm"
      * Relationship used: Composition (Context holds a Strategy via an interface field).
      *
      * INTENT: Define a family of algorithms, encapsulate each one, and make them interchangeable.
      * Strategy lets the algorithm vary independently from clients that use it.
      *
      * PARTICIPANTS:
-     *   - Strategy interface  : `PaymentStrategy` — declares `pay(double amount)`.
-     *   - ConcreteStrategy    : `CardPayment`, `UpiPayment` (and the lambda `cash`) — algorithms.
-     *   - Context             : `Checkout` — holds a `PaymentStrategy`; delegates to it via `confirm()`.
+     * - Strategy interface : `PaymentStrategy` - declares `pay(double amount)`.
+     * - ConcreteStrategy : `CardPayment`, `UpiPayment` (and the lambda `cash`) - algorithms.
+     * - Context : `Checkout` - holds a `PaymentStrategy`; delegates to it via `confirm()`.
      *
      * IMPLEMENTATION:
-     *   - `Checkout` holds `private PaymentStrategy strategy` — a swappable field.
-     *   - `setStrategy()` lets the client change the algorithm at RUNTIME — no `if/else` inside Context.
-     *   - `confirm(amount)` simply calls `strategy.pay(amount)` — fully decoupled from the algorithm.
-     *   - In modern Java: `PaymentStrategy` is a `@FunctionalInterface`, so any lambda can be a strategy:
-     *       `c.setStrategy(a -> System.out.println("Paid " + a + " in cash."));`
+     * - `Checkout` holds `private PaymentStrategy strategy` - a swappable field.
+     * - `setStrategy()` lets the client change the algorithm at RUNTIME - no `if/else` inside
+     *   Context.
+     * - `confirm(amount)` simply calls `strategy.pay(amount)` - fully decoupled from the
+     *   algorithm.
+     * - In modern Java: `PaymentStrategy` is a `@FunctionalInterface`, so any lambda can be a
+     *   strategy: `c.setStrategy(a -> System.out.println("Paid " + a + " in cash."));`
      *
-     * vs TEMPLATE METHOD: Template Method varies steps via inheritance (static);
-     *                     Strategy varies the whole algorithm via composition (dynamic, runtime-swappable).
+     * vs TEMPLATE METHOD: Template Method varies steps via inheritance (static); Strategy varies
+     * the whole algorithm via composition (dynamic, runtime-swappable).
      * vs STATE: State transitions itself; Strategy is swapped by the CLIENT.
-     * vs COMMAND: Command encapsulates a request with undo/history; Strategy encapsulates an algorithm.
+     * vs COMMAND: Command encapsulates a request with undo/history; Strategy encapsulates an
+     * algorithm.
      *
      * WHEN TO USE:
-     *   - Multiple sorting algorithms (bubble, quick, merge) selectable at runtime.
-     *   - Payment gateways, compression codecs, authentication methods.
-     *   - `java.util.Comparator` is the canonical Strategy in Java.
-     *   - Anywhere you want to replace a conditional with polymorphism.
+     * - Multiple sorting algorithms (bubble, quick, merge) selectable at runtime.
+     * - Payment gateways, compression codecs, authentication methods.
+     * - `java.util.Comparator` is the canonical Strategy in Java.
+     * - Anywhere you want to replace a conditional with polymorphism.
      *
      * PITFALL: Clients must know which strategies exist to choose one.
-     *           Combine with Factory or Abstract Factory to hide strategy selection.
+     * Combine with Factory or Abstract Factory to hide strategy selection.
      */
     static class StrategyPattern {
         interface PaymentStrategy {
@@ -2010,7 +2190,7 @@ public class DesignPatterns {
         }
 
         static void demo() {
-            header("3.11 STRATEGY  (not in the original notes - add it)");
+            header("3.11 STRATEGY");
             Checkout c = new Checkout();
             c.setStrategy(new CardPayment());
             c.confirm(999.0);
@@ -2024,41 +2204,43 @@ public class DesignPatterns {
     }
 
     // =====================================================================
-    // SECTION 4 — SHALLOW vs DEEP COPY (the cloning trap)
+    // SECTION 4 - SHALLOW vs DEEP COPY (the cloning trap)
     // =====================================================================
     /**
-     * SHALLOW vs DEEP COPY — The Cloning Trap
+     * SHALLOW vs DEEP COPY - The Cloning Trap
      *
      * This section is a focused companion to the Prototype pattern (1.5).
-     * It isolates the single most common mistake when copying objects: assuming a copy is independent
-     * when it actually shares mutable state with the original.
+     * It isolates the single most common mistake when copying objects: assuming a copy is
+     * independent when it actually shares mutable state with the original.
      *
      * DEFINITIONS:
-     *   - SHALLOW COPY : Creates a new object but copies field values as-is.
-     *     - Primitive fields (int, double): copied by VALUE — independent. ✓
-     *     - Object reference fields (Wallet wallet): copied by REFERENCE — SHARED! ✗
-     *     - Result: original and clone share the same `Wallet` instance.
+     * - SHALLOW COPY : Creates a new object but copies field values as-is.
+     * - Primitive fields (int, double): copied by VALUE - independent. [yes]
+     * - Object reference fields (Wallet wallet): copied by REFERENCE - SHARED! [no]
+     * - Result: original and clone share the same `Wallet` instance.
      *
-     *   - DEEP COPY : Creates a new object AND recursively creates new instances of all mutable
-     *     object fields.
-     *     - The clone owns a brand-new `Wallet` with the same cash value.
-     *     - Mutating the clone's wallet does NOT affect the original. ✓
+     * - DEEP COPY : Creates a new object AND recursively creates new instances of all mutable
+     *   object fields.
+     * - The clone owns a brand-new `Wallet` with the same cash value.
+     * - Mutating the clone's wallet does NOT affect the original. [yes]
      *
      * IMPLEMENTATION IN CODE:
-     *   - `shallowCopy()`: `return new Person(name, this.wallet)` — passes the SAME `Wallet` ref.
-     *   - `deepCopy()`: creates `new Wallet()`, copies `cash` into it, returns a Person with the new wallet.
-     *   - After `shallow.wallet.cash = 0`, `original.wallet.cash` is also 0 (proof of sharing).
-     *   - After `deep.wallet.cash = 0`, `original.wallet.cash` is still 50 (proof of independence).
+     * - `shallowCopy()`: `return new Person(name, this.wallet)` - passes the SAME `Wallet` ref.
+     * - `deepCopy()`: creates `new Wallet()`, copies `cash` into it, returns a Person with the new
+     *    wallet.
+     * - After `shallow.wallet.cash = 0`, `original.wallet.cash` is also 0 (proof of sharing).
+     * - After `deep.wallet.cash = 0`, `original.wallet.cash` is still 50 (proof of independence).
      *
      * RULE OF THUMB:
-     *   - Immutable fields (String, int, Integer): safe to shallow copy.
-     *   - Mutable reference fields (List, Map, custom objects): MUST be deep copied.
-     *   - Nested mutable objects: deep copy must be RECURSIVE (see Prototype — `loadout.copy()`).
+     * - Immutable fields (String, int, Integer): safe to shallow copy.
+     * - Mutable reference fields (List, Map, custom objects): MUST be deep copied.
+     * - Nested mutable objects: deep copy must be RECURSIVE (see Prototype - `loadout.copy()`).
      *
      * JAVA NOTES:
-     *   - `Object.clone()` performs a SHALLOW copy. Always override it carefully or avoid `Cloneable`.
-     *   - Serialise then deserialise (“serialization trick”) achieves deep copy but is slow.
-     *   - Modern approach: write an explicit `copy()` constructor as shown here.
+     * - `Object.clone()` performs a SHALLOW copy. Always override it carefully or avoid
+     *   `Cloneable`.
+     * - Serialize then deserialise ("serialization trick") achieves deep copy but is slow.
+     * - Modern approach: write an explicit `copy()` constructor as shown here.
      */
     static class CopySemantics {
         static class Wallet {

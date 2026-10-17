@@ -759,7 +759,7 @@ tags: [root, system-design, flowcharts]
 ### LLD › Classic Problems
 
 ```
-06-lld/05-problems/ — Tier 1
+06-lld/06-problems/ — Tier 1
 │
 ├── parking-lot                → Spot types (Compact/Large/Motorcycle); Strategy for spot selection; Observer for entry/exit events
 ├── rate-limiter               → Strategy pattern for algorithm; token bucket with AtomicLong; thread-safe per-user counter
@@ -770,7 +770,7 @@ tags: [root, system-design, flowcharts]
 ├── elevator-system            → SCAN algorithm (direction-based); State per elevator; Mediator for dispatch
 └── comment-system             → Composite for nested threads; Observer for notification; pagination strategy
 
-06-lld/05-problems/ — Tier 2
+06-lld/06-problems/ — Tier 2
 │
 ├── lru-cache                  → LinkedHashMap (Java) or Doubly-LL + HashMap; O(1) get + put; Proxy for LRU logic
 ├── hotel-management           → Rooms (State: Available/Reserved/Occupied); Strategy for pricing; Builder for booking

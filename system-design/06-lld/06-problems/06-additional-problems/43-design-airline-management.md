@@ -101,9 +101,9 @@ Design the core booking engine of an airline management system: search flights, 
 
 | Requirement | What Seat must track |
 |-------------|----------------------|
-| Which class it belongs to | seat_class: SeatClass |
+| Which class it belongs to | seatClass: SeatClass |
 | Current lifecycle state | status: SeatStatus (AVAILABLE, HELD, BOOKED) |
-| Physical location for seat map display | seat_number: str (e.g. "14C") |
+| Physical location for seat map display | seatNumber: str (e.g. "14C") |
 
 ```
 class Seat:
@@ -149,10 +149,10 @@ class FixedFarePricing(FarePricingStrategy):
 
 | Requirement | What Flight must track |
 |-------------|------------------------|
-| Full seat inventory | seats: dict[str, Seat]        # seat_number -> Seat |
-| Active holds | seat_holds: dict[str, SeatHold] # seat_number -> hold |
+| Full seat inventory | seats: dict[str, Seat]        # seatNumber -> Seat |
+| Active holds | seatHolds: dict[str, SeatHold] # seatNumber -> hold |
 | Atomic hold/confirm/release | lock: ReentrantLock (per-flight) |
-| Route/schedule metadata | flight_number, origin, destination, departure_time |
+| Route/schedule metadata | flightNumber, origin, destination, departureTime |
 
 ```
 class Flight:
@@ -236,7 +236,7 @@ public List<Flight> searchFlights(String origin, String destination, LocalDate d
 1. Acquire the flight's lock (atomic per-flight — avoids a global bottleneck across unrelated flights)
 2. Lazily evict expired holds so a stale hold doesn't block a fresh request
 3. Check the seat is AVAILABLE and has no active hold
-4. Create a `SeatHold` with `expires_at = now + hold_ttl`, mark seat HELD
+4. Create a `SeatHold` with `expiresAt = now + holdTtl`, mark seat HELD
 5. Release lock, return the hold
 
 **Edge cases:**
@@ -294,7 +294,7 @@ private void evictExpiredHolds() {
 
 **Core logic:**
 1. Acquire the flight's lock
-2. Look up the hold by `hold_id`; if missing or expired, fail cleanly (payment should not have been attempted)
+2. Look up the hold by `holdId`; if missing or expired, fail cleanly (payment should not have been attempted)
 3. Validate the payment succeeded
 4. Mark the seat BOOKED, remove the hold, create and return a `Booking`
 
@@ -355,7 +355,7 @@ private SeatHold findHoldById(String holdId) {
 
 **Core logic:**
 1. Acquire the flight's lock
-2. Scan `seat_holds`, remove entries where `is_expired()` is true, flip those seats back to AVAILABLE
+2. Scan `seatHolds`, remove entries where `isExpired()` is true, flip those seats back to AVAILABLE
 3. Return count released (useful for metrics / testing)
 
 ```java
@@ -434,24 +434,24 @@ public class FixedFarePricing implements FarePricingStrategy {
 
 **Scenario**: Passenger P1 books seat 14C (economy) on flight AA100.
 
-1. `search_flights("JFK", "LAX", 2026-09-01)` returns `AA100` among matches
-2. `hold_seat("14C", "P1")` — lock acquired, `evict_expired_holds()` finds nothing stale, seat 14C is AVAILABLE
-3. `SeatHold H001` created: `created_at=10:00:00`, `expires_at=10:10:00` (10-minute TTL); seat 14C -> HELD
-4. Passenger enters payment; at `10:03:00`, `confirm_booking("H001", payment)` is called
+1. `searchFlights("JFK", "LAX", 2026-09-01)` returns `AA100` among matches
+2. `holdSeat("14C", "P1")` — lock acquired, `evictExpiredHolds()` finds nothing stale, seat 14C is AVAILABLE
+3. `SeatHold H001` created: `createdAt=10:00:00`, `expiresAt=10:10:00` (10-minute TTL); seat 14C -> HELD
+4. Passenger enters payment; at `10:03:00`, `confirmBooking("H001", payment)` is called
 5. Hold H001 found, not expired (`10:03:00 < 10:10:00`); `payment.status == SUCCESS`
-6. Seat 14C -> BOOKED; hold H001 removed from `seat_holds`
-7. `Booking B001` returned: `status=CONFIRMED`, fare = `FixedFarePricing.get_fare(ECONOMY) = $250.00`
+6. Seat 14C -> BOOKED; hold H001 removed from `seatHolds`
+7. `Booking B001` returned: `status=CONFIRMED`, fare = `FixedFarePricing.getFare(ECONOMY) = $250.00`
 
 **Cancellation at a later time**:
-1. `cancel_booking(B001)` — booking is CONFIRMED, proceeds
+1. `cancelBooking(B001)` — booking is CONFIRMED, proceeds
 2. `payment.status -> REFUNDED`
 3. Seat 14C -> AVAILABLE
 4. `B001.status -> CANCELLED`
 
 **Contrast — hold that expires unused**:
-1. Passenger P2 calls `hold_seat("14D", "P2")` at `11:00:00` -> `SeatHold H002` expires at `11:10:00`
-2. P2 abandons checkout; no `confirm_booking` call
-3. At `11:11:00`, P3 calls `hold_seat("14D", "P3")` — `evict_expired_holds()` inside the call finds H002 expired (`11:10:00 < 11:11:00`), removes it, flips seat 14D back to AVAILABLE
+1. Passenger P2 calls `holdSeat("14D", "P2")` at `11:00:00` -> `SeatHold H002` expires at `11:10:00`
+2. P2 abandons checkout; no `confirmBooking` call
+3. At `11:11:00`, P3 calls `holdSeat("14D", "P3")` — `evictExpiredHolds()` inside the call finds H002 expired (`11:10:00 < 11:11:00`), removes it, flips seat 14D back to AVAILABLE
 4. Seat 14D is now free; P3's hold succeeds and creates `SeatHold H003`
 
 ---
@@ -460,7 +460,7 @@ public class FixedFarePricing implements FarePricingStrategy {
 
 ### 1. "How do you prevent two passengers from booking the same seat concurrently?"
 
-The `Flight`-scoped lock makes `hold_seat` atomic: check-availability and mark-held happen inside a single critical section, so two threads racing on the same seat cannot both observe AVAILABLE. One thread wins, marks the seat HELD, and the second thread's check fails against the now-HELD seat.
+The `Flight`-scoped lock makes `holdSeat` atomic: check-availability and mark-held happen inside a single critical section, so two threads racing on the same seat cannot both observe AVAILABLE. One thread wins, marks the seat HELD, and the second thread's check fails against the now-HELD seat.
 
 ```java
 public SeatHold holdSeat(String seatNumber, String passengerId) {
@@ -486,7 +486,7 @@ A single lock per flight (not global) gives parallelism across flights — booki
 
 ### 2. "How would you implement overbooking with a waitlist?"
 
-Airlines oversell based on historical no-show rates. Introduce an `overbook_limit` per flight — the number of holds/bookings allowed to exceed physical seat count — and a `Waitlist` for passengers who can't get an immediate confirmed seat.
+Airlines oversell based on historical no-show rates. Introduce an `overbookLimit` per flight — the number of holds/bookings allowed to exceed physical seat count — and a `Waitlist` for passengers who can't get an immediate confirmed seat.
 
 ```java
 class Flight {
@@ -557,7 +557,7 @@ class Itinerary {
 }
 ```
 
-Legs are locked in a fixed, globally consistent order (e.g., by `flight_id`) to avoid deadlock when two passengers book overlapping itineraries in opposite leg order — the same ordering discipline used to avoid deadlock with any multi-lock acquisition. Search also changes: `FlightSearchService.search` needs to enumerate valid leg combinations (same-day connection windows, minimum connection time) rather than a single direct match.
+Legs are locked in a fixed, globally consistent order (e.g., by `flightId`) to avoid deadlock when two passengers book overlapping itineraries in opposite leg order — the same ordering discipline used to avoid deadlock with any multi-lock acquisition. Search also changes: `FlightSearchService.search` needs to enumerate valid leg combinations (same-day connection windows, minimum connection time) rather than a single direct match.
 
 ---
 
@@ -565,21 +565,23 @@ Legs are locked in a fixed, globally consistent order (e.g., by `flight_id`) to 
 
 **Junior**: Define the `Seat` and `SeatHold` classes and explain the three seat states. Describe why booking is two steps (hold, then confirm) instead of one. Can sketch a basic class diagram of Flight/Seat/Booking.
 
-**Mid-level**: Implement `hold_seat` and `confirm_booking` with correct per-flight locking. Explain why a hold has a TTL and what happens if it expires mid-payment. Implement `FixedFarePricing` via Strategy. Handle the double-confirm and expired-hold edge cases correctly.
+**Mid-level**: Implement `holdSeat` and `confirmBooking` with correct per-flight locking. Explain why a hold has a TTL and what happens if it expires mid-payment. Implement `FixedFarePricing` via Strategy. Handle the double-confirm and expired-hold edge cases correctly.
 
 **Senior**: Justify per-flight locking over a global lock or per-seat locks. Design the overbooking + waitlist extension and explain the Observer-based notification flow. Design atomic multi-leg holding for connecting itineraries, including deadlock avoidance via consistent lock ordering. Discuss trade-offs between lazy hold-expiry (checked on next access) vs. a background sweep thread.
+
+**Staff (SDE-3)**: Irregular operations are the real problem: one cancelled flight cascades into thousands of rebookings. Design the rebooking engine and its prioritization policy, and defend how you'd make that policy auditable and fair. Then explain the seat-inventory consistency model across GDS partners who cache your availability, and what you do about the resulting oversell.
 
 ---
 
 ## Common Interview Questions
 
 - Q: Why not book the seat directly instead of holding it first? A: Payment takes time (redirects, 3D-Secure, retries). Without a hold, another passenger could book the same seat while the first is still entering card details. The hold reserves the seat for a bounded window so payment can complete safely.
-- Q: What happens if the hold expires exactly while `confirm_booking` is executing? A: Both operations happen inside the same per-flight lock, so `is_expired()` is checked atomically with the state transition — either the hold is still valid and confirmation proceeds, or it's expired and confirmation fails cleanly with `HoldExpiredException`. There's no window where both can be true.
+- Q: What happens if the hold expires exactly while `confirmBooking` is executing? A: Both operations happen inside the same per-flight lock, so `isExpired()` is checked atomically with the state transition — either the hold is still valid and confirmation proceeds, or it's expired and confirmation fails cleanly with `HoldExpiredException`. There's no window where both can be true.
 - Q: Why is the lock scoped to `Flight` and not global? A: Two passengers booking different flights share no state — a global lock would serialize unrelated bookings for no reason. Per-flight locking gives full parallelism across flights while still serializing operations on the same flight's seat map.
-- Q: How do you avoid leaking held seats if a passenger just abandons checkout? A: Lazy eviction inside `hold_seat` (and `confirm_booking`) catches it the next time anyone touches that flight's holds; a scheduled sweep (`release_expired_holds`) catches it even if no one else requests that flight for a while.
-- Q: How would you test for double-booking under concurrency? A: Spin up N threads all calling `hold_seat("14C", ...)` for the same seat simultaneously. Assert exactly one succeeds and N-1 throw `SeatUnavailableException`, and that the seat ends in HELD (not some inconsistent state) with exactly one hold record.
+- Q: How do you avoid leaking held seats if a passenger just abandons checkout? A: Lazy eviction inside `holdSeat` (and `confirmBooking`) catches it the next time anyone touches that flight's holds; a scheduled sweep (`releaseExpiredHolds`) catches it even if no one else requests that flight for a while.
+- Q: How would you test for double-booking under concurrency? A: Spin up N threads all calling `holdSeat("14C", ...)` for the same seat simultaneously. Assert exactly one succeeds and N-1 throw `SeatUnavailableException`, and that the seat ends in HELD (not some inconsistent state) with exactly one hold record.
 - Q: What's the difference between cancelling a hold and cancelling a booking? A: A hold is soft and expires on its own — no explicit cancel API is strictly required, though one can be added to free the seat early. A booking is a committed, paid reservation — cancelling it requires a refund and is a business event, not just inventory cleanup.
-- Q: How would overbooking change the seat-availability check? A: `is_available` becomes capacity-based rather than per-seat: compare confirmed-plus-held count in a class against `class_capacity + overbook_limit` instead of checking a single seat's status, and route excess demand to a waitlist instead of rejecting outright.
+- Q: How would overbooking change the seat-availability check? A: `isAvailable` becomes capacity-based rather than per-seat: compare confirmed-plus-held count in a class against `classCapacity + overbookLimit` instead of checking a single seat's status, and route excess demand to a waitlist instead of rejecting outright.
 
 ---
 
@@ -939,8 +941,8 @@ class AirlineConcurrencyTest {
 ```
 
 **What each test verifies:**
-- `testExactlyOneHoldWins`: The per-flight lock makes check-then-mark atomic in `hold_seat`, so 50 threads racing on the same seat produce exactly one winner — no double-hold, no lost update.
-- `testExpiredHoldReleasesSeat`: TTL expiry is honored both by the explicit sweep (`release_expired_holds`) and lazily inside the next `hold_seat` call; a stale hold cannot later be confirmed once evicted.
+- `testExactlyOneHoldWins`: The per-flight lock makes check-then-mark atomic in `holdSeat`, so 50 threads racing on the same seat produce exactly one winner — no double-hold, no lost update.
+- `testExpiredHoldReleasesSeat`: TTL expiry is honored both by the explicit sweep (`releaseExpiredHolds`) and lazily inside the next `holdSeat` call; a stale hold cannot later be confirmed once evicted.
 - `testConcurrentHoldAndConfirmDistinctSeats`: Locking is correctly scoped — concurrent operations on different seats within the same flight don't spuriously block or interfere with each other, only true contention on the same seat is serialized.
 
 ---

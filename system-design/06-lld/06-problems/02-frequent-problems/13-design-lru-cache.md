@@ -346,7 +346,7 @@ Core challenge: ordering across nodes. Options:
 
 ### 5. "How would you add TTL (time-to-live) to the cache?"
 
-Add an `expires_at: Optional[float]` field to Node. On get, check if the node has expired before returning it.
+Add an `expiresAt: Optional[float]` field to Node. On get, check if the node has expired before returning it.
 
 ```java
 class TTLNode extends Node {
@@ -392,9 +392,11 @@ For proactive expiry (lazy expiry can accumulate stale entries), run a backgroun
 
 **Junior**: Why do we need to store the key inside the Node? What breaks if we only store the value?
 
-**Mid-level**: Walk me through what happens to the doubly linked list pointers when we call `_move_to_front`. Draw it out for a 3-node list.
+**Mid-level**: Walk me through what happens to the doubly linked list pointers when we call `moveToFront`. Draw it out for a 3-node list.
 
 **Senior**: Describe the full design of a distributed LRU cache that supports 1M ops/sec across 10 nodes. What consistency guarantees can you provide?
+
+**Staff (SDE-3)**: Your distributed cache is now in front of a database that can't survive a full cache flush. Design the cold-start / cache-warming procedure after a full cluster restart, and quantify how long the database can hold at what QPS. Then design the client-side behavior on a partial cache outage — defend request coalescing plus a stale-while-revalidate window over letting every miss hit the DB.
 
 ---
 
@@ -407,7 +409,7 @@ For proactive expiry (lazy expiry can accumulate stale entries), run a backgroun
   A: Eliminates null checks and special-cases for empty list, adding to empty list, or removing the only element. All pointer operations are uniform.
 
 - **Q: What breaks if you use Python's OrderedDict instead?**  
-  A: OrderedDict.move_to_end() gives O(1) reordering, and popitem(last=False) gives O(1) LRU eviction. It's essentially the same data structure — Python's OrderedDict is implemented with a doubly linked list + dict internally.
+  A: OrderedDict.moveToEnd() gives O(1) reordering, and popitem(last=False) gives O(1) LRU eviction. It's essentially the same data structure — Python's OrderedDict is implemented with a doubly linked list + dict internally.
 
 - **Q: LRU vs FIFO — which is better?**  
   A: LRU is better for most real workloads because it exploits temporal locality (recently used items are likely to be used again). FIFO is simpler but ignores access patterns.
@@ -416,7 +418,7 @@ For proactive expiry (lazy expiry can accumulate stale entries), run a backgroun
   A: Extend LinkedHashMap with `removeEldestEntry` overridden to return true when size exceeds capacity. Or implement from scratch with LinkedHashMap in access-order mode.
 
 - **Q: Can you implement LRU with O(1) operations using only a Python dict?**  
-  A: Yes, using OrderedDict. `move_to_end(key)` is O(1) and `popitem(last=False)` is O(1). The built-in dict in Python 3.7+ preserves insertion order but lacks move_to_end — OrderedDict is the right choice.
+  A: Yes, using OrderedDict. `moveToEnd(key)` is O(1) and `popitem(last=False)` is O(1). The built-in dict in Python 3.7+ preserves insertion order but lacks moveToEnd — OrderedDict is the right choice.
 
 - **Q: What's the memory overhead of this implementation?**  
   A: Each node uses 5 fields (key, value, prev, next, plus Python object overhead ~56 bytes). Plus 2 dict entries (hashmap key → node pointer). Roughly 200-300 bytes per cache entry in CPython.
@@ -690,10 +692,10 @@ public class LRUCacheConcurrencyTest {
 ```
 
 **What each test verifies:**
-- `test_capacity_never_exceeded`: The single `threading.Lock()` in `put` ensures eviction and insertion are atomic; without it, two threads can both see `len == capacity` and both insert, exceeding the limit.
-- `test_no_structural_corruption`: Concurrent pointer manipulation of the doubly linked list without a lock causes torn reads — a thread can follow a `next` pointer mid-update and reach a detached node, causing `None` dereference or cycles.
-- `test_lru_eviction_order`: Validates that the list's MRU-to-LRU ordering is preserved correctly across concurrent operations; the evicted keys are always the least recently used ones.
-- `test_concurrent_reads_consistent`: Readers must not see `-1` for keys still in cache; the lock prevents a reader from observing a partially-removed node during a concurrent eviction.
+- `testCapacityNeverExceeded`: The single `threading.Lock()` in `put` ensures eviction and insertion are atomic; without it, two threads can both see `len == capacity` and both insert, exceeding the limit.
+- `testNoStructuralCorruption`: Concurrent pointer manipulation of the doubly linked list without a lock causes torn reads — a thread can follow a `next` pointer mid-update and reach a detached node, causing `None` dereference or cycles.
+- `testLruEvictionOrder`: Validates that the list's MRU-to-LRU ordering is preserved correctly across concurrent operations; the evicted keys are always the least recently used ones.
+- `testConcurrentReadsConsistent`: Readers must not see `-1` for keys still in cache; the lock prevents a reader from observing a partially-removed node during a concurrent eviction.
 
 ---
 

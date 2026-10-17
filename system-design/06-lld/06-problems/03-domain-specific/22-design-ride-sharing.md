@@ -104,9 +104,9 @@ class Location:
 
 | Requirement | What Driver must track |
 |-------------|------------------------|
-| Identity | driver_id, name, vehicle_info, rating |
+| Identity | driverId, name, vehicleInfo, rating |
 | Availability | status: DriverStatus |
-| Position | current_location: Location |
+| Position | currentLocation: Location |
 
 ```
 class Driver:
@@ -127,7 +127,7 @@ class Driver:
 | Parties | rider: Rider, driver: Optional[Driver] |
 | Route | pickup: Location, dropoff: Location |
 | Lifecycle | status: RideStatus, timestamps |
-| Outcome | fare: float, distance_km: float, duration_min: float |
+| Outcome | fare: float, distanceKm: float, durationMin: float |
 
 ```
 class Ride:
@@ -163,7 +163,7 @@ class SurgeFareCalculator(FareCalculator):
 
 ## Implementation
 
-### Core Method: `request_ride`
+### Core Method: `requestRide`
 
 **Core logic:**
 1. Create a Ride with status REQUESTED.
@@ -500,10 +500,10 @@ class RideService {
 Scenario: Rider requests a ride; driver accepts; ride completes.
 
 1. Driver goes online → `DriverStatus.AVAILABLE`.
-2. `request_ride(rider_id, pickup, dropoff)` → MatchingService finds nearest driver; Ride status=MATCHED, driver status=ON_RIDE.
-3. `start_ride(ride_id)` → status=IN_PROGRESS, `started_at` set.
-4. `complete_ride(ride_id)` → distance computed, fare calculated (e.g., 5km, 10 min → $2 + $7.5 + $2.5 = $12), status=COMPLETED, driver back to AVAILABLE.
-5. `rate_driver(ride_id, 4.5)` → driver rating updated.
+2. `requestRide(riderId, pickup, dropoff)` → MatchingService finds nearest driver; Ride status=MATCHED, driver status=ON_RIDE.
+3. `startRide(rideId)` → status=IN_PROGRESS, `startedAt` set.
+4. `completeRide(rideId)` → distance computed, fare calculated (e.g., 5km, 10 min → $2 + $7.5 + $2.5 = $12), status=COMPLETED, driver back to AVAILABLE.
+5. `rateDriver(rideId, 4.5)` → driver rating updated.
 
 ---
 
@@ -570,7 +570,7 @@ public double computeSurge(String zoneId) {
 
 ### 3. "How does ride cancellation by either party work?"
 
-Cancellation is valid in REQUESTED or MATCHED states. If a driver cancels a matched ride, the system should rematch with the next closest driver before giving up. Track a `cancelled_by_drivers` list on the Ride to skip already-rejected drivers.
+Cancellation is valid in REQUESTED or MATCHED states. If a driver cancels a matched ride, the system should rematch with the next closest driver before giving up. Track a `cancelledByDrivers` list on the Ride to skip already-rejected drivers.
 
 ```java
 // Ride gains a private Set<String> skippedDrivers field (lazily initialized)
@@ -604,7 +604,7 @@ public void driverCancel(String rideId, String driverId) {
 
 ### 4. "How do you track real-time driver location?"
 
-Drivers emit location pings every 3-5 seconds. `update_driver_location(driver_id, location)` updates the in-memory location and the geohash index. For persistence, write to a time-series store (Redis geospatial index). This also lets the rider's app render the driver moving on the map.
+Drivers emit location pings every 3-5 seconds. `updateDriverLocation(driverId, location)` updates the in-memory location and the geohash index. For persistence, write to a time-series store (Redis geospatial index). This also lets the rider's app render the driver moving on the map.
 
 ### 5. "Walk me through the driver state machine"
 
@@ -616,7 +616,7 @@ AVAILABLE --go_offline()--> OFFLINE
 ON_RIDE --go_offline()--> BLOCKED (must complete ride first)
 ```
 
-Enforce transitions in Driver methods; `go_offline()` raises if status is ON_RIDE.
+Enforce transitions in Driver methods; `goOffline()` raises if status is ON_RIDE.
 
 ---
 
@@ -625,6 +625,8 @@ Enforce transitions in Driver methods; `go_offline()` raises if status is ON_RID
 **Junior**: What states can a Ride be in, and what triggers each transition?  
 **Mid-level**: How does MatchingService decide which driver to assign, and what happens if that driver rejects?  
 **Senior**: Explain how geohashing enables O(1)-ish nearest driver lookup and how you'd keep the index consistent with driver location updates.
+
+**Staff (SDE-3)**: Surge pricing and driver supply now interact: your matching algorithm affects driver earnings, which affects supply, which affects match rate. Design the experimentation framework to change matching safely in a two-sided market where a bad experiment loses drivers permanently. Then handle the geohash boundary problem at scale and quantify the fix.
 
 ---
 
@@ -635,7 +637,7 @@ Enforce transitions in Driver methods; `go_offline()` raises if status is ON_RID
 - **Q: What if no driver accepts the ride?** A: Track rejected drivers; after N retries or a timeout, notify the rider that no driver is available. Keep the ride in REQUESTED state for possible retry.
 - **Q: What are the valid ride state transitions?** A: REQUESTED → MATCHED (driver found) → IN_PROGRESS (driver at pickup) → COMPLETED; any non-IN_PROGRESS state → CANCELLED.
 - **Q: How do you handle a driver going offline mid-ride?** A: System should detect missed heartbeats and mark driver OFFLINE; reassign a new driver or escalate to support. The existing ride remains IN_PROGRESS.
-- **Q: How is fare calculated?** A: Base fare + (distance_km × per_km_rate) + (duration_min × per_min_rate), then multiplied by surge if applicable.
+- **Q: How is fare calculated?** A: Base fare + (distanceKm × perKmRate) + (durationMin × perMinRate), then multiplied by surge if applicable.
 - **Q: How does rating work?** A: After COMPLETED status, rider rates driver and driver rates rider; ratings stored as running averages in RatingService.
 
 ---

@@ -3,7 +3,7 @@
 Chapter-wise notes for **Alexander Shvets, *Dive Into Design Patterns*** (Refactoring.Guru, v2021-2.34).
 Every chapter is captured in full: problem narratives, solutions, real-world analogies, structure breakdowns with ASCII UML diagrams, the book's complete pseudocode listings (verbatim, with original line numbering), applicability, implementation steps, pros/cons, and inter-pattern relations.
 
-- [About This Book](00-about-this-book.md) — how to read it, full printed table of contents
+- About This Book — _not yet written_
 
 ---
 

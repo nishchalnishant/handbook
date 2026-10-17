@@ -56,7 +56,7 @@ Design a two-player Tic-Tac-Toe game on an NxN board where players alternate pla
 **In scope:**
 1. NxN board, configurable at construction
 2. Two players alternate turns (X goes first)
-3. `make_move(player, row, col)` — validates and applies a move
+3. `makeMove(player, row, col)` — validates and applies a move
 4. Win detection after each move (row, column, two diagonals)
 5. Draw detection when board is full with no winner
 6. Game state tracking: IN_PROGRESS, X_WINS, O_WINS, DRAW
@@ -79,7 +79,7 @@ Design a two-player Tic-Tac-Toe game on an NxN board where players alternate pla
 | WinChecker | Detects win condition using row/col/diagonal counters |
 | GameState | Enum: IN_PROGRESS, X_WINS, O_WINS, DRAW |
 
-Game owns Board and two Players. After each `make_move`, Game asks WinChecker if the last-moved player has won. WinChecker uses counters (not board scans) for O(1) detection.
+Game owns Board and two Players. After each `makeMove`, Game asks WinChecker if the last-moved player has won. WinChecker uses counters (not board scans) for O(1) detection.
 
 ---
 
@@ -100,8 +100,8 @@ class Player:
 | Requirement | What Board must track |
 |-------------|----------------------|
 | Cell state | grid: list[list[Mark | None]] |
-| Win detection without scanning | row_counts, col_counts, diag_count, anti_diag_count: dict/list |
-| Full-board detection | move_count: int |
+| Win detection without scanning | rowCounts, colCounts, diagCount, antiDiagCount: dict/list |
+| Full-board detection | moveCount: int |
 | Board size | size: int |
 
 ```
@@ -146,7 +146,7 @@ class Game:
 
 ## Implementation
 
-### Core Method: make_move
+### Core Method: makeMove
 
 **Core logic:**
 1. Validate game is still IN_PROGRESS
@@ -158,10 +158,10 @@ class Game:
 7. Advance turn if game continues
 
 **Edge cases:**
-- Move out of bounds — raise IndexError
-- Cell already occupied — raise ValueError
-- Move by wrong player — raise ValueError
-- Move after game ended — raise GameOverError
+- Move out of bounds — throw new IndexOutOfBoundsException
+- Cell already occupied — throw new IllegalArgumentException
+- Move by wrong player — throw new IllegalArgumentException
+- Move after game ended — throw new GameOverError
 
 ```java
 public GameState makeMove(Player player, int row, int col) {
@@ -202,10 +202,10 @@ public GameState makeMove(Player player, int row, int col) {
 
 **Core logic (place):**
 1. Set `grid[row][col] = mark`
-2. Increment `row_counts[mark][row]` and `col_counts[mark][col]`
-3. If on main diagonal (row == col), increment `diag_count[mark]`
-4. If on anti-diagonal (row + col == size - 1), increment `anti_diag_count[mark]`
-5. Increment `move_count`
+2. Increment `rowCounts[mark][row]` and `colCounts[mark][col]`
+3. If on main diagonal (row == col), increment `diagCount[mark]`
+4. If on anti-diagonal (row + col == size - 1), increment `antiDiagCount[mark]`
+5. Increment `moveCount`
 
 **Win check:**
 - A win occurs if any counter reaches `size`
@@ -253,13 +253,13 @@ public class WinChecker {
 
 **Scenario**: 3x3 board, X wins on top row.
 
-Initial state: all counters = 0, move_count = 0
+Initial state: all counters = 0, moveCount = 0
 
-1. X plays (0,0): `row_counts[X][0]=1`, `col_counts[X][0]=1`, `diag_count[X]=1`. No win (need 3). O's turn.
-2. O plays (1,0): `row_counts[O][1]=1`, `col_counts[O][0]=1`. No win. X's turn.
-3. X plays (0,1): `row_counts[X][0]=2`, `col_counts[X][1]=1`. No win. O's turn.
-4. O plays (2,2): `row_counts[O][2]=1`, `col_counts[O][2]=1`, `diag_count[O]=1`. No win. X's turn.
-5. X plays (0,2): `row_counts[X][0]=3` → **equals size(3)** → `is_winner` returns True
+1. X plays (0,0): `rowCounts[X][0]=1`, `colCounts[X][0]=1`, `diagCount[X]=1`. No win (need 3). O's turn.
+2. O plays (1,0): `rowCounts[O][1]=1`, `colCounts[O][0]=1`. No win. X's turn.
+3. X plays (0,1): `rowCounts[X][0]=2`, `colCounts[X][1]=1`. No win. O's turn.
+4. O plays (2,2): `rowCounts[O][2]=1`, `colCounts[O][2]=1`, `diagCount[O]=1`. No win. X's turn.
+5. X plays (0,2): `rowCounts[X][0]=3` → **equals size(3)** → `isWinner` returns True
 6. `state = X_WINS`. Game over.
 
 Total win check cost: O(1) — just compare counter to N.
@@ -273,7 +273,7 @@ Total win check cost: O(1) — just compare counter to N.
 Naive win detection scans the row, column, and both diagonals of the last move — O(N) per move, O(N²) total. With counters:
 
 - Each `place()` updates at most 4 counters (row, col, diag, anti-diag) in O(1)
-- `is_winner()` checks at most 4 counter values in O(1)
+- `isWinner()` checks at most 4 counter values in O(1)
 
 The key insight: we only need to know if the *last move's* row/col/diagonal is complete. We don't need to know the whole board state. Counters track the running total per line, per mark.
 
@@ -411,7 +411,7 @@ public class Board {
 }
 ```
 
-In Game, `undo_move()` pops the move stack, reverts the board, and switches `current_player_idx` back. Counters unwind cleanly since they were incremented atomically.
+In Game, `undoMove()` pops the move stack, reverts the board, and switches `currentPlayerIdx` back. Counters unwind cleanly since they were incremented atomically.
 
 ---
 
@@ -419,9 +419,11 @@ In Game, `undo_move()` pops the move stack, reverts the board, and switches `cur
 
 **Junior**: Draw a 3x3 board and trace through a winning game. Define the GameState enum. Explain why you need to check rows, columns, and two diagonals.
 
-**Mid-level**: Implement `make_move` with all validations. Explain and implement the counter-based O(1) win detection. Correctly handle the anti-diagonal condition (`row + col == size - 1`).
+**Mid-level**: Implement `makeMove` with all validations. Explain and implement the counter-based O(1) win detection. Correctly handle the anti-diagonal condition (`row + col == size - 1`).
 
 **Senior**: Generalize to connect-K. Add undo with correct counter reversal. Sketch minimax with alpha-beta pruning. Discuss how NxN with large N changes the win check strategy.
+
+**Staff (SDE-3)**: Turn this into a service backing 100k concurrent online matches with reconnect support. Where does game state live, how do you handle a player disconnecting mid-turn, and what's your idempotency story when a client retries a move it already sent? Defend keeping the move-validation logic in one place shared by client and server versus duplicating it for latency.
 
 ---
 
@@ -429,9 +431,9 @@ In Game, `undo_move()` pops the move stack, reverts the board, and switches `cur
 
 - Q: How do you detect a win in O(1) instead of O(N²)? A: Maintain four counters per mark per player (row count, col count, diagonal count, anti-diagonal count). After each move, increment the relevant counters and check if any equals N — no board scan needed.
 - Q: What is the anti-diagonal condition? A: A cell (row, col) is on the anti-diagonal if `row + col == size - 1`. For a 3x3 board: (0,2), (1,1), (2,0).
-- Q: What happens on an NxN board — does the algorithm still work? A: Yes. The counter approach scales to any N. Initialize `row_counts` and `col_counts` as lists of size N. The win threshold is always N. O(1) per move, O(N²) space for the grid.
-- Q: How do you distinguish a draw from a game still in progress? A: Track `move_count`. When `move_count == N*N` and no winner has been detected, state is DRAW. Check win first — a move that fills the last cell and wins is X_WINS or O_WINS, not DRAW.
-- Q: How would you add undo? A: Push each move to a stack. On undo, pop and reverse: set grid cell to None, decrement the four counters, decrement move_count, switch turns back.
+- Q: What happens on an NxN board — does the algorithm still work? A: Yes. The counter approach scales to any N. Initialize `rowCounts` and `colCounts` as lists of size N. The win threshold is always N. O(1) per move, O(N²) space for the grid.
+- Q: How do you distinguish a draw from a game still in progress? A: Track `moveCount`. When `moveCount == N*N` and no winner has been detected, state is DRAW. Check win first — a move that fills the last cell and wins is X_WINS or O_WINS, not DRAW.
+- Q: How would you add undo? A: Push each move to a stack. On undo, pop and reverse: set grid cell to None, decrement the four counters, decrement moveCount, switch turns back.
 - Q: What's wrong with storing who won as a boolean? A: Three outcomes exist: X wins, O wins, draw. A boolean can't represent all three. Use a GameState enum with at least 4 values: IN_PROGRESS, X_WINS, O_WINS, DRAW.
 
 ---

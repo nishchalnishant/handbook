@@ -8,6 +8,6 @@ For rate limiting material, see:
 |---|---|
 | Full HLD problem walkthrough | [05-hld-problems/01-easy/rate-limiter.md](../../../05-hld-problems/01-easy/rate-limiter.md) |
 | The 5 algorithms (token bucket, leaky bucket, fixed window, sliding window log, GCRA) | [02-building-blocks/02-performance/02-rate-limiting.md](../../../02-building-blocks/02-performance/02-rate-limiting.md) |
-| LLD implementation | [06-lld/05-problems/](../../../06-lld/05-problems/) |
+| LLD implementation | [06-lld/06-problems/](../../../06-lld/06-problems/) |
 
 See also: [INDEX.md](../INDEX.md#not-yet-covered).

@@ -76,8 +76,8 @@ Design a two-player chess game with all piece types, legal move validation (incl
 |--------|---------------|
 | `Game` | Orchestrates turns, validates moves, detects checkmate/stalemate |
 | `Board` | 8×8 grid; get/set pieces; does not know rules |
-| `Piece` (abstract) | Holds color and position; declares `get_valid_moves(board)` |
-| `King/Queen/Rook/Bishop/Knight/Pawn` | Each overrides `get_valid_moves` with piece-specific logic |
+| `Piece` (abstract) | Holds color and position; declares `getValidMoves(board)` |
+| `King/Queen/Rook/Bishop/Knight/Pawn` | Each overrides `getValidMoves` with piece-specific logic |
 | `Player` | Name and color — pure data |
 | `Position` | Immutable (row, col) coordinate with bounds check |
 | `Color` | Enum: WHITE, BLACK |
@@ -93,7 +93,7 @@ Design a two-player chess game with all piece types, legal move validation (incl
 
 | Requirement | What Piece must track |
 |-------------|----------------------|
-| "Each piece enforces its own moves" | color, position; abstract `get_valid_moves` |
+| "Each piece enforces its own moves" | color, position; abstract `getValidMoves` |
 | "Move leaves king in check" | color (to know which king to protect) |
 
 ```
@@ -148,19 +148,19 @@ class Game:
 
 ## Implementation
 
-### Core Method: `make_move`
+### Core Method: `makeMove`
 
 **Core logic:**
 1. Validate it's the right player's turn
-2. Get piece at from_pos; confirm it belongs to current player
+2. Get piece at fromPos; confirm it belongs to current player
 3. Get valid moves for that piece
-4. Confirm to_pos is in valid moves
+4. Confirm toPos is in valid moves
 5. Simulate the move on a cloned board; check if own king is in check → reject if so
 6. Apply move to real board
 7. Switch turns; check checkmate/stalemate for opponent
 
 **Edge cases:**
-- No piece at from_pos
+- No piece at fromPos
 - Piece belongs to opponent
 - Move puts own king in check (illegal even if piece can physically go there)
 - Moving into checkmate end state
@@ -204,7 +204,7 @@ public boolean makeMove(Position fromPos, Position toPos) {
 }
 ```
 
-### Core Method: `is_in_check`
+### Core Method: `isInCheck`
 
 ```java
 public boolean isInCheck(Color color) {
@@ -220,7 +220,7 @@ public boolean isInCheck(Color color) {
 }
 ```
 
-### Core Method: `is_checkmate`
+### Core Method: `isCheckmate`
 
 ```java
 public boolean isCheckmate(Color color) {
@@ -251,7 +251,7 @@ private boolean hasNoLegalMoves(Color color) {
 }
 ```
 
-### Piece: `Knight.get_valid_moves`
+### Piece: `Knight.getValidMoves`
 
 ```java
 @Override
@@ -330,9 +330,9 @@ Turn: White makes move Queen (6,4) → (1,4)
 
 ### 1. "How does check detection avoid infinite recursion?"
 
-`is_in_check` calls `piece.get_attack_squares(board)` — a separate method from `get_valid_moves`. `get_valid_moves` filters moves that leave the king in check (calls `is_in_check`). If `get_attack_squares` also called `get_valid_moves`, you'd have infinite recursion.
+`isInCheck` calls `piece.getAttackSquares(board)` — a separate method from `getValidMoves`. `getValidMoves` filters moves that leave the king in check (calls `isInCheck`). If `getAttackSquares` also called `getValidMoves`, you'd have infinite recursion.
 
-The fix: `get_attack_squares` returns the squares a piece *threatens* (pure geometry + captures), with no legality filter. `get_valid_moves` calls `get_attack_squares` and then filters out moves that leave own king in check.
+The fix: `getAttackSquares` returns the squares a piece *threatens* (pure geometry + captures), with no legality filter. `getValidMoves` calls `getAttackSquares` and then filters out moves that leave own king in check.
 
 ```java
 // Pawn attacks diagonally but moves forward — different squares
@@ -413,7 +413,7 @@ private boolean pathClearAndSafe(Board board, int[][] offsets) {
 }
 ```
 
-Add `has_moved: bool` flag to `Piece`. Set it in `Board.move_piece`.
+Add `hasMoved: bool` flag to `Piece`. Set it in `Board.movePiece`.
 
 ### 3. "How would you add an AI opponent?"
 
@@ -479,25 +479,27 @@ public class Game {
 
 **Junior**: Identify the need for a `Piece` hierarchy and a `Board`. Implement move generation for at least 2-3 piece types correctly. Handle turn switching. Win detection is acceptable even if check validation is incomplete.
 
-**Mid-level**: Clean separation — `Board` owns grid state, `Game` orchestrates, `Piece` owns move generation. `make_move` must validate legality including check. Discuss the infinite-recursion problem in check detection. Handle checkmate and stalemate.
+**Mid-level**: Clean separation — `Board` owns grid state, `Game` orchestrates, `Piece` owns move generation. `makeMove` must validate legality including check. Discuss the infinite-recursion problem in check detection. Handle checkmate and stalemate.
 
-**Senior**: Produce check detection via simulation (clone board + test) without recursion bugs. `get_attack_squares` vs `get_valid_moves` distinction is explicit. Proactively discuss castling/en passant extension points. Minimax AI walkthrough. Board cloning efficiency (sparse dict is O(pieces), not O(64)).
+**Senior**: Produce check detection via simulation (clone board + test) without recursion bugs. `getAttackSquares` vs `getValidMoves` distinction is explicit. Proactively discuss castling/en passant extension points. Minimax AI walkthrough. Board cloning efficiency (sparse dict is O(pieces), not O(64)).
+
+**Staff (SDE-3)**: Serve 1M concurrent games with server-authoritative validation and a 100ms move budget. Board cloning per check-detection is now your CPU bottleneck — what replaces it? Design the anti-cheat signal pipeline as a separate concern from the game engine, and explain the interface between them so the engine never blocks on it.
 
 ---
 
 ## Common Interview Questions
 
 - **Q**: Why use an abstract `Piece` class instead of a single class with a `type` field?
-  **A**: Open/Closed Principle — adding a new piece type (e.g., Fairy chess pieces) requires only a new subclass, not touching existing code. With a type field, `get_valid_moves` becomes a giant switch statement that grows with every new type.
+  **A**: Open/Closed Principle — adding a new piece type (e.g., Fairy chess pieces) requires only a new subclass, not touching existing code. With a type field, `getValidMoves` becomes a giant switch statement that grows with every new type.
 
 - **Q**: How do you detect if a move puts the own king in check?
-  **A**: Clone the board, apply the move to the clone, then call `is_in_check(own_color)` on the clone. Never modify real board state during validation.
+  **A**: Clone the board, apply the move to the clone, then call `isInCheck(ownColor)` on the clone. Never modify real board state during validation.
 
-- **Q**: Why does `get_attack_squares` differ from `get_valid_moves`?
-  **A**: To avoid infinite recursion. `get_valid_moves` filters moves that expose the king (calls `is_in_check`). `is_in_check` asks opponents what squares they attack. If attack-squares called `get_valid_moves` → infinite loop.
+- **Q**: Why does `getAttackSquares` differ from `getValidMoves`?
+  **A**: To avoid infinite recursion. `getValidMoves` filters moves that expose the king (calls `isInCheck`). `isInCheck` asks opponents what squares they attack. If attack-squares called `getValidMoves` → infinite loop.
 
 - **Q**: dict vs 2D array for the board — which is better?
-  **A**: dict (`Position → Piece`) is better for this problem: only 32 pieces max, so it's more memory-efficient, cloning is O(pieces) not O(64), and `get_piece(pos)` returning `None` cleanly represents empty squares.
+  **A**: dict (`Position → Piece`) is better for this problem: only 32 pieces max, so it's more memory-efficient, cloning is O(pieces) not O(64), and `getPiece(pos)` returning `None` cleanly represents empty squares.
 
 - **Q**: How does checkmate differ from stalemate?
   **A**: Checkmate = in check AND no legal moves. Stalemate = NOT in check AND no legal moves. Both end the game, but checkmate is a loss, stalemate is a draw.

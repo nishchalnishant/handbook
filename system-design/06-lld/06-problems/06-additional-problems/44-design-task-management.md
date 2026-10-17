@@ -51,7 +51,7 @@ Design a task management system like Jira/Trello/Asana: users create boards, boa
 **Interviewer**: "Yes to both. Every status change, assignment change, and comment should be recorded with who and when."
 
 **You**: "Does the interviewer want notifications (e.g., email/push when assigned)?"  
-**Interviewer**: "Assume a `NotificationService` exists — just show how a task change triggers it, not the delivery mechanism itself."
+**Interviewer**: "Assume a `NotificationService` exists — just show how a task change triggers it, not the delivery mechanism itthis."
 
 **You**: "Is concurrent editing a concern — two people moving or editing the same task at once?"  
 **Interviewer**: "Yes, assume concurrent access. Show how you'd prevent a lost update."
@@ -109,10 +109,10 @@ enum Priority:
 
 | Requirement | What Task must track |
 |-------------|----------------------|
-| Identity & content | task_id, title, description |
+| Identity & content | taskId, title, description |
 | Workflow position | status: TaskStatus |
-| Ownership | assignee: User \| None, created_by: User |
-| Scheduling | due_date, priority |
+| Ownership | assignee: User \| None, createdBy: User |
+| Scheduling | dueDate, priority |
 | Optimistic concurrency | version: int |
 | Change notification | observers: list[TaskObserver] |
 
@@ -221,7 +221,7 @@ class WorkflowValidator:
 **Core logic:**
 1. Validate title is non-blank
 2. Build Task with status = TODO, version = 0, empty observers replaced with the board's registered observers
-3. Add task_id to the TODO column's task list
+3. Add taskId to the TODO column's task list
 4. Fire a TASK_CREATED-equivalent event is optional; we log via ActivityLogger on first mutating event
 
 **Edge cases:**
@@ -263,7 +263,7 @@ public Task createTask(String title, String description, User createdBy,
 2. Validate `(fromStatus -> toStatus)` against `WorkflowValidator`
 3. Verify task's current status actually equals `fromStatus` (guards against stale UI state)
 4. Optimistic lock: caller supplies `expectedVersion`; reject if it doesn't match `task.version`
-5. Remove task_id from source column, add to destination column, bump `status` and `version`
+5. Remove taskId from source column, add to destination column, bump `status` and `version`
 6. Fire a STATUS_CHANGED event to observers (ActivityLogger records it, NotificationService notifies assignee)
 
 **Edge cases:**
@@ -569,7 +569,7 @@ public class ActivityFeedService {
 }
 ```
 
-The composite `(timestamp, event_id)` cursor avoids duplicate/skipped rows when multiple events share a millisecond. `ActivityLogger` (the Observer) writes to this same append-only store instead of an in-memory map, decoupling write path (Observer callback) from read path (paginated feed query).
+The composite `(timestamp, eventId)` cursor avoids duplicate/skipped rows when multiple events share a millisecond. `ActivityLogger` (the Observer) writes to this same append-only store instead of an in-memory map, decoupling write path (Observer callback) from read path (paginated feed query).
 
 ---
 
@@ -580,6 +580,8 @@ The composite `(timestamp, event_id)` cursor avoids duplicate/skipped rows when 
 **Mid-level**: Implement `moveTask` with transition validation. Explain why Observer decouples activity logging and notifications from `Task` mutation logic. Implement the `WorkflowValidator` state machine and justify the allowed-transitions design.
 
 **Senior**: Identify the lost-update race when two users move/edit the same task concurrently and justify optimistic locking with a version field over pessimistic locking. Design the Command-based undo/redo stack and explain why undo re-reads the current version instead of caching it. Extend the fixed workflow to per-board configurable states without breaking `moveTask`'s API. Discuss cursor pagination for the activity feed vs. offset pagination at scale.
+
+**Staff (SDE-3)**: This is now a platform with 10k orgs, custom fields, custom workflows, and per-org permissions. Design the multi-tenancy model and defend your isolation choice (shared schema vs. schema-per-tenant vs. database-per-tenant) on cost, blast radius, and noisy-neighbor grounds. Then design the custom-field storage that stays queryable, and explain the migration when one tenant outgrows the shared cluster.
 
 ---
 

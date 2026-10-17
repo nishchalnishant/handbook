@@ -6,7 +6,7 @@
 > **Key concepts:**
 > - Core Entities: `Warehouse`, `Product`, `InventoryItem`, `StockAlert`.
 > - Concurrency (The core challenge): Two users buying the last item. 
->   - Use a `ConcurrentHashMap` for `product_id -> quantity`.
+>   - Use a `ConcurrentHashMap` for `productId -> quantity`.
 >   - Use `synchronized` methods or `AtomicInteger.compareAndSet` for decrementing stock.
 > - Reservation Strategy: When a user adds to cart, "reserve" the item (decrement available, increment reserved). If checkout fails/times out, revert it.
 > - Observer Pattern: When stock drops below a threshold, trigger a `LowStockEvent` to notify suppliers.
@@ -76,7 +76,7 @@ Design an inventory management system that tracks stock levels for products acro
 | `Inventory` | Tracks available + reserved quantity per product per warehouse |
 | `Product` | Product ID, low-stock threshold |
 | `Warehouse` | Warehouse ID, location |
-| `Reservation` | Soft hold: product, quantity, expiry, order_id |
+| `Reservation` | Soft hold: product, quantity, expiry, orderId |
 | `StockMovement` | Audit log: product, warehouse, delta, reason, timestamp |
 | `InventoryService` | Orchestrates reserve, deduct, restock, expiry |
 | `StockAlertObserver` | Notified when stock falls below threshold |
@@ -89,7 +89,7 @@ Design an inventory management system that tracks stock levels for products acro
 
 | Requirement | What Inventory must track |
 |-------------|--------------------------|
-| "Available vs reserved" | available_qty, reserved_qty |
+| "Available vs reserved" | availableQty, reservedQty |
 | "Concurrent update safety" | version (optimistic lock) |
 
 ```
@@ -143,16 +143,16 @@ class InventoryService:
 
 **Core logic:**
 1. Fetch inventory with optimistic lock (version)
-2. Check available_qty >= requested qty
-3. Decrement available_qty, increment reserved_qty
-4. CAS update (WHERE version = current_version)
+2. Check availableQty >= requested qty
+3. Decrement availableQty, increment reservedQty
+4. CAS update (WHERE version = currentVersion)
 5. Create Reservation record
 6. Check low-stock threshold → notify observers
 
 **Edge cases:**
-- Insufficient stock → raise InsufficientStockError
+- Insufficient stock → throw new InsufficientStockError
 - CAS failure (concurrent modification) → retry up to 3 times
-- TTL = 0 or negative → raise ValueError
+- TTL = 0 or negative → throw new IllegalArgumentException
 
 ```java
 public Reservation reserve(String productId, String warehouseId, String orderId,
@@ -320,7 +320,7 @@ confirm_reservation(R1):
   R1.status = CONFIRMED
 
 Concurrent attempt: reserve("P1", "W1", "ORD-2", qty=3):
-  available=2 < 3 → raise InsufficientStockError
+  available=2 < 3 → throw new InsufficientStockException
 ```
 
 ---
@@ -383,7 +383,7 @@ Use event sourcing: every stock change publishes a `StockChangedEvent`. A read m
 
 ### 4. "How would you add auto-reorder?"
 
-Add `reorder_point: int` and `reorder_quantity: int` to Product. When `_check_low_stock` fires and stock falls below `reorder_point`, publish a `ReorderRequiredEvent`. A `ProcurementService` consumes it and creates a purchase order.
+Add `reorderPoint: int` and `reorderQuantity: int` to Product. When `checkLowStock` fires and stock falls below `reorderPoint`, publish a `ReorderRequiredEvent`. A `ProcurementService` consumes it and creates a purchase order.
 
 ---
 
@@ -394,6 +394,8 @@ Add `reorder_point: int` and `reorder_quantity: int` to Product. When `_check_lo
 **Mid-level**: Optimistic locking via CAS to prevent race conditions. Reservation TTL + expiry job. Observer for low-stock alerts. Stock movement audit log.
 
 **Senior**: Multi-warehouse fulfillment with saga-style rollback. Event sourcing for real-time dashboard. Auto-reorder via event-driven procurement. Performance optimization (SKIP LOCKED for expiry job).
+
+**Staff (SDE-3)**: Inventory is now the shared source of truth for 5 sales channels that each want to reserve stock. Design the allocation policy across channels when stock is scarce, and defend your choice between strict FIFO reservation and per-channel quotas. Then design the reconciliation against physical warehouse counts, and explain what you do when the system and the shelf disagree.
 
 ---
 
@@ -406,13 +408,13 @@ Add `reorder_point: int` and `reorder_quantity: int` to Product. When `_check_lo
   **A**: Reserve = soft hold. Available qty decreases, reserved qty increases. The stock is committed but not gone — if the order cancels, it's released back. Deduct = permanent. Reserved qty decreases (the stock is gone).
 
 - **Q**: How do you prevent overselling?
-  **A**: CAS update: `UPDATE ... WHERE version = expected AND available_qty >= qty`. If rows affected == 0, retry or fail. Only one concurrent reservation can succeed for the last unit.
+  **A**: CAS update: `UPDATE ... WHERE version = expected AND availableQty >= qty`. If rows affected == 0, retry or fail. Only one concurrent reservation can succeed for the last unit.
 
 - **Q**: What does the stock movement log contain?
-  **A**: product_id, warehouse_id, quantity delta (positive = added, negative = removed), reason (reserved/confirmed/released/restocked), order_id (if applicable), timestamp. Supports audit trails and debugging.
+  **A**: productId, warehouseId, quantity delta (positive = added, negative = removed), reason (reserved/confirmed/released/restocked), orderId (if applicable), timestamp. Supports audit trails and debugging.
 
 - **Q**: How would you scale this to millions of SKUs?
-  **A**: Shard inventory table by product_id. Cache frequently queried stock levels in Redis with write-through. Use async event processing for low-stock notifications (Kafka consumer). Batch expiry jobs with pagination.
+  **A**: Shard inventory table by productId. Cache frequently queried stock levels in Redis with write-through. Use async event processing for low-stock notifications (Kafka consumer). Batch expiry jobs with pagination.
 
 ---
 

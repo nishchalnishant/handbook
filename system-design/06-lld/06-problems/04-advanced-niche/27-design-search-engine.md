@@ -35,7 +35,7 @@ Design a simple search engine that indexes text documents, processes queries, an
 ## Clarifying Questions
 
 **You**: "What's the primary data structure — inverted index?"
-**Interviewer**: "Yes, inverted index mapping term → list of (document_id, positions)."
+**Interviewer**: "Yes, inverted index mapping term → list of (documentId, positions)."
 
 **You**: "What ranking algorithm — BM25, TF-IDF, or simple term frequency?"
 **Interviewer**: "TF-IDF is fine for this exercise."
@@ -71,13 +71,13 @@ Design a simple search engine that indexes text documents, processes queries, an
 
 | Entity | Responsibility |
 |--------|---------------|
-| `Document` | doc_id, title, content, word_count |
-| `InvertedIndex` | term → PostingsList (doc_id, positions, tf) |
-| `Posting` | doc_id, term_frequency, positions in document |
+| `Document` | docId, title, content, wordCount |
+| `InvertedIndex` | term → PostingsList (docId, positions, tf) |
+| `Posting` | docId, termFrequency, positions in document |
 | `SearchEngine` | Orchestrates index, search, ranking |
 | `Tokenizer` | Splits and normalizes text into terms |
 | `TFIDFRanker` | Scores documents per query term using TF-IDF |
-| `SearchResult` | doc_id, title, score, snippet |
+| `SearchResult` | docId, title, score, snippet |
 
 `SearchEngine` owns the `InvertedIndex`. On query, it fetches postings for each term, computes TF-IDF per (term, doc) pair, aggregates score per doc, returns sorted results.
 
@@ -136,12 +136,12 @@ class SearchEngine:
 
 ## Implementation
 
-### Core Method: `index_document`
+### Core Method: `indexDocument`
 
 **Core logic:**
 1. Tokenize document content
 2. For each token, track position and count (term frequency)
-3. Update inverted index: add/update posting for this doc_id
+3. Update inverted index: add/update posting for this docId
 4. Store document in doc registry
 
 **Edge cases:**
@@ -208,7 +208,7 @@ public class Tokenizer {
 5. Return top-K sorted by score
 
 **TF-IDF formula:**
-- `TF(t, d)` = term_frequency / doc_word_count  (normalized)
+- `TF(t, d)` = termFrequency / docWordCount  (normalized)
 - `IDF(t)` = log((N + 1) / (df + 1)) + 1  (smoothed)
 - `score(d, q)` = sum of TF × IDF for each query term in d
 
@@ -439,21 +439,23 @@ private String generateSnippet(Document doc, List<String> queryTerms, int window
 
 ### 4. "How would you handle document updates efficiently?"
 
-Current approach: remove all old postings for doc_id, then re-index (O(terms in index)). For large indices, use tombstone markers — mark old postings as deleted, compact periodically (like Lucene segment merges). This allows O(1) "delete" and deferred cleanup.
+Current approach: remove all old postings for docId, then re-index (O(terms in index)). For large indices, use tombstone markers — mark old postings as deleted, compact periodically (like Lucene segment merges). This allows O(1) "delete" and deferred cleanup.
 
 ### 5. "How would you scale to millions of documents?"
 
-Shard the inverted index by term across multiple nodes (hash(term) % num_shards). Each query fans out to all shards in parallel, results are merged and re-ranked. Use compressed postings lists (delta-encoded doc IDs) to reduce memory. Cache hot query results in Redis.
+Shard the inverted index by term across multiple nodes (hash(term) % numShards). Each query fans out to all shards in parallel, results are merged and re-ranked. Use compressed postings lists (delta-encoded doc IDs) to reduce memory. Cache hot query results in Redis.
 
 ---
 
 ## Interviewer Questions by Level
 
-**Junior**: Build inverted index from list of documents. Return list of doc_ids containing a given word.
+**Junior**: Build inverted index from list of documents. Return list of docIds containing a given word.
 
 **Mid-level**: TF-IDF scoring. Multi-term query aggregation. Basic tokenization (lowercase, punctuation removal, stop words). Document update/delete.
 
 **Senior**: Stemming as pluggable Strategy. Boolean AND via postings intersection (shortest-first). Snippet generation. Tombstone-based incremental updates. Distributed sharding by term.
+
+**Staff (SDE-3)**: Relevance is now the product. Design the offline evaluation harness (judgment sets, NDCG) and the online experimentation loop to change ranking safely. Then handle the index-freshness trade-off: a document updated 2 seconds ago must be searchable, but full reindexing takes 4 hours. Design the tiered index and defend the added query-time complexity.
 
 ---
 

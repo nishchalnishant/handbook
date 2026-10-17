@@ -87,7 +87,7 @@ Design an ATM system where a user can insert a card, authenticate with a PIN, ch
 | CashDispenser | Tracks denomination inventory; executes dispense |
 | Bank | Validates PINs, debits/credits accounts |
 
-ATM delegates each user action to its current `ATMState`. The state handles the action and transitions the ATM to the next state. This avoids a tangle of if/else branching in ATM itself.
+ATM delegates each user action to its current `ATMState`. The state handles the action and transitions the ATM to the next state. This avoids a tangle of if/else branching in ATM itthis.
 
 ---
 
@@ -110,9 +110,9 @@ class ATMState (abstract):
 | Requirement | What ATM must track |
 |-------------|---------------------|
 | Current state | state: ATMState |
-| Hardware | cash_dispenser: CashDispenser |
+| Hardware | cashDispenser: CashDispenser |
 | Bank connection | bank: Bank |
-| Session | current_card: Optional[Card], pin_attempts: int |
+| Session | currentCard: Optional[Card], pinAttempts: int |
 
 ```
 class ATM:
@@ -546,15 +546,15 @@ class ATM {
 
 Trace: User inserts card, enters wrong PIN once, then correct PIN, withdraws $150.
 
-1. `atm.insert_card(card)` → IdleState.insert_card → state = AuthenticatingState
-2. `atm.enter_pin("9999")` → wrong, pin_attempts=1, 2 remaining
-3. `atm.enter_pin("1234")` → correct → state = SelectingState
+1. `atm.insertCard(card)` → IdleState.insertCard → state = AuthenticatingState
+2. `atm.enterPin("9999")` → wrong, pinAttempts=1, 2 remaining
+3. `atm.enterPin("1234")` → correct → state = SelectingState
 4. `atm.withdraw(150)` → SelectingState delegates to DispensingState
-5. DispensingState: `can_dispense(150)` → greedy: 1×$100 + 1×$50 = $150 ✓
-6. `bank.debit(account_id, 150)` → balance decreases by 150
-7. `cash_dispenser.dispense(150)` → {100: 1, 50: 1}, inventory updated
+5. DispensingState: `canDispense(150)` → greedy: 1×$100 + 1×$50 = $150 ✓
+6. `bank.debit(accountId, 150)` → balance decreases by 150
+7. `cashDispenser.dispense(150)` → {100: 1, 50: 1}, inventory updated
 8. State returns to SelectingState
-9. `atm.eject_card()` → card cleared, state = IdleState
+9. `atm.ejectCard()` → card cleared, state = IdleState
 
 ---
 
@@ -608,7 +608,7 @@ Greedy works here because US denominations are canonical — each is a multiple 
 
 ### 3. "Two ATMs serving the same account simultaneously — what breaks?"
 
-Both ATMs call `bank.debit(account_id, 500)` after checking balance. If balance is $600, both checks pass, both debits execute, balance goes to -$400. Classic TOCTOU (time-of-check-time-of-use) race.
+Both ATMs call `bank.debit(accountId, 500)` after checking balance. If balance is $600, both checks pass, both debits execute, balance goes to -$400. Classic TOCTOU (time-of-check-time-of-use) race.
 
 Fix: Database-level pessimistic lock or optimistic locking with version numbers.
 
@@ -646,7 +646,7 @@ On startup or reconnect, replay pending logs: if status is DEBITED but not COMPL
 
 ### 5. "How do you implement daily withdrawal limits?"
 
-Add `daily_limit: float` and `withdrawn_today: float` + `last_reset: date` to `Account`.
+Add `dailyLimit: float` and `withdrawnToday: float` + `lastReset: date` to `Account`.
 
 ```java
 public boolean debit(String accountId, double amount) {
@@ -674,25 +674,27 @@ public boolean debit(String accountId, double amount) {
 
 **Junior**: Draw the state diagram for the ATM. What states exist and what events cause transitions?
 
-**Mid-level**: The State pattern has one class per state. How do the states share common behavior — for example, all states except Idle should reject `insert_card`. How do you avoid copy-pasting the error check?
+**Mid-level**: The State pattern has one class per state. How do the states share common behavior — for example, all states except Idle should reject `insertCard`. How do you avoid copy-pasting the error check?
 
 **Senior**: Describe how you would make the ATM software fault-tolerant across a network partition between the ATM and the bank. What guarantees can you still provide?
+
+**Staff (SDE-3)**: Regulatory audit requires that every dispense be provably reconciled within 24h. Design the ledger and the reconciliation job across 20k ATMs. Then handle the hard case: the ATM dispensed cash, the network died before the debit was confirmed, and the customer disputes. What's your state machine, what's the automated resolution, and what's the manual escalation path?
 
 ---
 
 ## Common Interview Questions
 
 - **Q: What's the state diagram for the ATM?**  
-  A: Idle → (insert_card) → Authenticating → (correct PIN) → Selecting → (choose transaction) → Dispensing → (transaction complete) → Selecting. Any state + eject_card → Idle.
+  A: Idle → (insertCard) → Authenticating → (correct PIN) → Selecting → (choose transaction) → Dispensing → (transaction complete) → Selecting. Any state + ejectCard → Idle.
 
 - **Q: Why does denomination selection use greedy? When would it fail?**  
   A: Greedy works for canonical coin systems (USD). It fails for arbitrary denominations — e.g., coins [1, 3, 4], amount=6: greedy picks 4+1+1 (3 coins), optimal is 3+3 (2 coins). Use DP for non-canonical systems.
 
 - **Q: What if the ATM runs out of cash mid-dispense?**  
-  A: Check `can_dispense` before debiting the account. If the dispenser check passes but hardware fails mid-dispense, the system should credit the account back (rollback) and alert for maintenance.
+  A: Check `canDispense` before debiting the account. If the dispenser check passes but hardware fails mid-dispense, the system should credit the account back (rollback) and alert for maintenance.
 
 - **Q: How do you handle PIN retry lockout without server state?**  
-  A: Track `pin_attempts` in the ATM session (in-memory for the card's session). After 3 failures, retain the card and notify the bank to flag the account. The bank can unlock via customer service.
+  A: Track `pinAttempts` in the ATM session (in-memory for the card's session). After 3 failures, retain the card and notify the bank to flag the account. The bank can unlock via customer service.
 
 - **Q: Why is the Bank class separate from ATM?**  
   A: Single Responsibility — ATM manages hardware interaction and state transitions; Bank manages financial logic and account data. Also enables mocking Bank in tests.

@@ -181,10 +181,10 @@ public class UnlockPatternGrid {
 
 **Core logic:**
 1. If remaining == 0: found a valid pattern of the target length → return 1
-2. For each unvisited dot next_dot:
-   a. Check if going from current → next_dot requires a skip dot
+2. For each unvisited dot nextDot:
+   a. Check if going from current → nextDot requires a skip dot
    b. If skip dot exists and is NOT visited → invalid move, skip
-   c. Otherwise: mark next_dot visited, recurse, unmark (backtrack)
+   c. Otherwise: mark nextDot visited, recurse, unmark (backtrack)
 
 ```java
 import java.util.*;
@@ -241,7 +241,7 @@ public class PatternCounter {
 }
 ```
 
-### Core Method: `PatternValidator.is_valid`
+### Core Method: `PatternValidator.isValid`
 
 ```java
 import java.util.*;
@@ -410,6 +410,8 @@ private String sha256(String input) {
 **Mid-level**: Precompute skip map. DFS backtracking with visited set. Count all valid patterns of a given length. Symmetry optimization (3 starting types instead of 9).
 
 **Senior**: Generalize to n×n grid. Hashing for secure pattern storage. DFS time complexity analysis: O(9! / (9-k)!) patterns = O(9!) worst case. Pruning via skip constraints.
+
+**Staff (SDE-3)**: This is now the auth mechanism for a banking app under regulatory review. Defend the entropy of a 4-9 node pattern against a 6-digit PIN with real numbers. Design the rate-limiting and lockout policy against both online and offline attack, explain your storage (why a slow KDF, which one, what parameters), and describe the smudge-attack mitigation.
 
 ---
 

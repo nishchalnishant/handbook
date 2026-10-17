@@ -61,8 +61,8 @@ Design an expense splitting application where users can add shared expenses, tra
 **In scope:**
 1. Add expense: payer, total amount, split type, participants
 2. Track net balance between every pair of users
-3. `get_balances(user)` — show what user owes others and what others owe user
-4. `simplify_debts(group)` — minimize transactions to settle all balances
+3. `getBalances(user)` — show what user owes others and what others owe user
+4. `simplifyDebts(group)` — minimize transactions to settle all balances
 5. Three split types: equal, exact, percentage
 6. Expense history per user and per group
 
@@ -88,7 +88,7 @@ Design an expense splitting application where users can add shared expenses, tra
 | BalanceSheet | Stores net balances between all user pairs |
 | DebtSimplifier | Minimizes transaction count using min-cash-flow algorithm |
 
-BalanceSheet is the central state. Every `add_expense` call updates net balances. `simplify_debts` reads balances and computes the minimum transactions without modifying the balance sheet.
+BalanceSheet is the central state. Every `addExpense` call updates net balances. `simplifyDebts` reads balances and computes the minimum transactions without modifying the balance sheet.
 
 ---
 
@@ -125,7 +125,7 @@ class Expense {
 
 | Requirement | What Split subclass must provide |
 |-------------|----------------------------------|
-| Compute each participant's share | calculate(participants, total_amount) -> dict[User, float] |
+| Compute each participant's share | calculate(participants, totalAmount) -> dict[User, float] |
 | Validate input | validate(participants, inputs) — raises if invalid |
 
 ```java
@@ -196,7 +196,7 @@ class Transaction {
 
 ## Implementation
 
-### Core Method: add_expense
+### Core Method: addExpense
 
 **Core logic:**
 1. Call `split.validate(participants)` — raise if percentages don't sum to 100, etc.
@@ -289,7 +289,7 @@ public void update(User debtor, User creditor, double amount) {
 **Core logic:**
 1. Compute net balance for each user: `net[user] = sum(amounts others owe them) - sum(amounts they owe others)`
 2. Separate into max-heap of creditors (net > 0) and min-heap of debtors (net < 0)
-3. While both heaps are non-empty: match top debtor with top creditor for `min(|debtor_net|, creditor_net)`. Create one transaction. Adjust remaining balances.
+3. While both heaps are non-empty: match top debtor with top creditor for `min(|debtorNet|, creditorNet)`. Create one transaction. Adjust remaining balances.
 
 **Edge cases:**
 - User with net=0 — skip them entirely
@@ -367,23 +367,23 @@ public List<Transaction> simplify(BalanceSheet balanceSheet, List<User> users) {
 
 **Scenario**: A, B, C share a $30 dinner. A pays. Equal split.
 
-1. `add_expense(payer=A, amount=30, split=EqualSplit, participants=[A,B,C])`
+1. `addExpense(payer=A, amount=30, split=EqualSplit, participants=[A,B,C])`
 2. `EqualSplit.calculate([A,B,C], 30)` → `{A: 10.0, B: 10.0, C: 10.0}`
-3. B is not payer → `balance_sheet.update(debtor=B, creditor=A, amount=10)`
-4. C is not payer → `balance_sheet.update(debtor=C, creditor=A, amount=10)`
+3. B is not payer → `balanceSheet.update(debtor=B, creditor=A, amount=10)`
+4. C is not payer → `balanceSheet.update(debtor=C, creditor=A, amount=10)`
 5. A is payer → skip
 
 **Balance sheet**: B owes A $10, C owes A $10.
 
 **Next expense**: B pays $20 restaurant bill. Equal split between B and C.
 
-6. `add_expense(payer=B, amount=20, split=EqualSplit, participants=[B,C])`
+6. `addExpense(payer=B, amount=20, split=EqualSplit, participants=[B,C])`
 7. Shares: B=$10, C=$10. C owes B $10.
-8. `balance_sheet.update(debtor=C, creditor=B, amount=10)`
+8. `balanceSheet.update(debtor=C, creditor=B, amount=10)`
 
 **Balance sheet now**: B owes A $10, C owes A $10, C owes B $10.
 
-**`simplify_debts([A,B,C])`:**
+**`simplifyDebts([A,B,C])`:**
 - Net: A = +$10+$0 = +$10, B = -$10+$10 = $0, C = -$10-$10 = -$20... wait:
 
 Let me recompute:
@@ -399,7 +399,7 @@ Result: 1 transaction instead of 3. Debt simplified.
 
 ## Deep Dive & Extensibility
 
-### 1. "Explain the simplify_debts algorithm — how does it minimize transactions?"
+### 1. "Explain the simplifyDebts algorithm — how does it minimize transactions?"
 
 The **min-cash-flow** algorithm works in two steps:
 
@@ -437,9 +437,9 @@ class RecurringExpense {
 }
 ```
 
-A background scheduler (cron job or Spring's `@Scheduled` / a `ScheduledExecutorService`) runs daily. For each active `RecurringExpense` where `next_due <= today`, it calls `add_expense` using the template, then advances `next_due` by the frequency period.
+A background scheduler (cron job or Spring's `@Scheduled` / a `ScheduledExecutorService`) runs daily. For each active `RecurringExpense` where `nextDue <= today`, it calls `addExpense` using the template, then advances `nextDue` by the frequency period.
 
-The user sees recurring expenses in their history with a `recurring=True` flag. They can cancel a recurring expense (sets `is_active=False`) or edit the template (affects future occurrences only).
+The user sees recurring expenses in their history with a `recurring=True` flag. They can cancel a recurring expense (sets `isActive=False`) or edit the template (affects future occurrences only).
 
 ### 4. "How would you add multi-currency support?"
 
@@ -454,9 +454,9 @@ class CurrencyConverter {
 }
 ```
 
-BalanceSheet denominates all balances in a base currency (e.g., USD). On `add_expense`, convert each share to USD using the rate at expense creation time. Store the original currency and amount on `Expense` for display purposes.
+BalanceSheet denominates all balances in a base currency (e.g., USD). On `addExpense`, convert each share to USD using the rate at expense creation time. Store the original currency and amount on `Expense` for display purposes.
 
-Challenges: exchange rates change — use the rate at the time of the expense, not at settlement time. Store `fx_rate_at_creation` on each expense for auditability.
+Challenges: exchange rates change — use the rate at the time of the expense, not at settlement time. Store `fxRateAtCreation` on each expense for auditability.
 
 ---
 
@@ -464,21 +464,23 @@ Challenges: exchange rates change — use the rate at the time of the expense, n
 
 **Junior**: Explain what a net balance is and how two expenses between the same people collapse into one balance. Define the three split types and what input each needs.
 
-**Mid-level**: Implement `add_expense` updating balances for non-payer participants. Implement `EqualSplit.calculate` with correct rounding. Explain why you use sorted tuple keys in BalanceSheet to avoid storing A-B and B-A separately.
+**Mid-level**: Implement `addExpense` updating balances for non-payer participants. Implement `EqualSplit.calculate` with correct rounding. Explain why you use sorted tuple keys in BalanceSheet to avoid storing A-B and B-A separately.
 
 **Senior**: Explain and implement the min-cash-flow debt simplification algorithm. Discuss why storing only net balances loses information. Design recurring expenses. Explain what happens to the balance sheet if an expense is deleted.
+
+**Staff (SDE-3)**: Balances are now computed across 50M users, and min-cash-flow is O(n^3)-ish on a group. Where do you cap it, and what do you do for a 200-person group trip? Design the audit trail so a deleted expense from 6 months ago can be reversed without recomputing the world — event sourcing vs. snapshot-plus-delta, and defend the storage cost.
 
 ---
 
 ## Common Interview Questions
 
-- Q: How does simplify_debts work — explain the algorithm? A: Compute net balance per user (total owed to them minus total they owe). Greedily match the largest debtor with the largest creditor, creating one transaction per match. Each match eliminates at least one person from the system, achieving minimum transactions.
+- Q: How does simplifyDebts work — explain the algorithm? A: Compute net balance per user (total owed to them minus total they owe). Greedily match the largest debtor with the largest creditor, creating one transaction per match. Each match eliminates at least one person from the system, achieving minimum transactions.
 - Q: What's the difference between EqualSplit, ExactSplit, and PercentSplit? A: EqualSplit divides the total evenly (with rounding). ExactSplit takes explicit dollar amounts per person that must sum to the total. PercentSplit takes percentages per person that must sum to 100%.
 - Q: Why use a Strategy pattern for split types? A: Different splits need completely different inputs and validation. Strategy isolates this logic — adding a new split type (e.g., ShareSplit) requires one new class, zero changes to Expense or Group.
-- Q: What breaks if you store every transaction rather than net balances? A: `get_balances` becomes O(n) per query, scanning all transactions. With net balances, it's O(1) lookup. But pure net balances lose expense history — store both.
+- Q: What breaks if you store every transaction rather than net balances? A: `getBalances` becomes O(n) per query, scanning all transactions. With net balances, it's O(1) lookup. But pure net balances lose expense history — store both.
 - Q: Is the greedy min-cash-flow algorithm always optimal? A: Yes for minimizing transaction count. It achieves the lower bound of `n-1` transactions for n users with non-zero net balances. The key insight: any user who reaches net=0 can be eliminated in a single transaction.
 - Q: What if two users have exactly offsetting debts? A: Example: A owes B $10 and B owes A $10 → net for both is $0. BalanceSheet.update with the sorted-key approach would show the balance canceling to $0 and the key gets deleted. No transaction needed.
-- Q: How do you handle the payer being in the expense split? A: The payer's share is already covered by their payment. In `add_expense`, skip updating BalanceSheet for the payer — only non-payer participants generate debt entries.
+- Q: How do you handle the payer being in the expense split? A: The payer's share is already covered by their payment. In `addExpense`, skip updating BalanceSheet for the payer — only non-payer participants generate debt entries.
 
 ---
 

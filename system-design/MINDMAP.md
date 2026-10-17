@@ -323,7 +323,7 @@ STUDY SEQUENCE
 │   ├── 06-lld/02-solid-principles/ (all 5)
 │   ├── 06-lld/03-design-patterns/ (creational → structural → behavioral)
 │   ├── 06-lld/04-concurrency/ (all 3 files)
-│   └── 06-lld/05-problems/ (Tier 1 first, then Tier 2, then Tier 3)
+│   └── 06-lld/06-problems/ (Tier 1 first, then Tier 2, then Tier 3)
 │
 ├── PHASE 4 — HLD EASY  [Week 3-4]
 │   ├── Problems 1-5: url-shortener, unique-id, rate-limiter, pastebin, key-value

@@ -193,8 +193,171 @@ flowchart TD
 
 ---
 
+## 11. Message broker / queue
+
+```mermaid
+flowchart TD
+    A[Need async messaging] --> B{Need replay of<br/>past messages?}
+    B -->|Yes, log semantics| K[Kafka / Pulsar<br/>retention by time or size<br/>consumers own their offset]
+    B -->|No, work queue| C{Need per-message<br/>ack, retry, DLQ,<br/>complex routing?}
+    C -->|Yes| R[RabbitMQ<br/>flexible routing, priorities<br/>per-message TTL]
+    C -->|No, just decouple| D{Want to run<br/>zero infrastructure?}
+    D -->|Yes| SQS[SQS / managed queue<br/>near-infinite scale<br/>at-least-once, no ordering*]
+    D -->|No| R
+    K --> E{Need per-message ack<br/>AND replay together?}
+    E -->|Yes| P[Pulsar<br/>both models in one system<br/>higher operational cost]
+```
+
+\* SQS FIFO queues give ordering and exactly-once processing, capped at 300 TPS per message group.
+
+| | Kafka | RabbitMQ | SQS | Pulsar |
+|---|---|---|---|---|
+| Model | Distributed log | Broker/queue | Managed queue | Log + queue |
+| Replay | Yes | No | No | Yes |
+| Ordering | Per partition | Per queue | FIFO queues only | Per partition |
+| Throughput | Very high | Moderate | High | Very high |
+| Ops burden | High | Moderate | None | Highest |
+| Best for | Event streaming, CDC | Task routing | Simple decoupling | Both, at cost |
+
+**Say it:** "I'd use Kafka when consumers need to replay — event sourcing, CDC, or a new consumer that must read history. I'd use RabbitMQ or SQS for work queues where a message is consumed once and discarded. The deciding question isn't throughput, it's whether the message is an *event* others may re-read or a *task* someone performs once."
+
+---
+
+## 12. Search store
+
+```mermaid
+flowchart TD
+    A[Need search] --> B{Semantic /<br/>similarity search?}
+    B -->|Yes| VEC[Vector DB<br/>pgvector, Pinecone, Milvus<br/>embeddings + ANN index]
+    B -->|No, keyword| C{Already in Postgres<br/>and under ~1M docs?}
+    C -->|Yes| PG[Postgres full-text search<br/>tsvector + GIN index<br/>no new system to run]
+    C -->|No| D{Need relevance tuning,<br/>facets, aggregations,<br/>fuzzy matching?}
+    D -->|Yes| ES[Elasticsearch / OpenSearch<br/>inverted index, BM25<br/>separate cluster + sync]
+    D -->|No| PG
+    VEC --> E{Also need keyword<br/>precision?}
+    E -->|Yes| HYB[Hybrid: BM25 + vector,<br/>fuse with RRF]
+```
+
+**Say it:** "I'd start with Postgres full-text search — it's free, transactional, and there's no sync lag. I'd move to Elasticsearch when I need relevance tuning, faceting, or fuzzy matching, and I'd accept the cost that comes with it: a second system, a CDC pipeline, and eventual consistency between the DB and the index. For semantic search I'd add vectors, and in practice hybrid retrieval beats either alone."
+
+---
+
+## 13. Distributed transaction strategy
+
+```mermaid
+flowchart TD
+    A[Write spans multiple<br/>services or databases] --> B{Can you avoid it?<br/>Co-locate the data}
+    B -->|Yes| ONE[Single ACID transaction<br/>always prefer this]
+    B -->|No| C{Do you control all<br/>participants AND need<br/>strict atomicity?}
+    C -->|Yes, short-lived| TPC[2PC / XA<br/>blocks on coordinator failure<br/>rarely worth it]
+    C -->|No| D{Is it: local write +<br/>publish an event?}
+    D -->|Yes| OBX[Transactional outbox<br/>write row + event in one txn,<br/>relay publishes after commit]
+    D -->|No, multi-step<br/>business flow| SAGA[Saga<br/>local txn per step +<br/>compensating action]
+    SAGA --> E{Many steps or<br/>complex branching?}
+    E -->|Yes| ORCH[Orchestrated saga<br/>central state machine<br/>easy to observe]
+    E -->|No| CHOR[Choreographed saga<br/>services react to events<br/>fewer deps, harder to trace]
+```
+
+**Say it:** "First I'd try to make the transaction unnecessary by putting the data that must change together in one place. When I can't, I use the outbox pattern for the common case — write the row and the event in one local transaction so they can't diverge — and a saga for genuine multi-step flows, accepting that intermediate states are visible and every step needs a compensating action. I'd avoid 2PC: it holds locks across the network and blocks if the coordinator dies."
+
+---
+
+## 14. Stream vs batch processing
+
+```mermaid
+flowchart TD
+    A[Processing data] --> B{Does a result that's<br/>hours old still<br/>create value?}
+    B -->|Yes| BAT[Batch<br/>Spark, dbt, scheduled jobs<br/>cheaper, simpler, replayable]
+    B -->|No, need seconds| C{Is it per-event, or<br/>aggregates over windows?}
+    C -->|Per-event| SS[Stream: stateless<br/>Kafka consumer, Flink map<br/>trivial to scale]
+    C -->|Windowed aggregates| ST[Stream: stateful<br/>Flink/Kafka Streams<br/>watermarks + late data policy]
+    ST --> D{Must historical<br/>results match live?}
+    D -->|Yes| KAP[Kappa: one stream engine,<br/>replay the log to backfill]
+    D -->|Separate paths OK| LAM[Lambda: batch for truth,<br/>stream for speed<br/>two codebases to maintain]
+```
+
+**Say it:** "The question I'd ask is what latency the business actually needs — batch is cheaper, easier to test, and trivially replayable, so I'd only pay for streaming when a result that's an hour old is worthless. If I do go streaming, I'd prefer a Kappa-style single pipeline and replay the log for backfills, because Lambda's two codebases inevitably drift and produce two different answers to the same question."
+
+---
+
+## 15. Monolith vs service split (where to draw the boundary)
+
+```mermaid
+flowchart TD
+    A[Considering a split] --> B{Is the pain<br/>technical or<br/>organizational?}
+    B -->|Neither yet| MOD[Modular monolith<br/>enforce module boundaries<br/>one deploy, one database]
+    B -->|Independent scaling<br/>of one component| SCALE[Extract that component only<br/>e.g. image processing]
+    B -->|Teams blocking<br/>each other on deploys| C{Can the candidate own<br/>its data exclusively?}
+    C -->|No, needs joins<br/>with everything| STOP[Do not split<br/>you'd create a distributed<br/>monolith: worst of both]
+    C -->|Yes| D{Is the interface<br/>stable and narrow?}
+    D -->|Yes| SVC[Extract as a service<br/>own database, versioned API]
+    D -->|No, still churning| MOD
+```
+
+**Say it:** "I'd draw service boundaries around data ownership and team ownership, not around nouns. The test is whether the candidate service can own its data outright — if extracting it means chatty synchronous calls back for every join, I've built a distributed monolith and taken on network failure modes without gaining independence. I'd start as a modular monolith with enforced internal boundaries, because that makes the eventual extraction cheap while keeping deploys simple."
+
+---
+
+## 16. Multi-region topology
+
+```mermaid
+flowchart TD
+    A[Going multi-region] --> B{Why? Name the driver}
+    B -->|Read latency<br/>for global users| RR[Read replicas per region<br/>writes still go to primary<br/>simplest, replica lag on reads]
+    B -->|Disaster recovery| C{What RTO/RPO<br/>does the business need?}
+    C -->|Hours / some loss OK| BACKUP[Backup + restore<br/>cheapest]
+    C -->|Minutes| AP[Active-passive<br/>warm standby + failover<br/>test the failover regularly]
+    B -->|Write availability<br/>+ data residency| D{Can you partition users<br/>so each row has<br/>one home region?}
+    D -->|Yes| PIN[Active-active, partitioned<br/>each user pinned to a region<br/>no write conflicts]
+    D -->|No, same row written<br/>in two regions| CONF[Active-active, conflict resolution<br/>CRDTs or last-write-wins<br/>hardest option]
+```
+
+**Say it:** "I'd push hard on *why* before *how* — most 'multi-region' requirements are really read-latency requirements, and read replicas solve those at a fraction of the complexity. True active-active is only tractable when you can partition users so each record has a single home region that owns its writes. If the same row can be written in two regions at once, you've signed up for conflict resolution, and that's a business decision about which write wins, not a technical one."
+
+---
+
+## 17. Time-series storage
+
+```mermaid
+flowchart TD
+    A[Time-stamped data] --> B{Is it metrics for<br/>dashboards/alerts?}
+    B -->|Yes| C{Scale?}
+    C -->|Single cluster| PROM[Prometheus<br/>pull model, PromQL<br/>local disk, short retention]
+    C -->|Long retention,<br/>many clusters| LTS[Thanos / Mimir / VictoriaMetrics<br/>object storage backend]
+    B -->|No, business events<br/>to query later| D{Need SQL joins with<br/>relational data?}
+    D -->|Yes| TS[TimescaleDB<br/>Postgres + hypertables<br/>keeps SQL and transactions]
+    D -->|No, analytics<br/>over huge volume| OLAP[ClickHouse / Druid<br/>columnar, blazing aggregates<br/>append-oriented]
+    A --> E{Retention policy<br/>defined?}
+    E -->|Always| DS[Downsample: raw 7d,<br/>1m rollup 90d, 1h rollup 2y]
+```
+
+**Say it:** "Time-series data is append-heavy, queried by range, and almost never updated — which is why a columnar store with time partitioning beats a row store here. The design decision people forget is retention: I'd downsample aggressively, keeping raw data for days and rollups for years, because storing raw high-cardinality metrics forever is what actually blows the budget."
+
+---
+
+## 18. ID generation
+
+```mermaid
+flowchart TD
+    A[Need unique IDs] --> B{Single database?}
+    B -->|Yes| SEQ[DB sequence / AUTO_INCREMENT<br/>compact, ordered, simple<br/>but a single point of coordination]
+    B -->|No, distributed| C{Must IDs be<br/>time-sortable?}
+    C -->|No| U4[UUIDv4<br/>zero coordination<br/>random: poor index locality]
+    C -->|Yes| D{Need small IDs and<br/>can run a service /<br/>assign worker IDs?}
+    D -->|Yes| SNOW[Snowflake<br/>64-bit: time + worker + seq<br/>needs worker-ID assignment + clock care]
+    D -->|No| U7[UUIDv7<br/>128-bit, time-ordered prefix<br/>no coordination at all]
+    A --> E{Exposed in URLs?}
+    E -->|Yes| HASH[Don't leak volume:<br/>use a random or hashed public ID<br/>sequential IDs enumerate your data]
+```
+
+**Say it:** "My default in a distributed system is UUIDv7 — it needs no coordination and its time-ordered prefix keeps B-tree inserts local, which is exactly what UUIDv4 gets wrong: random IDs scatter writes across the index and destroy cache locality. I'd reach for Snowflake when 64 bits matters for index size at scale, accepting that I now have to assign worker IDs and handle clock skew. And I'd never expose a sequential ID publicly — it tells competitors my order volume and lets anyone enumerate my records."
+
+---
+
 ## Related
 
 - Concept-recall flowcharts for every topic: [../FLOWCHARTS.md](../FLOWCHARTS.md)
 - The numbers behind these tradeoffs: [numbers-to-know.md](numbers-to-know.md)
 - Cloud-service equivalents for each leaf: [cloud-services-cheat-sheet.md](cloud-services-cheat-sheet.md)
+- How to roll out the choice you just made: [../04-advanced-topics/02-system-reliability/04-deployment-safety.md](../04-advanced-topics/02-system-reliability/04-deployment-safety.md)
+- Bounding the damage when the choice is wrong: [../04-advanced-topics/02-system-reliability/05-blast-radius-isolation.md](../04-advanced-topics/02-system-reliability/05-blast-radius-isolation.md)

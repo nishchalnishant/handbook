@@ -44,7 +44,7 @@ Design an elevator control system for a building with multiple elevators, handli
 **Interviewer**: "Implement SCAN (elevator sweeps up then down). Discuss alternatives."
 
 **You**: "Does the system need to be real-time or step-based?"
-**Interviewer**: "Step-based — each call to move_step() advances all elevators by one floor."
+**Interviewer**: "Step-based — each call to moveStep() advances all elevators by one floor."
 
 **You**: "Do we need emergency mode or maintenance?"
 **Interviewer**: "Discuss as a follow-up."
@@ -58,7 +58,7 @@ Design an elevator control system for a building with multiple elevators, handli
 2. External requests: floor + direction (UP/DOWN)
 3. Internal requests: destination floor from inside elevator
 4. SCAN scheduling: elevator serves floors in current direction, then reverses
-5. Step-based simulation: `move_step()` advances each elevator one floor
+5. Step-based simulation: `moveStep()` advances each elevator one floor
 
 **Out of scope:**
 - Real-time async movement
@@ -90,7 +90,7 @@ Design an elevator control system for a building with multiple elevators, handli
 
 | Requirement | What Elevator must track |
 |-------------|-------------------------|
-| "Independent state per elevator" | current_floor, state: ElevatorState |
+| "Independent state per elevator" | currentFloor, state: ElevatorState |
 | "SCAN — serve in direction then reverse" | destinations: sorted list; direction |
 | "Internal button press" | destinations (same set — just a floor number) |
 
@@ -136,7 +136,7 @@ class SCANStrategy(SchedulingStrategy):
 
 ## Implementation
 
-### Core Method: `Elevator.move_step`
+### Core Method: `Elevator.moveStep`
 
 **Core logic:**
 1. If no destinations → stay IDLE
@@ -301,7 +301,7 @@ public void triggerEmergency() {
 }
 ```
 
-In `move_step`, when state is EMERGENCY, always move toward floor 0. External requests are rejected during emergency.
+In `moveStep`, when state is EMERGENCY, always move toward floor 0. External requests are rejected during emergency.
 
 ### 3. "How would you handle maintenance mode?"
 
@@ -373,6 +373,8 @@ public class Elevator {
 **Mid-level**: Multiple elevators. `SchedulingStrategy` abstraction. SCAN logic correct (serves in direction, then reverses). External vs internal requests distinguished.
 
 **Senior**: SCAN vs LOOK trade-off stated. `_score()` formula justified. Starvation discussed with concrete fix. Thread-safety per-elevator lock explained. Emergency mode extension requires only state addition.
+
+**Staff (SDE-3)**: A building manager wants to A/B test scheduling algorithms on live traffic in a 60-floor tower. Design the mechanism that lets you swap `_score()` implementations per-building at runtime, measure wait-time impact, and roll back in under a minute if the new algorithm starves the top floors. What's the metric you'd gate the rollout on, and what's your kill switch?
 
 ---
 

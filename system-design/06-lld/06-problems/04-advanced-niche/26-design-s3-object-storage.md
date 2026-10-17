@@ -75,7 +75,7 @@ Design a simplified S3-like object storage or hierarchical file system supportin
 | `StorageService` | Entry point — routes to bucket/object operations |
 | `Bucket` | Top-level container; owns ACL and object index |
 | `StorageObject` | Key, metadata, data (bytes); owned by a bucket |
-| `ObjectMetadata` | content_type, size, checksum, tags, created_at |
+| `ObjectMetadata` | contentType, size, checksum, tags, createdAt |
 | `ACL` | Access rules: principal → set of Permission |
 | `Permission` | Enum: READ, WRITE, DELETE |
 | `Principal` | User or group |
@@ -152,7 +152,7 @@ class ACL:
 
 ## Implementation
 
-### Core Method: `StorageService.put_object`
+### Core Method: `StorageService.putObject`
 
 **Core logic:**
 1. Validate bucket exists
@@ -165,7 +165,7 @@ class ACL:
 **Edge cases:**
 - Bucket does not exist → BucketNotFoundError
 - Caller lacks WRITE permission → PermissionDeniedError
-- Key is empty → raise ValueError
+- Key is empty → throw new IllegalArgumentException
 - Overwrite existing object (versioning disabled) → silently replaces
 
 ```java
@@ -219,7 +219,7 @@ private static String md5Hex(byte[] data) {
 }
 ```
 
-### Core Method: `Bucket.list_objects`
+### Core Method: `Bucket.listObjects`
 
 ```java
 public List<StorageObject> listObjects(String prefix) {
@@ -236,7 +236,7 @@ public List<StorageObject> listObjects(String prefix) {
 }
 ```
 
-### Core Method: `StorageService.get_object`
+### Core Method: `StorageService.getObject`
 
 ```java
 public AbstractMap.SimpleEntry<byte[], ObjectMetadata> getObject(String caller, String bucketName, String key) {
@@ -318,7 +318,7 @@ ss.get_object(caller="bob", bucket_name="photos", key="2024/june/vacation.jpg")
   bucket.acl.has_permission("bob", READ) → False
   obj.acl.has_permission("bob", READ) → False
   obj.acl.is_public(READ) → False
-  → raise PermissionDeniedError
+  → throw new PermissionDeniedException
 
 # Make object public
 obj.update_acl("*", {Permission.READ})
@@ -333,7 +333,7 @@ ss.get_object(caller="bob", ...)
 
 ### 1. "How would you add object versioning?"
 
-Change `Bucket.objects` from `dict[str, StorageObject]` to `dict[str, list[StorageObject]]`. Each put appends a new version. The latest version is `objects[key][-1]`. Add a `version_id` field to `StorageObject` (UUID or sequential).
+Change `Bucket.objects` from `dict[str, StorageObject]` to `dict[str, list[StorageObject]]`. Each put appends a new version. The latest version is `objects[key][-1]`. Add a `versionId` field to `StorageObject` (UUID or sequential).
 
 ```java
 public StorageObject putObjectVersioned(String key, byte[] data, ObjectMetadata metadata) {
@@ -391,7 +391,7 @@ public class MultipartUpload {
 }
 ```
 
-`StorageService` manages `active_uploads: dict[upload_id, MultipartUpload]`. Client uploads parts in parallel, then calls `complete_multipart_upload`.
+`StorageService` manages `activeUploads: dict[uploadId, MultipartUpload]`. Client uploads parts in parallel, then calls `completeMultipartUpload`.
 
 ### 3. "How would you model the Composite pattern for a true hierarchical file system?"
 
@@ -456,11 +456,11 @@ public class Directory implements FileSystemEntry {
 }
 ```
 
-`get_size()` on `Directory` recursively sums children — the classic Composite pattern.
+`getSize()` on `Directory` recursively sums children — the classic Composite pattern.
 
 ### 4. "How do you store metadata separately from data?"
 
-S3's design principle: metadata reads are far more frequent than data reads. Store metadata in a fast index (DB/in-memory dict) separate from the binary data (block storage). `get_object` can return just metadata (HEAD request) without loading the binary.
+S3's design principle: metadata reads are far more frequent than data reads. Store metadata in a fast index (DB/in-memory dict) separate from the binary data (block storage). `getObject` can return just metadata (HEAD request) without loading the binary.
 
 ```java
 public class StorageBackend {
@@ -479,7 +479,7 @@ public class StorageBackend {
 }
 ```
 
-`StorageObject.data_path` points to the backend; `metadata` lives in memory/DB.
+`StorageObject.dataPath` points to the backend; `metadata` lives in memory/DB.
 
 ---
 
@@ -491,12 +491,14 @@ public class StorageBackend {
 
 **Senior**: Versioning design (list of versions per key). Multipart upload flow. Composite for true file system. Metadata vs data store separation. Permission inheritance (bucket → object fallthrough).
 
+**Staff (SDE-3)**: You now offer this as a product with a durability SLA of 11 nines. Explain concretely what mechanisms produce that number — replication factor, erasure coding trade-off, and the background repair process — and how you'd measure whether you're actually meeting it. Then design lifecycle transitions to cold storage without breaking in-flight reads.
+
 ---
 
 ## Common Interview Questions
 
 - **Q**: How does S3 simulate folders when it's actually flat?
-  **A**: S3 has no true folders. Objects have keys like "images/2024/photo.jpg". A "folder" is just a common key prefix. `list_objects(prefix="images/")` returns all objects with that prefix — simulating folder contents.
+  **A**: S3 has no true folders. Objects have keys like "images/2024/photo.jpg". A "folder" is just a common key prefix. `listObjects(prefix="images/")` returns all objects with that prefix — simulating folder contents.
 
 - **Q**: Why separate metadata from binary data?
   **A**: Metadata (size, content-type, tags) is read far more often than data (for listing, HEAD requests). Storing metadata in a fast index allows O(1) metadata lookups without reading the binary blob.
@@ -508,7 +510,7 @@ public class StorageBackend {
   **A**: Entity Tag — usually the MD5 of the object's content. Used for cache validation (If-None-Match header) and integrity checks. On update, ETag changes so clients know to re-fetch.
 
 - **Q**: What is the Composite pattern and why use it for a file system?
-  **A**: Composite treats individual objects (files) and collections (directories) uniformly. `get_size()` on a directory recursively sums its children's sizes. Callers don't need to know if they're dealing with a file or directory — they call the same interface.
+  **A**: Composite treats individual objects (files) and collections (directories) uniformly. `getSize()` on a directory recursively sums its children's sizes. Callers don't need to know if they're dealing with a file or directory — they call the same interface.
 
 ---
 

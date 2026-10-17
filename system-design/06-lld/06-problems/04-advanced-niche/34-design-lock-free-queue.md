@@ -66,7 +66,7 @@ Design a lock-free FIFO queue that supports concurrent enqueue and dequeue opera
 **Out of scope:**
 - Bounded capacity (follow-up)
 - JVM memory-model / `volatile` ordering subtleties beyond what `AtomicStampedReference` already guarantees
-- Memory ordering (C++ memory_order) — mention at senior level
+- Memory ordering (C++ memoryOrder) — mention at senior level
 
 ---
 
@@ -299,7 +299,7 @@ When Thread A dequeues Node X and frees it, Thread B might still hold a referenc
 
 - **Hazard Pointers**: each thread registers nodes it's currently accessing; reclamation is deferred until no thread holds the hazard pointer
 - **Epoch-Based Reclamation**: threads announce their current epoch; memory freed in epoch E is only reclaimed when all threads have passed epoch E
-- **Reference Counting**: AtomicReference with shared_ptr (C++) — reclaim when count drops to 0
+- **Reference Counting**: AtomicReference with sharedPtr (C++) — reclaim when count drops to 0
 
 In Java, GC handles this automatically (no manual reclamation).
 
@@ -323,6 +323,8 @@ In Java, GC handles this automatically (no manual reclamation).
 **Mid-level**: Explain CAS. Sketch the Michael-Scott algorithm. Sentinel node and why tail may lag. ABA problem and version counter fix.
 
 **Senior**: Full Michael-Scott implementation with `AtomicStampedReference` + versioning. Memory reclamation (hazard pointers, epoch-based). Lock-free vs wait-free distinction. ABA problem and atomic tagged pointers.
+
+**Staff (SDE-3)**: Justify this existing at all. Benchmark your lock-free queue against `ArrayBlockingQueue` and `LinkedBlockingQueue` and state the workload where it actually wins and where it loses. Then defend the maintenance cost: this code is subtle and will outlive you. What documentation, invariants, and test strategy (including a linearizability checker like jcstress) make it safe for the next engineer?
 
 ---
 

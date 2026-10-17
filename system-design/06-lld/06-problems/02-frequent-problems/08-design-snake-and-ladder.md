@@ -151,13 +151,13 @@ class Game:
 
 ## Implementation
 
-### Core Method: `take_turn`
+### Core Method: `takeTurn`
 
 **Core logic:**
 1. Roll dice
 2. Compute new position = current + roll
 3. If new position > 100: stay (overshoot)
-4. Resolve snakes/ladders: `board.resolve(new_position)`
+4. Resolve snakes/ladders: `board.resolve(newPosition)`
 5. Update player position
 6. Check if position == 100 → winner
 7. Advance to next player
@@ -294,7 +294,7 @@ public class DiceSet implements Dice {
 
 ### 2. "How would you add power-ups (skip a turn, roll again)?"
 
-**Option A** — Cell type enum: After resolving position, check `board.get_effect(new_pos)` → CellEffect (NONE, SKIP_TURN, ROLL_AGAIN). `take_turn` handles each case.
+**Option A** — Cell type enum: After resolving position, check `board.getEffect(newPos)` → CellEffect (NONE, SKIP_TURN, ROLL_AGAIN). `takeTurn` handles each case.
 
 ```java
 CellEffect effect = board.getEffect(newPos);
@@ -310,7 +310,7 @@ if (effect == CellEffect.SKIP_TURN) {
 
 ### 3. "How would you add undo?"
 
-Track move history as a stack of `(player_index, old_position, roll)`. Undo pops the last entry.
+Track move history as a stack of `(playerIndex, oldPosition, roll)`. Undo pops the last entry.
 
 ```java
 public void undo() {
@@ -358,6 +358,8 @@ public static Board fromConfig(Map<String, Object> config) {
 
 **Senior**: Proactively introduce `LoadedDice` for deterministic testing. Discuss cell effects as Observer vs enum. Config validation rejects ambiguous setups. Design supports 2–N players without if/else branching.
 
+**Staff (SDE-3)**: This is the simplest problem in the set, so the staff signal is knowing when to stop. An interviewer pushes you to add distributed state, microservices, and Kafka. Argue why that's wrong for this problem, and name the specific requirement that would actually justify each addition. Then design the one extension that IS warranted at scale: deterministic replay for dispute resolution.
+
 ---
 
 ## Common Interview Questions
@@ -369,7 +371,7 @@ public static Board fromConfig(Map<String, Object> config) {
   **A**: Standard rules say no — resolve once. Chaining requires a while loop in `resolve()` and can loop infinitely on bad config. State the assumption and validate config against it.
 
 - **Q**: Why does overshoot mean "stay" instead of "bounce back"?
-  **A**: Standard rules say exact roll required. Bounce-back is a variant — clarify with interviewer. The current design requires changing exactly one condition in `take_turn`.
+  **A**: Standard rules say exact roll required. Bounce-back is a variant — clarify with interviewer. The current design requires changing exactly one condition in `takeTurn`.
 
 - **Q**: How do you test this without random dice?
   **A**: `LoadedDice` takes a predetermined sequence and pops values on each `roll()`. Inject via constructor — the game never knows it's not random.

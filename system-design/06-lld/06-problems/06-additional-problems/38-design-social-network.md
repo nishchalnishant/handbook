@@ -122,8 +122,8 @@ class Connection:
 - created_at: datetime
 - resolved_at: datetime | None
 
-+ accept() -> None      # PENDING -> ACCEPTED, else raise IllegalStateException
-+ reject() -> None      # PENDING -> REJECTED, else raise IllegalStateException
++ accept() -> None      # PENDING -> ACCEPTED, else throw IllegalStateException
++ reject() -> None      # PENDING -> REJECTED, else throw IllegalStateException
 + involves(user_id: str) -> bool
 + other_party(user_id: str) -> str
 ```
@@ -231,9 +231,9 @@ private Connection findConnectionBetween(String userA, String userB) {
 4. Transition to ACCEPTED, then update both `User.connections` sets
 
 **Edge cases:**
-- Non-existent connection id — raise NoSuchElementException
+- Non-existent connection id — throw new NoSuchElementException
 - Requester tries to accept their own outgoing request — reject
-- Double-accept (already ACCEPTED) — raise IllegalStateException, no-op on user sets
+- Double-accept (already ACCEPTED) — throw new IllegalStateException, no-op on user sets
 
 ```java
 public void acceptConnectionRequest(String connectionId, String acceptingUserId) {
@@ -368,7 +368,7 @@ private List<Post> kWayMergeByTimestampDesc(List<List<Post>> sources) {
 5. `generateFeed("alice", 10)`:
    - `alice.connections = {bob}` → one source list: `[P2, P1]`
    - k-way merge of a single source is itself: `[P2, P1]`
-   - `ChronologicalRanking.rank([P2, P1])` → already sorted desc by `created_at` → `[P2, P1]`
+   - `ChronologicalRanking.rank([P2, P1])` → already sorted desc by `createdAt` → `[P2, P1]`
    - Returned feed: **[P2 (10:05), P1 (10:00)]**
 6. Carol, not connected to Alice or Bob, calls `generateFeed("carol", 10)` → `carol.connections = {}` → **empty feed**
 
@@ -488,13 +488,15 @@ A REJECTED connection intentionally still allows a fresh request (people reconsi
 
 **Senior**: Discuss fan-out-on-write vs fan-out-on-read tradeoffs and design the hybrid approach for celebrity accounts. Explain how ranking strategy swaps without touching feed-generation code (Strategy + Open/Closed). Identify the double-friend-request race and prove the fix is correct under concurrency, not just "seems to work."
 
+**Staff (SDE-3)**: Your hybrid fan-out has a threshold for 'celebrity'. Defend that threshold with a cost model, and explain what happens to a user who crosses it mid-day — does their existing fan-out get reversed, and what does that cost? Then design the feed-ranking rollout across 500M users where a bad ranking model is a business emergency, including your automatic rollback signal.
+
 ---
 
 ## Common Interview Questions
 
-- Q: Why can't `Connection` just be a boolean "is_friends" flag on each `User`? A: You lose the PENDING/REJECTED states and can't represent an outstanding request, or distinguish "never requested" from "rejected." A state machine makes invalid transitions (e.g., accepting an already-rejected request) explicit errors instead of silent bugs.
+- Q: Why can't `Connection` just be a boolean "isFriends" flag on each `User`? A: You lose the PENDING/REJECTED states and can't represent an outstanding request, or distinguish "never requested" from "rejected." A state machine makes invalid transitions (e.g., accepting an already-rejected request) explicit errors instead of silent bugs.
 - Q: Why lock on a canonical pair key instead of locking each `User` individually? A: Locking per-user risks deadlock if two threads lock A then B and B then A in opposite order. A single canonical key (e.g., sorted `"alice#bob"`) for the pair guarantees only one lock object per relationship, so there is nothing to deadlock on.
-- Q: What's the complexity of `generateFeed` for a user with N connections and M posts each? A: The k-way merge is O(total_posts × log N) using a heap of size N. Without the heap (naive concatenate + sort) it's O(total_posts × log(total_posts)) — the heap approach is better only if you need early termination (e.g., top-K without materializing everything).
+- Q: What's the complexity of `generateFeed` for a user with N connections and M posts each? A: The k-way merge is O(totalPosts × log N) using a heap of size N. Without the heap (naive concatenate + sort) it's O(totalPosts × log(totalPosts)) — the heap approach is better only if you need early termination (e.g., top-K without materializing everything).
 - Q: How would you support un-friending? A: Add a `TERMINATED` (or reuse `REJECTED`) status reachable from `ACCEPTED`, remove both users from each other's `connections` set under the same pair lock used for accept, and consider whether historical interactions (likes/comments) should be retained.
 - Q: Why use the Observer pattern for post creation instead of calling fan-out logic directly in `createPost`? A: Decouples `SocialNetwork` from feed/notification concerns — new listeners (push notifications, analytics, search indexing) register without modifying `createPost`. This is Open/Closed applied to side effects of an event.
 - Q: How do you avoid returning private/blocked users' posts in a PUBLIC-visibility feed context? A: Visibility is enforced at read time in `generateFeed`/wherever posts are surfaced — CONNECTIONS-visibility posts are only pulled from the viewer's own connection list to begin with, and PUBLIC posts would additionally need a separate public-timeline path that doesn't rely on the connection graph at all.

@@ -94,11 +94,11 @@ A `CommentService` receives requests and delegates tree mutations to `CommentTre
 
 | Requirement | What Comment must track |
 |-------------|------------------------|
-| Identity | comment_id, post_id |
-| Content | text, is_deleted flag |
-| Authorship | user_id, created_at |
-| Hierarchy | parent_id, children: List[Comment] |
-| Engagement | liked_by: Set[str] |
+| Identity | commentId, postId |
+| Content | text, isDeleted flag |
+| Authorship | userId, createdAt |
+| Hierarchy | parentId, children: List[Comment] |
+| Engagement | likedBy: Set[str] |
 
 ```
 class Comment:
@@ -121,7 +121,7 @@ class Comment:
 
 | Requirement | What CommentTree must track |
 |-------------|----------------------------|
-| Fast lookup | comment_map: Dict[str, Comment] |
+| Fast lookup | commentMap: Dict[str, Comment] |
 | Root access | roots: List[Comment] |
 
 ```
@@ -168,18 +168,18 @@ class ByLikes(SortStrategy):
 
 ## Implementation
 
-### Core Method: add_comment
+### Core Method: addComment
 
 **Core logic:**
 1. Get or create `CommentTree` for the post
 2. Validate text is non-empty
-3. If `parent_id` is provided, verify it exists in `comment_map`
+3. If `parentId` is provided, verify it exists in `commentMap`
 4. Build a new `Comment` with generated UUID
-5. If `parent_id` is None, append to tree roots; otherwise call `parent.add_child(comment)`
-6. Register in `comment_map`
+5. If `parentId` is None, append to tree roots; otherwise call `parent.addChild(comment)`
+6. Register in `commentMap`
 
 **Edge cases:**
-- `parent_id` not found → raise `KeyError`
+- `parentId` not found → raise `KeyError`
 - Parent is soft-deleted → still allow replies (replies are independent content)
 - Empty or whitespace-only text → raise `ValueError`
 
@@ -379,14 +379,14 @@ class CommentService {
 
 ## Verification
 
-Trace: User A comments on post_1, User B replies, User C likes B's reply, then unlikes it.
+Trace: User A comments on post1, User B replies, User C likes B's reply, then unlikes it.
 
-1. `add_comment("post_1", "user_a", "Great post!")` → Comment(id="c1") in roots
-2. `add_comment("post_1", "user_b", "I agree!", parent_id="c1")` → Comment(id="c2") in c1.children
-3. `like_comment("post_1", "c2", "user_c")` → c2.liked_by = {"user_c"}, like_count=1
-4. `like_comment("post_1", "c2", "user_c")` → toggle removes it, c2.liked_by = {}, like_count=0
-5. `get_comments("post_1", ByLikes())` → BFS yields [c1, c2], sorted by likes (both 0, stable order preserved)
-6. `delete_comment("post_1", "c1")` → c1.text="[deleted]", c1.is_deleted=True; c2 unaffected
+1. `addComment("post1", "userA", "Great post!")` → Comment(id="c1") in roots
+2. `addComment("post1", "userB", "I agree!", parentId="c1")` → Comment(id="c2") in c1.children
+3. `likeComment("post1", "c2", "userC")` → c2.likedBy = {"userC"}, likeCount=1
+4. `likeComment("post1", "c2", "userC")` → toggle removes it, c2.likedBy = {}, likeCount=0
+5. `getComments("post1", ByLikes())` → BFS yields [c1, c2], sorted by likes (both 0, stable order preserved)
+6. `deleteComment("post1", "c1")` → c1.text="[deleted]", c1.isDeleted=True; c2 unaffected
 
 ---
 
@@ -396,7 +396,7 @@ Trace: User A comments on post_1, User B replies, User C likes B's reply, then u
 
 Three main approaches:
 
-**Adjacency List**: Each row stores `parent_id`. Simple writes; fetching an entire thread needs a recursive CTE.
+**Adjacency List**: Each row stores `parentId`. Simple writes; fetching an entire thread needs a recursive CTE.
 
 ```sql
 WITH RECURSIVE thread AS (
@@ -440,11 +440,11 @@ This is O(n log n) total across all levels.
 
 ### 3. "Soft delete vs hard delete — trade-offs?"
 
-**Soft delete** (chosen): Set `is_deleted=True`, replace text with `[deleted]`. Children survive intact. Enables audit trail, undo, moderation review. Display layer filters, not the data layer.
+**Soft delete** (chosen): Set `isDeleted=True`, replace text with `[deleted]`. Children survive intact. Enables audit trail, undo, moderation review. Display layer filters, not the data layer.
 
 **Cascade hard delete**: Remove comment and all descendants. Loses context — a viral reply thread under a deleted comment disappears entirely. Almost never correct for public platforms.
 
-**Tombstone row**: Delete content, keep the row as a placeholder. Children still have a valid `parent_id`. Cleaner DB than orphaned rows but same logical result as soft delete.
+**Tombstone row**: Delete content, keep the row as a placeholder. Children still have a valid `parentId`. Cleaner DB than orphaned rows but same logical result as soft delete.
 
 ### 4. "How do you paginate deeply nested threads?"
 
@@ -464,11 +464,11 @@ List<Comment> getTopLevelComments(String postId, int page, int size,
 }
 ```
 
-**Cursor-based**: Encode cursor as `(parent_id, offset)`. The client calls `GET /comments?post_id=X&parent_id=c1&cursor=Y` to load more children. This is Reddit's "load more comments" pattern.
+**Cursor-based**: Encode cursor as `(parentId, offset)`. The client calls `GET /comments?postId=X&parentId=c1&cursor=Y` to load more children. This is Reddit's "load more comments" pattern.
 
 ### 5. "How would you add comment moderation / flagging?"
 
-Add `flags: Map<String, String>` to `Comment` (user_id → reason). Auto-hide when flag count exceeds threshold. A `ModerationService` processes the queue.
+Add `flags: Map<String, String>` to `Comment` (userId → reason). Auto-hide when flag count exceeds threshold. A `ModerationService` processes the queue.
 
 ```java
 static final int FLAG_THRESHOLD = 5;
@@ -492,21 +492,23 @@ Moderators see a priority queue of flagged comments sorted by flag count descend
 
 ## Interviewer Questions by Level
 
-**Junior**: How does the children list in Comment relate to the parent_id field? Why do you need both?
+**Junior**: How does the children list in Comment relate to the parentId field? Why do you need both?
 
-**Mid-level**: Your `get_comments` returns a flat list. How does the client reconstruct the tree for rendering? What would you add to each Comment's serialized form?
+**Mid-level**: Your `getComments` returns a flat list. How does the client reconstruct the tree for rendering? What would you add to each Comment's serialized form?
 
 **Senior**: The recursive CTE works at 1,000 comments. At 10M comments across all posts, what breaks and how do you fix it? Walk through a sharding and caching strategy.
+
+**Staff (SDE-3)**: You've decided to shard. Now a moderator needs to delete a subtree that spans shards, and the product wants comment counts to stay accurate. Design the cross-shard delete and defend your consistency choice on the count (exact-but-slow vs. approximate-and-fast). Then explain the migration: how do you move from the single-table recursive CTE to the sharded model with zero downtime and no lost comments?
 
 ---
 
 ## Common Interview Questions
 
-- **Q: Why keep parent_id on Comment when you already have the children list?**  
-  A: The children list is an in-memory construct. parent_id is what persists to the DB. Without it you cannot reconstruct the tree on load.
+- **Q: Why keep parentId on Comment when you already have the children list?**  
+  A: The children list is an in-memory construct. parentId is what persists to the DB. Without it you cannot reconstruct the tree on load.
 
 - **Q: Can a user like their own comment?**  
-  A: Business decision — add `if user_id == comment.user_id: raise ValueError` in toggle_like to block it.
+  A: Business decision — add `if userId == comment.userId: throw new IllegalArgumentException` in toggleLike to block it.
 
 - **Q: How do you get the full thread in one DB query?**  
   A: Recursive CTE (WITH RECURSIVE) on the adjacency list. Supported in PostgreSQL, MySQL 8+, SQLite 3.35+.
@@ -518,10 +520,10 @@ Moderators see a priority queue of flagged comments sorted by flag count descend
   A: No — children are independent user content. Show parent as "[deleted]" but render children normally (Reddit's approach).
 
 - **Q: How would you pin the top comment regardless of sort?**  
-  A: Maintain a sorted set in Redis keyed by post_id, scored by like count. Pull the top comment_id, look it up, render it pinned above the sorted list.
+  A: Maintain a sorted set in Redis keyed by postId, scored by like count. Pull the top commentId, look it up, render it pinned above the sorted list.
 
-- **Q: Your toggle_like is not thread-safe in a distributed system — what do you do?**  
-  A: Use atomic DB operations: `INSERT INTO likes(comment_id, user_id) ON CONFLICT DO NOTHING` for like, `DELETE FROM likes WHERE comment_id=? AND user_id=?` for unlike. Or Redis SADD/SREM which are atomic.
+- **Q: Your toggleLike is not thread-safe in a distributed system — what do you do?**  
+  A: Use atomic DB operations: `INSERT INTO likes(commentId, userId) ON CONFLICT DO NOTHING` for like, `DELETE FROM likes WHERE commentId=? AND userId=?` for unlike. Or Redis SADD/SREM which are atomic.
 
 ---
 

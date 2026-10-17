@@ -153,7 +153,7 @@ public class NaiveCounter {
 
 ### StripedCounter (primary recommendation)
 
-Distribute increments across N independent cells. Threads are assigned a cell (by `thread_id % num_stripes` or randomly). Each cell has its own lock — threads on different stripes never contend. `get()` sums all cells.
+Distribute increments across N independent cells. Threads are assigned a cell (by `threadId % numStripes` or randomly). Each cell has its own lock — threads on different stripes never contend. `get()` sums all cells.
 
 ```java
 import java.util.concurrent.locks.ReentrantLock;
@@ -239,7 +239,7 @@ public class StripedCounter {
 }
 ```
 
-**Throughput**: 100 threads × 1 increment/lock-time, but contention is distributed. Effective throughput scales toward O(num_stripes × 1/lock-time).
+**Throughput**: 100 threads × 1 increment/lock-time, but contention is distributed. Effective throughput scales toward O(numStripes × 1/lock-time).
 
 ### CASCounter (lock-free)
 
@@ -443,6 +443,8 @@ public class RateLimiter {
 **Mid-level**: `StripedCounter` — N cells, N locks, thread → cell by hash. `get()` sums cells (approximately). Explain contention reduction factor.
 
 **Senior**: LongAdder pattern (fast path CAS on base, fall back to cells on contention). `getExact()` requiring all locks. Distributed counter (CRDT, Redis INCR, Kafka). Why Java's real `LongAdder` exists and how it compares to hand-rolled CAS. Rate limiter application.
+
+**Staff (SDE-3)**: Product needs 'approximately correct, very cheap' counts at 10M increments/sec across 200 hosts. Compare your LongAdder approach against a probabilistic sketch and against per-host aggregation with periodic flush, on accuracy, memory, and read latency. Pick one, state the error bound you're accepting, and explain how you'd communicate that error bound to the product team that will build a billing feature on it.
 
 ---
 

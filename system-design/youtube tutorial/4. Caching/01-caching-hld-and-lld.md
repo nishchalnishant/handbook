@@ -7,7 +7,7 @@
 **Prerequisites** — this file assumes the fundamentals and does not repeat them:
 - Strategies (cache-aside, write-through, write-behind), eviction policies, Redis vs Memcached → [Basics notes](../1.%20System%20Design%20Basics/03-caching.md)
 - Stampede, penetration, avalanche → [Cache systems & Redis](../2.%20System%20Design%20Fundamentals/06-cache-systems-and-redis.md) · [Caching layer](../../02-building-blocks/02-performance/01-caching-layer.md)
-- LRU implementation, thread safety, striped locks → [13-design-lru-cache](../../06-lld/05-problems/02-frequent-problems/13-design-lru-cache.md) · [35-design-concurrent-lru-cache](../../06-lld/05-problems/04-advanced-niche/35-design-concurrent-lru-cache.md)
+- LRU implementation, thread safety, striped locks → [13-design-lru-cache](../../06-lld/06-problems/02-frequent-problems/13-design-lru-cache.md) · [35-design-concurrent-lru-cache](../../06-lld/06-problems/04-advanced-niche/35-design-concurrent-lru-cache.md)
 
 This file covers the three things those files do **not**: sizing math, hot keys, and cache/DB consistency. These are the senior-level probes.
 

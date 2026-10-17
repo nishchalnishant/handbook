@@ -225,7 +225,7 @@ public class LRUCache<K, V> {
 
 ### Striped LRU Cache
 
-Each segment has its own `LRUCache` (with its own lock and its own capacity = total_capacity / num_segments). Key → segment mapping by hash. Only the relevant segment is locked per operation.
+Each segment has its own `LRUCache` (with its own lock and its own capacity = totalCapacity / numSegments). Key → segment mapping by hash. Only the relevant segment is locked per operation.
 
 ```java
 import java.util.ArrayList;
@@ -260,7 +260,7 @@ public class StripedLRUCache<K, V> {
 }
 ```
 
-**Trade-off**: Striped locking reduces lock contention by 1/num_segments. Trade-off: the total effective capacity is `num_segments × segment_capacity`, but items are not redistributed across segments — one segment may be full while another is empty (uneven distribution for skewed key spaces).
+**Trade-off**: Striped locking reduces lock contention by 1/numSegments. Trade-off: the total effective capacity is `numSegments × segmentCapacity`, but items are not redistributed across segments — one segment may be full while another is empty (uneven distribution for skewed key spaces).
 
 ### Read-Write Lock variant for read-heavy workloads
 
@@ -433,6 +433,8 @@ public V get(K key) {
 **Mid-level**: Doubly linked list + HashMap implementation. Sentinel dummy nodes. Thread-safe with a single RLock. O(1) move-to-head via prev/next pointers.
 
 **Senior**: Striped locking (16 segments) for concurrency. Trade-off: global LRU ordering lost. Read-write lock for read-heavy workloads. TTL support with background janitor. LRU vs LFU comparison.
+
+**Staff (SDE-3)**: Striping cost you global LRU ordering. Quantify that: what's the hit-rate delta on a realistic Zipfian workload, and is it worth it? Then explain when you'd stop hand-rolling and adopt Caffeine — and what specifically Caffeine's W-TinyLFU does better than your design. Naming the build-vs-adopt boundary IS the staff signal here.
 
 ---
 

@@ -88,9 +88,9 @@ Design a coupon and discount system for an e-commerce platform that supports per
 
 | Requirement | What Coupon must track |
 |-------------|----------------------|
-| "Validation: expiry, min order, user limit" | expires_at, min_order_value, max_uses_per_user |
-| "Scope: order, category, product" | scope: CouponScope, scope_id: Optional[str] |
-| "Discount type" | discount_type: DiscountType, discount_value: float |
+| "Validation: expiry, min order, user limit" | expiresAt, minOrderValue, maxUsesPerUser |
+| "Scope: order, category, product" | scope: CouponScope, scopeId: Optional[str] |
+| "Discount type" | discountType: DiscountType, discountValue: float |
 
 ```
 class Coupon:
@@ -154,7 +154,7 @@ class CouponService:
 
 ## Implementation
 
-### Core Method: `apply_coupon`
+### Core Method: `applyCoupon`
 
 **Core logic:**
 1. Fetch coupon by code
@@ -373,7 +373,7 @@ public class FirstOrderRule extends ValidationRule {
 }
 ```
 
-Insert into the chain: `user_limit.set_next(first_order).set_next(scope)`. Open/Closed — no existing rules change.
+Insert into the chain: `userLimit.setNext(firstOrder).setNext(scope)`. Open/Closed — no existing rules change.
 
 ### 3. "How would you prevent coupon abuse (multiple accounts)?"
 
@@ -405,7 +405,7 @@ public class PaymentDedupRule extends ValidationRule {
 
 ### 4. "How would you handle race conditions on total usage limit?"
 
-Two users simultaneously using the last slot of a coupon with `total_usage_limit=1`:
+Two users simultaneously using the last slot of a coupon with `totalUsageLimit=1`:
 
 ```java
 // DB-level CAS
@@ -430,11 +430,13 @@ Or use Redis INCR and compare against limit — atomic, no race condition.
 
 ## Interviewer Questions by Level
 
-**Junior**: Coupon entity with type and value. `apply_coupon` that computes discount. Basic expiry check. Return updated total.
+**Junior**: Coupon entity with type and value. `applyCoupon` that computes discount. Basic expiry check. Return updated total.
 
 **Mid-level**: Strategy for discount types. Chain of Responsibility for validation rules. Stacking constraint (one product + one shipping). Scope filtering (category/product-level discount).
 
 **Senior**: Composite coupon stacking with explicit stacking policy. BOGO as new strategy requiring no changes to existing code. Race condition on usage limit solved with CAS. Abuse prevention via payment method deduplication.
+
+**Staff (SDE-3)**: Finance discovers a stacking bug let users combine two coupons that shouldn't stack, costing $2M over a month. Design the safeguards: a policy-simulation harness that runs proposed coupon configs against historical orders before launch, and a real-time anomaly detector on discount rate. Explain why the fix belongs in the policy layer, not in more if-statements in `applyCoupon`.
 
 ---
 
@@ -444,16 +446,16 @@ Or use Redis INCR and compare against limit — atomic, no race condition.
   **A**: Each rule is independent and reorderable. New rules (e.g., FirstOrder, PaymentDedup) are added as new classes without touching existing ones. The chain is built at startup and injected — easy to test each rule in isolation.
 
 - **Q**: How do you prevent applying the same coupon twice by the same user?
-  **A**: `UserLimitRule` checks `usage_repo.get(user_id, coupon.code)`. Usage is incremented only after successful application. The DB increment is atomic — use transactions.
+  **A**: `UserLimitRule` checks `usageRepo.get(userId, coupon.code)`. Usage is incremented only after successful application. The DB increment is atomic — use transactions.
 
 - **Q**: What's the difference between scope ORDER, CATEGORY, and PRODUCT?
   **A**: ORDER applies discount to the full subtotal. CATEGORY applies only to items in the specified category. PRODUCT applies only to the specific product. The `getApplicableAmount` method filters accordingly.
 
 - **Q**: How do you handle a coupon that makes the order total negative?
-  **A**: Cap discount at the order total: `discount = min(calculated_discount, order.subtotal)`. Coupon value can never exceed what the customer owes.
+  **A**: Cap discount at the order total: `discount = min(calculatedDiscount, order.subtotal)`. Coupon value can never exceed what the customer owes.
 
 - **Q**: How would you add time-based coupons (flash sale — valid only 1–3 PM)?
-  **A**: Add `valid_time_window: Optional[Tuple[time, time]]` to Coupon. Add `TimeWindowRule` to the chain — checks `time_start <= current_time <= time_end`.
+  **A**: Add `validTimeWindow: Optional[Tuple[time, time]]` to Coupon. Add `TimeWindowRule` to the chain — checks `timeStart <= currentTime <= timeEnd`.
 
 ---
 

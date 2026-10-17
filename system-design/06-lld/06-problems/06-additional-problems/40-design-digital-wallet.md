@@ -102,7 +102,7 @@ A `User` owns one `Wallet`. Every transfer or top-up produces a pair of `Transac
 | Requirement | What Wallet must track |
 |-------------|------------------------|
 | Current spendable balance | balance: BigDecimal (cents-based, never floating point) |
-| Unique, sortable identity for lock ordering | wallet_id: long (monotonic, comparable) |
+| Unique, sortable identity for lock ordering | walletId: long (monotonic, comparable) |
 | Concurrency control | _lock: ReentrantLock (one per wallet) |
 
 ```
@@ -180,7 +180,7 @@ class WalletService:
 - lock_wallets_in_order(w1: Wallet, w2: Wallet) -> None
 ```
 
-**Why lock ordering matters:** if thread A transfers wallet 1 → wallet 2 and locks 1 then 2, while thread B concurrently transfers wallet 2 → wallet 1 and locks 2 then 1, each thread holds one lock and waits for the other — classic circular wait, deadlock. The fix: both threads must acquire locks in the same global order (by `wallet_id`, ascending), regardless of transfer direction. Whichever wallet has the smaller ID is always locked first.
+**Why lock ordering matters:** if thread A transfers wallet 1 → wallet 2 and locks 1 then 2, while thread B concurrently transfers wallet 2 → wallet 1 and locks 2 then 1, each thread holds one lock and waits for the other — classic circular wait, deadlock. The fix: both threads must acquire locks in the same global order (by `walletId`, ascending), regardless of transfer direction. Whichever wallet has the smaller ID is always locked first.
 
 ---
 
@@ -189,9 +189,9 @@ class WalletService:
 ### Core Method: transfer
 
 **Core logic:**
-1. Check `idempotency_store` for `request.idempotency_key` under `idempotency_lock`. If found, return the cached result immediately (no re-execution).
+1. Check `idempotencyStore` for `request.idempotencyKey` under `idempotencyLock`. If found, return the cached result immediately (no re-execution).
 2. Reserve the idempotency key (mark IN_PROGRESS) so a concurrent retry blocks rather than races — release the store lock before doing wallet work.
-3. Determine lock order by comparing `wallet_id`s; lock the lower ID first, then the higher.
+3. Determine lock order by comparing `walletId`s; lock the lower ID first, then the higher.
 4. Re-check sender balance under lock; if insufficient, unlock, record a FAILED idempotency result, throw.
 5. Debit sender, credit receiver, append two `Transaction` ledger rows sharing a `transferId`, all while holding both locks.
 6. Unlock in reverse order; store the COMPLETED result under the idempotency key; return it.
@@ -345,7 +345,7 @@ public List<Transaction> getTransactionHistory(long walletId) {
 **Scenario**: Wallet A (id=1) has $100.00. Wallet B (id=2) has $50.00. A transfers $30.00 to B with idempotency key `"key-1"`.
 
 1. `transfer(TransferRequest("key-1", from=1, to=2, amount=30.00))`
-2. No existing record for `"key-1"` in `idempotency_store`
+2. No existing record for `"key-1"` in `idempotencyStore`
 3. Lock order: wallet 1 < wallet 2, so lock Wallet A first, then Wallet B
 4. Re-check under lock: A's balance $100.00 >= $30.00 — sufficient
 5. `A.debit(30.00)` → A.balance = $70.00
@@ -353,12 +353,12 @@ public List<Transaction> getTransactionHistory(long walletId) {
 7. `B.credit(30.00)` → B.balance = $80.00
 8. Ledger row 2: `transferId=T1, walletId=2, type=CREDIT, amount=30.00, balanceAfter=80.00`
 9. Unlock B, then unlock A
-10. `idempotency_store["key-1"]` = COMPLETED, result = success(T1, fromBalance=70.00, toBalance=80.00)
+10. `idempotencyStore["key-1"]` = COMPLETED, result = success(T1, fromBalance=70.00, toBalance=80.00)
 11. Total system balance before: $100 + $50 = $150.00. Total after: $70 + $80 = $150.00 — **conserved**
 
 **Retry with the same key** (client resends after a timeout):
 1. `transfer(TransferRequest("key-1", from=1, to=2, amount=30.00))` again
-2. `idempotency_store["key-1"]` found → return the cached `TransferResult` immediately
+2. `idempotencyStore["key-1"]` found → return the cached `TransferResult` immediately
 3. No debit/credit applied a second time — A stays at $70.00, B stays at $80.00
 
 ---
@@ -367,7 +367,7 @@ public List<Transaction> getTransactionHistory(long walletId) {
 
 ### 1. How do you guarantee exactly-once transfer under network retries?
 
-An idempotency key from the client is the contract: "this logical transfer happens at most once, no matter how many times you receive the HTTP request." The service maps `idempotencyKey -> TransferResult` in a dedupe table (`idempotency_store` above; in production this is a unique-indexed DB table, not an in-memory map, so it survives restarts and works across service instances).
+An idempotency key from the client is the contract: "this logical transfer happens at most once, no matter how many times you receive the HTTP request." The service maps `idempotencyKey -> TransferResult` in a dedupe table (`idempotencyStore` above; in production this is a unique-indexed DB table, not an in-memory map, so it survives restarts and works across service instances).
 
 The subtle bug to avoid: checking the dedupe table and then doing the transfer are two separate steps — a naive implementation has a race where two concurrent retries both pass the "not found" check before either writes the result. The fix shown in `transfer()` above is to **re-check the idempotency store a second time after acquiring the wallet locks**, so the actual debit/credit and the idempotency write happen while holding a lock that also serializes concurrent retries of the same key (since both retries target the same wallets, they contend for the same locks).
 
@@ -388,7 +388,7 @@ public TransferResult replaySafeTransfer(TransferRequest request) {
 }
 ```
 
-For true multi-instance safety, the idempotency table would have a `UNIQUE` constraint on `idempotency_key`, and the write would be `INSERT ... ON CONFLICT DO NOTHING` inside the same DB transaction as the ledger inserts — the database, not application locking, becomes the arbiter across processes.
+For true multi-instance safety, the idempotency table would have a `UNIQUE` constraint on `idempotencyKey`, and the write would be `INSERT ... ON CONFLICT DO NOTHING` inside the same DB transaction as the ledger inserts — the database, not application locking, becomes the arbiter across processes.
 
 ### 2. How do you prevent deadlock when two threads transfer between the same two wallets in opposite directions simultaneously?
 
@@ -463,6 +463,8 @@ Key design shifts from the single-currency model:
 **Mid-level**: Implement `transfer()` with correct locking of two wallets. Explain why an idempotency key is needed and where it's checked. Handle insufficient balance correctly, including what happens to the idempotency record on failure. Explain why the bank gateway call in `topUp` happens before acquiring the wallet lock.
 
 **Senior**: Identify the deadlock risk in naive from-then-to locking and design the lock-ordering fix. Explain the double-check race in idempotency handling and why a single check before locking isn't sufficient. Discuss how this design would change moving from a single in-memory service to a distributed multi-instance deployment (DB-level unique constraints, `SELECT ... FOR UPDATE` or optimistic concurrency instead of in-process `ReentrantLock`). Discuss multi-currency and why the ledger invariant changes.
+
+**Staff (SDE-3)**: Move this to a distributed multi-region deployment with regulatory data residency. Design the transfer between two accounts whose data must stay in different regions, and defend your choice of 2PC vs. saga with a concrete failure analysis. Then explain your reconciliation and the invariant you check continuously — sum of balances must equal sum of ledger entries — and what you do when it doesn't.
 
 ---
 

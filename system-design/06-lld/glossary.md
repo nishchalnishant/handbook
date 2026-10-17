@@ -192,7 +192,7 @@ Ensures a class has only one instance and provides a global access point to it.
 
 **Interview trap**: Naive lazy init isn't thread-safe — know double-checked locking, the initialization-on-demand holder idiom, or an `enum` singleton in Java.
 
-**Reference**: [thread-safe-singleton.md](01-creational/singleton.md)
+**Reference**: [thread-safe-singleton.md](03-design-patterns/01-creational/singleton.md)
 
 ---
 
@@ -204,7 +204,7 @@ Defines an interface for creating an object, but lets subclasses decide which cl
 
 **Distinguish from Abstract Factory**: Factory Method creates one product via subclassing/overriding; Abstract Factory creates families of related products via composition.
 
-**Reference**: [factory-pattern.md](01-creational/factory-pattern.md)
+**Reference**: [factory-pattern.md](03-design-patterns/01-creational/factory-pattern.md)
 
 ---
 
@@ -214,7 +214,7 @@ Provides an interface for creating families of related objects without specifyin
 
 **Trigger phrase**: "I need to create a set of related objects that must stay consistent with each other" (e.g., a UI toolkit producing matched Button/Checkbox/Scrollbar for a given OS theme).
 
-**Reference**: [abstract-factory-pattern.md](01-creational/abstract-factory-pattern.md)
+**Reference**: [abstract-factory-pattern.md](03-design-patterns/01-creational/abstract-factory-pattern.md)
 
 ---
 
@@ -224,7 +224,7 @@ Separates the construction of a complex object from its representation, allowing
 
 **Trigger phrase**: "this object has many optional constructor parameters" (telescoping constructor problem).
 
-**Reference**: [builder-pattern.md](01-creational/builder-pattern.md)
+**Reference**: [builder-pattern.md](03-design-patterns/01-creational/builder-pattern.md)
 
 ---
 
@@ -234,7 +234,7 @@ Creates new objects by copying an existing object (a prototype) rather than inst
 
 **Trigger phrase**: "creating this object from scratch is expensive, but I already have a similar instance to clone."
 
-**Reference**: [prototype-pattern.md](01-creational/prototype-pattern.md)
+**Reference**: [prototype-pattern.md](03-design-patterns/01-creational/prototype-pattern.md)
 
 ---
 
@@ -248,7 +248,7 @@ Converts the interface of a class into another interface clients expect, letting
 
 **Trigger phrase**: "I need to plug in a third-party/legacy class whose interface doesn't match what my code expects."
 
-**Reference**: [adapter-pattern.md](02-structural/adapter-pattern.md)
+**Reference**: [adapter-pattern.md](03-design-patterns/02-structural/adapter-pattern.md)
 
 ---
 
@@ -258,7 +258,7 @@ Decouples an abstraction from its implementation so the two can vary independent
 
 **Trigger phrase**: "I have two dimensions of variation (e.g., shape type × rendering API) and inheritance would force a combinatorial explosion of subclasses."
 
-**Reference**: [bridge-pattern.md](02-structural/bridge-pattern.md)
+**Reference**: [bridge-pattern.md](03-design-patterns/02-structural/bridge-pattern.md)
 
 ---
 
@@ -268,7 +268,7 @@ Composes objects into tree structures to represent part-whole hierarchies, letti
 
 **Trigger phrase**: "I have a tree of objects (files/folders, UI components) and I want to call the same method on a leaf or an entire subtree without checking which one it is."
 
-**Reference**: [composite-pattern.md](02-structural/composite-pattern.md)
+**Reference**: [composite-pattern.md](03-design-patterns/02-structural/composite-pattern.md)
 
 ---
 
@@ -280,7 +280,7 @@ Attaches additional responsibilities to an object dynamically, as a flexible alt
 
 **Distinguish from Proxy**: Decorator adds *new* behavior/responsibility; Proxy controls *access* to the same behavior.
 
-**Reference**: [decorator-pattern.md](02-structural/decorator-pattern.md)
+**Reference**: [decorator-pattern.md](03-design-patterns/02-structural/decorator-pattern.md)
 
 ---
 
@@ -290,7 +290,7 @@ Provides a unified, simplified interface to a set of interfaces in a subsystem.
 
 **Trigger phrase**: "callers shouldn't need to know about the 6 subsystems they'd otherwise have to orchestrate themselves."
 
-**Reference**: [facade-pattern.md](02-structural/facade-pattern.md)
+**Reference**: [facade-pattern.md](03-design-patterns/02-structural/facade-pattern.md)
 
 ---
 
@@ -300,7 +300,7 @@ Uses sharing to support large numbers of fine-grained objects efficiently by fac
 
 **Trigger phrase**: "I need millions of small objects and most of their state is identical/shareable" (e.g., character glyphs in a text editor, tree instances in a forest renderer).
 
-**Reference**: [flyweight-pattern.md](02-structural/flyweight-pattern.md)
+**Reference**: [flyweight-pattern.md](03-design-patterns/02-structural/flyweight-pattern.md)
 
 ---
 
@@ -310,7 +310,7 @@ Provides a surrogate or placeholder for another object to control access to it (
 
 **Trigger phrase**: "I need to control/mediate access to an object without changing its interface" (virtual proxy for lazy load, protection proxy for auth checks).
 
-**Reference**: [proxy-pattern.md](02-structural/proxy-pattern.md)
+**Reference**: [proxy-pattern.md](03-design-patterns/02-structural/proxy-pattern.md)
 
 ---
 
@@ -324,7 +324,7 @@ Defines a family of interchangeable algorithms, encapsulates each one, and makes
 
 **Trigger phrase**: "the algorithm/behavior varies independently of the client that uses it" (e.g., payment method, sorting comparator, compression algorithm).
 
-**Reference**: [strategy-pattern.md](03-behavioral/strategy-pattern.md)
+**Reference**: [strategy-pattern.md](03-design-patterns/03-behavioral/strategy-pattern.md)
 
 ---
 
@@ -334,7 +334,7 @@ Defines a one-to-many dependency so that when one object (subject) changes state
 
 **Trigger phrase**: "multiple parts of the system need to react when this object's state changes, and I don't want the subject to know their concrete types" (event listeners, pub-sub within a process).
 
-**Reference**: [observer-pattern.md](03-behavioral/observer-pattern.md)
+**Reference**: [observer-pattern.md](03-design-patterns/03-behavioral/observer-pattern.md)
 
 ---
 
@@ -346,7 +346,7 @@ Allows an object to alter its behavior when its internal state changes, appearin
 
 **Distinguish from Strategy**: Structurally identical (both delegate to an interchangeable object), but State transitions *itself* (state objects trigger the next state), while Strategy is chosen and set by the client.
 
-**Reference**: [state-pattern.md](03-behavioral/state-pattern.md)
+**Reference**: [state-pattern.md](03-design-patterns/03-behavioral/state-pattern.md)
 
 ---
 
@@ -356,7 +356,7 @@ Encapsulates a request as an object, letting you parameterize clients with queue
 
 **Trigger phrase**: "I need to queue, log, or undo an operation" (e.g., GUI button actions, transactional operations, job queues).
 
-**Reference**: [command-pattern.md](03-behavioral/command-pattern.md)
+**Reference**: [command-pattern.md](03-design-patterns/03-behavioral/command-pattern.md)
 
 ---
 
@@ -366,7 +366,7 @@ Passes a request along a chain of handlers until one handles it.
 
 **Trigger phrase**: "multiple objects might handle a request, and I don't want the sender to know which one will" (e.g., middleware pipelines, approval workflows, exception handler chains).
 
-**Reference**: [chain-of-responsibility.md](03-behavioral/chain-of-responsibility.md)
+**Reference**: [chain-of-responsibility.md](03-design-patterns/03-behavioral/chain-of-responsibility.md)
 
 ---
 
@@ -378,7 +378,7 @@ Defines the skeleton of an algorithm in a base class method, deferring specific 
 
 **Distinguish from Strategy**: Template Method uses inheritance (subclass overrides steps); Strategy uses composition (client injects a whole algorithm object).
 
-**Reference**: [template-method-pattern.md](03-behavioral/template-method-pattern.md)
+**Reference**: [template-method-pattern.md](03-design-patterns/03-behavioral/template-method-pattern.md)
 
 ---
 
@@ -388,7 +388,7 @@ Provides a way to access elements of a collection sequentially without exposing 
 
 **Trigger phrase**: "callers need to traverse this collection without knowing if it's an array, tree, or linked list underneath."
 
-**Reference**: [iterator-pattern.md](03-behavioral/iterator-pattern.md)
+**Reference**: [iterator-pattern.md](03-design-patterns/03-behavioral/iterator-pattern.md)
 
 ---
 
@@ -398,7 +398,7 @@ Defines an object that encapsulates how a set of objects interact, avoiding dire
 
 **Trigger phrase**: "these objects all need to talk to each other, and direct references would create an N² web of dependencies" (e.g., a chat room mediating between users, an air traffic control tower).
 
-**Reference**: [mediator-pattern.md](03-behavioral/mediator-pattern.md)
+**Reference**: [mediator-pattern.md](03-design-patterns/03-behavioral/mediator-pattern.md)
 
 ---
 
@@ -408,7 +408,7 @@ Captures and externalizes an object's internal state without violating encapsula
 
 **Trigger phrase**: "I need undo/checkpoint/rollback functionality without exposing the object's internal fields to the code that manages the history."
 
-**Reference**: [memento-pattern.md](03-behavioral/memento-pattern.md)
+**Reference**: [memento-pattern.md](03-design-patterns/03-behavioral/memento-pattern.md)
 
 ---
 
@@ -418,7 +418,7 @@ Represents an operation to be performed on the elements of an object structure, 
 
 **Trigger phrase**: "I need to add a new operation across a fixed set of unrelated classes (e.g., an AST) without modifying each class" — the classic OCP-vs-visitor tradeoff: adding a new *operation* is easy, adding a new *element type* requires touching every visitor.
 
-**Reference**: [visitor-pattern.md](03-behavioral/visitor-pattern.md)
+**Reference**: [visitor-pattern.md](03-design-patterns/03-behavioral/visitor-pattern.md)
 
 ---
 
@@ -428,7 +428,7 @@ Given a language, defines a representation for its grammar along with an interpr
 
 **Trigger phrase**: "I need to parse and evaluate a simple, well-defined grammar" (e.g., a rules engine, a basic expression evaluator) — rarely reached for outside of DSL/parsing-flavored interview prompts.
 
-**Reference**: [interpreter-pattern.md](03-behavioral/interpreter-pattern.md)
+**Reference**: [interpreter-pattern.md](03-design-patterns/03-behavioral/interpreter-pattern.md)
 
 ---
 

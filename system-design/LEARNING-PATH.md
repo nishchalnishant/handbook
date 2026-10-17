@@ -95,7 +95,7 @@ Work through all of these. The ones with the highest signal for SDE-3 interviews
 - `ride-sharing.md` — geospatial indexing, real-time matching, surge pricing
 - `google-maps.md` — graph shortest path, map tile serving, ETA
 
-**LLD problems (`06-lld/05-problems/`):**
+**LLD problems (`06-lld/06-problems/`):**
 Focus on concurrency-heavy problems:
 - `25-design-minesweeper.md`
 - `26-design-concurrent-lru-cache.md` (or equivalent)

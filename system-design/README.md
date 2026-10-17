@@ -27,7 +27,7 @@ Consolidated system design guide for senior/staff engineer interviews. No fluff,
 | HLD Problems (Easy) | 9 | `05-hld-problems/01-easy/` |
 | HLD Problems (Medium) | 7 | `05-hld-problems/02-medium/` |
 | HLD Problems (Hard) | 20 | `05-hld-problems/03-hard/` |
-| LLD Problems | 36 | `06-lld/05-problems/` |
+| LLD Problems | 36 | `06-lld/06-problems/` |
 | Design Patterns | 21 | `06-lld/03-design-patterns/` |
 | System Design Patterns | 7 | `09-patterns/` |
 | Interview Templates | 17 | `07-interview-templates/` |

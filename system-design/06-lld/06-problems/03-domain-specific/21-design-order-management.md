@@ -77,7 +77,7 @@ Design an order management system that handles placing orders, moving them throu
 |--------|----------------|
 | Order | Aggregate root; tracks status, items, user, timestamps |
 | OrderStatus | Enum: PLACED, CONFIRMED, SHIPPED, DELIVERED, CANCELLED, FAILED |
-| OrderItem | Line item: product_id, quantity, unit_price |
+| OrderItem | Line item: productId, quantity, unitPrice |
 | Product | Catalog entry with price |
 | Inventory | Tracks reserved and available stock per product |
 | PaymentService | Charges the customer (stubbed) |
@@ -105,7 +105,7 @@ enum OrderStatus:
 
 | Requirement | What OrderItem must track |
 |-------------|---------------------------|
-| Line detail | product_id, quantity, unit_price |
+| Line detail | productId, quantity, unitPrice |
 
 ```
 class OrderItem:
@@ -119,10 +119,10 @@ class OrderItem:
 
 | Requirement | What Order must track |
 |-------------|------------------------|
-| Identity | order_id, user_id, idempotency_key |
+| Identity | orderId, userId, idempotencyKey |
 | Line items | items: List<OrderItem> |
 | Lifecycle | status, timestamps per transition |
-| Shipping | tracking_number (set on ship) |
+| Shipping | trackingNumber (set on ship) |
 
 ```
 class Order:
@@ -175,13 +175,13 @@ class OrderService:
 
 ## Implementation
 
-### Core Method: `place_order`
+### Core Method: `placeOrder`
 
 **Core logic:**
-1. Check `idempotency_map`; if key exists, return the existing Order (idempotent response).
+1. Check `idempotencyMap`; if key exists, return the existing Order (idempotent response).
 2. Validate all items have sufficient inventory via `inventory.reserve()`.
 3. Create Order with status PLACED.
-4. Store in `orders` and `idempotency_map`.
+4. Store in `orders` and `idempotencyMap`.
 5. Notify observers.
 
 **Edge cases:**
@@ -434,10 +434,10 @@ class OrderService {
 
 Scenario: User places an order for 2 units of Product A (stock=5), then cancels.
 
-1. `place_order(user_id, [item(A,2)], key="k1")` → reserves 2 units (available drops to 3), status=PLACED.
+1. `placeOrder(userId, [item(A,2)], key="k1")` → reserves 2 units (available drops to 3), status=PLACED.
 2. Retry with same key `"k1"` → returns same Order (idempotent).
-3. `cancel_order(order_id)` → releases 2 units (available back to 5), status=CANCELLED, observers notified.
-4. `cancel_order(order_id)` again → `can_cancel()` returns False, raises ValueError.
+3. `cancelOrder(orderId)` → releases 2 units (available back to 5), status=CANCELLED, observers notified.
+4. `cancelOrder(orderId)` again → `canCancel()` returns False, raises ValueError.
 
 ---
 
@@ -479,7 +479,7 @@ If Step 3 fails, the Saga runs compensations 2 and 1 in reverse. Unlike 2PC, no 
 
 ### 4. "How do you implement idempotency for order placement?"
 
-Client generates a UUID `idempotency_key` and sends it with every attempt. The server stores `idempotency_key → Order` in a map. On duplicate request, return the stored Order unchanged. Key must be stored durably (DB) for crash safety in production.
+Client generates a UUID `idempotencyKey` and sends it with every attempt. The server stores `idempotencyKey → Order` in a map. On duplicate request, return the stored Order unchanged. Key must be stored durably (DB) for crash safety in production.
 
 ```java
 if (idempotencyMap.containsKey(idempotencyKey)) {
@@ -489,7 +489,7 @@ if (idempotencyMap.containsKey(idempotencyKey)) {
 
 ### 5. "How would you model returns and refunds?"
 
-Add a `Return` entity linked to an Order. A return can only be initiated for DELIVERED orders within a window (e.g., 30 days). The return flow mirrors the order saga in reverse: create_return → approve_return → refund_payment → restock_inventory.
+Add a `Return` entity linked to an Order. A return can only be initiated for DELIVERED orders within a window (e.g., 30 days). The return flow mirrors the order saga in reverse: createReturn → approveReturn → refundPayment → restockInventory.
 
 ```java
 enum ReturnStatus {
@@ -527,6 +527,8 @@ class Return {
 **Mid-level**: Why reserve inventory at placement rather than at confirmation?  
 **Senior**: Explain how the Saga pattern handles payment failure in a microservices order flow.
 
+**Staff (SDE-3)**: Your saga now spans 6 services owned by 4 teams. Design the compensation guarantees when a compensating transaction itself fails, and explain your dead-letter and manual-intervention path. Then defend orchestration over choreography for this specific flow, and name the observability you need to answer 'where is order X right now' in one query.
+
 ---
 
 ## Common Interview Questions
@@ -535,9 +537,9 @@ class Return {
 - **Q: What if payment fails after inventory is reserved?** A: Run the compensating transaction: release the reservation, mark order FAILED, notify the user.
 - **Q: Saga vs 2PC for order flow?** A: Saga uses async compensating transactions — higher availability, no distributed lock; 2PC requires a coordinator and holds locks across services, which hurts availability. Saga is preferred for microservices.
 - **Q: How does the idempotency key prevent duplicate orders?** A: Client generates a unique key per logical request. Server checks the key before processing; if found, return the prior result. Safe to retry on network timeout.
-- **Q: Can a partially shipped order be cancelled?** A: No — once status is SHIPPED or later, `can_cancel()` returns False.
-- **Q: How would you handle order timeout (user places but never pays)?** A: Background job scans PLACED orders older than TTL and runs `cancel_order` to release inventory.
-- **Q: How do observers get notified?** A: `OrderService._notify(order)` iterates all registered `OrderObserver` instances and calls `on_status_change(order)` after every valid state transition.
+- **Q: Can a partially shipped order be cancelled?** A: No — once status is SHIPPED or later, `canCancel()` returns False.
+- **Q: How would you handle order timeout (user places but never pays)?** A: Background job scans PLACED orders older than TTL and runs `cancelOrder` to release inventory.
+- **Q: How do observers get notified?** A: `OrderService._notify(order)` iterates all registered `OrderObserver` instances and calls `onStatusChange(order)` after every valid state transition.
 
 ---
 

@@ -191,13 +191,13 @@ class TimedRefundPolicy(CancellationPolicy):
 
 ## Implementation
 
-### Core Method: lock_seats
+### Core Method: lockSeats
 
 **Core logic:**
 1. Acquire show-level lock (atomic across concurrent requests)
-2. For each seat_id, verify: not in `confirmed_seats` and not in `seat_locks` with active (non-expired) lock
-3. If any seat fails validation, release the show lock and raise ConflictError
-4. Create SeatLock for each seat, add to `seat_locks`
+2. For each seatId, verify: not in `confirmedSeats` and not in `seatLocks` with active (non-expired) lock
+3. If any seat fails validation, release the show lock and throw new ConflictError
+4. Create SeatLock for each seat, add to `seatLocks`
 5. Return list of lock objects (caller uses these to confirm or release)
 
 **Edge cases:**
@@ -244,17 +244,17 @@ public List<SeatLock> lockSeats(Show show, List<String> seatIds, String userId) 
 }
 ```
 
-### Core Method: confirm_booking
+### Core Method: confirmBooking
 
 **Core logic:**
 1. Verify booking is in PENDING state
 2. Verify all seat locks are still valid (not expired)
 3. Call PaymentService.charge — if it fails, cancel the booking
-4. Move seats from `seat_locks` to `confirmed_seats`
+4. Move seats from `seatLocks` to `confirmedSeats`
 5. Set booking status to CONFIRMED
 
 **Edge cases:**
-- Lock expired between lock_seats and confirm — payment hasn't happened yet, release and fail cleanly
+- Lock expired between lockSeats and confirm — payment hasn't happened yet, release and fail cleanly
 - Payment failure — release locks, set booking to CANCELLED
 
 ```java
@@ -310,13 +310,13 @@ public Booking confirmBooking(Booking booking, PaymentService paymentService) {
 }
 ```
 
-### Core Method: cancel_booking
+### Core Method: cancelBooking
 
 **Core logic:**
 1. Verify booking is CONFIRMED
 2. Compute refund via CancellationPolicy
 3. Call PaymentService.refund
-4. Remove seats from confirmed_seats
+4. Remove seats from confirmedSeats
 5. Set booking to CANCELLED
 
 ```java
@@ -349,7 +349,7 @@ public double cancelBooking(Booking booking, PaymentService paymentService,
 }
 ```
 
-### SeatLock.is_expired + release_expired_locks
+### SeatLock.isExpired + releaseExpiredLocks
 
 ```java
 public boolean isExpired() {
@@ -380,25 +380,25 @@ public int releaseExpiredLocks(Show show) {
 
 **Scenario**: User A locks seats [S1, S2] for Show X, pays, confirms.
 
-1. `lock_seats(show_x, ["S1","S2"], user_a)` — show._lock acquired
-2. S1: not in confirmed_seats ✓, no active lock ✓
-3. S2: not in confirmed_seats ✓, no active lock ✓
+1. `lockSeats(showX, ["S1","S2"], userA)` — show._lock acquired
+2. S1: not in confirmedSeats ✓, no active lock ✓
+3. S2: not in confirmedSeats ✓, no active lock ✓
 4. SeatLock created for S1 (expires 10:15), SeatLock created for S2 (expires 10:15)
-5. `seat_locks = {"S1": lock_a1, "S2": lock_a2}` — lock released
+5. `seatLocks = {"S1": lockA1, "S2": lockA2}` — lock released
 
 **Concurrent attempt by User B for S1 at same time**:
-1. `lock_seats(show_x, ["S1"], user_b)` — waits on show._lock
+1. `lockSeats(showX, ["S1"], userB)` — waits on show._lock
 2. Acquires lock after User A completes
-3. `seat_locks["S1"]` exists, `lock_a1.is_expired()` = False → **SeatUnavailableError** raised
+3. `seatLocks["S1"]` exists, `lockA1.isExpired()` = False → **SeatUnavailableError** raised
 
 **User A confirms at 10:12 (within TTL)**:
-1. `confirm_booking(booking_a, payment_service)`
-2. Lock valid, payment succeeds, payment_id = "PAY_001"
-3. S1, S2 moved to `confirmed_seats`; locks removed
-4. booking_a.status = CONFIRMED
+1. `confirmBooking(bookingA, paymentService)`
+2. Lock valid, payment succeeds, paymentId = "PAY_001"
+3. S1, S2 moved to `confirmedSeats`; locks removed
+4. bookingA.status = CONFIRMED
 
 **User B tries again at 10:12**:
-1. S1 in `confirmed_seats` → **SeatUnavailableError** (seat already booked)
+1. S1 in `confirmedSeats` → **SeatUnavailableError** (seat already booked)
 
 ---
 
@@ -406,7 +406,7 @@ public int releaseExpiredLocks(Show show) {
 
 ### 1. "How does the seat lock TTL work — lazy vs scheduler?"
 
-**Lazy expiry**: On each call to `lock_seats`, scan `seat_locks` and remove expired entries before checking availability. No background thread needed. The downside: stale locks stay in memory until the next `lock_seats` call for that show.
+**Lazy expiry**: On each call to `lockSeats`, scan `seatLocks` and remove expired entries before checking availability. No background thread needed. The downside: stale locks stay in memory until the next `lockSeats` call for that show.
 
 ```java
 private void evictExpiredLocks(Show show) {
@@ -469,8 +469,8 @@ public class TimedRefundPolicy implements CancellationPolicy {
 
 On cancellation:
 1. Compute refund amount
-2. Call `PaymentService.refund(payment_id, refund_amount)` — fire idempotent refund request
-3. Release seats from `confirmed_seats` — these seats become available for new bookings
+2. Call `PaymentService.refund(paymentId, refundAmount)` — fire idempotent refund request
+3. Release seats from `confirmedSeats` — these seats become available for new bookings
 4. Set booking.status = CANCELLED
 
 What if the show time has already passed? Add a guard: if `show.getStartTime().isBefore(LocalDateTime.now())`, cancellation is disallowed (show already happened).
@@ -533,7 +533,7 @@ public boolean isSoldOut(Show show) {
 }
 ```
 
-For the browse experience, compute `available_count` as `total - confirmed - active_locks`. Show "Filling Fast" below a threshold (e.g., < 10% remaining). Show "Sold Out" at 0 available.
+For the browse experience, compute `availableCount` as `total - confirmed - activeLocks`. Show "Filling Fast" below a threshold (e.g., < 10% remaining). Show "Sold Out" at 0 available.
 
 ---
 
@@ -541,9 +541,11 @@ For the browse experience, compute `available_count` as `total - confirmed - act
 
 **Junior**: Explain the booking lifecycle (PENDING → CONFIRMED → CANCELLED). Why do we need a temporary lock before payment? What fields does a Booking need?
 
-**Mid-level**: Implement `lock_seats` with the atomic check-and-lock pattern. Explain why the two-pass approach (validate all, then create all) is necessary. Implement `is_expired()` on SeatLock.
+**Mid-level**: Implement `lockSeats` with the atomic check-and-lock pattern. Explain why the two-pass approach (validate all, then create all) is necessary. Implement `isExpired()` on SeatLock.
 
 **Senior**: Design distributed seat locking with Redis SET NX. Implement lazy TTL expiry vs. scheduler trade-offs. Handle the payment failure case — what state should the booking be in and what happens to the seat locks?
+
+**Staff (SDE-3)**: Opening night for a blockbuster: 500k users hitting one show's seat map in 60 seconds. Your Redis SET NX design has a hot key. Fix it, and quantify the improvement. Then design the queue/waiting-room that most ticketing sites use, and defend the fairness model you choose (FIFO token vs. random admission) against the abuse vector each one creates.
 
 ---
 
@@ -552,9 +554,9 @@ For the browse experience, compute `available_count` as `total - confirmed - act
 - Q: Why use a temporary lock before payment rather than booking directly? A: Payment takes 2-5 seconds. Without a lock, another user could select the same seat during that window and both transactions might succeed, causing double-booking. The lock reserves the seat atomically before any money changes hands.
 - Q: What if payment fails after seats are locked? A: Release all seat locks for that booking, set booking status to CANCELLED, no refund needed (payment never succeeded). The seats become available immediately.
 - Q: How do you prevent double-booking atomically? A: Use a per-show mutex (or Redis SET NX for distributed). The critical section is: check availability + create lock. Both must happen under the same lock so no two threads can both see a seat as available.
-- Q: What is the TTL cleanup strategy — lazy or scheduled? A: Lazy (evict on each `lock_seats` call) is simple and correct. Scheduled (background thread every 30s) is more accurate for real-time availability counts. Production systems use both — lazy for correctness, scheduler for freshness.
+- Q: What is the TTL cleanup strategy — lazy or scheduled? A: Lazy (evict on each `lockSeats` call) is simple and correct. Scheduled (background thread every 30s) is more accurate for real-time availability counts. Production systems use both — lazy for correctness, scheduler for freshness.
 - Q: How does the seat lock TTL interact with payment processing time? A: The TTL must be longer than the worst-case payment processing time. 10 minutes is conservative. If payment takes longer (rare), the lock expires, the user must restart. A heartbeat mechanism can extend the lock TTL during active payment.
-- Q: What is the difference between PENDING and CONFIRMED status? A: PENDING means seats are locked but payment hasn't completed. CONFIRMED means payment succeeded and seats are permanently reserved. Only CONFIRMED bookings are reflected in `confirmed_seats`.
+- Q: What is the difference between PENDING and CONFIRMED status? A: PENDING means seats are locked but payment hasn't completed. CONFIRMED means payment succeeded and seats are permanently reserved. Only CONFIRMED bookings are reflected in `confirmedSeats`.
 
 ---
 

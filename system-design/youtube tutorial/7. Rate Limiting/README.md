@@ -14,7 +14,7 @@ The video covers distributed rate limiting, which `05-hld-problems/01-easy/rate-
 |---|---|
 | **Full HLD problem walkthrough** — requirements, API, algorithms deep dive, distributed counters, fail-open vs fail-closed, multi-region, hot keys, hierarchical rules, interviewer questions by level | [05-hld-problems/01-easy/rate-limiter.md](../../05-hld-problems/01-easy/rate-limiter.md) |
 | **The 5 algorithms** — token bucket, leaky bucket, fixed window, sliding window log, GCRA — plus placement and the atomicity trap | [02-building-blocks/02-performance/02-rate-limiting.md](../../02-building-blocks/02-performance/02-rate-limiting.md) |
-| **LLD implementation** — class design, thread safety, concurrency test harness | [06-lld/05-problems/](../../06-lld/05-problems/) — see the rate limiter problem |
+| **LLD implementation** — class design, thread safety, concurrency test harness | [06-lld/06-problems/](../../06-lld/06-problems/) — see the rate limiter problem |
 
 **Related in this directory:**
 - [Scalability](../6.%20Scalability/01-scalability-hld-and-lld.md) — rate limiting is admission control, the first rung of the shed → degrade → queue → collapse ladder

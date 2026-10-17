@@ -140,8 +140,8 @@ class Comment:
 
 | Requirement | What Vote must track |
 |-------------|----------------------|
-| Who voted | voter_id: str |
-| On what | target_id: str, target_type: TargetType (QUESTION, ANSWER) |
+| Who voted | voterId: str |
+| On what | targetId: str, targetType: TargetType (QUESTION, ANSWER) |
 | Current direction | value: VoteValue (UPVOTE, DOWNVOTE) |
 
 ```
@@ -178,7 +178,7 @@ class Answer:
 | Content | title, body, tags |
 | Ownership | owner: User |
 | Answers and comments | answers: list[Answer], comments: list[Comment] |
-| Vote tally and acceptance | vote_count: AtomicInteger, accepted_answer_id: str \| None |
+| Vote tally and acceptance | voteCount: AtomicInteger, acceptedAnswerId: str \| None |
 | Observers for new-answer events | observers: list[QuestionObserver] |
 
 ```
@@ -454,14 +454,14 @@ public void acceptAnswer(User questionOwner, String questionId, String answerId)
 
 **Scenario**: Alice posts a question. Bob posts an answer. Carol and Dave vote, then Carol changes her vote. Alice accepts Bob's answer.
 
-1. `postQuestion(alice, "Why NPE?", "...", {"java", "npe"})` → Question Q1, `vote_count=0`, `accepted_answer_id=None`
-2. `postAnswer(bob, Q1, "Because...")` → Answer A1, `is_accepted=False`; `OwnerNotifier` fires, notifying Alice of a new answer
-3. `castVote(carol, A1, ANSWER, UPVOTE)` — no existing vote for `(carol, A1)`. Record it, `A1.vote_count`: 0 → 1. Bob's reputation: 0 → **+10**
-4. `castVote(dave, A1, ANSWER, DOWNVOTE)` — no existing vote. Record it, `A1.vote_count`: 1 → 0. Bob's reputation: 10 → **8** (`-2` for downvote)
-5. `castVote(carol, A1, ANSWER, DOWNVOTE)` — existing vote was UPVOTE, new is DOWNVOTE. `reversal = -(+1) + (-1) = -2`. `A1.vote_count`: 0 → -2. Bob's reputation: 8 → **6** (lose the +10 effect, apply -2: net change on this flip is -12, but expressed as the vote-cast delta the manager applies -10 then -2 = -12 → 8-12 = -4; clamp/consistency handled by ReputationManager, see note below)
-6. `acceptAnswer(alice, Q1, A1)` — Alice is owner, A1 belongs to Q1, no prior accepted answer. `A1.is_accepted=True`, `Q1.accepted_answer_id=A1`. Bob's reputation: **+15** on top of current value
+1. `postQuestion(alice, "Why NPE?", "...", {"java", "npe"})` → Question Q1, `voteCount=0`, `acceptedAnswerId=None`
+2. `postAnswer(bob, Q1, "Because...")` → Answer A1, `isAccepted=False`; `OwnerNotifier` fires, notifying Alice of a new answer
+3. `castVote(carol, A1, ANSWER, UPVOTE)` — no existing vote for `(carol, A1)`. Record it, `A1.voteCount`: 0 → 1. Bob's reputation: 0 → **+10**
+4. `castVote(dave, A1, ANSWER, DOWNVOTE)` — no existing vote. Record it, `A1.voteCount`: 1 → 0. Bob's reputation: 10 → **8** (`-2` for downvote)
+5. `castVote(carol, A1, ANSWER, DOWNVOTE)` — existing vote was UPVOTE, new is DOWNVOTE. `reversal = -(+1) + (-1) = -2`. `A1.voteCount`: 0 → -2. Bob's reputation: 8 → **6** (lose the +10 effect, apply -2: net change on this flip is -12, but expressed as the vote-cast delta the manager applies -10 then -2 = -12 → 8-12 = -4; clamp/consistency handled by ReputationManager, see note below)
+6. `acceptAnswer(alice, Q1, A1)` — Alice is owner, A1 belongs to Q1, no prior accepted answer. `A1.isAccepted=True`, `Q1.acceptedAnswerId=A1`. Bob's reputation: **+15** on top of current value
 
-Final tally on A1: `vote_count = -2` (one net downvote after Carol's flip and Dave's downvote). Bob's reputation reflects two downvotes' worth of penalty plus the accept bonus — the exact arithmetic is intentionally owned by `ReputationManager.onVoteCast`, called once per vote-cast event (initial or flip) with the old/new values so it can compute the correct delta in one place rather than duplicating vote-value-to-reputation-delta logic in `castVote`.
+Final tally on A1: `voteCount = -2` (one net downvote after Carol's flip and Dave's downvote). Bob's reputation reflects two downvotes' worth of penalty plus the accept bonus — the exact arithmetic is intentionally owned by `ReputationManager.onVoteCast`, called once per vote-cast event (initial or flip) with the old/new values so it can compute the correct delta in one place rather than duplicating vote-value-to-reputation-delta logic in `castVote`.
 
 ---
 
@@ -618,6 +618,8 @@ public class PrivilegeChecker {
 
 **Senior**: Identify the race in "check for existing vote, then write" and explain the per-target locking fix. Discuss why `ReputationManager` should be the sole writer of reputation rather than scattering `+= 10` calls across `castVote` and `acceptAnswer`. Design vote-brigading defenses as a pipeline separate from core vote recording. Discuss how search would evolve from in-memory inverted index to a real search service, and how that swap stays isolated behind `SearchIndex`.
 
+**Staff (SDE-3)**: Moderation is now the hard problem, not storage. Design the trust/reputation system as a pipeline that can be retrained and rolled out without touching vote recording, and explain the feedback loop risk (reputation gates moderation, moderation shapes reputation). Then design the migration from your in-memory inverted index to a dedicated search cluster with no search downtime.
+
 ---
 
 ## Common Interview Questions
@@ -627,7 +629,7 @@ public class PrivilegeChecker {
 - Q: What happens to reputation when a user changes their vote from up to down? A: The delta is computed relative to the previous value inside one atomic operation — the manager receives both old and new value and applies the correct net change, avoiding the bug of applying an unvote delta and a new-vote delta as two separate non-atomic steps.
 - Q: Why does accepting a new answer un-accept the old one? A: The domain rule is exactly one accepted answer per question — `acceptAnswer` treats "accept A2" as an atomic transition that also revokes A1's accepted status and reputation bonus if one was previously accepted.
 - Q: Why use Observer for new-answer notifications instead of a direct call to a notification service? A: Decouples `QAService` from what "notify" means — email, push, in-app badge — and allows adding new observers (e.g., a watcher list) without modifying `postAnswer`.
-- Q: How would you test for lost updates on the vote tally under concurrency? A: Spin up N threads casting votes from N distinct users on the same answer; assert the final `vote_count` equals the number of upvotes minus downvotes exactly, and that the `votes` map has exactly N entries (no lost or duplicated records).
+- Q: How would you test for lost updates on the vote tally under concurrency? A: Spin up N threads casting votes from N distinct users on the same answer; assert the final `voteCount` equals the number of upvotes minus downvotes exactly, and that the `votes` map has exactly N entries (no lost or duplicated records).
 - Q: Why lock per-target (`targetId`) rather than one global lock for all votes? A: Voting on different questions/answers is independent work — a global lock would serialize unrelated votes across the entire platform; per-target locks give parallelism proportional to the number of distinct posts being voted on concurrently.
 
 ---

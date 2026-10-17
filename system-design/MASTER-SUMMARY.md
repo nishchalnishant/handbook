@@ -677,7 +677,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Parking Lot
 
-*File: `06-lld/05-problems/01-core-problems/01-design-parking-lot.md`*
+*File: `06-lld/06-problems/01-core-problems/01-design-parking-lot.md`*
 
 **What this covers:** Design a Parking Lot — the quintessential LLD problem that tests your ability to model real-world entities, manage state, and apply design patterns.
 
@@ -694,7 +694,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Rate Limiter
 
-*File: `06-lld/05-problems/01-core-problems/02-design-rate-limiter.md`*
+*File: `06-lld/06-problems/01-core-problems/02-design-rate-limiter.md`*
 
 **What this covers:** Design a Rate Limiter — an essential system design and LLD problem focusing on algorithms, concurrency, and time-based state management.
 
@@ -709,7 +709,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Tic Tac Toe
 
-*File: `06-lld/05-problems/01-core-problems/03-design-tic-tac-toe.md`*
+*File: `06-lld/06-problems/01-core-problems/03-design-tic-tac-toe.md`*
 
 **What this covers:** Design Tic-Tac-Toe — a classic introductory LLD problem focusing on state machines, game loops, and optimized win-checking logic.
 
@@ -724,7 +724,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Vending Machine
 
-*File: `06-lld/05-problems/01-core-problems/04-design-vending-machine.md`*
+*File: `06-lld/06-problems/01-core-problems/04-design-vending-machine.md`*
 
 **What this covers:** Design a Vending Machine — the textbook example for demonstrating the State Design Pattern.
 
@@ -738,7 +738,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Splitwise
 
-*File: `06-lld/05-problems/01-core-problems/05-design-splitwise.md`*
+*File: `06-lld/06-problems/01-core-problems/05-design-splitwise.md`*
 
 **What this covers:** Design Splitwise — a popular problem that tests OOP modeling of complex entities (Expenses, Splits) and algorithmic graph simplification.
 
@@ -758,7 +758,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Bookmyshow
 
-*File: `06-lld/05-problems/02-frequent-problems/06-design-bookmyshow.md`*
+*File: `06-lld/06-problems/02-frequent-problems/06-design-bookmyshow.md`*
 
 **What this covers:** Design BookMyShow (Ticket Booking) — a high-frequency LLD problem that tests your ability to handle concurrency (seat locking) and manage complex relationships (Cinemas, Screens, Shows).
 
@@ -774,7 +774,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Chess
 
-*File: `06-lld/05-problems/02-frequent-problems/07-design-chess.md`*
+*File: `06-lld/06-problems/02-frequent-problems/07-design-chess.md`*
 
 **What this covers:** Design Chess — a complex OOP modeling problem focusing on inheritance, polymorphism, and validating complex business rules.
 
@@ -791,7 +791,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Snake And Ladder
 
-*File: `06-lld/05-problems/02-frequent-problems/08-design-snake-and-ladder.md`*
+*File: `06-lld/06-problems/02-frequent-problems/08-design-snake-and-ladder.md`*
 
 **What this covers:** Design Snake and Ladder — a simpler, entity-relationship focused LLD problem that tests basic game loops and random number generation handling.
 
@@ -806,7 +806,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Elevator System
 
-*File: `06-lld/05-problems/02-frequent-problems/09-design-elevator-system.md`*
+*File: `06-lld/06-problems/02-frequent-problems/09-design-elevator-system.md`*
 
 **What this covers:** Design Elevator System — a classic problem testing State machines, scheduling algorithms, and concurrent request handling.
 
@@ -821,7 +821,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Comment System
 
-*File: `06-lld/05-problems/02-frequent-problems/10-design-comment-system.md`*
+*File: `06-lld/06-problems/02-frequent-problems/10-design-comment-system.md`*
 
 **What this covers:** Design a Nested Comment System (like Reddit or HackerNews) — tests tree data structures, Composite pattern, and recursive rendering.
 
@@ -838,7 +838,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Hotel Management
 
-*File: `06-lld/05-problems/02-frequent-problems/11-design-hotel-management.md`*
+*File: `06-lld/06-problems/02-frequent-problems/11-design-hotel-management.md`*
 
 **What this covers:** Design a Hotel Management System — tests your ability to model real-world inventory with date-based constraints and dynamic pricing.
 
@@ -854,7 +854,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Atm
 
-*File: `06-lld/05-problems/02-frequent-problems/12-design-atm.md`*
+*File: `06-lld/06-problems/02-frequent-problems/12-design-atm.md`*
 
 **What this covers:** Design an ATM System — an extensive OOP problem that heavily utilizes the State Pattern, Chain of Responsibility, and hardware integration abstraction.
 
@@ -868,7 +868,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Lru Cache
 
-*File: `06-lld/05-problems/02-frequent-problems/13-design-lru-cache.md`*
+*File: `06-lld/06-problems/02-frequent-problems/13-design-lru-cache.md`*
 
 **What this covers:** Design an LRU Cache — arguably the most famous data structure interview question. Tests your ability to combine primitive data structures to achieve O(1) time complexity for complex operations.
 
@@ -883,7 +883,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Food Delivery
 
-*File: `06-lld/05-problems/02-frequent-problems/14-design-food-delivery.md`*
+*File: `06-lld/06-problems/02-frequent-problems/14-design-food-delivery.md`*
 
 **What this covers:** Design a Food Delivery System (e.g., UberEats, DoorDash) — a massive, multi-actor system focusing on order lifecycle, geolocation, and dynamic assignment.
 
@@ -898,7 +898,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Locker Service
 
-*File: `06-lld/05-problems/02-frequent-problems/15-design-locker-service.md`*
+*File: `06-lld/06-problems/02-frequent-problems/15-design-locker-service.md`*
 
 **What this covers:** Design an Amazon Hub / Locker Service — an inventory management problem focused on optimally matching package sizes to container sizes.
 
@@ -913,7 +913,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Notification System
 
-*File: `06-lld/05-problems/02-frequent-problems/16-design-notification-system.md`*
+*File: `06-lld/06-problems/02-frequent-problems/16-design-notification-system.md`*
 
 **What this covers:** Design a Notification System — a common LLD question focusing on decoupling the generation of events from the delivery of messages.
 
@@ -928,7 +928,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Coupon System
 
-*File: `06-lld/05-problems/02-frequent-problems/17-design-coupon-system.md`*
+*File: `06-lld/06-problems/02-frequent-problems/17-design-coupon-system.md`*
 
 **What this covers:** Design a Coupon/Discount System — tests complex business rule validation and compounding mathematical operations using patterns.
 
@@ -945,7 +945,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Mentorship Platform
 
-*File: `06-lld/05-problems/03-domain-specific/18-design-mentorship-platform.md`*
+*File: `06-lld/06-problems/03-domain-specific/18-design-mentorship-platform.md`*
 
 **What this covers:** Design a Mentorship Platform (or calendar booking system) — focuses on availability, interval overlap detection, and two-sided marketplace matching.
 
@@ -959,7 +959,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Logger Library
 
-*File: `06-lld/05-problems/03-domain-specific/19-design-logger-library.md`*
+*File: `06-lld/06-problems/03-domain-specific/19-design-logger-library.md`*
 
 **What this covers:** Design a Logger Library — a classic framework-design problem that is the textbook use case for the Chain of Responsibility pattern.
 
@@ -973,7 +973,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Library Management
 
-*File: `06-lld/05-problems/03-domain-specific/20-design-library-management.md`*
+*File: `06-lld/06-problems/03-domain-specific/20-design-library-management.md`*
 
 **What this covers:** Design a Library Management System — a comprehensive OOP modeling exercise testing inheritance, state management, and business rule enforcement.
 
@@ -988,7 +988,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Order Management
 
-*File: `06-lld/05-problems/03-domain-specific/21-design-order-management.md`*
+*File: `06-lld/06-problems/03-domain-specific/21-design-order-management.md`*
 
 **What this covers:** Design an Order Management System (OMS) — tests your ability to handle complex, multi-step distributed workflows (like reserving inventory, charging payment, then confirming).
 
@@ -1002,7 +1002,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Ride Sharing
 
-*File: `06-lld/05-problems/03-domain-specific/22-design-ride-sharing.md`*
+*File: `06-lld/06-problems/03-domain-specific/22-design-ride-sharing.md`*
 
 **What this covers:** Design a Ride Sharing System (e.g., Uber/Lyft) — tests matching algorithms, geospatial querying, and managing the lifecycle of a Ride.
 
@@ -1017,7 +1017,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Pub Sub
 
-*File: `06-lld/05-problems/03-domain-specific/23-design-pub-sub.md`*
+*File: `06-lld/06-problems/03-domain-specific/23-design-pub-sub.md`*
 
 **What this covers:** Design a Pub-Sub Messaging System (like Kafka or RabbitMQ) — an advanced systems problem disguised as LLD, testing deep understanding of concurrency, queues, and message delivery guarantees.
 
@@ -1032,7 +1032,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Inventory Management
 
-*File: `06-lld/05-problems/03-domain-specific/24-design-inventory-management.md`*
+*File: `06-lld/06-problems/03-domain-specific/24-design-inventory-management.md`*
 
 **What this covers:** Design an Inventory Management System — tests handling of concurrent stock updates and alerting mechanisms when stock runs low.
 
@@ -1051,7 +1051,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Minesweeper
 
-*File: `06-lld/05-problems/04-advanced-niche/25-design-minesweeper.md`*
+*File: `06-lld/06-problems/04-advanced-niche/25-design-minesweeper.md`*
 
 **What this covers:** Design Minesweeper — tests your ability to model a game board, handle cell states, and implement recursive flood-fill algorithms (DFS/BFS).
 
@@ -1068,7 +1068,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design S3 Object Storage
 
-*File: `06-lld/05-problems/04-advanced-niche/26-design-s3-object-storage.md`*
+*File: `06-lld/06-problems/04-advanced-niche/26-design-s3-object-storage.md`*
 
 **What this covers:** Design S3 Object Storage / File System — an advanced problem combining the Composite pattern for hierarchical data with Strategy for permissions and metadata management.
 
@@ -1083,7 +1083,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Search Engine
 
-*File: `06-lld/05-problems/04-advanced-niche/27-design-search-engine.md`*
+*File: `06-lld/06-problems/04-advanced-niche/27-design-search-engine.md`*
 
 **What this covers:** Design a Search Engine (Inverted Index) — tests text processing, efficient data structures (`Map<String, List<Document>>`), and ranking algorithms.
 
@@ -1098,7 +1098,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Tetris
 
-*File: `06-lld/05-problems/04-advanced-niche/28-design-tetris.md`*
+*File: `06-lld/06-problems/04-advanced-niche/28-design-tetris.md`*
 
 **What this covers:** Design Tetris — a very complex game state problem that tests 2D array manipulation, matrix rotation math, and game loops.
 
@@ -1114,7 +1114,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Version Control
 
-*File: `06-lld/05-problems/04-advanced-niche/29-design-version-control.md`*
+*File: `06-lld/06-problems/04-advanced-niche/29-design-version-control.md`*
 
 **What this covers:** Design a Version Control System (like Git) — a highly advanced LLD problem focusing on Directed Acyclic Graphs (DAGs), hashing, and immutability.
 
@@ -1129,7 +1129,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Tunneling Service
 
-*File: `06-lld/05-problems/04-advanced-niche/30-design-tunneling-service.md`*
+*File: `06-lld/06-problems/04-advanced-niche/30-design-tunneling-service.md`*
 
 **What this covers:** Design an HTTP Tunneling Service (like ngrok) — tests understanding of networking, proxy servers, and establishing long-lived connections for reverse tunneling.
 
@@ -1143,7 +1143,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Text Editor
 
-*File: `06-lld/05-problems/04-advanced-niche/31-design-text-editor.md`*
+*File: `06-lld/06-problems/04-advanced-niche/31-design-text-editor.md`*
 
 **What this covers:** Design a Text Editor — a specialized LLD problem focusing on the Command pattern (Undo/Redo) and the Gap Buffer data structure.
 
@@ -1157,7 +1157,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Download Manager
 
-*File: `06-lld/05-problems/04-advanced-niche/32-design-download-manager.md`*
+*File: `06-lld/06-problems/04-advanced-niche/32-design-download-manager.md`*
 
 **What this covers:** Design a Download Manager — focuses on network protocols (HTTP Range requests), threading, and merging files.
 
@@ -1172,7 +1172,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Unlock Pattern
 
-*File: `06-lld/05-problems/04-advanced-niche/33-design-unlock-pattern.md`*
+*File: `06-lld/06-problems/04-advanced-niche/33-design-unlock-pattern.md`*
 
 **What this covers:** Design Android Unlock Pattern — a graph traversal problem masquerading as LLD. Tests DFS/Backtracking and constraint validation.
 
@@ -1186,7 +1186,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Lock Free Queue
 
-*File: `06-lld/05-problems/04-advanced-niche/34-design-lock-free-queue.md`*
+*File: `06-lld/06-problems/04-advanced-niche/34-design-lock-free-queue.md`*
 
 **What this covers:** Design a Lock-Free Queue — an extremely advanced, low-level concurrency problem (Michael-Scott queue algorithm).
 
@@ -1204,7 +1204,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design Concurrent Lru Cache
 
-*File: `06-lld/05-problems/04-advanced-niche/35-design-concurrent-lru-cache.md`*
+*File: `06-lld/06-problems/04-advanced-niche/35-design-concurrent-lru-cache.md`*
 
 **What this covers:** Design a Concurrent LRU Cache — takes the standard LRU cache and asks "how do we make this thread-safe without locking the whole structure and killing performance?"
 
@@ -1219,7 +1219,7 @@ Every "5-Minute Summary" (or a synthesized equivalent) from all 244 content file
 
 ### Design High Contention Counter
 
-*File: `06-lld/05-problems/04-advanced-niche/36-design-high-contention-counter.md`*
+*File: `06-lld/06-problems/04-advanced-niche/36-design-high-contention-counter.md`*
 
 **What this covers:** Design a High-Contention Counter — testing advanced concurrency concepts (like Java's `LongAdder`) to optimize metrics counting under massive load.
 

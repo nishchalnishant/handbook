@@ -540,6 +540,8 @@ public abstract class Order {
 
 **Senior**: Identify the check-then-act race in fund locking and fix it with atomic per-account locking. Design the Observer wiring so a `Quote` price update can trigger multiple pending limit orders without double-executing any of them under concurrent price updates. Extend the design for stop-loss orders without modifying `ExecutionEngine`. Discuss partial fills and how average cost basis must be recalculated incrementally.
 
+**Staff (SDE-3)**: You're now subject to regulatory audit and best-execution requirements. Design the immutable audit log and prove ordering under concurrent order entry. Then handle the market-open burst: 50x normal volume in 30 seconds. Where does your `ExecutionEngine` fail, what do you shed first, and defend shedding market-data updates over order acknowledgments.
+
 ---
 
 ## Common Interview Questions

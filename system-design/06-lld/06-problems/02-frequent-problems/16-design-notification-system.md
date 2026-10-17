@@ -75,7 +75,7 @@ Design a notification system that can send alerts to users via multiple channels
 | `NotificationService` | Entry point; resolves channels, dispatches notifications |
 | `NotificationChannel` (abstract) | Strategy: `send(recipient, message) -> bool` |
 | `EmailChannel / SMSChannel / PushChannel` | Concrete channel implementations |
-| `User` | Holds contact info (email, phone, device_token) + preferences |
+| `User` | Holds contact info (email, phone, deviceToken) + preferences |
 | `UserPreferences` | Ordered list of preferred channels + opt-outs |
 | `Notification` | Content: title, body, template vars, type |
 | `TemplateEngine` | Renders template + variables into final message |
@@ -294,11 +294,11 @@ Create `WhatsAppChannel(NotificationChannel)` implementing `send()`. Register it
 service.getChannels().put(ChannelType.WHATSAPP, new WhatsAppChannel(whatsappClient));
 ```
 
-Users add WHATSAPP to their `preferred_channels`. No other changes. This is Open/Closed Principle — the system is open for extension (new channel) but closed for modification.
+Users add WHATSAPP to their `preferredChannels`. No other changes. This is Open/Closed Principle — the system is open for extension (new channel) but closed for modification.
 
 ### 2. "How would you make delivery asynchronous?"
 
-Replace the synchronous `_send_with_retry` with an async queue:
+Replace the synchronous `sendWithRetry` with an async queue:
 
 ```java
 public void send(String userId, Notification notification) {
@@ -355,7 +355,7 @@ public class RateLimiter {
 }
 ```
 
-`NotificationService.send()` calls `rate_limiter.allow(user_id)` before dispatching.
+`NotificationService.send()` calls `rateLimiter.allow(userId)` before dispatching.
 
 ### 4. "How would you track delivery status (sent, delivered, read)?"
 
@@ -383,6 +383,8 @@ public class NotificationLog {
 
 **Senior**: Async queue for non-blocking delivery. Rate limiting per user. Delivery tracking with webhook callbacks. Proactively discuss how to add new channels without code changes.
 
+**Staff (SDE-3)**: At 50M notifications/day you now have a deliverability problem, not a delivery problem: users are muting you. Design the frequency-capping and preference layer as a policy engine separate from the transport layer. Then handle the cross-cutting concern: a critical security alert must bypass all caps. How do you encode that priority without letting every team mark their notification critical?
+
 ---
 
 ## Common Interview Questions
@@ -391,7 +393,7 @@ public class NotificationLog {
   **A**: New channels require no modification to existing code — only a new class and registration. A switch statement grows with every new channel and violates Open/Closed.
 
 - **Q**: What is the fallback order — how do you decide?
-  **A**: User's `preferred_channels` list defines order. After retry exhaustion on channel N, fall back to channel N+1. The user controls their preference order (e.g., prefer push first, SMS as backup).
+  **A**: User's `preferredChannels` list defines order. After retry exhaustion on channel N, fall back to channel N+1. The user controls their preference order (e.g., prefer push first, SMS as backup).
 
 - **Q**: How do you handle a channel that's permanently down?
   **A**: Circuit breaker — track failure rate per channel. If failure rate exceeds threshold, mark the channel as OPEN (skip it). Retry after a recovery window.

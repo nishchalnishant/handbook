@@ -95,9 +95,9 @@ Design a food delivery platform like Swiggy or DoorDash where users can browse r
 
 | Requirement | What Restaurant must track |
 |-------------|---------------------------|
-| Identity | restaurant_id, name, cuisine |
-| Availability | is_open: bool |
-| Menu | menu_items: Map<String, MenuItem> |
+| Identity | restaurantId, name, cuisine |
+| Availability | isOpen: bool |
+| Menu | menuItems: Map<String, MenuItem> |
 
 ```
 class MenuItem:
@@ -139,8 +139,8 @@ class Cart:
 
 | Requirement | What Order must track |
 |-------------|----------------------|
-| Identity | order_id |
-| Parties | user_id, restaurant_id, delivery_agent: Optional<DeliveryAgent> |
+| Identity | orderId |
+| Parties | userId, restaurantId, deliveryAgent: Optional<DeliveryAgent> |
 | Snapshot | items: List<CartItem>, total: double |
 | Lifecycle | status: OrderStatus |
 
@@ -202,7 +202,7 @@ class OrderService:
 
 ## Implementation
 
-### Core Method: place_order + assign_delivery_agent
+### Core Method: placeOrder + assignDeliveryAgent
 
 **Core logic:**
 1. Validate cart is non-empty and restaurant is open
@@ -213,7 +213,7 @@ class OrderService:
 6. Restaurant confirms → trigger agent assignment → status moves to CONFIRMED
 
 **Edge cases:**
-- Item becomes unavailable between add-to-cart and place_order → raise error listing unavailable items
+- Item becomes unavailable between add-to-cart and placeOrder → raise error listing unavailable items
 - Restaurant closed at placement time → raise error
 - No available delivery agents → order stays CONFIRMED, retry assignment
 
@@ -569,13 +569,13 @@ class OrderService {
 
 Trace: User places order, restaurant confirms, agent assigned, delivered.
 
-1. `add_to_cart("u1", restaurant, "item1", 2)` → Cart has 2x Burger ($10 each), total=$20
-2. `place_order("u1", restaurant)` → Order(id="o1", status=PLACED), cart cleared
-3. `update_order_status("o1", CONFIRMED)` → order.status=CONFIRMED, nearest agent found (agent_a), agent_a.status=BUSY
-4. `update_order_status("o1", PREPARING)` → order.status=PREPARING (valid transition)
-5. `cancel_order("o1")` → throws IllegalStateException: Cannot cancel in PREPARING
-6. `update_order_status("o1", PICKED_UP)` → order.status=PICKED_UP
-7. `update_order_status("o1", DELIVERED)` → order.status=DELIVERED, agent_a.status=AVAILABLE
+1. `addToCart("u1", restaurant, "item1", 2)` → Cart has 2x Burger ($10 each), total=$20
+2. `placeOrder("u1", restaurant)` → Order(id="o1", status=PLACED), cart cleared
+3. `updateOrderStatus("o1", CONFIRMED)` → order.status=CONFIRMED, nearest agent found (agentA), agentA.status=BUSY
+4. `updateOrderStatus("o1", PREPARING)` → order.status=PREPARING (valid transition)
+5. `cancelOrder("o1")` → throws IllegalStateException: Cannot cancel in PREPARING
+6. `updateOrderStatus("o1", PICKED_UP)` → order.status=PICKED_UP
+7. `updateOrderStatus("o1", DELIVERED)` → order.status=DELIVERED, agentA.status=AVAILABLE
 
 ---
 
@@ -620,7 +620,7 @@ For a food delivery app: use WebSocket for the live tracking map screen. Use pus
 
 ### 4. "Restaurant goes offline mid-order — what happens?"
 
-On order PLACED or CONFIRMED, if the restaurant marks itself `is_open=False`:
+On order PLACED or CONFIRMED, if the restaurant marks itself `isOpen=False`:
 - Orders already in PREPARING or beyond: continue to completion (restaurant is physically making the food)
 - Orders in PLACED or CONFIRMED: cancel with a full refund, notify the user
 
@@ -701,11 +701,13 @@ public Review submitReview(String orderId, int restRating,
 
 ## Interviewer Questions by Level
 
-**Junior**: Why does Cart store a restaurant_id and clear itself when the restaurant changes? What problem does that prevent?
+**Junior**: Why does Cart store a restaurantId and clear itself when the restaurant changes? What problem does that prevent?
 
-**Mid-level**: The Order status machine is implemented as a transition table dict. What would break if you used if/else in `update_status` instead? What's harder to maintain?
+**Mid-level**: The Order status machine is implemented as a transition table dict. What would break if you used if/else in `updateStatus` instead? What's harder to maintain?
 
-**Senior**: At 100k concurrent orders, the `assign_agent` method iterates all available agents linearly. How would you redesign the agent selection to handle this at scale?
+**Senior**: At 100k concurrent orders, the `assignAgent` method iterates all available agents linearly. How would you redesign the agent selection to handle this at scale?
+
+**Staff (SDE-3)**: Assignment quality now has real business impact: agent utilization, delivery time SLA, and restaurant prep-time variance all interact. Frame the assignment as an optimization problem, not a lookup. Then explain how you'd ship a new assignment algorithm safely across 200 cities — shadow-mode evaluation, per-city rollout, and the metric that triggers automatic rollback.
 
 ---
 
@@ -730,7 +732,7 @@ public Review submitReview(String orderId, int restRating,
   A: The restaurant has already started cooking — food cost is incurred. The policy prevents waste. Some platforms allow cancellation with a partial fee.
 
 - **Q: How would you model a multi-restaurant cart?**  
-  A: Cart becomes a `Map<String, List<CartItem>>` keyed by restaurant_id. Placing the order creates one Order per restaurant. Delivery assignments are per-order. Checkout total aggregates across all sub-orders.
+  A: Cart becomes a `Map<String, List<CartItem>>` keyed by restaurantId. Placing the order creates one Order per restaurant. Delivery assignments are per-order. Checkout total aggregates across all sub-orders.
 
 ---
 

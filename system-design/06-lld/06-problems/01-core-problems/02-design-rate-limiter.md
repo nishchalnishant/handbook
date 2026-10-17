@@ -57,7 +57,7 @@ Design a rate limiter that decides whether an incoming request from a user is al
 ## Final Requirements
 
 **In scope:**
-1. `allow(user_id) -> bool` — primary API
+1. `allow(userId) -> bool` — primary API
 2. Token Bucket as the default algorithm with lazy refill
 3. Pluggable algorithm via Strategy pattern
 4. Per-user isolation — each user gets their own bucket/window
@@ -82,7 +82,7 @@ Design a rate limiter that decides whether an incoming request from a user is al
 | FixedWindow | Implements fixed time-window counter |
 | UserBucketStore | Stores per-user algorithm instances |
 
-RateLimiter holds a factory for creating algorithm instances and a store mapping user_id to their instance. On each `allow(user_id)` call, it retrieves or creates the user's instance and delegates the decision.
+RateLimiter holds a factory for creating algorithm instances and a store mapping userId to their instance. On each `allow(userId)` call, it retrieves or creates the user's instance and delegates the decision.
 
 ---
 
@@ -100,8 +100,8 @@ class RateLimitAlgorithm:     # abstract
 | Requirement | What TokenBucket must track |
 |-------------|----------------------------|
 | Current token count | tokens: float |
-| When last refill happened | last_refill_time: float (epoch seconds) |
-| Configuration | capacity: int, refill_rate: float (tokens/sec) |
+| When last refill happened | lastRefillTime: float (epoch seconds) |
+| Configuration | capacity: int, refillRate: float (tokens/sec) |
 | Thread safety | _lock: threading.Lock |
 
 ```
@@ -161,12 +161,12 @@ class RateLimiter:
 
 **Core logic:**
 1. Acquire lock
-2. Compute elapsed time since last refill; add `elapsed * refill_rate` tokens, capped at capacity
+2. Compute elapsed time since last refill; add `elapsed * refillRate` tokens, capped at capacity
 3. If tokens >= 1, consume one token, return True
 4. Otherwise return False
 
 **Edge cases:**
-- First request ever — `last_refill_time` initialized at construction time, so elapsed = 0 on first call but bucket starts full
+- First request ever — `lastRefillTime` initialized at construction time, so elapsed = 0 on first call but bucket starts full
 - Very long gap since last request — tokens capped at capacity, not unbounded
 
 ```java
@@ -193,12 +193,12 @@ private void refill() {
 
 **Core logic:**
 1. Acquire lock
-2. Remove timestamps from the front of the deque that are older than `now - window_seconds`
-3. If length of deque < max_requests, append current timestamp and return True
+2. Remove timestamps from the front of the deque that are older than `now - windowSeconds`
+3. If length of deque < maxRequests, append current timestamp and return True
 4. Otherwise return False
 
 **Edge cases:**
-- Deque grows to max_requests and no old entries expire — correctly rejects
+- Deque grows to maxRequests and no old entries expire — correctly rejects
 - Burst at window boundary — sliding window handles this naturally (no reset artifact)
 
 ```java
@@ -265,7 +265,7 @@ public boolean allow() {
 
 ## Verification
 
-**Scenario**: Token Bucket with capacity=5, refill_rate=1 token/sec.
+**Scenario**: Token Bucket with capacity=5, refillRate=1 token/sec.
 
 1. t=0.0s: Bucket initialized, tokens=5. Request 1 → refill adds 0 (elapsed=0) → tokens=5 → consume → tokens=4 → **allowed**
 2. t=0.1s: Request 2 → refill adds 0.1 → tokens=4.1 → consume → 3.1 → **allowed**
@@ -274,7 +274,7 @@ public boolean allow() {
 5. t=0.6s: Request 7 → tokens~0.1 → cannot consume 1 → **rejected**
 6. t=1.6s: 1 second passes → refill adds 1.0 → tokens~1.1 → Request 8 → **allowed**
 
-The bucket correctly allows bursts up to capacity, then throttles to refill_rate over time.
+The bucket correctly allows bursts up to capacity, then throttles to refillRate over time.
 
 ---
 
@@ -334,13 +334,13 @@ The Lua script runs atomically on Redis, so no race condition between read and w
 
 | Dimension | Token Bucket | Sliding Window Log |
 |-----------|-------------|-------------------|
-| Memory | O(1) per user | O(max_requests) per user — stores each timestamp |
-| Burst handling | Allows burst up to capacity | Allows burst up to max_requests |
+| Memory | O(1) per user | O(maxRequests) per user — stores each timestamp |
+| Burst handling | Allows burst up to capacity | Allows burst up to maxRequests |
 | Boundary artifact | None (continuous) | None (true sliding) |
 | Precision | Approximate (lazy refill) | Exact |
 | Implementation | Simple | Moderate |
 
-**Fixed Window** has a boundary artifact: a user can make max_requests at 11:59:59, then max_requests again at 12:00:01 — effectively 2× the limit in 2 seconds. Sliding Window and Token Bucket both avoid this.
+**Fixed Window** has a boundary artifact: a user can make maxRequests at 11:59:59, then maxRequests again at 12:00:01 — effectively 2× the limit in 2 seconds. Sliding Window and Token Bucket both avoid this.
 
 Use Token Bucket when you want burst allowance and low memory. Use Sliding Window Log when you need exact enforcement with no boundary artifact and memory is not a concern.
 
@@ -375,7 +375,7 @@ public class BurstLimitedTokenBucket extends TokenBucket {
 }
 ```
 
-Alternatively, cap `capacity` equal to `max_burst` — simpler and achieves the same effect since tokens can never exceed capacity.
+Alternatively, cap `capacity` equal to `maxBurst` — simpler and achieves the same effect since tokens can never exceed capacity.
 
 ### 4. "How would you rate limit by IP, user, and API key simultaneously?"
 
@@ -403,7 +403,7 @@ public class CompositeRateLimiter {
 }
 ```
 
-Configure three limiters: one keyed by IP (1000/min), one by user_id (100/min), one by API key (500/min). A request must pass all three. This is the same Strategy pattern with composition.
+Configure three limiters: one keyed by IP (1000/min), one by userId (100/min), one by API key (500/min). A request must pass all three. This is the same Strategy pattern with composition.
 
 ---
 
@@ -411,9 +411,11 @@ Configure three limiters: one keyed by IP (1000/min), one by user_id (100/min), 
 
 **Junior**: Explain what a rate limiter does and why it's needed. Describe the Token Bucket algorithm — what does a token represent? Implement `allow()` with a simple fixed window counter.
 
-**Mid-level**: Implement Token Bucket with lazy refill. Explain why per-user isolation matters. Use Strategy pattern to plug in different algorithms. Identify the race condition in `_get_or_create` and fix with double-checked locking.
+**Mid-level**: Implement Token Bucket with lazy refill. Explain why per-user isolation matters. Use Strategy pattern to plug in different algorithms. Identify the race condition in `getOrCreate` and fix with double-checked locking.
 
 **Senior**: Design distributed rate limiting with Redis and atomic Lua scripts. Compare Token Bucket vs. Sliding Window Log on memory/precision trade-offs. Implement `CompositeRateLimiter` for multi-dimension limiting. Analyze what happens at very high concurrency (lock contention, Redis RTT).
+
+**Staff (SDE-3)**: The rate limiter is now a shared library used by 30 teams. Two teams disagree: one wants fail-open on Redis outage, one wants fail-closed. Design the contract that lets both coexist without forking the library, and state what you'd default to and why. Then quantify the cost of your Lua-script approach at 500k req/s — how many Redis shards, what's the p99 added latency, and at what point do you move to a local-token-bucket-plus-async-sync model and accept the overshoot?
 
 ---
 
@@ -421,11 +423,11 @@ Configure three limiters: one keyed by IP (1000/min), one by user_id (100/min), 
 
 - Q: Why Token Bucket over Fixed Window? A: Fixed Window has a boundary artifact — a user can double their effective rate limit by sending requests at the end and start of consecutive windows. Token Bucket provides smooth rate limiting without this artifact.
 - Q: How do you make the check-and-decrement atomic? A: In single-node, a per-user lock ensures the refill + consume sequence is atomic. In distributed, a Redis Lua script runs atomically on the server side.
-- Q: What breaks at high concurrency with a global lock? A: All requests to the same user_id queue behind one mutex. This is fine in practice since each user's bucket operation is microseconds. The bigger risk is lock contention when millions of distinct users share the store-level creation lock — solved by double-checked locking.
+- Q: What breaks at high concurrency with a global lock? A: All requests to the same userId queue behind one mutex. This is fine in practice since each user's bucket operation is microseconds. The bigger risk is lock contention when millions of distinct users share the store-level creation lock — solved by double-checked locking.
 - Q: Redis vs in-memory — when would you choose each? A: In-memory for single-node services where speed is critical and state loss on restart is acceptable. Redis for distributed systems where rate limit state must be shared across servers and survive restarts.
 - Q: How does lazy refill work and what's its downside? A: On each `allow()` call, compute elapsed time since last refill and add proportional tokens. The downside: if the system is idle for hours, the first request will see a full bucket regardless — which is usually the desired behavior (burst for returning users).
 - Q: What happens if you don't cap tokens at capacity? A: Tokens accumulate unboundedly. A user inactive for a week could make millions of requests in a burst. Always cap at `capacity`.
-- Q: How do you handle user eviction from the store if there are millions of users? A: Use an LRU cache or TTL-based eviction for the user_store. If a user hasn't made a request in 1 hour, evict their entry — next request creates a fresh bucket.
+- Q: How do you handle user eviction from the store if there are millions of users? A: Use an LRU cache or TTL-based eviction for the userStore. If a user hasn't made a request in 1 hour, evict their entry — next request creates a fresh bucket.
 
 ---
 
@@ -642,10 +644,10 @@ public class RateLimiterConcurrencyTest {
 ```
 
 **What each test verifies:**
-- `test_exact_capacity_enforcement`: The per-bucket lock prevents two threads from both reading `tokens >= 1` and both decrementing. Without the lock, more than 100 requests can be admitted.
-- `test_per_user_isolation`: Each user's bucket is independent; a burst by one user must not consume tokens from another's bucket.
-- `test_refill_replenishes`: Lazy refill correctly adds tokens proportional to elapsed time; capacity cap prevents overflow.
-- `test_single_bucket_per_user`: Double-checked locking in `_get_or_create` prevents creating duplicate `TokenBucket` instances when hundreds of threads race to create the first bucket for a new user.
+- `testExactCapacityEnforcement`: The per-bucket lock prevents two threads from both reading `tokens >= 1` and both decrementing. Without the lock, more than 100 requests can be admitted.
+- `testPerUserIsolation`: Each user's bucket is independent; a burst by one user must not consume tokens from another's bucket.
+- `testRefillReplenishes`: Lazy refill correctly adds tokens proportional to elapsed time; capacity cap prevents overflow.
+- `testSingleBucketPerUser`: Double-checked locking in `getOrCreate` prevents creating duplicate `TokenBucket` instances when hundreds of threads race to create the first bucket for a new user.
 
 ---
 

@@ -89,8 +89,8 @@ Design a mentorship platform where mentors set their availability, mentees book 
 
 | Requirement | What Availability must track |
 |-------------|------------------------------|
-| "Recurring availability" | day_of_week, start_time, end_time, effective_from, effective_to |
-| "One-off override" | specific_date, start_time, end_time, is_blocked (for blocking time) |
+| "Recurring availability" | dayOfWeek, startTime, endTime, effectiveFrom, effectiveTo |
+| "One-off override" | specificDate, startTime, endTime, isBlocked (for blocking time) |
 
 ```
 class RecurringAvailability:
@@ -278,7 +278,7 @@ Mentee Carol tries: 2026-07-06 10:30–11:30 UTC
   is_slot_available: Mon 10:30 within [9:00, 17:00] ✓
   find_conflicts:
     B1.start(10:00) < 11:30 AND B1.end(11:00) > 10:30 → CONFLICT
-  raise ConflictError("Time slot already booked")
+  throw new ConflictException("Time slot already booked")
 ```
 
 ---
@@ -368,6 +368,8 @@ Extend `Booking` with `maxCapacity: int` and `attendees: List<String>`. Change `
 
 **Senior**: Race condition analysis and DB-level fix (unique index or SELECT FOR UPDATE). Timezone storage strategy. Slot enumeration algorithm. Group session extension. Automated matching as pluggable strategy.
 
+**Staff (SDE-3)**: Scheduling now spans 40 countries and DST transitions are corrupting recurring slots. Explain precisely what you store (UTC instant vs. local time plus IANA zone vs. both) and why the naive choice breaks on the DST fall-back hour. Then design the recurring-availability model and the backfill migration for slots already stored wrong.
+
 ---
 
 ## Common Interview Questions
@@ -382,7 +384,7 @@ Extend `Booking` with `maxCapacity: int` and `attendees: List<String>`. Change `
   **A**: `getAvailabilityWindows(mentorId, date)` first checks if a `DateOverride` exists for that date — if so, use it (or block if `isBlocked` is `true`). Otherwise, look up `RecurringAvailability` by day of week.
 
 - **Q**: What prevents two mentees from booking the same slot?
-  **A**: The conflict-check and booking-create must happen in the same transaction. In a DB, either a unique constraint on (mentor_id, start_at, end_at) or SELECT FOR UPDATE ensures only one succeeds.
+  **A**: The conflict-check and booking-create must happen in the same transaction. In a DB, either a unique constraint on (mentorId, startAt, endAt) or SELECT FOR UPDATE ensures only one succeeds.
 
 - **Q**: How would you allow a mentor to block time (vacation)?
   **A**: `DateOverride` with `isBlocked = true`. `getAvailabilityWindows` returns empty for that date, so `getOpenSlots` yields nothing and `isSlotAvailable` returns `false`.

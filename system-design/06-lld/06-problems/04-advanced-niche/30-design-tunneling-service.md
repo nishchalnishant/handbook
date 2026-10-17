@@ -59,10 +59,10 @@ Design an ngrok-like HTTP tunneling service that exposes a local port to the int
 ## Final Requirements
 
 **In scope:**
-1. `create_tunnel(local_port)` — register a tunnel, return a unique public URL
-2. `forward_request(tunnel_id, request)` — relay an incoming HTTP request to the local client
-3. `close_tunnel(tunnel_id)` — deregister and clean up
-4. `handle_incoming(request)` — entry point for public HTTP requests; route to correct tunnel
+1. `createTunnel(localPort)` — register a tunnel, return a unique public URL
+2. `forwardRequest(tunnelId, request)` — relay an incoming HTTP request to the local client
+3. `closeTunnel(tunnelId)` — deregister and clean up
+4. `handleIncoming(request)` — entry point for public HTTP requests; route to correct tunnel
 5. Persistent connection between tunnel server and tunnel client
 6. Timeout handling when local server is unresponsive
 7. Request/response correlation (match response to original caller)
@@ -80,11 +80,11 @@ Design an ngrok-like HTTP tunneling service that exposes a local port to the int
 | Entity | Responsibility |
 |--------|---------------|
 | TunnelServer | Public-facing server; routes incoming requests to tunnels |
-| Tunnel | Represents one active tunnel session: subdomain, local_port, connection |
+| Tunnel | Represents one active tunnel session: subdomain, localPort, connection |
 | TunnelRegistry | Maps subdomain -> Tunnel; manages lifecycle |
 | TunnelClient | Runs locally; holds persistent connection, forwards to local port |
 | RequestForwarder | Sends HTTP request over the tunnel connection, waits for response |
-| Session | Per-request correlation: request_id -> waiting caller |
+| Session | Per-request correlation: requestId -> waiting caller |
 | SubdomainGenerator | Produces unique, collision-free subdomain strings |
 
 ---
@@ -95,11 +95,11 @@ Design an ngrok-like HTTP tunneling service that exposes a local port to the int
 
 | Requirement | What Tunnel must track |
 |-------------|----------------------|
-| Identity | `tunnel_id: str, subdomain: str` |
+| Identity | `tunnelId: str, subdomain: str` |
 | Connection | `connection: Connection` — the persistent socket/channel to the client |
-| Local port | `local_port: int` — the port on the client machine |
+| Local port | `localPort: int` — the port on the client machine |
 | State | `status: TunnelStatus` |
-| Pending requests | `pending: dict[str, Future]` — request_id -> caller Future |
+| Pending requests | `pending: dict[str, Future]` — requestId -> caller Future |
 
 ```
 class Tunnel:
@@ -149,25 +149,25 @@ class RequestForwarder:
 
 ## Implementation
 
-### Core Method: handle_incoming() and forward_request()
+### Core Method: handleIncoming() and forwardRequest()
 
-**Core logic for handle_incoming:**
+**Core logic for handleIncoming:**
 1. Extract the subdomain from the `Host` header (e.g., `abc123.tunnel.example.com` -> `abc123`)
 2. Look up the Tunnel in the registry by subdomain
 3. If no tunnel found, return 404
 4. Delegate to `RequestForwarder.forward(tunnel, request)`
 
-**Core logic for forward_request:**
-1. Generate a unique `request_id`
-2. Create a Future and store it in `tunnel.pending[request_id]`
+**Core logic for forwardRequest:**
+1. Generate a unique `requestId`
+2. Create a Future and store it in `tunnel.pending[requestId]`
 3. Serialize the HTTP request and send it over the persistent connection
 4. Await the Future with a timeout
 5. On timeout, return 504; on response, return it
 
 **Edge cases:**
 - Tunnel connection dropped mid-request — catch ConnectionError, return 502
-- Multiple concurrent requests on the same tunnel — each gets its own request_id/Future
-- Response arrives for a request_id that already timed out — discard it
+- Multiple concurrent requests on the same tunnel — each gets its own requestId/Future
+- Response arrives for a requestId that already timed out — discard it
 
 ```java
 import java.util.*;
@@ -497,17 +497,17 @@ public class TunnelServer {
 
 **Scenario: Client creates a tunnel, external request arrives, local server responds**
 
-1. Client connects to `TunnelServer` over persistent WebSocket, calls `register_tunnel(local_port=8080, connection)`
+1. Client connects to `TunnelServer` over persistent WebSocket, calls `registerTunnel(localPort=8080, connection)`
 2. Server generates subdomain `"a3f9c012"`, creates Tunnel, stores in registry
 3. Returns `"https://a3f9c012.tunnel.example.com"`
 4. External user sends `GET https://a3f9c012.tunnel.example.com/api/health`
-5. `handle_incoming(request)` -> `_extract_subdomain("a3f9c012.tunnel.example.com")` -> `"a3f9c012"`
-6. `registry.find_by_subdomain("a3f9c012")` -> Tunnel found
-7. `tunnel.send_request(request, timeout=30)` -> generates request_id `"req-001"`, creates Event, sends payload to client
+5. `handleIncoming(request)` -> `extractSubdomain("a3f9c012.tunnel.example.com")` -> `"a3f9c012"`
+6. `registry.findBySubdomain("a3f9c012")` -> Tunnel found
+7. `tunnel.sendRequest(request, timeout=30)` -> generates requestId `"req-001"`, creates Event, sends payload to client
 8. Client receives payload, forwards to `localhost:8080/api/health`
-9. Local server returns 200; client sends response back to server with `request_id="req-001"`
-10. `tunnel.receive_response("req-001", response)` -> sets the Event, unblocks step 7
-11. `handle_incoming` returns the 200 response to the external caller
+9. Local server returns 200; client sends response back to server with `requestId="req-001"`
+10. `tunnel.receiveResponse("req-001", response)` -> sets the Event, unblocks step 7
+11. `handleIncoming` returns the 200 response to the external caller
 
 ---
 
@@ -546,7 +546,7 @@ For TCP tunneling, the public server listens on a port (not a subdomain) and the
 
 ### 2. "How does subdomain routing work?"
 
-The public tunnel server needs a wildcard DNS record: `*.tunnel.example.com -> server_ip`. The server holds a wildcard TLS certificate for `*.tunnel.example.com`. When a request arrives, the `Host` header contains the full hostname. The server parses the subdomain prefix and looks it up in the TunnelRegistry.
+The public tunnel server needs a wildcard DNS record: `*.tunnel.example.com -> serverIp`. The server holds a wildcard TLS certificate for `*.tunnel.example.com`. When a request arrives, the `Host` header contains the full hostname. The server parses the subdomain prefix and looks it up in the TunnelRegistry.
 
 ```java
 private String extractSubdomain(String host) {
@@ -710,6 +710,8 @@ private HttpResponse handleWebSocketUpgrade(HttpRequest request) {
 
 **Senior**: Compare HTTP tunneling vs TCP tunneling. When would you choose each, and what changes in the architecture?
 
+**Staff (SDE-3)**: You're running this as a service with untrusted users' traffic. Design the abuse-prevention layer — rate limits, bandwidth quotas, and malicious-payload handling — without becoming a content inspector. Then design multi-region tunnel placement and the failover when a tunnel's home region goes down, defending your choice of reconnect strategy against thundering herd.
+
 ---
 
 ## Common Interview Questions
@@ -727,7 +729,7 @@ private HttpResponse handleWebSocketUpgrade(HttpRequest request) {
   A: Every request adds at least 2 extra round trips: caller -> tunnel server -> client machine -> local server -> client -> tunnel server -> caller. Latency is dominated by the network RTT between the caller and the tunnel server, and between the tunnel server and the client machine.
 
 - **Q: How do you correlate request and response when multiple requests use the same connection?**
-  A: Each request is tagged with a unique `request_id`. The server stores a (request_id -> Future/Event) mapping. When the client sends back a response, it includes the `request_id`, allowing the server to unblock the correct waiting caller.
+  A: Each request is tagged with a unique `requestId`. The server stores a (requestId -> Future/Event) mapping. When the client sends back a response, it includes the `requestId`, allowing the server to unblock the correct waiting caller.
 
 - **Q: What security risks does a tunneling service introduce?**
   A: The tunnel exposes a local service to the internet without the local machine having a public IP or open port. Risks: anyone with the URL can reach the local service; no auth by default. Mitigations: per-tunnel auth tokens, IP allowlisting, rate limiting, HTTPS-only with HSTS.

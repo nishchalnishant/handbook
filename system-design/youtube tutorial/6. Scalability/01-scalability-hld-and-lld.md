@@ -175,7 +175,7 @@ private final AtomicLong count = new AtomicLong();
 private final LongAdder count = new LongAdder();
 ```
 
-`LongAdder` maintains per-thread cells summed on read — it trades read cost for write scalability. Under high write contention it is dramatically faster than `AtomicLong`, and it is the direct LLD expression of "reduce the serial fraction." See [36-design-high-contention-counter](../../06-lld/05-problems/04-advanced-niche/36-design-high-contention-counter.md).
+`LongAdder` maintains per-thread cells summed on read — it trades read cost for write scalability. Under high write contention it is dramatically faster than `AtomicLong`, and it is the direct LLD expression of "reduce the serial fraction." See [36-design-high-contention-counter](../../06-lld/06-problems/04-advanced-niche/36-design-high-contention-counter.md).
 
 ## Avoid coordination rather than optimizing it
 

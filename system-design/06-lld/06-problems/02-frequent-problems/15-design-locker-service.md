@@ -136,7 +136,7 @@ class LockerService:
 
 ## Implementation
 
-### Core Method: `assign_locker`
+### Core Method: `assignLocker`
 
 **Core logic:**
 1. Find the station by ID
@@ -197,7 +197,7 @@ private Optional<Locker> findBestLocker(LockerStation station, LockerSize requir
 }
 ```
 
-### Core Method: `retrieve_package`
+### Core Method: `retrievePackage`
 
 ```java
 public Package retrievePackage(String pin) {
@@ -221,7 +221,7 @@ public Package retrievePackage(String pin) {
 }
 ```
 
-### Core Method: `expire_stale_assignments`
+### Core Method: `expireStaleAssignments`
 
 ```java
 public void expireStaleAssignments() {
@@ -357,7 +357,7 @@ class PINGenerator {
 }
 ```
 
-6 digits = 1M combinations. At any time there are far fewer active assignments, so collision is negligible. For higher security, use `secrets.token_hex(3)` (6 hex chars).
+6 digits = 1M combinations. At any time there are far fewer active assignments, so collision is negligible. For higher security, use `secrets.tokenHex(3)` (6 hex chars).
 
 ### 4. "How would you handle concurrent locker assignment?"
 
@@ -396,6 +396,8 @@ Or use a DB-level compare-and-swap: `UPDATE lockers SET status='OCCUPIED' WHERE 
 
 **Senior**: Geohash for geo-search. O(1) locker lookup via per-size queues. CAS or DB-level locking for concurrent assignment. PIN security (entropy analysis).
 
+**Staff (SDE-3)**: You're now the platform team: 3 other product teams want to build on lockers (returns, grocery, pharmacy) and each wants custom hold durations and access rules. Design the extension API so you don't fork the service per use case, and define the contract boundary you will NOT let them cross. Defend your versioning strategy for that API.
+
 ---
 
 ## Common Interview Questions
@@ -410,7 +412,7 @@ Or use a DB-level compare-and-swap: `UPDATE lockers SET status='OCCUPIED' WHERE 
   **A**: A background job runs periodically, finds assignments older than 3 days, calls `locker.release()`, and initiates return-to-sender. The locker becomes available again.
 
 - **Q**: How would you notify the customer that their package is ready?
-  **A**: Observer pattern — after `assign_locker` succeeds, fire a `PackageAssigned` event. A `NotificationService` subscriber sends SMS/email with the PIN and station address.
+  **A**: Observer pattern — after `assignLocker` succeeds, fire a `PackageAssigned` event. A `NotificationService` subscriber sends SMS/email with the PIN and station address.
 
 - **Q**: Why geohash for nearest station search?
   **A**: Geohash encodes location as a string where lexicographic proximity approximates geographic proximity. Prefix search + neighbor cells gives all stations within ~1–5 km without scanning all stations.

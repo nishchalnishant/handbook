@@ -37,7 +37,7 @@ Design the classic Minesweeper game. The player reveals cells on a grid; unrevea
 ## Clarifying Questions
 
 **You**: "What are the grid dimensions and mine count?"
-**Interviewer**: "Configurable: rows, cols, and num_mines."
+**Interviewer**: "Configurable: rows, cols, and numMines."
 
 **You**: "Do we use BFS or DFS for flood fill?"
 **Interviewer**: "Either works — explain your choice."
@@ -56,7 +56,7 @@ Design the classic Minesweeper game. The player reveals cells on a grid; unrevea
 ## Final Requirements
 
 **In scope:**
-1. Configurable grid: rows × cols with num_mines
+1. Configurable grid: rows × cols with numMines
 2. Reveal a cell: mine → GAME_OVER; blank → BFS flood fill; numbered → show count
 3. First click guaranteed safe (re-place mine if needed)
 4. Flag/unflag cells
@@ -75,7 +75,7 @@ Design the classic Minesweeper game. The player reveals cells on a grid; unrevea
 | Entity | Responsibility |
 |--------|---------------|
 | `Board` | Grid of cells; mine placement; flood fill |
-| `Cell` | State (HIDDEN, REVEALED, FLAGGED), is_mine, adjacent_mine_count |
+| `Cell` | State (HIDDEN, REVEALED, FLAGGED), isMine, adjacentMineCount |
 | `CellState` | Enum: HIDDEN, REVEALED, FLAGGED |
 | `Game` | Orchestrates reveal/flag, tracks state (IN_PROGRESS, WON, LOST) |
 | `GameState` | Enum: IN_PROGRESS, WON, LOST |
@@ -91,8 +91,8 @@ Design the classic Minesweeper game. The player reveals cells on a grid; unrevea
 
 | Requirement | What Cell must track |
 |-------------|---------------------|
-| "Is mine" | is_mine: bool |
-| "Adjacent count" | adjacent_mines: int (0–8) |
+| "Is mine" | isMine: bool |
+| "Adjacent count" | adjacentMines: int (0–8) |
 | "Reveal/flag" | state: CellState |
 
 ```
@@ -198,11 +198,11 @@ public GameState reveal(int row, int col) {
 - If mine: return MINE
 - If already revealed: return NUMBER (no-op)
 - Mark cell as REVEALED
-- If adjacent_mines > 0: return NUMBER (stop here)
-- If adjacent_mines == 0: BFS to reveal all connected blank cells
+- If adjacentMines > 0: return NUMBER (stop here)
+- If adjacentMines == 0: BFS to reveal all connected blank cells
 
 **Edge cases:**
-- Guard against revisiting cells in BFS (use visited set or check cell.is_revealed())
+- Guard against revisiting cells in BFS (use visited set or check cell.isRevealed())
 
 ```java
 public RevealResult reveal(int row, int col) {
@@ -385,7 +385,7 @@ Approach A is cleaner — board setup is deferred, no re-computation needed.
 
 ### 3. "How would you add a hint system?"
 
-Hint = reveal the cell with the highest probability of being safe. Use constraint propagation: for each numbered cell, if `adjacent_mines == count_of_flagged_adjacent`, all other adjacent hidden cells are safe.
+Hint = reveal the cell with the highest probability of being safe. Use constraint propagation: for each numbered cell, if `adjacentMines == countOfFlaggedAdjacent`, all other adjacent hidden cells are safe.
 
 ```java
 public Optional<int[]> getHint() {
@@ -438,7 +438,7 @@ public class Board {
 }
 ```
 
-`is_all_revealed()` is O(1) instead of O(rows × cols).
+`isAllRevealed()` is O(1) instead of O(rows × cols).
 
 ---
 
@@ -450,6 +450,8 @@ public class Board {
 
 **Senior**: BFS vs DFS trade-off justified (recursion depth). Lazy mine placement for first-click safety. Constraint-based hint system. Concurrent access (flag + reveal) thread-safety.
 
+**Staff (SDE-3)**: Ship this as a multiplayer co-op game with 50 players on one shared board. Design the conflict resolution when two players reveal overlapping regions simultaneously, and defend server-authoritative state over optimistic client prediction given the latency budget. Then explain how you'd prevent a client from probing mine locations through timing.
+
 ---
 
 ## Common Interview Questions
@@ -458,13 +460,13 @@ public class Board {
   **A**: The JVM's default thread stack allows roughly a few thousand frames before `StackOverflowError`, depending on frame size. A 30×30 all-blank board could generate 900 recursive calls — within range, but not future-proof. BFS uses an explicit queue — no stack overflow risk regardless of grid size.
 
 - **Q**: How do you compute adjacent mine counts?
-  **A**: After placing all mines, iterate every cell. For each non-mine cell, check its 8 neighbors and count how many are mines. Store the count in `cell.adjacent_mines`. O(rows × cols × 8) = O(n).
+  **A**: After placing all mines, iterate every cell. For each non-mine cell, check its 8 neighbors and count how many are mines. Store the count in `cell.adjacentMines`. O(rows × cols × 8) = O(n).
 
 - **Q**: How does flood fill know when to stop?
-  **A**: Stop conditions in BFS: (1) out of bounds, (2) cell is already revealed, (3) cell is a mine, (4) cell has adjacent_mines > 0 (reveal it but don't enqueue its neighbors).
+  **A**: Stop conditions in BFS: (1) out of bounds, (2) cell is already revealed, (3) cell is a mine, (4) cell has adjacentMines > 0 (reveal it but don't enqueue its neighbors).
 
 - **Q**: How do you detect a win?
-  **A**: Maintain a counter `unrevealed_non_mine_count = total_cells - num_mines`. Decrement on each non-mine cell reveal. Win when counter reaches 0. O(1) check.
+  **A**: Maintain a counter `unrevealedNonMineCount = totalCells - numMines`. Decrement on each non-mine cell reveal. Win when counter reaches 0. O(1) check.
 
 - **Q**: What happens if a player flags a mine — does it count toward win?
   **A**: Standard rules: flagged cells are not revealed. Win requires all non-mine cells to be REVEALED (flagged cells don't count). The win check only counts REVEALED state.

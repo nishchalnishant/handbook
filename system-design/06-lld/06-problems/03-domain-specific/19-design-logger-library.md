@@ -107,7 +107,7 @@ enum LogLevel:
 
 | Requirement | What LogRecord must track |
 |-------------|---------------------------|
-| Event snapshot | level, message, timestamp, logger_name, thread_id |
+| Event snapshot | level, message, timestamp, loggerName, threadId |
 
 ```
 class LogRecord:
@@ -130,7 +130,7 @@ abstract class Formatter:
 | Requirement | What LogHandler must track |
 |-------------|----------------------------|
 | Output routing | formatter, minimum level threshold |
-| Filtering | emit only if record.level >= self.level |
+| Filtering | emit only if record.level >= this.level |
 
 ```
 abstract class LogHandler:
@@ -173,7 +173,7 @@ class Logger:
 ### Core Method: `log`
 
 **Core logic:**
-1. Check `level >= self.level`; if not, return early.
+1. Check `level >= this.level`; if not, return early.
 2. Build a `LogRecord` with current timestamp and thread id.
 3. Acquire `_lock` and snapshot the handler list.
 4. Iterate handlers; each handler's `handle()` applies its own level filter then formats and emits.
@@ -462,10 +462,10 @@ logger.addHandler(new SlackHandler(LogLevel.ERROR));
 ### 2. "How do you make logging thread-safe?"
 
 Two locks:
-- `_init_lock` (class-level) guards Singleton creation with double-checked locking.
+- `initLock` (class-level) guards Singleton creation with double-checked locking.
 - `_lock` (instance-level) guards handler list mutation.
 
-Key insight: snapshot the handler list before iterating so `add_handler` during iteration doesn't cause concurrent modification. FileHandler holds its own lock for file I/O.
+Key insight: snapshot the handler list before iterating so `addHandler` during iteration doesn't cause concurrent modification. FileHandler holds its own lock for file I/O.
 
 ### 3. "How would you implement async logging?"
 
@@ -516,7 +516,7 @@ Trade-off: lower caller latency, but records in queue are lost on crash.
 
 ### 4. "How does log rotation work?"
 
-Size-based: before each write, check `os.path.getsize`. If it exceeds `max_bytes`, rename the current file to `filename.YYYYMMDDHHMMSS` and open a fresh file. Prune older rotated files by keeping only the last N.
+Size-based: before each write, check `os.path.getsize`. If it exceeds `maxBytes`, rename the current file to `filename.YYYYMMDDHHMMSS` and open a fresh file. Prune older rotated files by keeping only the last N.
 
 ```java
 private void rotate() throws IOException {
@@ -538,7 +538,7 @@ private void rotate() throws IOException {
 
 ### 5. "How would you add structured / JSON logging?"
 
-Swap the Formatter on a handler to `JSONFormatter`. For richer context (request_id, user_id), extend `LogRecord` to carry an `extras: dict` field.
+Swap the Formatter on a handler to `JSONFormatter`. For richer context (requestId, userId), extend `LogRecord` to carry an `extras: dict` field.
 
 ```java
 public void log(LogLevel level, String message, Map<String, Object> extras) {
@@ -564,6 +564,8 @@ JSONFormatter reads `record.extras` and merges into the output payload.
 **Mid-level**: Why does FileHandler have its own lock when Logger already has one?  
 **Senior**: Walk me through how you'd extend this to support async logging without breaking existing synchronous callers.
 
+**Staff (SDE-3)**: This library is now in 200 services. A bug in your async appender caused an OOM in production for a team that never opted in. Design the safety guarantees a shared logging library must provide: bounded queues, backpressure policy, and what you drop first. Then define your compatibility contract and deprecation policy — how do you ship a breaking change to 200 consumers?
+
 ---
 
 ## Common Interview Questions
@@ -572,7 +574,7 @@ JSONFormatter reads `record.extras` and merges into the output payload.
 - **Q: How does Chain of Responsibility filter by log level?** A: Logger checks the global minimum first; each handler independently checks its own minimum — different handlers can have different verbosity.
 - **Q: Async vs sync logging — when to choose async?** A: Async when logging latency is unacceptable (high-QPS services); sync when you cannot afford to lose records on crash.
 - **Q: What if the remote handler is slow?** A: Put the remote handler behind an async queue, or give it a hard timeout (2s) plus a local buffer to retry.
-- **Q: How do you support custom log formats?** A: Each handler holds a Formatter reference; callers call `handler.set_formatter(JSONFormatter())` — Strategy pattern lets you swap format without touching handler logic.
+- **Q: How do you support custom log formats?** A: Each handler holds a Formatter reference; callers call `handler.setFormatter(JSONFormatter())` — Strategy pattern lets you swap format without touching handler logic.
 - **Q: How do you prevent a buggy handler from crashing the application?** A: Wrap `emit()` in try/except inside `handle()`; swallow the exception and print to stderr.
 - **Q: What is double-checked locking and why is it needed for Singleton?** A: Check `_instance is None` outside and inside the lock. Without the outer check every call acquires the lock (unnecessary contention); without the inner check two threads can both pass the outer check and create two instances.
 - **Q: How do you ensure log ordering across threads?** A: The Logger-level `_lock` serializes `log()` calls; for async logging, a single-threaded drain worker processes the queue in FIFO order.
