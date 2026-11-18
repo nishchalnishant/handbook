@@ -10,20 +10,20 @@ difficulty: mixed
 > [!abstract] In this file
 > **Covers:** Design-a-data-structure problems: support operations X/Y/Z in O(1) / O(log n) by composing maps, lists, heaps and sets.
 > **You'll be able to:** Compose structures so each covers the other's weakness; state per-operation cost.
-> **Prereqs:** Hashing, linked list, heap · **Pair with:** [Design ladder](../../03-patterns/HOW_TO_THINK.md#ladder-12--design-a-data-structure-l4-signature) · **Time:** 2–3 h
-> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../../00-start-here/l3-google-roadmap.md#tier-legend))
+> **Prereqs:** Hashing, linked list, heap · **Pair with:** [Design ladder](../../05-review/02-ladders.md#ladder-12--design-a-data-structure-l4-signature) · **Time:** 2–3 h
+> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../../00-start-here/01-roadmap.md#tier-legend))
 
 **Sections:** [Design Interview Checklist](#design-interview-checklist) · [Warm-up / Core](#logger-rate-limiter--warm-up) · [Stream and Event Systems](#design-underground-system--t1) · [Game and Grid State](#design-tic-tac-toe--t1) · [Heaps and Lazy Deletion](#design-a-food-rating-system--t2) · [Iterators](#zigzag-iterator--combination-iterator--t2) · [Concurrency and Advanced](#design-bounded-blocking-queue--t3)
 
 > [!tip] If you only have 20 minutes
 > **Do these first:** [Insert Delete GetRandom O(1)](#insert-delete-getrandom-o1--t1) · [LFU Cache](#lfu-cache--t1) · [Design Hit Counter](#design-hit-counter--t1) · [Design Underground System](#design-underground-system--t1) · [Design Browser History](#design-browser-history--t1) · [Design Tic-Tac-Toe](#design-tic-tac-toe--t1)
 > **Template:** State the ops table with target complexities first, pick the two structures that cover each other's weak op, and say the sync invariant out loud.
-> **Gotchas:** Lazy-deletion heaps need a source-of-truth map to validate the top · Snake: pop the tail before the collision test unless eating · Tic-Tac-Toe: counters, never the board · Time Based Key-Value Store lives in [Binary Search](../algorithms/11-binary-search.md#time-based-key-value-store-lc-981--t2).
+> **Gotchas:** Lazy-deletion heaps need a source-of-truth map to validate the top · Snake: pop the tail before the collision test unless eating · Tic-Tac-Toe: counters, never the board · Time Based Key-Value Store lives in [Binary Search](../algorithms/04-binary-search.md#time-based-key-value-store-lc-981--t2).
 
 ---
 
 > [!note] L4 signature family
-> Derivation ladder for this family: [Pattern Ladders — Ladder 12](../../03-patterns/HOW_TO_THINK.md#ladder-12--design-a-data-structure-l4-signature).
+> Derivation ladder for this family: [Pattern Ladders — Ladder 12](../../05-review/02-ladders.md#ladder-12--design-a-data-structure-l4-signature).
 > Already covered elsewhere: **Min Stack** → [stack](05-stack.md), **LRU Cache** → [linked list](07-linked-list.md), **Kth Largest in Stream / Find Median** → [heap](10-heap.md).
 
 ## Design Interview Checklist
@@ -178,7 +178,7 @@ difficulty: mixed
 > Time O(n) init, O(log n) per pick; Space O(n).
 
 > [!tip] Follow-up
-> "Weights get updated" → now you need O(log n) update + prefix query; *name* Fenwick/segment tree as the tool, don't implement ([skip policy](../../00-start-here/L3_CHEATSHEET.md)).
+> "Weights get updated" → now you need O(log n) update + prefix query; *name* Fenwick/segment tree as the tool, don't implement ([skip policy](../../00-start-here/02-round-cheatsheet.md)).
 
 ---
 

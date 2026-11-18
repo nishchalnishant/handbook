@@ -10,8 +10,8 @@ difficulty: meta
 > [!abstract] In this file
 > **Covers:** The L3 study plan: tier definitions, the T1/T2/T3 topic lists, a 4-week schedule, and a pattern quick-reference.
 > **You'll be able to:** Know what to study each week and what to skip.
-> **Prereqs:** None · **Pair with:** [L3 cheatsheet](L3_CHEATSHEET.md) · [L4 delta](l4-sde2-delta.md) · **Time:** 15 min
-> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](l3-google-roadmap.md#tier-legend))
+> **Prereqs:** None · **Pair with:** [L3 cheatsheet](02-round-cheatsheet.md) · [L4 delta](03-l4-sde2-delta.md) · **Time:** 15 min
+> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](01-roadmap.md#tier-legend))
 
 **Sections:** [Tier Legend](#tier-legend) · [TIER 1: High-Yield Google Favorites — Must Master `⚡ T1`](#tier-1-high-yield-google-favorites--must-master--t1) · [TIER 2: Highly Probable — Build Fluidity `🎯 T2`](#tier-2-highly-probable--build-fluidity--t2) · [TIER 3: Overkill / Lower Priority for L3 `💤 T3`](#tier-3-overkill--lower-priority-for-l3--t3) · [L3 Study Schedule (4-Week Sprint) `⚡ T1`](#l3-study-schedule-4-week-sprint--t1) · [Quick-Reference: "What Pattern Is This?" `⚡ T1`](#quick-reference-what-pattern-is-this--t1) · [Files in This Repository — By Tier](#files-in-this-repository--by-tier)
 
@@ -60,7 +60,7 @@ DFS  → connected components; cycle detection; path existence; flood fill
 Both → O(V + E) time, O(V) space
 ```
 
-**Files:** [graph.md](../04-practice/data-structures/13-graph.md) · [graphs.md](../01-data-structures/13-graphs.md) · [graph-algorithms.md](../04-practice/algorithms/13-graph-algorithms.md)
+**Files:** [data-structures/11-graph.md](../04-practice/data-structures/11-graph.md) · [02-data-structures/11-graphs.md](../02-data-structures/11-graphs.md) · [algorithms/11-graph-algorithms.md](../04-practice/algorithms/11-graph-algorithms.md)
 
 ---
 
@@ -99,7 +99,7 @@ def topo_sort(n, edges):
     return order if len(order) == n else []  # [] = cycle
 ```
 
-**Files:** [graph-algorithms.md](../04-practice/algorithms/13-graph-algorithms.md) · [graphs.md](../01-data-structures/13-graphs.md) · [13-graph.md](../01-data-structures/13-graphs.md)
+**Files:** [algorithms/11-graph-algorithms.md](../04-practice/algorithms/11-graph-algorithms.md) · [02-data-structures/11-graphs.md](../02-data-structures/11-graphs.md)
 
 ---
 
@@ -135,7 +135,7 @@ class DSU:
         return True
 ```
 
-**Files:** [union-find.md](../04-practice/algorithms/14-union-find.md)
+**Files:** [algorithms/10-union-find.md](../04-practice/algorithms/10-union-find.md)
 
 ---
 
@@ -170,7 +170,7 @@ def solve(arr, limit):
 
 **The recognition signal:** "minimum/maximum X such that [condition]" → binary search on X.
 
-**Files:** [binary-search.md](../04-practice/algorithms/11-binary-search.md) · [11-binary-search.md](../02-algorithms/11-binary-search.md)
+**Files:** [algorithms/04-binary-search.md](../04-practice/algorithms/04-binary-search.md) · [03-algorithms/04-binary-search.md](../03-algorithms/04-binary-search.md)
 
 ---
 
@@ -197,7 +197,7 @@ heapq.heappop(h)            # O(log n) — removes and returns smallest
 heapq.nlargest(k, arr)      # O(n log k) — top K largest
 ```
 
-**Files:** [heap.md](../04-practice/data-structures/10-heap.md)
+**Files:** [data-structures/10-heap.md](../04-practice/data-structures/10-heap.md)
 
 ---
 
@@ -224,7 +224,7 @@ for right in range(len(s)):
     # Window is valid here — update answer
 ```
 
-**Files:** [sliding-window.md](../04-practice/algorithms/04-sliding-window.md)
+**Files:** [algorithms/03-sliding-window.md](../04-practice/algorithms/03-sliding-window.md)
 
 ---
 
@@ -240,7 +240,7 @@ for right in range(len(s)):
 | **Container With Most Water** `⚡ T1` | Greedy two-pointer | Move the shorter wall inward |
 | **Linked List Cycle** `🎯 T2` | Fast/slow (Floyd's) | If they meet → cycle; else fast hits null |
 
-**Files:** [two-pointers.md](../04-practice/algorithms/03-two-pointers.md)
+**Files:** [algorithms/02-two-pointers.md](../04-practice/algorithms/02-two-pointers.md)
 
 ---
 
@@ -279,7 +279,7 @@ class Trie:
         return node.is_end
 ```
 
-**Files:** [trie.md](../04-practice/data-structures/09-trie.md)
+**Files:** [data-structures/09-trie.md](../04-practice/data-structures/09-trie.md)
 
 ---
 
@@ -303,7 +303,7 @@ class Trie:
 
 **Skip for L3:** Bitmask DP, Digit DP, Interval DP (Burst Balloons), Tree DP (complex variants)
 
-**Files:** [dynamic-programming.md](../04-practice/algorithms/15-dynamic-programming.md) · [recursion-to-dp.md](../02-algorithms/10-recursion-to-dp.md)
+**Files:** [algorithms/08-dynamic-programming.md](../04-practice/algorithms/08-dynamic-programming.md) · [03-algorithms/07-recursion-to-dp.md](../03-algorithms/07-recursion-to-dp.md)
 
 ---
 
@@ -331,7 +331,7 @@ def backtrack(path, start, choices):
         path.pop()
 ```
 
-**Files:** [backtracking.md](../04-practice/algorithms/12-backtracking.md)
+**Files:** [algorithms/06-backtracking.md](../04-practice/algorithms/06-backtracking.md)
 
 ---
 
@@ -348,7 +348,7 @@ def backtrack(path, start, choices):
 | **Validate BST** `🎯 T2` | DFS with bounds | Pass `(lo, hi)` bounds — NOT just check immediate children |
 | **Diameter of Binary Tree** `🎯 T2` | Post-order heights | `left_h + right_h` at each node; track global max |
 
-**Files:** [tree.md](../04-practice/data-structures/08-tree.md)
+**Files:** [data-structures/08-tree.md](../04-practice/data-structures/08-tree.md)
 
 ---
 
@@ -419,41 +419,41 @@ Know these cold:
 ### Week 1 — Tier 1 Core (Graphs + Binary Search + Heaps)
 | Day | Topic | LeetCode problems | Read · Cards |
 |-----|-------|------------------|------|
-| Day 1 | BFS on graphs/grids | [Number of Islands](../04-practice/data-structures/13-graph.md#number-of-islands-bfs--t1), [Rotting Oranges](../04-practice/data-structures/13-graph.md#rotting-oranges--t1) | [Read](../01-data-structures/13-graphs.md#bfs--shortest-path-in-unweighted-graph) · [Cards](../01-data-structures/13-graphs.md#flashcards) |
-| Day 2 | DFS on graphs/grids | [Pacific Atlantic](../04-practice/data-structures/13-graph.md#pacific-atlantic-water-flow--t1), [Flood Fill](../04-practice/data-structures/13-graph.md#flood-fill--t1) | [Read](../01-data-structures/13-graphs.md#dfs--components-reachability-cycle-detection) · [Cards](../01-data-structures/13-graphs.md#flashcards) |
-| Day 3 | Topological Sort | [Course Schedule](../04-practice/data-structures/06-queue.md#course-schedule--t1), [Course Schedule II](../04-practice/data-structures/13-graph.md#course-schedule-ii--t1) | [Read](../01-data-structures/13-graphs.md#topological-sort--dependency-ordering) · [Cards](../01-data-structures/13-graphs.md#flashcards) |
-| Day 4 | Union-Find | [Redundant Connection](../04-practice/data-structures/13-graph.md#redundant-connection--t1), [Accounts Merge](../04-practice/algorithms/14-union-find.md#accounts-merge-email-graph--t1) | [Read](../02-algorithms/14-union-find.md#core-idea) · [Cards](../02-algorithms/14-union-find.md#flashcards) |
-| Day 5 | Binary Search on Answer | [Koko Eating Bananas](../04-practice/algorithms/11-binary-search.md#koko-eating-bananas-lc-875--t1), [Capacity to Ship](../04-practice/algorithms/11-binary-search.md#capacity-to-ship-packages-within-d-days-lc-1011--t1) | [Read](../02-algorithms/11-binary-search.md#variant-3-binary-search-on-answer) · [Cards](../02-algorithms/11-binary-search.md#flashcards) |
-| Day 6 | Binary Search variants | [Search Rotated Array](../04-practice/algorithms/11-binary-search.md#search-in-rotated-sorted-array-lc-33--t1), [Find Minimum Rotated](../04-practice/algorithms/11-binary-search.md#find-minimum-in-rotated-sorted-array-lc-153--t1) | [Read](../02-algorithms/11-binary-search.md#variant-2-rotated-sorted-array) · [Cards](../02-algorithms/11-binary-search.md#flashcards) |
+| Day 1 | BFS on graphs/grids | [Number of Islands](../04-practice/data-structures/11-graph.md#number-of-islands-bfs--t1), [Rotting Oranges](../04-practice/data-structures/11-graph.md#rotting-oranges--t1) | [Read](../02-data-structures/11-graphs.md#bfs--shortest-path-in-unweighted-graph) · [Cards](../02-data-structures/11-graphs.md#flashcards) |
+| Day 2 | DFS on graphs/grids | [Pacific Atlantic](../04-practice/data-structures/11-graph.md#pacific-atlantic-water-flow--t1), [Flood Fill](../04-practice/data-structures/11-graph.md#flood-fill--t1) | [Read](../02-data-structures/11-graphs.md#dfs--components-reachability-cycle-detection) · [Cards](../02-data-structures/11-graphs.md#flashcards) |
+| Day 3 | Topological Sort | [Course Schedule](../04-practice/data-structures/06-queue.md#course-schedule--t1), [Course Schedule II](../04-practice/data-structures/11-graph.md#course-schedule-ii--t1) | [Read](../02-data-structures/11-graphs.md#topological-sort--dependency-ordering) · [Cards](../02-data-structures/11-graphs.md#flashcards) |
+| Day 4 | Union-Find | [Redundant Connection](../04-practice/data-structures/11-graph.md#redundant-connection--t1), [Accounts Merge](../04-practice/algorithms/10-union-find.md#accounts-merge-email-graph--t1) | [Read](../03-algorithms/10-union-find.md#core-idea) · [Cards](../03-algorithms/10-union-find.md#flashcards) |
+| Day 5 | Binary Search on Answer | [Koko Eating Bananas](../04-practice/algorithms/04-binary-search.md#koko-eating-bananas-lc-875--t1), [Capacity to Ship](../04-practice/algorithms/04-binary-search.md#capacity-to-ship-packages-within-d-days-lc-1011--t1) | [Read](../03-algorithms/04-binary-search.md#variant-3-binary-search-on-answer) · [Cards](../03-algorithms/04-binary-search.md#flashcards) |
+| Day 6 | Binary Search variants | [Search Rotated Array](../04-practice/algorithms/04-binary-search.md#search-in-rotated-sorted-array-lc-33--t1), [Find Minimum Rotated](../04-practice/algorithms/04-binary-search.md#find-minimum-in-rotated-sorted-array-lc-153--t1) | [Read](../03-algorithms/04-binary-search.md#variant-2-rotated-sorted-array) · [Cards](../03-algorithms/04-binary-search.md#flashcards) |
 | Day 7 | Review + 3 problems from weak spots | — | — |
 
 ### Week 2 — Tier 1 Core (Heaps + Sliding Window + Two Pointers + Tries)
 | Day | Topic | LeetCode problems | Read · Cards |
 |-----|-------|------------------|------|
-| Day 8 | Heap top-K pattern | [K Closest Points](../04-practice/data-structures/10-heap.md#k-closest-points-to-origin--t1), [Kth Largest Element](../04-practice/data-structures/10-heap.md#kth-largest-element-in-an-array--t1) | [Read](../01-data-structures/10-heap.md#top-k-largest--smallest) · [Cards](../01-data-structures/10-heap.md#flashcards) |
-| Day 9 | Heap K-way merge + two heaps | [Merge K Lists](../04-practice/data-structures/10-heap.md#merge-k-sorted-lists--t1), [Find Median from Data Stream](../04-practice/data-structures/06-queue.md#find-median-from-data-stream--t1) | [Read](../01-data-structures/10-heap.md#k-way-merge) · [Cards](../01-data-structures/10-heap.md#flashcards) |
-| Day 10 | Sliding Window fixed+variable | [Minimum Window Substring](../04-practice/algorithms/04-sliding-window.md#minimum-window-substring-lc-76--t1), [Longest No Repeat](../04-practice/algorithms/04-sliding-window.md#longest-substring-without-repeating-characters-lc-3--t1) | [Read](../02-algorithms/04-sliding-window.md#core-idea) · [Cards](../02-algorithms/04-sliding-window.md#flashcards) |
-| Day 11 | Sliding Window + Monotonic Deque | [Sliding Window Maximum](../04-practice/algorithms/04-sliding-window.md#sliding-window-maximum-lc-239--t1), [Permutation in String](../04-practice/algorithms/04-sliding-window.md#permutation-in-string-lc-567--t1) | [Read](../02-algorithms/04-sliding-window.md#extension-monotonic-deque-sliding-window-maxmin) · [Cards](../02-algorithms/04-sliding-window.md#flashcards) |
-| Day 12 | Two Pointers | [3Sum](../04-practice/algorithms/03-two-pointers.md#3sum-lc-15--t1), [Trapping Rain Water](../04-practice/algorithms/03-two-pointers.md#trapping-rain-water-lc-42--t1) | [Read](../02-algorithms/03-two-pointers.md#core-idea) · [Cards](../02-algorithms/03-two-pointers.md#flashcards) |
-| Day 13 | Tries | [Implement Trie](../04-practice/data-structures/09-trie.md#implement-trie-prefix-tree--t1), [Word Search II](../04-practice/data-structures/09-trie.md#word-search-ii--t1) | [Read](../01-data-structures/09-trie.md#core-idea) · [Cards](../01-data-structures/09-trie.md#flashcards) |
+| Day 8 | Heap top-K pattern | [K Closest Points](../04-practice/data-structures/10-heap.md#k-closest-points-to-origin--t1), [Kth Largest Element](../04-practice/data-structures/10-heap.md#kth-largest-element-in-an-array--t1) | [Read](../02-data-structures/10-heap.md#top-k-largest--smallest) · [Cards](../02-data-structures/10-heap.md#flashcards) |
+| Day 9 | Heap K-way merge + two heaps | [Merge K Lists](../04-practice/data-structures/10-heap.md#merge-k-sorted-lists--t1), [Find Median from Data Stream](../04-practice/data-structures/06-queue.md#find-median-from-data-stream--t1) | [Read](../02-data-structures/10-heap.md#k-way-merge) · [Cards](../02-data-structures/10-heap.md#flashcards) |
+| Day 10 | Sliding Window fixed+variable | [Minimum Window Substring](../04-practice/algorithms/03-sliding-window.md#minimum-window-substring-lc-76--t1), [Longest No Repeat](../04-practice/algorithms/03-sliding-window.md#longest-substring-without-repeating-characters-lc-3--t1) | [Read](../03-algorithms/03-sliding-window.md#core-idea) · [Cards](../03-algorithms/03-sliding-window.md#flashcards) |
+| Day 11 | Sliding Window + Monotonic Deque | [Sliding Window Maximum](../04-practice/algorithms/03-sliding-window.md#sliding-window-maximum-lc-239--t1), [Permutation in String](../04-practice/algorithms/03-sliding-window.md#permutation-in-string-lc-567--t1) | [Read](../03-algorithms/03-sliding-window.md#extension-monotonic-deque-sliding-window-maxmin) · [Cards](../03-algorithms/03-sliding-window.md#flashcards) |
+| Day 12 | Two Pointers | [3Sum](../04-practice/algorithms/02-two-pointers.md#3sum-lc-15--t1), [Trapping Rain Water](../04-practice/algorithms/02-two-pointers.md#trapping-rain-water-lc-42--t1) | [Read](../03-algorithms/02-two-pointers.md#core-idea) · [Cards](../03-algorithms/02-two-pointers.md#flashcards) |
+| Day 13 | Tries | [Implement Trie](../04-practice/data-structures/09-trie.md#implement-trie-prefix-tree--t1), [Word Search II](../04-practice/data-structures/09-trie.md#word-search-ii--t1) | [Read](../02-data-structures/09-trie.md#core-idea) · [Cards](../02-data-structures/09-trie.md#flashcards) |
 | Day 14 | Full mock round (35 min, 1 problem, Tier 1) | — | — |
 
 ### Week 3 — Tier 2 (DP + Backtracking + Trees)
 | Day | Topic | LeetCode problems | Read · Cards |
 |-----|-------|------------------|------|
-| Day 15 | 1D DP | [House Robber](../04-practice/algorithms/15-dynamic-programming.md#house-robber--t2), [Coin Change](../04-practice/algorithms/15-dynamic-programming.md#coin-change-min-coins--t2) | [Read](../02-algorithms/15-dynamic-programming.md#pattern-1--linear--fibonacci-dp) · [Cards](../02-algorithms/15-dynamic-programming.md#flashcards) |
-| Day 16 | Knapsack DP | [Partition Equal Subset Sum](../04-practice/algorithms/15-dynamic-programming.md#partition-equal-subset-sum--t2) | [Read](../02-algorithms/15-dynamic-programming.md#pattern-2--01-knapsack) · [Cards](../02-algorithms/15-dynamic-programming.md#flashcards) |
-| Day 17 | Grid DP | [Unique Paths](../04-practice/algorithms/15-dynamic-programming.md#unique-paths--t1), [Minimum Path Sum](../04-practice/algorithms/15-dynamic-programming.md#minimum-path-sum--t1) | [Read](../02-algorithms/15-dynamic-programming.md#pattern-8--grid-dp) · [Cards](../02-algorithms/15-dynamic-programming.md#flashcards) |
-| Day 18 | LCS / Edit Distance | [Longest Common Subsequence](../04-practice/algorithms/15-dynamic-programming.md#longest-common-subsequence--t2), [Edit Distance](../04-practice/algorithms/15-dynamic-programming.md#edit-distance--t2) | [Read](../02-algorithms/15-dynamic-programming.md#pattern-4--lcs-family-2d-string-dp) · [Cards](../02-algorithms/15-dynamic-programming.md#flashcards) |
-| Day 19 | Backtracking: subsets + permutations | [Subsets](../04-practice/algorithms/12-backtracking.md#subsets-power-set--t2), [Permutations](../04-practice/algorithms/12-backtracking.md#permutations--t2), [Combination Sum](../04-practice/algorithms/12-backtracking.md#combination-sum-unbounded--t2) | [Read](../02-algorithms/12-backtracking.md#subsets--combinations--choose-or-skip) · [Cards](../02-algorithms/12-backtracking.md#flashcards) |
-| Day 20 | Tree traversals + LCA | [LCA Binary Tree](../04-practice/data-structures/08-tree.md#lowest-common-ancestor-of-a-binary-tree--t2), [Level Order](../04-practice/data-structures/06-queue.md#binary-tree-level-order-traversal--t2) | [Read](../01-data-structures/08-tree.md#lowest-common-ancestor-lca) · [Cards](../01-data-structures/08-tree.md#flashcards) |
-| Day 21 | Tree DP + BST | [Max Path Sum](../04-practice/data-structures/08-tree.md#binary-tree-maximum-path-sum--t2), [Validate BST](../04-practice/data-structures/08-tree.md#validate-binary-search-tree--t2), [Serialize/Deserialize](../04-practice/data-structures/08-tree.md#serialize-and-deserialize-binary-tree--t2) | [Read](../01-data-structures/08-tree.md#tree-dp--bottom-up-with-multiple-return-values) · [Cards](../01-data-structures/08-tree.md#flashcards) |
+| Day 15 | 1D DP | [House Robber](../04-practice/algorithms/08-dynamic-programming.md#house-robber--t2), [Coin Change](../04-practice/algorithms/08-dynamic-programming.md#coin-change-min-coins--t2) | [Read](../03-algorithms/08-dynamic-programming.md#pattern-1--linear--fibonacci-dp) · [Cards](../03-algorithms/08-dynamic-programming.md#flashcards) |
+| Day 16 | Knapsack DP | [Partition Equal Subset Sum](../04-practice/algorithms/08-dynamic-programming.md#partition-equal-subset-sum--t2) | [Read](../03-algorithms/08-dynamic-programming.md#pattern-2--01-knapsack) · [Cards](../03-algorithms/08-dynamic-programming.md#flashcards) |
+| Day 17 | Grid DP | [Unique Paths](../04-practice/algorithms/08-dynamic-programming.md#unique-paths--t1), [Minimum Path Sum](../04-practice/algorithms/08-dynamic-programming.md#minimum-path-sum--t1) | [Read](../03-algorithms/08-dynamic-programming.md#pattern-8--grid-dp) · [Cards](../03-algorithms/08-dynamic-programming.md#flashcards) |
+| Day 18 | LCS / Edit Distance | [Longest Common Subsequence](../04-practice/algorithms/08-dynamic-programming.md#longest-common-subsequence--t2), [Edit Distance](../04-practice/algorithms/08-dynamic-programming.md#edit-distance--t2) | [Read](../03-algorithms/08-dynamic-programming.md#pattern-4--lcs-family-2d-string-dp) · [Cards](../03-algorithms/08-dynamic-programming.md#flashcards) |
+| Day 19 | Backtracking: subsets + permutations | [Subsets](../04-practice/algorithms/06-backtracking.md#subsets-power-set--t2), [Permutations](../04-practice/algorithms/06-backtracking.md#permutations--t2), [Combination Sum](../04-practice/algorithms/06-backtracking.md#combination-sum-unbounded--t2) | [Read](../03-algorithms/06-backtracking.md#subsets--combinations--choose-or-skip) · [Cards](../03-algorithms/06-backtracking.md#flashcards) |
+| Day 20 | Tree traversals + LCA | [LCA Binary Tree](../04-practice/data-structures/08-tree.md#lowest-common-ancestor-of-a-binary-tree--t2), [Level Order](../04-practice/data-structures/06-queue.md#binary-tree-level-order-traversal--t2) | [Read](../02-data-structures/08-tree.md#lowest-common-ancestor-lca) · [Cards](../02-data-structures/08-tree.md#flashcards) |
+| Day 21 | Tree DP + BST | [Max Path Sum](../04-practice/data-structures/08-tree.md#binary-tree-maximum-path-sum--t2), [Validate BST](../04-practice/data-structures/08-tree.md#validate-binary-search-tree--t2), [Serialize/Deserialize](../04-practice/data-structures/08-tree.md#serialize-and-deserialize-binary-tree--t2) | [Read](../02-data-structures/08-tree.md#tree-dp--bottom-up-with-multiple-return-values) · [Cards](../02-data-structures/08-tree.md#flashcards) |
 
 ### Week 4 — Integration + Mocks
 | Day | Topic | Action | Read · Cards |
 |-----|-------|--------|------|
-| Day 22 | Greedy + Stack | [Merge Intervals](../04-practice/algorithms/16-greedy.md#merge-intervals--t2), [Largest Rectangle](../04-practice/data-structures/05-stack.md#largest-rectangle-in-histogram--t2) | [Read](../02-algorithms/16-greedy.md#intervals--sweep-line--merge-count-overlap--t1) · [Cards](../02-algorithms/16-greedy.md#flashcards) · [Stack](../01-data-structures/05-stack.md#largest-rectangle-in-histogram) |
-| Day 23 | Linked Lists | [Reverse Linked List](../04-practice/data-structures/07-linked-list.md#reverse-linked-list--t2), [LRU Cache](../04-practice/data-structures/07-linked-list.md#lru-cache--t2) | [Read](../01-data-structures/07-linked-list.md#in-place-reversal) · [Cards](../01-data-structures/07-linked-list.md#flashcards) |
+| Day 22 | Greedy + Stack | [Merge Intervals](../04-practice/algorithms/09-greedy.md#merge-intervals--t2), [Largest Rectangle](../04-practice/data-structures/05-stack.md#largest-rectangle-in-histogram--t2) | [Read](../03-algorithms/09-greedy.md#intervals--sweep-line--merge-count-overlap--t1) · [Cards](../03-algorithms/09-greedy.md#flashcards) · [Stack](../02-data-structures/05-stack.md#largest-rectangle-in-histogram) |
+| Day 23 | Linked Lists | [Reverse Linked List](../04-practice/data-structures/07-linked-list.md#reverse-linked-list--t2), [LRU Cache](../04-practice/data-structures/07-linked-list.md#lru-cache--t2) | [Read](../02-data-structures/07-linked-list.md#in-place-reversal) · [Cards](../02-data-structures/07-linked-list.md#flashcards) |
 | Day 24 | Mixed T1 + T2 | 3 problems, random pick | — |
 | Day 25 | Full mock (2 problems, 70 min) | Record yourself explaining out loud | — |
 | Day 26 | Review all wrong answers | Fix gaps | — |
@@ -484,32 +484,31 @@ Know these cold:
 ## Files in This Repository — By Tier
 
 ### ⚡ TIER 1 — Study These First
-- [graph-algorithms.md](../04-practice/algorithms/13-graph-algorithms.md) — BFS, DFS, Topological Sort
-- [union-find.md](../04-practice/algorithms/14-union-find.md) — DSU with path compression
-- [binary-search.md](../04-practice/algorithms/11-binary-search.md) — All BS variants
-- [heap.md](../04-practice/data-structures/10-heap.md) — All heap patterns
-- [sliding-window.md](../04-practice/algorithms/04-sliding-window.md) — Fixed + variable window
-- [two-pointers.md](../04-practice/algorithms/03-two-pointers.md) — Converging + fast/slow
-- [trie.md](../04-practice/data-structures/09-trie.md) — Trie + Trie+DFS
-- [array.md](../04-practice/data-structures/01-array.md) — Two-pointer/window/prefix patterns
-- [hashing.md](../04-practice/data-structures/02-hashing.md) — Hash map patterns
-- [graphs.md](../01-data-structures/13-graphs.md) — Graph deep dive: Dijkstra, topo, BFS variants
-- [matrix.md](../01-data-structures/04-matrix.md) — Grid as implicit graph; multi-source BFS, grid DP
+- [algorithms/11-graph-algorithms.md](../04-practice/algorithms/11-graph-algorithms.md) — BFS, DFS, Topological Sort
+- [algorithms/10-union-find.md](../04-practice/algorithms/10-union-find.md) — DSU with path compression
+- [algorithms/04-binary-search.md](../04-practice/algorithms/04-binary-search.md) — All BS variants
+- [data-structures/10-heap.md](../04-practice/data-structures/10-heap.md) — All heap patterns
+- [algorithms/03-sliding-window.md](../04-practice/algorithms/03-sliding-window.md) — Fixed + variable window
+- [algorithms/02-two-pointers.md](../04-practice/algorithms/02-two-pointers.md) — Converging + fast/slow
+- [data-structures/09-trie.md](../04-practice/data-structures/09-trie.md) — Trie + Trie+DFS
+- [data-structures/01-array.md](../04-practice/data-structures/01-array.md) — Two-pointer/window/prefix patterns
+- [data-structures/02-hashing.md](../04-practice/data-structures/02-hashing.md) — Hash map patterns
+- [02-data-structures/11-graphs.md](../02-data-structures/11-graphs.md) — Graph deep dive: Dijkstra, topo, BFS variants
+- [02-data-structures/04-matrix.md](../02-data-structures/04-matrix.md) — Grid as implicit graph; multi-source BFS, grid DP
 
 ### 🎯 TIER 2 — Study After Tier 1
-- [dynamic-programming.md](../04-practice/algorithms/15-dynamic-programming.md)
-- [backtracking.md](../04-practice/algorithms/12-backtracking.md)
-- [tree.md](../04-practice/data-structures/08-tree.md)
-- [recursion-to-dp.md](../02-algorithms/10-recursion-to-dp.md)
-- [linked-list.md](../04-practice/data-structures/07-linked-list.md)
-- [stack.md](../04-practice/data-structures/05-stack.md)
-- [greedy.md](../04-practice/algorithms/16-greedy.md)
-- [sorting.md](../04-practice/algorithms/00-sorting.md)
-- [string.md](../04-practice/data-structures/03-string.md)
-- [string-algorithms.md](../02-algorithms/02-string-algorithms.md) — KMP, Z, rolling hash; expand-around-center first
+- [algorithms/08-dynamic-programming.md](../04-practice/algorithms/08-dynamic-programming.md)
+- [algorithms/06-backtracking.md](../04-practice/algorithms/06-backtracking.md)
+- [data-structures/08-tree.md](../04-practice/data-structures/08-tree.md)
+- [03-algorithms/07-recursion-to-dp.md](../03-algorithms/07-recursion-to-dp.md)
+- [data-structures/07-linked-list.md](../04-practice/data-structures/07-linked-list.md)
+- [data-structures/05-stack.md](../04-practice/data-structures/05-stack.md)
+- [algorithms/09-greedy.md](../04-practice/algorithms/09-greedy.md)
+- [algorithms/01-sorting.md](../04-practice/algorithms/01-sorting.md)
+- [data-structures/03-string.md](../04-practice/data-structures/03-string.md)
+- [03-algorithms/12-string-algorithms.md](../03-algorithms/12-string-algorithms.md) — KMP, Z, rolling hash; expand-around-center first
 
 ### 💤 TIER 3 — Not in L3 navigation (skip)
 
-- mindmap.md — skim once for the big picture; not a study file
 
-**Behavioral (required):** [`05-behavioral/BEHAVIORAL_GOOGLINESS.md`](../05-behavioral/BEHAVIORAL_GOOGLINESS.md)
+**Behavioral (required):** [`06-behavioral/BEHAVIORAL_GOOGLINESS.md`](../06-behavioral/BEHAVIORAL_GOOGLINESS.md)

@@ -5,15 +5,15 @@ tags: [data-structures, string]
 ---
 # Strings — Data Structure Deep-Dive
 
-← [Data structures index](./README.md) · [Patterns master](../03-patterns/patterns-master.md)
+← [Data structures index](README.md) · [Patterns master](../05-review/01-pattern-sheet.md)
 
 ## What this covers
 
 > [!abstract] In this file
 > **Covers:** Strings as immutable char arrays: frequency maps, palindromes, sliding window on chars, parsing; then an advanced section on pattern matching (KMP / Rabin-Karp / Z).
 > **You'll be able to:** Solve anagram / palindrome / substring-window problems in O(N); avoid O(N²) string concatenation; know when a pattern-matching algorithm is worth it.
-> **Prereqs:** Arrays, hashing · **Pair with:** [String problems](../04-practice/data-structures/03-string.md) · [String algorithms](../02-algorithms/02-string-algorithms.md) · **Time:** 2 h
-> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../00-start-here/l3-google-roadmap.md#tier-legend))
+> **Prereqs:** Arrays, hashing · **Pair with:** [String problems](../04-practice/data-structures/03-string.md) · [String algorithms](../03-algorithms/12-string-algorithms.md) · **Time:** 2 h
+> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../00-start-here/01-roadmap.md#tier-legend))
 
 **Sections:** [Core Idea](#core-idea) · [Mental Model](#mental-model) · [Core Properties](#core-properties) · [Key Patterns](#key-patterns) · [Canonical Problems](#canonical-problems) · [Common Mistakes](#common-mistakes) · [Theory & Mental Models](#theory--mental-models) · [1. Concept Overview](#1-concept-overview) · [2. Core Algorithms & Click Moments](#2-core-algorithms--click-moments) · [3. Pattern Matching Quick Reference](#3-pattern-matching-quick-reference) · [4. Common Interview Problems](#4-common-interview-problems) · [Interview Questions — Logic & Trickiness](#interview-questions--logic--trickiness) · [Quick Revision Triggers](#quick-revision-triggers) · [Flashcards](#flashcards)
 
@@ -683,7 +683,7 @@ class Trie:
 ### Easy
 - **[Valid Palindrome](../04-practice/data-structures/03-string.md#valid-palindrome--t2) `🎯 T2`** — Two pointers; skip non-alphanumeric; compare `lower()`.
 - **[Valid Anagram](../04-practice/data-structures/03-string.md#valid-anagram--t2) `🎯 T2`** — `Counter(s) == Counter(t)` or sort both.
-- **[Longest Common Prefix](../04-practice/data-structures/03-string.md#longest-common-prefix) `🎯 T2`** — Vertical scan or binary search on length.
+- **[Longest Common Prefix](../04-practice/data-structures/03-string.md#parsing--simulation) `🎯 T2`** — Vertical scan or binary search on length.
 
 ### Medium
 - **[Longest Substring Without Repeating Chars](../04-practice/data-structures/03-string.md#longest-substring-without-repeating-characters--t1) `⚡ T1`** — Sliding window + last-seen index map.
@@ -691,15 +691,15 @@ class Trie:
 - **[Find All Anagrams in String](../04-practice/data-structures/03-string.md#find-all-anagrams-in-a-string--t1) `⚡ T1`** — Fixed-size sliding window + counter comparison.
 - **[Longest Palindromic Substring](../04-practice/data-structures/03-string.md#longest-palindromic-substring--t1) `⚡ T1`** — Expand from center; O(N²).
 - **[Encode and Decode Strings](../04-practice/data-structures/03-string.md#encode-and-decode-strings--t2) `🎯 T2`** — Length-prefixed encoding: `f"{len(s)}#{s}"`.
-- **[Longest Palindromic Subsequence](../04-practice/algorithms/15-dynamic-programming.md#longest-palindromic-subsequence--t2) `🎯 T2`** — DP or LCS with `reversed(s)`.
+- **[Longest Palindromic Subsequence](../04-practice/algorithms/08-dynamic-programming.md#longest-palindromic-subsequence--t2) `🎯 T2`** — DP or LCS with `reversed(s)`.
 
 ### Hard
 - **[Minimum Window Substring](../04-practice/data-structures/03-string.md#minimum-window-substring--t1) `⚡ T1`** — Sliding window + `have`/`required` count logic.
-- **[Edit Distance](../04-practice/algorithms/15-dynamic-programming.md#edit-distance--t2) `🎯 T2`** — 2D DP; space-optimize to 1D rolling array.
-- **[Distinct Subsequences](../04-practice/algorithms/02-string-algorithms.md#distinct-subsequences-lc-115--t2) `🎯 T2`** — Count ways to form T as subsequence of S.
-- **[Implement strStr() (KMP)](../04-practice/data-structures/03-string.md#implement-strstr-kmp) `🎯 T2`** — Build LPS; scan without backtracking text pointer.
-- **[Regular Expression Matching](../04-practice/algorithms/02-string-algorithms.md#regular-expression-matching-lc-10) `🎯 T2`** — 2D DP; handle `*` = zero or more of preceding.
-- **[Wildcard Matching](../04-practice/algorithms/02-string-algorithms.md#wildcard-matching-lc-44) `🎯 T2`** — DP; `*` matches any sequence including empty.
+- **[Edit Distance](../04-practice/algorithms/08-dynamic-programming.md#edit-distance--t2) `🎯 T2`** — 2D DP; space-optimize to 1D rolling array.
+- **[Distinct Subsequences](../04-practice/algorithms/12-string-algorithms.md#distinct-subsequences-lc-115--t2) `🎯 T2`** — Count ways to form T as subsequence of S.
+- **[Implement strStr() (KMP)](../04-practice/data-structures/03-string.md#pattern-matching) `🎯 T2`** — Build LPS; scan without backtracking text pointer.
+- **[Regular Expression Matching](../04-practice/algorithms/12-string-algorithms.md#sliding-window-on-strings) `🎯 T2`** — 2D DP; handle `*` = zero or more of preceding.
+- **[Wildcard Matching](../04-practice/algorithms/12-string-algorithms.md#sliding-window-on-strings) `🎯 T2`** — DP; `*` matches any sequence including empty.
 
 ---
 
@@ -750,11 +750,11 @@ class Trie:
 
 ## See also
 
-- [array.md](./01-array.md) — sliding window and two pointers on numeric arrays
-- [hashing.md](./02-hashing.md) — frequency maps, group-by-key
-- [trie.md](./09-trie.md) — prefix dictionary, word search II
-- [stack.md](./05-stack.md) — decode string, parenthesis parsing
-- [03-patterns/patterns-master.md](../03-patterns/patterns-master.md) — string pattern triggers
+- [01-array.md](01-array.md) — sliding window and two pointers on numeric arrays
+- [02-hashing.md](02-hashing.md) — frequency maps, group-by-key
+- [09-trie.md](09-trie.md) — prefix dictionary, word search II
+- [05-stack.md](05-stack.md) — decode string, parenthesis parsing
+- [`05-review/01-pattern-sheet.md`](../05-review/01-pattern-sheet.md) — string pattern triggers
 
 ---
 

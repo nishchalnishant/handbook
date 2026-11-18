@@ -1,5 +1,5 @@
 ---
-module: 03-patterns
+module: 03-algorithms
 topic: Recursion & DP Masterclass — from first call to bottom-up tables
 tags: [recursion, dp, memoization, top-down, bottom-up, teaching, google-l3, l4]
 ---
@@ -8,12 +8,12 @@ tags: [recursion, dp, memoization, top-down, bottom-up, teaching, google-l3, l4]
 ## What this covers
 
 > [!abstract] In this file
-> **Role:** the *first-read narrative lesson*; once it clicks, drill with the [conversion reference](../02-algorithms/10-recursion-to-dp.md) (templates, fill-order table, 15 conversions, bug table).
+> **Role:** Part I is a from-zero lesson; Part II is the drill reference (fill-order table, 12 worked pipelines, 15 conversions, bug table, flashcards).
 > **Covers:** A from-zero lesson: what a call is, the leap of faith, overlapping subproblems, memoization, tabulation, state design, the bug catalog, a practice ladder.
 > **You'll be able to:** Design recursion and DP states for problems you haven't seen.
-> **Prereqs:** None · **Pair with:** [Recursion lecture](../02-algorithms/09-recursion.md) · [Recursion → DP reference](../02-algorithms/10-recursion-to-dp.md) · [DP lecture](../02-algorithms/15-dynamic-programming.md) · **Time:** 3 h
+> **Prereqs:** None · **Pair with:** [Recursion lecture](05-recursion.md) · [Recursion → DP reference](07-recursion-to-dp.md) · [DP lecture](08-dynamic-programming.md) · **Time:** 3 h
 
-**Sections:** [LESSON 1 — What a recursive call actually is](#lesson-1--what-a-recursive-call-actually-is) · [LESSON 2 — The five shapes of recursive problems](#lesson-2--the-five-shapes-of-recursive-problems) · [LESSON 3 — The disease: overlapping subproblems](#lesson-3--the-disease-overlapping-subproblems) · [LESSON 4 — Top-down DP (memoization), the production method](#lesson-4--top-down-dp-memoization-the-production-method) · [LESSON 5 — Bottom-up DP (tabulation): the same tree, walked in reverse](#lesson-5--bottom-up-dp-tabulation-the-same-tree-walked-in-reverse) · [LESSON 6 — State design: the actual hard part](#lesson-6--state-design-the-actual-hard-part) · [LESSON 7 — Top-down vs bottom-up: an actual decision procedure](#lesson-7--top-down-vs-bottom-up-an-actual-decision-procedure) · [LESSON 8 — The bug catalog (read before every mock)](#lesson-8--the-bug-catalog-read-before-every-mock) · [LESSON 9 — The practice ladder (in order, with the lesson each teaches)](#lesson-9--the-practice-ladder-in-order-with-the-lesson-each-teaches)
+**Sections:** [1.1 The machine model (30 seconds of truth)](#11-the-machine-model-30-seconds-of-truth) · [1.2 The leap of faith — the single most important idea in this file](#12-the-leap-of-faith--the-single-most-important-idea-in-this-file) · [1.3 The three questions that design any recursion](#13-the-three-questions-that-design-any-recursion) · [1.4 The shape of the call tree = the complexity](#14-the-shape-of-the-call-tree--the-complexity) · [3.1 Autopsy of naive Fibonacci](#31-autopsy-of-naive-fibonacci) · [3.2 The cure: memoization](#32-the-cure-memoization) · [3.3 What "DP problem" actually means](#33-what-dp-problem-actually-means) · [4.1 Full worked example — Coin Change (min coins for `amount`)](#41-full-worked-example--coin-change-min-coins-for-amount) · [4.2 Second worked example — Longest Common Subsequence (shape 2)](#42-second-worked-example--longest-common-subsequence-shape-2) · [4.3 Top-down mechanics: the gotcha list](#43-top-down-mechanics-the-gotcha-list) · [5.1 What bottom-up actually is](#51-what-bottom-up-actually-is) · [5.2 The mechanical translation (memorize this procedure, it never varies)](#52-the-mechanical-translation-memorize-this-procedure-it-never-varies) · [5.3 Watch the translation — Coin Change again](#53-watch-the-translation--coin-change-again) · [5.4 The 2D case — LCS as a table, filled before your eyes](#54-the-2d-case--lcs-as-a-table-filled-before-your-eyes) · [5.5 Space optimization — the standard follow-up](#55-space-optimization--the-standard-follow-up) · [6.1 The principle](#61-the-principle) · [6.2 Watch a state get discovered — Best Time to Buy/Sell Stock with Cooldown](#62-watch-a-state-get-discovered--best-time-to-buysell-stock-with-cooldown) · [6.3 The standard state inventory](#63-the-standard-state-inventory) · [6.4 Reading the combiner off the question](#64-reading-the-combiner-off-the-question) · [The one-card summary](#the-one-card-summary) · [Iteration Order Cheat Sheet](#iteration-order-cheat-sheet) · [Worked Examples — Full Pipeline](#worked-examples--full-pipeline) · [15-Problem Conversion Reference](#15-problem-conversion-reference) · [Common Conversion Bugs](#common-conversion-bugs) · [Interview Script (say this out loud)](#interview-script-say-this-out-loud) · [Flashcards](#flashcards) · [See Also](#see-also)
 
 ---
 
@@ -377,7 +377,7 @@ Both compute the identical answer at identical asymptotic cost. Choose deliberat
 
 # LESSON 9 — The practice ladder (in order, with the lesson each teaches)
 
-Attempt each cold with the 5-step method — decision sentence and contract *on paper* — before any hints. Full walkthroughs: [`04-practice/algorithms/15-dynamic-programming.md`](../04-practice/algorithms/15-dynamic-programming.md); bridge drills: [`02-algorithms/10-recursion-to-dp.md`](../02-algorithms/10-recursion-to-dp.md).
+Attempt each cold with the 5-step method — decision sentence and contract *on paper* — before any hints. Full walkthroughs: [`04-practice/algorithms/08-dynamic-programming.md`](../04-practice/algorithms/08-dynamic-programming.md).
 
 | # | Problem | It teaches |
 |---|---|---|
@@ -396,7 +396,7 @@ Attempt each cold with the 5-step method — decision sentence and contract *on 
 | 13 | Stock with Cooldown `🎯 T2` | live state discovery (§6.2) |
 | 14 | Longest Palindromic Substring `⚡ T1` / Subsequence `🎯 T2` | `(l, r)` range states |
 | 15 | Burst Balloons `🎯 T2` | decide-the-last-action flip; hardest state in the common canon |
-| 16 | Maximum Profit in Job Scheduling `🎯 T2` | DP + binary search composition — the L4 seam ([HOW_TO_THINK.md](HOW_TO_THINK.md#hard-problems-are-two-patterns-with-a-seam)) |
+| 16 | Maximum Profit in Job Scheduling `🎯 T2` | DP + binary search composition — the L4 seam ([How to think](../01-foundations/01-how-to-think.md#hard-problems-are-two-patterns-with-a-seam)) |
 
 **Per-problem protocol:** 25 min cold → if stuck, re-run: *decision sentence? contract? what leaks?* (that sequence un-sticks most attempts) → after solving, do the space-optimization follow-up aloud → log which Lesson-8 bug (if any) you hit. Your bug log converging on one or two entries after ~10 problems tells you exactly what to drill.
 
@@ -412,9 +412,433 @@ Attempt each cold with the 5-step method — decision sentence and contract *on 
 > 6. Read the combiner off the question: ways ⇒ Σ, best ⇒ min/max, possible ⇒ OR.
 > 7. Interview default: top-down first, **offer** the bottom-up + space-optimized conversion.
 
+# PART II — CONVERSION REFERENCE
+
+## Iteration Order Cheat Sheet
+
+The #1 bottom-up bug is filling a cell before its dependencies exist. Use this table:
+
+| State shape | Recursive direction | Bottom-up fill order | Depends on |
+|-------------|--------------------|-----------------------|------------|
+| `f(i)` suffix from `i` | calls `f(i+1)`, `f(i+2)` | `i` from **n → 0** | future indices |
+| `f(i)` prefix to `i` | calls `f(i-1)`, `f(i-2)` | `i` from **0 → n** | past indices |
+| `f(amount)` unbounded | `amount - coin` | `amount` from **0 → target** | smaller amounts |
+| `f(i, w)` 0/1 knapsack | `i+1`, same `w` or `w-wt` | outer `i`, inner `w`; 1D: **w backward** | previous item row |
+| `f(i, j)` two strings | `i+1`, `j+1` | `i` **m→0**, `j` **n→0** (or row-major) | suffixes / larger indices |
+| `f(l, r)` interval | split at `k` | outer **length**, inner `l` | strictly smaller intervals |
+| `f(r, c)` grid paths | `r+1`, `c+1` | `r` **0→m**, `c` **0→n** | top and left neighbors |
+
+**Rule:** List what `dp[state]` reads on the RHS. Those cells must already be filled when you write `state`.
+
+**Dry-run trace — why 1D direction matters.** One item of weight `2`, capacity `4`, `dp[w]` = "can we hit weight `w`?", start `dp = [T, F, F, F, F]`, update `dp[w] |= dp[w-2]`:
+
+| Loop | `w` visited | Reads | `dp` after step | Meaning |
+|---|---|---|---|---|
+| **Forward** (unbounded) | 2 | `dp[0]=T` | `[T,F,T,F,F]` | |
+| | 3 | `dp[1]=F` | `[T,F,T,F,F]` | |
+| | 4 | `dp[2]=T` ← *written this pass* | `[T,F,T,F,T]` | item used **twice** — right for Coin Change, wrong for 0/1 |
+| **Backward** (0/1) | 4 | `dp[2]=F` (old row) | `[T,F,F,F,F]` | |
+| | 3 | `dp[1]=F` | `[T,F,F,F,F]` | |
+| | 2 | `dp[0]=T` | `[T,F,T,F,F]` | item used **once** ✅ |
+
+Backward iteration means every `dp[w - wt]` you read is still the *previous item's* value — the 1D array is impersonating row `i-1`. Forward iteration reads cells already updated for item `i`, which is exactly "reuse allowed."
+
+> [!warning] Common mistakes
+> - Filling a cell before its dependencies — derive the order from the recursive calls (table above), never by habit.
+> - Wrong 1D loop direction for knapsack (trace above).
+> - Skipping the border row/col when converting memo → table.
+> Full symptom → fix list: [Common Conversion Bugs](#common-conversion-bugs).
+
+---
+
+## Worked Examples — Full Pipeline
+
+Each example follows: **state → recurrence → brute → memo → tabulate → (optional) space-opt**.
+
+Complexity: **R** = recursive, **M** = memo, **B** = bottom-up, **S** = space-opt.
+
+---
+
+### 1. Climbing Stairs — linear / Fibonacci
+
+**State:** `f(i)` = number of ways to reach step `i`.  
+**Recurrence:** `f(i) = f(i-1) + f(i-2)` · base: `f(1)=1, f(2)=2`.
+
+| Stage | Code idea | Time | Space |
+|-------|-----------|------|-------|
+| R | `return f(n-1)+f(n-2)` | O(2^n) | O(n) stack |
+| M | `memo[n]` dict | O(n) | O(n) |
+| B | `dp[i] = dp[i-1]+dp[i-2]`, `i: 3..n` | O(n) | O(n) |
+| S | `prev2, prev1` rolling | O(n) | O(1) |
+
+```python
+# B — bottom-up
+def climb(n: int) -> int:
+    if n <= 2: return n
+    dp = [0] * (n + 1)
+    dp[1], dp[2] = 1, 2
+    for i in range(3, n + 1):
+        dp[i] = dp[i - 1] + dp[i - 2]
+    return dp[n]
+```
+
+**Lesson:** One-dimensional state depending on two prior values → rolling variables.
+
+---
+
+### 2. House Robber — take / skip
+
+**State:** `f(i)` = max loot from houses `i..n-1` (suffix formulation).  
+**Recurrence:** `f(i) = max(nums[i] + f(i+2), f(i+1))` · base: `f(n)=0`.
+
+| Stage | Time | Space |
+|-------|------|-------|
+| R | O(2^n) | O(n) |
+| M | O(n) | O(n) |
+| B | O(n) | O(n) |
+| S | O(n) | O(1) |
+
+```python
+# M — memo on index; nums in closure
+def rob(nums):
+    memo = {}
+
+    def f(i):
+        if i in memo:
+            return memo[i]
+        if i >= len(nums):
+            return 0
+        memo[i] = max(nums[i] + f(i + 2), f(i + 1))
+        return memo[i]
+
+    return f(0)
+
+# B — fill suffix: i from n-1 down to 0
+def rob_tab(nums: list[int]) -> int:
+    n = len(nums)
+    dp = [0] * (n + 1)
+    for i in range(n - 1, -1, -1):
+        dp[i] = max(nums[i] + dp[i + 2], dp[i + 1])
+    return dp[0]
+```
+
+**Lesson:** “Take or skip” on a line → suffix index state; fill **right to left**.
+
+---
+
+### 3. Decode Ways — suffix string, forward tabulation
+
+**State:** `f(i)` = ways to decode `s[i:]`.  
+**Recurrence:** if `s[i]=='0'` → 0; else `f(i) = f(i+1)` + (optional) `f(i+2)` if two-digit valid.
+
+| Stage | Time | Space |
+|-------|------|-------|
+| R | O(2^n) | O(n) |
+| M | O(n) | O(n) |
+| B | O(n) | O(n) |
+| S | O(n) | O(1) |
+
+```python
+# R
+def num_decodings_r(s: str, i: int = 0) -> int:
+    if i == len(s): return 1
+    if s[i] == '0': return 0
+    ways = num_decodings_r(s, i + 1)
+    if i + 1 < len(s) and 10 <= int(s[i:i+2]) <= 26:
+        ways += num_decodings_r(s, i + 2)
+    return ways
+
+# B — prefix formulation: dp[i] = ways for s[:i]; fill left to right
+def num_decodings(s: str) -> int:
+    n = len(s)
+    dp = [0] * (n + 1)
+    dp[0] = 1
+    dp[1] = 0 if s[0] == '0' else 1
+    for i in range(2, n + 1):
+        if s[i - 1] != '0':
+            dp[i] += dp[i - 1]
+        two = int(s[i - 2:i])
+        if 10 <= two <= 26:
+            dp[i] += dp[i - 2]
+    return dp[n]
+```
+
+**Lesson:** Suffix recursion ↔ prefix tabulation. Leading `'0'` is a dead branch — handle in base/transition, not after the fact.
+
+---
+
+### 4. Coin Change (min coins) — unbounded knapsack
+
+**State:** `f(rem)` = min coins to make amount `rem`.  
+**Recurrence:** try every coin: `f(rem) = min(1 + f(rem - coin))`.
+
+| Stage | Time | Space |
+|-------|------|-------|
+| R | O(coins^amount) | O(amount) |
+| M | O(amount × coins) | O(amount) |
+| B | O(amount × coins) | O(amount) |
+
+```python
+# B — increasing amount; each coin reusable → inner coin loop
+def coin_change(coins: list[int], amount: int) -> int:
+    dp = [float('inf')] * (amount + 1)
+    dp[0] = 0
+    for cur in range(1, amount + 1):
+        for c in coins:
+            if cur >= c and dp[cur - c] != float('inf'):
+                dp[cur] = min(dp[cur], dp[cur - c] + 1)
+    return -1 if dp[amount] == float('inf') else dp[amount]
+```
+
+**Lesson:** Unbounded reuse → iterate amount **forward**; transition reads **smaller** amount.
+
+---
+
+### 5. Subset Sum — 0/1 knapsack (boolean)
+
+**State:** `f(i, target)` = can we hit `target` using items from index `i` onward?  
+**Recurrence:** take or skip item `i`.
+
+| Stage | Time | Space |
+|-------|------|-------|
+| R | O(2^n) | O(n) |
+| M | O(n × target) | O(n × target) |
+| B | O(n × target) | O(target) with 1D |
+
+```python
+# M
+def subset_sum_memo(nums, target):
+    memo = {}
+
+    def f(i, t):
+        if (i, t) in memo:
+            return memo[(i, t)]
+        if t == 0:
+            return True
+        if i == len(nums) or t < 0:
+            return False
+        memo[(i, t)] = f(i + 1, t - nums[i]) or f(i + 1, t)
+        return memo[(i, t)]
+
+    return f(0, target)
+
+# B — 1D: dp[w] = achievable?; w goes BACKWARD per item
+def subset_sum(nums: list[int], target: int) -> bool:
+    dp = [False] * (target + 1)
+    dp[0] = True
+    for num in nums:
+        for w in range(target, num - 1, -1):   # backward = each item once
+            dp[w] = dp[w] or dp[w - num]
+    return dp[target]
+```
+
+**Lesson:** 0/1 choice → **backward** capacity loop. Partition Equal Subset Sum = subset sum with `target = sum/2`.
+
+---
+
+### 6. Longest Common Subsequence — 2D string DP
+
+**State:** `f(i, j)` = LCS length of `a[i:]` and `b[j:]`.  
+**Recurrence:** match → `1 + f(i+1,j+1)`; else `max(f(i+1,j), f(i,j+1))`.
+
+| Stage | Time | Space |
+|-------|------|-------|
+| R | O(2^(m+n)) | O(m+n) |
+| M | O(m × n) | O(m × n) |
+| B | O(m × n) | O(m × n) |
+| S | O(m × n) | O(min(m,n)) one row |
+
+```python
+# B — fill from bottom-right: i m-1..0, j n-1..0
+def lcs(a: str, b: str) -> int:
+    m, n = len(a), len(b)
+    dp = [[0] * (n + 1) for _ in range(m + 1)]
+    for i in range(m - 1, -1, -1):
+        for j in range(n - 1, -1, -1):
+            if a[i] == b[j]:
+                dp[i][j] = 1 + dp[i + 1][j + 1]
+            else:
+                dp[i][j] = max(dp[i + 1][j], dp[i][j + 1])
+    return dp[0][0]
+```
+
+**Lesson:** Two-sequence alignment → 2D table; match moves diagonally. Edit Distance uses the same grid with three operations instead of max.
+
+---
+
+### 7. Edit Distance — 2D with three operations
+
+**State:** `f(i, j)` = min edits to turn `a[i:]` into `b[j:]`.  
+**Recurrence:** match → `f(i+1,j+1)`; else `1 + min(delete, insert, replace)`.
+
+```python
+# B — same fill order as LCS; base: empty prefix costs
+def min_distance(a: str, b: str) -> int:
+    m, n = len(a), len(b)
+    dp = [[0] * (n + 1) for _ in range(m + 1)]
+    for i in range(m + 1): dp[i][n] = m - i
+    for j in range(n + 1): dp[m][j] = n - j
+    for i in range(m - 1, -1, -1):
+        for j in range(n - 1, -1, -1):
+            if a[i] == b[j]:
+                dp[i][j] = dp[i + 1][j + 1]
+            else:
+                dp[i][j] = 1 + min(
+                    dp[i + 1][j],      # delete a[i]
+                    dp[i][j + 1],      # insert b[j]
+                    dp[i + 1][j + 1],  # replace
+                )
+    return dp[0][0]
+```
+
+**Lesson:** Initialize **border rows/cols** before the double loop — same state shape as LCS, different combine.
+
+---
+
+### 8. Unique Paths — grid DP
+
+**State:** `f(r, c)` = paths from `(0,0)` to `(r,c)`.  
+**Recurrence:** `f(r,c) = f(r-1,c) + f(r,c-1)`.
+
+```python
+# B — top-left to bottom-right; first row/col = 1
+def unique_paths(m: int, n: int) -> int:
+    dp = [[1] * n for _ in range(m)]
+    for r in range(1, m):
+        for c in range(1, n):
+            dp[r][c] = dp[r - 1][c] + dp[r][c - 1]
+    return dp[m - 1][n - 1]
+
+# S — single row rolling
+def unique_paths_opt(m: int, n: int) -> int:
+    row = [1] * n
+    for _ in range(1, m):
+        for c in range(1, n):
+            row[c] += row[c - 1]
+    return row[-1]
+```
+
+**Lesson:** Dependencies come from **top and left** → fill row-major forward.
+
+---
+
+### 9. Burst Balloons — interval DP (“last choice”)
+
+**State:** `f(l, r)` = max coins bursting all balloons in open interval `(l, r)` (exclusive bounds; pad array with `1`).  
+**Recurrence:** pick **last** balloon `k` to burst in `(l,r)` → neighbors `l` and `r` stay fixed.
+
+```python
+# M — pad with 1; memo on (left, right)
+def max_coins(nums):
+    arr = [1] + nums + [1]
+    memo = {}
+
+    def f(left, right):
+        if (left, right) in memo:
+            return memo[(left, right)]
+        if left + 1 >= right:
+            return 0
+        best = 0
+        for k in range(left + 1, right):
+            best = max(best, arr[left] * arr[k] * arr[right] + f(left, k) + f(k, right))
+        memo[(left, right)] = best
+        return best
+
+    return f(0, len(arr) - 1)
+
+# B — outer loop: interval length; inner: left endpoint
+def max_coins_tab(nums: list[int]) -> int:
+    arr = [1] + nums + [1]
+    n = len(arr)
+    dp = [[0] * n for _ in range(n)]
+    for length in range(2, n):
+        for l in range(0, n - length):
+            r = l + length
+            for k in range(l + 1, r):
+                dp[l][r] = max(dp[l][r], arr[l]*arr[k]*arr[r] + dp[l][k] + dp[k][r])
+    return dp[0][n - 1]
+```
+
+**Lesson:** When “first action” makes neighbors unknown, reframe as **last action** in interval. Fill by **increasing interval length**.
+
+---
+
+## 15-Problem Conversion Reference
+
+One row per problem — use after you can do the nine worked examples above.
+
+| # | Problem | State | Memo key | Fill order | Space-opt | Key lesson |
+|---|---------|-------|----------|------------|-----------|------------|
+| 1 | Climbing Stairs | `f(i)` ways to step `i` | `i` | `i ↑` | 2 vars | Fibonacci-style |
+| 2 | Min Cost Climbing Stairs | `f(i)` min cost to reach `i` | `i` | `i ↑` | 2 vars | Same shape, `min` + cost |
+| 3 | House Robber | `f(i)` max from `i..end` | `i` | `i ↓` | 2 vars | Take/skip destroys adjacency |
+| 4 | Decode Ways | `f(i)` ways for suffix `i` | `i` | prefix `i ↑` | 2 vars | `'0'` kills branch |
+| 5 | Coin Change | `f(amount)` min coins | `amount` | `amount ↑` | 1D array | Unbounded → forward |
+| 6 | Coin Change II | `f(i, amt)` ways, coins ≥ i | `(i, amt)` | coin outer, amt inner | 1D | Count = **add**, not min |
+| 7 | Subset Sum | `f(i, t)` hit target `t` | `(i, t)` | items outer, **w ↓** | 1D bool | 0/1 → backward |
+| 8 | Partition Equal Subset Sum | same as #7 | `(i, t)` | same | 1D | Target = `sum/2` |
+| 9 | Target Sum | `f(i, sum)` ways to sum | `(i, sum)` | item + offset shift | map or shifted array | Negative sums need offset |
+| 10 | LCS | `f(i, j)` suffix LCS | `(i, j)` | `i ↓`, `j ↓` | 1 row | Match → diagonal |
+| 11 | Edit Distance | `f(i, j)` min edits | `(i, j)` | `i ↓`, `j ↓` | 1 row | Border init matters |
+| 12 | Longest Palindromic Subseq | `f(l, r)` best in `[l,r]` | `(l, r)` | length ↑ | full table | Interval on one string |
+| 13 | Unique Paths | `f(r, c)` paths to cell | `(r, c)` | `r ↑`, `c ↑` | 1 row | Top + left deps |
+| 14 | Minimum Path Sum | `f(r, c)` min cost to cell | `(r, c)` | same as #13 | 1 row | Same grid, `min` combine |
+| 15 | Burst Balloons | `f(l, r)` max in interval | `(l, r)` | length ↑ | full table | **Last** burst, not first |
+
+**More depth:** [08-dynamic-programming.md](08-dynamic-programming.md) — knapsack variants, stock DP, digit DP, bitmask.
+
+---
+
+## Common Conversion Bugs
+
+| Bug | Symptom | Fix |
+|-----|---------|-----|
+| Wrong fill direction | Random-looking answers | Map recursive calls → dependency order (cheat sheet) |
+| 0/1 knapsack forward loop | Same item counted twice | Loop `w` from `target` down to `num` |
+| Unbounded knapsack backward | Impossible min coin counts | Loop `w` forward |
+| Missing base row/col | Off-by-one on small inputs | Write borders before nested loops (Edit Distance) |
+| State includes mutable array | `TypeError: unhashable` | Close over array; memoize `(i, j, …)` only |
+| Interval DP wrong loop | Always 0 / wrong max | Outer = **length**, not left endpoint alone |
+| Forgetting `inf` sentinel | `min` over empty set wrong | Init unreachable states to `inf`; check before return |
+
+---
+
+## Interview Script (say this out loud)
+
+> “I'll define the recursive state and recurrence first — that's the proof of correctness.  
+> The same states repeat, so I'll memoize on `[state keys]`.  
+> For bottom-up I'll fill `[order]` because each state depends on `[deps]`.  
+> Space can drop to `[O(…)]` because we only need `[prior row / two vars]`.”
+
+That shows you understand **why** DP works, not just the pattern name.
+
+---
+
+## Flashcards
+
+**What is the mechanical rule for deriving bottom-up fill order from a recurrence?** #flashcard
+List every cell `dp[state]` reads on its right-hand side; those must already be filled when you write `state`. Recursion calling *forward* (`f(i+1)`) fills **n → 0**; calling *backward* (`f(i-1)`) fills **0 → n**. Interval DP loops outer on **length**, never on the left endpoint alone.
+
+**In 1D knapsack, why does 0/1 loop weight downward while unbounded loops upward?** #flashcard
+The 1D array conflates the "previous item" and "current item" rows. Descending `w` reads cells not yet overwritten this round — the previous row — so each item is used at most once. Ascending `w` reads cells already updated with the current item, which is exactly the reuse unbounded knapsack wants. Same array, opposite direction, different problem.
+
+**A memoized solution raises `TypeError: unhashable type: 'list'`. What is the fix?** #flashcard
+A mutable argument is in the memo key. Keep only hashable scalars (`i`, `j`, `remaining`) in the key and close over the array in the enclosing scope, or convert with `tuple(nums)`. Never key a cache on a structure that mutates during recursion.
+
+**When should you choose top-down memoization over bottom-up tabulation?** #flashcard
+Top-down when the state space is **sparse** (only reachable states get computed), when the fill order is awkward to explain (interval and tree DP), or when you want correct code fastest in an interview. Bottom-up when recursion depth risks a stack overflow (`n > 10^4`), or when space optimization to a rolling row matters. Both are O(states × work per state).
+
+**Your DP returns 0 or a nonsense value on interval problems like Burst Balloons. What is the likely bug?** #flashcard
+Iterating the outer loop over the left endpoint instead of over **interval length**. `f(l, r)` depends on strictly smaller intervals, so every shorter span must be complete before any longer one starts. Outer = length, inner = left endpoint.
+
+**Why can a min-cost DP produce a wrong answer without an `inf` sentinel?** #flashcard
+Unreachable states initialized to `0` masquerade as free solutions and win the `min`. Initialize unreachable states to `inf`, and check `dp[target] == inf` before returning to convert it to the problem's "impossible" value (typically `-1`).
+
+---
+
 ## See Also
 
-- [HOW_TO_THINK.md — Recursion → DP](HOW_TO_THINK.md#recursion--dp--same-tree-cached-the-skill-is-state-design) — the chapter in the full pattern framework
-- [HOW_TO_THINK.md — Ladder 10](HOW_TO_THINK.md#ladder-10--recursion--dp) — the DP ladder for graded pressure-testing
-- [`02-algorithms/09-recursion.md`](../02-algorithms/09-recursion.md) · [`02-algorithms/10-recursion-to-dp.md`](../02-algorithms/10-recursion-to-dp.md) · [`02-algorithms/15-dynamic-programming.md`](../02-algorithms/15-dynamic-programming.md) — topic deep-dives
-- [`04-practice/algorithms/15-dynamic-programming.md`](../04-practice/algorithms/15-dynamic-programming.md) — full problem walkthroughs
+- [How to think — Recursion → DP](../01-foundations/01-how-to-think.md#recursion--dp--same-tree-cached-the-skill-is-state-design) — the chapter in the full pattern framework
+- [Ladders — Ladder 10](../05-review/02-ladders.md#ladder-10--recursion--dp) — the DP ladder for graded pressure-testing
+- [Recursion](05-recursion.md) · [Dynamic programming](08-dynamic-programming.md) — topic deep-dives
+- [`04-practice/algorithms/08-dynamic-programming.md`](../04-practice/algorithms/08-dynamic-programming.md) — full problem walkthroughs

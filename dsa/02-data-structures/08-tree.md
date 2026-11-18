@@ -5,15 +5,15 @@ tags: [data-structures, tree]
 ---
 # Tree — L3 Core
 
-← [Data structures index](./README.md) · [Patterns master](../03-patterns/patterns-master.md)
+← [Data structures index](README.md) · [Patterns master](../05-review/01-pattern-sheet.md)
 
 ## What this covers
 
 > [!abstract] In this file
 > **Covers:** Binary trees and BSTs: DFS orders, BFS levels, the 'return-value contract' recursion style, LCA, tree DP, BST invariants, serialization.
 > **You'll be able to:** Solve any tree problem by defining what each recursive call returns; validate/search a BST in O(h); choose DFS vs BFS by what the answer needs.
-> **Prereqs:** Recursion · **Pair with:** [Tree problems](../04-practice/data-structures/08-tree.md) · [Recursion](../02-algorithms/09-recursion.md) · **Time:** 2–3 h
-> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../00-start-here/l3-google-roadmap.md#tier-legend))
+> **Prereqs:** Recursion · **Pair with:** [Tree problems](../04-practice/data-structures/08-tree.md) · [Recursion](../03-algorithms/05-recursion.md) · **Time:** 2–3 h
+> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../00-start-here/01-roadmap.md#tier-legend))
 
 **Sections:** [Core Idea](#core-idea) · [Theory & Mental Models](#theory--mental-models) · [1. Concept Overview](#1-concept-overview) · [2. Core Algorithms & Click Moments](#2-core-algorithms--click-moments) · [3. Common Interview Problems](#3-common-interview-problems) · [Interview Questions — Logic & Trickiness](#interview-questions--logic--trickiness) · [Quick Revision Triggers](#quick-revision-triggers) · [Flashcards](#flashcards)
 
@@ -60,7 +60,7 @@ tags: [data-structures, tree]
 │   ├── AVL: strict |balance_factor| ≤ 1, O(log N) guaranteed; more rotations
 │   ├── Red-Black: looser balance, O(log N) amortized; fewer rotations (used in std::map, TreeMap)
 │   ├── B-Tree: wide branching, disk-friendly, used in databases/filesystems
-│   └── Segment Tree / Fenwick: range query/update trees — 💤 out of L3 scope (L3_CHEATSHEET §8)
+│   └── Segment Tree / Fenwick: range query/update trees — 💤 out of L3 scope (round cheatsheet §4)
 ├── COMPLEXITY
 │   ├── Time — BST search/insert/delete: O(log N) balanced, O(N) worst (skewed)
 │   ├── Time — traversal (all nodes): O(N)
@@ -438,7 +438,7 @@ def deserialize(data: str):
 
 ### Hard
 - **[Binary Tree Cameras](../04-practice/data-structures/08-tree.md#binary-tree-cameras-lc-968--t2) `🎯 T2`** — Tree DP; 3 states per node: covered/has-camera/uncovered.
-- **[Recover BST](../04-practice/data-structures/08-tree.md#recover-binary-search-tree-lc-99) `🎯 T2`** — Find two swapped nodes via inorder; `first` = node before first descent; `second` = last seen small node.
+- **[Recover BST](../04-practice/data-structures/08-tree.md#bst-operations) `🎯 T2`** — Find two swapped nodes via inorder; `first` = node before first descent; `second` = last seen small node.
 - **[Vertical Order Traversal](../04-practice/data-structures/08-tree.md#vertical-order-traversal-of-a-binary-tree--t2) `🎯 T2`** — BFS with `(col, row, val)`; sort by col then row then val.
 - **[Serialize and Deserialize](../04-practice/data-structures/08-tree.md#serialize-and-deserialize-binary-tree--t2) `🎯 T2`** — Preorder with `N` markers.
 - **[Binary Tree Max Path Sum](../04-practice/data-structures/08-tree.md#binary-tree-maximum-path-sum--t2) `🎯 T2`** — Tree DP; `max(0, child)` to drop negatives.
@@ -487,10 +487,10 @@ def deserialize(data: str):
 
 ## See also
 
-- [Graph](13-graphs.md) — trees are acyclic connected graphs; BFS/DFS apply
-- [Dynamic Programming](../02-algorithms/15-dynamic-programming.md) — Tree DP (postorder state propagation)
-- [Backtracking](../02-algorithms/12-backtracking.md) — path sum with backtracking
-- [Patterns Master](../03-patterns/patterns-master.md) — tree traversal pattern triggers
+- [Graph](11-graphs.md) — trees are acyclic connected graphs; BFS/DFS apply
+- [Dynamic Programming](../03-algorithms/08-dynamic-programming.md) — Tree DP (postorder state propagation)
+- [Backtracking](../03-algorithms/06-backtracking.md) — path sum with backtracking
+- [Patterns Master](../05-review/01-pattern-sheet.md) — tree traversal pattern triggers
 
 ## Flashcards
 

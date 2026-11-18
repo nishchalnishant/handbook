@@ -10,8 +10,8 @@ difficulty: mixed
 > [!abstract] In this file
 > **Covers:** Worked math problems: digit/string arithmetic, sieve, fast exponentiation, modular inverse and nCr, GCD and recurring decimals, rectangle geometry, designs with math, rejection sampling, slope hashing, integer sqrt.
 > **You'll be able to:** Do digit-by-digit arithmetic without big ints, write square-and-halve exponentiation and a sieve from memory, and pick the right overflow/normalization trick (gcd, sign, mod) per problem.
-> **Prereqs:** Math & Number Theory lecture · **Pair with:** [Math & Number Theory lecture](../../02-algorithms/18-math-and-number-theory.md) · **Time:** 2.5 h
-> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../../00-start-here/l3-google-roadmap.md#tier-legend))
+> **Prereqs:** Math & Number Theory lecture · **Pair with:** [Math & Number Theory lecture](../../03-algorithms/14-math-and-number-theory.md) · **Time:** 2.5 h
+> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../../00-start-here/01-roadmap.md#tier-legend))
 
 **Sections:** [Digits, Strings & Base Conversion](#digits-strings--base-conversion) · [Primes & Factors](#primes--factors) · [GCD, LCM & Fractions](#gcd-lcm--fractions) · [Fast Exponentiation & Modular Arithmetic](#fast-exponentiation--modular-arithmetic) · [Geometry & Designs With Math](#geometry--designs-with-math) · [Random Sampling](#random-sampling) · [Integer Square Root](#integer-square-root)
 
@@ -19,7 +19,7 @@ difficulty: mixed
 > **Do these first:** [Plus One](#plus-one--t1) · [Add Binary](#add-binary--t1) · [Pow(x, n)](#powx-n--t1) · [Multiply Strings](#multiply-strings--t1) · [Detect Squares](#detect-squares--t1)
 > **Template:** fast power `while n: if n & 1: r *= x; x *= x; n >>= 1` · sieve inner loop starts at `i*i` · `gcd(a, b)` is `math.gcd`; `lcm = a // g * b` · modular inverse of `b` mod prime `p` is `pow(b, p-2, p)` (or `pow(b, -1, p)` on 3.8+).
 > **Gotchas:** Python never overflows, so "32-bit" checks are explicit and post-hoc · `int / int` is float — use `//` and `divmod` · normalize (sign, gcd) before using a pair as a dict key · base-26 Excel titles are **bijective** (no zero digit) → subtract 1 before each `% 26`.
-> **Lecture refs:** [Digit tricks](../../02-algorithms/18-math-and-number-theory.md#1-integer--digit-tricks) · [GCD/LCM](../../02-algorithms/18-math-and-number-theory.md#3-gcd-lcm-and-euclidean-algorithm) · [Sieve](../../02-algorithms/18-math-and-number-theory.md#4-prime-testing--sieve) · [Fast power](../../02-algorithms/18-math-and-number-theory.md#5-fast-power-modular-exponentiation) · [Modular arithmetic](../../02-algorithms/18-math-and-number-theory.md#6-modular-arithmetic) · [Overflow in Python](../../02-algorithms/18-math-and-number-theory.md#9-overflow--edge-cases-in-python)
+> **Lecture refs:** [Digit tricks](../../03-algorithms/14-math-and-number-theory.md#1-integer--digit-tricks) · [GCD/LCM](../../03-algorithms/14-math-and-number-theory.md#3-gcd-lcm-and-euclidean-algorithm) · [Sieve](../../03-algorithms/14-math-and-number-theory.md#4-prime-testing--sieve) · [Fast power](../../03-algorithms/14-math-and-number-theory.md#5-fast-power-modular-exponentiation) · [Modular arithmetic](../../03-algorithms/14-math-and-number-theory.md#6-modular-arithmetic) · [Overflow in Python](../../03-algorithms/14-math-and-number-theory.md#9-overflow--edge-cases-in-python)
 
 ---
 
@@ -35,7 +35,7 @@ difficulty: mixed
 
 > [!info] Approach
 > **Key insight:** peel digits with `x % 10` / `x // 10` on `abs(x)`; before appending digit `d`, detect overflow: `r > MAX//10` or (`r == MAX//10` and `d` exceeds the last digit of the bound — 7 for positive, 8 for negative). Re-apply sign at the end.
-> Python shortcut: reverse freely (no overflow), then range-check once at the end. Interviewers want the pre-check to show you understand fixed-width ints. See [lecture](../../02-algorithms/18-math-and-number-theory.md#1-integer--digit-tricks).
+> Python shortcut: reverse freely (no overflow), then range-check once at the end. Interviewers want the pre-check to show you understand fixed-width ints. See [lecture](../../03-algorithms/14-math-and-number-theory.md#1-integer--digit-tricks).
 
 > [!note]- Python Solution
 > ```python
@@ -213,7 +213,7 @@ difficulty: mixed
 > Example: `n = 10` → `4` (2, 3, 5, 7).
 
 > [!info] Approach
-> **Key insight:** for each prime `i ≤ √n`, every multiple below `i*i` was already crossed out by a smaller prime, so start at `i*i` and step by `i`. Use a `bytearray` and slice assignment so the inner loop is C-speed. See [lecture](../../02-algorithms/18-math-and-number-theory.md#4-prime-testing--sieve).
+> **Key insight:** for each prime `i ≤ √n`, every multiple below `i*i` was already crossed out by a smaller prime, so start at `i*i` and step by `i`. Use a `bytearray` and slice assignment so the inner loop is C-speed. See [lecture](../../03-algorithms/14-math-and-number-theory.md#4-prime-testing--sieve).
 
 > [!note]- Python Solution
 > ```python
@@ -285,7 +285,7 @@ difficulty: mixed
 
 > [!info] Approach
 > **Key insight:** long division; the state after each step is the **remainder**. If a remainder repeats, the digits between its first occurrence and now repeat forever (at most `den - 1` distinct remainders, so termination is guaranteed).
-> Store `remainder → index in output list`; on repeat, insert `"("` at that index and append `")"`. Handle sign separately and work with absolute values. See [lecture GCD](../../02-algorithms/18-math-and-number-theory.md#3-gcd-lcm-and-euclidean-algorithm).
+> Store `remainder → index in output list`; on repeat, insert `"("` at that index and append `")"`. Handle sign separately and work with absolute values. See [lecture GCD](../../03-algorithms/14-math-and-number-theory.md#3-gcd-lcm-and-euclidean-algorithm).
 
 > [!note]- Python Solution
 > ```python
@@ -339,7 +339,7 @@ difficulty: mixed
 > Example: `2.0^10` → `1024.0`; `2.0^-2` → `0.25`.
 
 > [!info] Approach
-> **Key insight:** write `n` in binary; `x^n` is the product of `x^(2^k)` for each set bit `k`. Iterate: if low bit set, `res *= x`; always `x *= x`; `n >>= 1`. For negative `n` invert `x` and negate `n` first. See [lecture](../../02-algorithms/18-math-and-number-theory.md#5-fast-power-modular-exponentiation).
+> **Key insight:** write `n` in binary; `x^n` is the product of `x^(2^k)` for each set bit `k`. Iterate: if low bit set, `res *= x`; always `x *= x`; `n >>= 1`. For negative `n` invert `x` and negate `n` first. See [lecture](../../03-algorithms/14-math-and-number-theory.md#5-fast-power-modular-exponentiation).
 
 > [!note]- Python Solution
 > ```python
@@ -374,7 +374,7 @@ difficulty: mixed
 > [!info] Approach
 > **Mod-pow:** same square-and-halve, reducing `% m` after every multiply. Python built-in: `pow(b, e, m)`.
 > **Inverse:** for prime `p`, Fermat gives `a^(p-1) ≡ 1`, so `a^-1 ≡ a^(p-2) (mod p)` (also `pow(a, -1, p)` on 3.8+).
-> **nCr:** precompute `fact[i]`, then `inv_fact[n] = pow(fact[n], p-2, p)` **once** and walk down `inv_fact[i-1] = inv_fact[i] * i` — O(n) preprocessing, O(1) per query: `fact[n] * inv_fact[r] * inv_fact[n-r]`. See [lecture modular](../../02-algorithms/18-math-and-number-theory.md#6-modular-arithmetic) and [combinatorics](../../02-algorithms/18-math-and-number-theory.md#7-factorial--combinatorics).
+> **nCr:** precompute `fact[i]`, then `inv_fact[n] = pow(fact[n], p-2, p)` **once** and walk down `inv_fact[i-1] = inv_fact[i] * i` — O(n) preprocessing, O(1) per query: `fact[n] * inv_fact[r] * inv_fact[n-r]`. See [lecture modular](../../03-algorithms/14-math-and-number-theory.md#6-modular-arithmetic) and [combinatorics](../../03-algorithms/14-math-and-number-theory.md#7-factorial--combinatorics).
 
 > [!note]- Python Solution
 > ```python
@@ -621,7 +621,7 @@ difficulty: mixed
 > `mySqrt(x)`: return `floor(√x)` without `**0.5`. `isPerfectSquare(n)`: return whether `n` is a perfect square without `sqrt`.
 
 > [!info] Approach
-> **Key insight:** `m*m <= x` is monotone in `m` → binary search for the **largest** `m` satisfying it. Use the upper-mid `(lo + hi + 1) // 2` and `lo = m` / `hi = m - 1` so the loop converges. Perfect square: `r = isqrt(n); r*r == n`. See [Binary Search](../../02-algorithms/11-binary-search.md).
+> **Key insight:** `m*m <= x` is monotone in `m` → binary search for the **largest** `m` satisfying it. Use the upper-mid `(lo + hi + 1) // 2` and `lo = m` / `hi = m - 1` so the loop converges. Perfect square: `r = isqrt(n); r*r == n`. See [Binary Search](../../03-algorithms/04-binary-search.md).
 
 > [!note]- Python Solution
 > ```python
@@ -656,12 +656,12 @@ difficulty: mixed
 
 ## See Also
 
-- [Math & Number Theory lecture](../../02-algorithms/18-math-and-number-theory.md) — reference, canonical problems, quick revision triggers
-- [Bit Manipulation practice](17-bit-manipulation.md) — Sum of Two Integers, Reverse Bits, Power of Two
-- [Binary Search](../../02-algorithms/11-binary-search.md) — Sqrt(x) and answer-space search
-- [Union-Find practice](14-union-find.md) — Largest Component Size by Common Factor (DSU on primes)
-- [Dynamic Programming](../../02-algorithms/15-dynamic-programming.md) — combinatorics via DP, Pascal's triangle
-- [Strings practice](02-string-algorithms.md) — digit-by-digit string arithmetic
+- [Math & Number Theory lecture](../../03-algorithms/14-math-and-number-theory.md) — reference, canonical problems, quick revision triggers
+- [Bit Manipulation practice](13-bit-manipulation.md) — Sum of Two Integers, Reverse Bits, Power of Two
+- [Binary Search](../../03-algorithms/04-binary-search.md) — Sqrt(x) and answer-space search
+- [Union-Find practice](10-union-find.md) — Largest Component Size by Common Factor (DSU on primes)
+- [Dynamic Programming](../../03-algorithms/08-dynamic-programming.md) — combinatorics via DP, Pascal's triangle
+- [Strings practice](12-string-algorithms.md) — digit-by-digit string arithmetic
 
 ---
 

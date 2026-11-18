@@ -10,8 +10,8 @@ difficulty: mixed
 > [!abstract] In this file
 > **Covers:** Worked backtracking problems: subsets/combinations, permutations, string and board backtracking, Trie + backtracking, hard pruning.
 > **You'll be able to:** Code the template with dedupe and pruning cold.
-> **Prereqs:** Backtracking lecture · **Pair with:** [Backtracking lecture](../../02-algorithms/12-backtracking.md) · **Time:** 3 h
-> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../../00-start-here/l3-google-roadmap.md#tier-legend))
+> **Prereqs:** Backtracking lecture · **Pair with:** [Backtracking lecture](../../03-algorithms/06-backtracking.md) · **Time:** 3 h
+> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../../00-start-here/01-roadmap.md#tier-legend))
 
 **Sections:** [Subsets / Combinations](#subsets--combinations) · [Permutations](#permutations) · [String Backtracking](#string-backtracking) · [Board / Matrix Backtracking](#board--matrix-backtracking)
 
@@ -988,176 +988,6 @@ Prune when: the partial answer is already invalid, not enough room left to finis
 
 ---
 
-### Remove Invalid Parentheses
-
-> [!example] Problem
-> Given a string s that contains parentheses and letters, remove the minimum number of invalid parentheses to make the input string valid.
-> Return a list of unique strings that are valid with the minimum number of removals. You may return the answer in any order.
-> 
-> **Example 1:**
-> ```
-> Input: s = "()())()"
-> Output: ["(())()","()()()"]
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: s = "(a)())()"
-> Output: ["(a())()","(a)()()"]
-> ```
-> 
-> **Example 3:**
-> ```
-> Input: s = ")("
-> Output: [""]
-> ```
-> 
-> **Constraints:**
-> - 1 <= s.length <= 25
-> - s consists of lowercase English letters and parentheses '(' and ')'.
-> - There will be at most 20 parentheses in s.
-
-> [!tip] Recognize · Gotcha
-> **Signal:** "Remove min to make valid" · **Gotcha:** Generate all possible removals of length `k`; check validity.
-
-> [!info] Approach
-> First compute minimum removals (one scan: track unmatched `(` as `open_rem`, unmatched `)` as `close_rem`). Then backtrack: at each character, keep or remove it. Pruning: (1) removal budget exhausted; (2) `close_cnt > open_cnt` in current path (invalid prefix); (3) consecutive same brackets — only remove the first of a run (deduplication without a set). Backtrack with state `(index, path, open_cnt, close_cnt, open_rem, close_rem)`. Compute open_rem, close_rem first; backtrack with those exact budgets.
-
-> [!note]- Python Solution
-> ```python
-> def remove_invalid_parentheses(s):
->     open_rem = close_rem = 0
->     for c in s:
->         if c == '(':
->             open_rem += 1
->         elif c == ')':
->             if open_rem > 0:
->                 open_rem -= 1
->             else:
->                 close_rem += 1
-> 
->     result = set()
-> 
->     def backtrack(i, path, open_cnt, close_cnt, open_r, close_r):
->         if i == len(s):
->             if open_r == 0 and close_r == 0:
->                 result.add(path)
->             return
->         c = s[i]
->         # Option 1: Remove current bracket (if budget allows and it's a bracket)
->         if c == '(' and open_r > 0:
->             backtrack(i + 1, path, open_cnt, close_cnt, open_r - 1, close_r)
->         if c == ')' and close_r > 0:
->             backtrack(i + 1, path, open_cnt, close_cnt, open_r, close_r - 1)
->         # Option 2: Keep current character
->         if c == '(':
->             backtrack(i + 1, path + c, open_cnt + 1, close_cnt, open_r, close_r)
->         elif c == ')':
->             if close_cnt < open_cnt:  # valid to add: won't go negative
->                 backtrack(i + 1, path + c, open_cnt, close_cnt + 1, open_r, close_r)
->         else:
->             backtrack(i + 1, path + c, open_cnt, close_cnt, open_r, close_r)
-> 
->     backtrack(0, '', 0, 0, open_rem, close_rem)
->     return list(result)
-> ```
-
-> [!success] Complexity
-> O(2^n) worst case; O(n) recursion depth.
-
-> [!tip] Alternatives
-> BFS level-by-level removing one bracket per level — O(n · 2^n), simpler correctness argument (BFS guarantees minimum removals), but higher memory. DFS with explicit consecutive-duplicate pruning can eliminate the set.
-
----
-
-### Expression Add Operators (LC 282)
-
-> [!example] Problem
-> Given a string num that contains only digits and an integer target, return all possibilities to insert the binary operators '+', '-', and/or '*' between the digits of num so that the resultant expression evaluates to the target value.
-> Note that operands in the returned expressions should not contain leading zeros.
-> Note that a number can contain multiple digits.
-> 
-> **Example 1:**
-> ```
-> Input: num = "123", target = 6
-> Output: ["1*2*3","1+2+3"]
-> Explanation: Both "1*2*3" and "1+2+3" evaluate to 6.
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: num = "232", target = 8
-> Output: ["2*3+2","2+3*2"]
-> Explanation: Both "2*3+2" and "2+3*2" evaluate to 8.
-> ```
-> 
-> **Example 3:**
-> ```
-> Input: num = "3456237490", target = 9191
-> Output: []
-> Explanation: There are no expressions that can be created from "3456237490" to evaluate to 9191.
-> ```
-> 
-> **Constraints:**
-> - 1 <= num.length <= 10
-> - num consists of only digits.
-> - -2^{31} <= target <= 2^{31} - 1
-
-> [!tip] Recognize · Gotcha
-> **Signal:** "Insert +,-,* to reach target" · **Gotcha:** `*` needs to undo `last_operand` from running sum before re-multiplying.
-
-> [!info] Approach
-> Brute force tries all 3^(n-1) operator placements. Backtracking prunes early (e.g. skip leading-zero operands immediately). The key challenge: `*` has higher precedence — multiplying undoes the previous addition/subtraction, so we track `prev_operand` to "undo" it. Backtracking with state `(index, current_expression, current_value, prev_operand)`.
-
->   - At each position, try all possible next numbers (no leading zeros except `"0"` itself).
->   - For each number as next operand:
->     - First operand: recurse with `value = num_val`, `prev = num_val`.
->     - `+`: `new_val = value + num_val`, `new_prev = +num_val`.
->     - `-`: `new_val = value - num_val`, `new_prev = -num_val`.
->     - `*`: `new_val = value - prev + prev * num_val`, `new_prev = prev * num_val`. *(Undo prev add/sub, redo as product.)*
->   - Base: if `index == len(num)` and `value == target`: add expression to result.
-
-> [!note]- Python Solution
-> ```python
-> def add_operators(num, target):
->     result = []
->     n = len(num)
-> 
->     def backtrack(index, expr, value, prev):
->         if index == n:
->             if value == target:
->                 result.append(expr)
->             return
->         for end in range(index + 1, n + 1):
->             token = num[index:end]
->             # No leading zeros for multi-digit operands
->             if len(token) > 1 and token[0] == '0':
->                 break
->             num_val = int(token)
->             if index == 0:
->                 # First operand: no operator prefix
->                 backtrack(end, token, num_val, num_val)
->             else:
->                 # Try +
->                 backtrack(end, expr + '+' + token, value + num_val, num_val)
->                 # Try -
->                 backtrack(end, expr + '-' + token, value - num_val, -num_val)
->                 # Try *: undo previous op, apply multiplication
->                 backtrack(end, expr + '*' + token, value - prev + prev * num_val, prev * num_val)
-> 
->     backtrack(0, '', 0, 0)
->     return result
-> ```
-
-> [!success] Complexity
-> O(4^n × n) — at each of n digit positions, up to 4 choices (3 operators + extend operand); O(n) for string slicing/building at each node. Space O(n) recursion depth.
-
-> [!tip] Alternatives
-> - Build expression string then evaluate: simpler code (avoid tracking `prev`), but evaluation is O(n) per leaf — same overall complexity, harder to prove correctness for `*` precedence.
-> - Pure brute force without backtracking: generate all 3^(n-1) operator strings, evaluate each — no early pruning on leading zeros, same worst-case O(4^n × n).
-
----
-
 ### Restore IP Addresses `🎯 T2`
 
 > [!example] Problem
@@ -1375,7 +1205,7 @@ Prune when: the partial answer is already invalid, not enough room left to finis
 ### Word Break (Decision — Backtracking + Memo) `🎯 T2`
 
 > [!example] Problem
-> Same problem as [Word Break](15-dynamic-programming.md#word-break--t2) — this section covers the alternative approach only.
+> Same problem as [Word Break](08-dynamic-programming.md#word-break--t2) — this section covers the alternative approach only.
 
 > [!info] Approach
 > At each position, try every dictionary word as the next segment. Naive recursion re-solves the same suffix repeatedly. Memoization on the start index reduces it to O(n^2 · L) where L = max word length. `backtrack(start)` returns True if `s[start:]` can be fully segmented. For each word in the dictionary that matches `s[start:start+len(word)]`, recurse on `start+len(word)`. Cache False results to avoid re-exploration. Check only words in the dictionary (not all prefixes). Short-circuit on first True. BFS or DP are preferred in interviews.
@@ -1408,58 +1238,11 @@ Prune when: the partial answer is already invalid, not enough room left to finis
 > [!tip] Alternatives
 > BFS: queue of reachable positions — O(n · |dict|), simpler. DP bottom-up: `dp[i] = any(dp[i-len(w)] and s[i-len(w):i] == w)` — same complexity. Trie for O(1) prefix lookup.
 
----
+**Also try:**
 
-### Generate All Valid IP Addresses (Generalized Segmentation)
-
-> [!example] Problem
-> Same as Restore IP Addresses above, but with explicit segment count and segment range as parameters — useful for understanding the generalizable pattern.
-
-> [!info] Approach
-> Generalizes Restore IP Addresses: given a digit string, split into exactly `k` segments each in range `[lo, hi]` with no leading zeros. Parameterized backtracking applies to many partitioning problems (CIDR, version strings). At each step, try taking 1 to `max_seg_len` characters. Validate the segment. Recurse on remainder with `k-1` segments left. Feasibility pruning bounds the remaining characters. Feasibility: `remaining_chars` must be in `[k-1, (k-1)*max_seg_len + max_seg_len]` — i.e., between 1 and `max_seg_len` per remaining segment.
-
-> [!note]- Python Solution
-> ```python
-> def segment_string(s, k, lo, hi, max_val):
->     """Split s into exactly k segments, each integer in [lo, max_val], no leading zeros."""
->     result = []
->     path = []
->     max_len = len(str(max_val))
-> 
->     def backtrack(start):
->         if len(path) == k:
->             if start == len(s):
->                 result.append('.'.join(path))
->             return
->         segs_left = k - len(path)
->         chars_left = len(s) - start
->         # Feasibility: each remaining segment needs 1..max_len chars
->         if chars_left < segs_left or chars_left > segs_left * max_len:
->             return
->         for length in range(1, max_len + 1):
->             if start + length > len(s):
->                 break
->             seg = s[start:start + length]
->             if len(seg) > 1 and seg[0] == '0':
->                 break
->             val = int(seg)
->             if val > max_val:
->                 break
->             if val < lo:
->                 continue
->             path.append(seg)
->             backtrack(start + length)
->             path.pop()
-> 
->     backtrack(0)
->     return result
-> ```
-
-> [!success] Complexity
-> O(max_val^k) bounded by feasibility window; for IP: O(3^4) = O(81). Space O(k).
-
-> [!tip] Alternatives
-> For k=4 and IP validation specifically, three explicit loops over split points are O(n^3) but typically simpler in interviews. This parameterized version is better for system design or templating.
+- **Remove Invalid Parentheses** — First compute minimum removals (one scan: track unmatched `(` as `open_rem`, unmatched `)` as `close_rem`)
+- **Expression Add Operators (LC 282)** — Brute force tries all 3^(n-1) operator placements
+- **Generate All Valid IP Addresses (Generalized Segmentation)** — Generalizes Restore IP Addresses: given a digit string, split into exactly `k` segments each in range `[lo, hi]` with no leading zeros
 
 ---
 

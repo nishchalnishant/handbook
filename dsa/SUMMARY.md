@@ -1,112 +1,88 @@
 # Summary — Big-Tech DSA (Google L3 base)
 
-> L3 = 4–5 coding rounds (35–45 min each) + Googliness/behavioral. No system design, LLD, SQL, or concurrency. **Segment trees / Fenwick trees: skip for L3**, covered as `💤 T3` in [Range Queries](02-algorithms/19-range-queries.md) for L4+ / hard rounds → [What to Skip](00-start-here/L3_CHEATSHEET.md)
+> L3 = 4–5 coding rounds (35–45 min each) + Googliness/behavioral. No system design, LLD, SQL, or concurrency. **Segment trees / Fenwick trees: skip for L3**, covered as `💤 T3` in [Range Queries](03-algorithms/15-range-queries.md) for L4+ / hard rounds → [What to skip](00-start-here/02-round-cheatsheet.md#4-what-to-skip-at-l3)
 
-## Start Here
+## 00 · Start Here
 * [Overview](README.md)
-* [L3 Roadmap (4-week plan)](00-start-here/l3-google-roadmap.md)
-* [**L4 (SDE-2) Delta**](00-start-here/l4-sde2-delta.md)
-* [**SDE-3 / Senior Delta**](00-start-here/sde3-senior-delta.md)
-* [**L3 Cheatsheet**](00-start-here/L3_CHEATSHEET.md) *(pacing, constraints, decision guide, edge cases, what to skip)*
+* [L3 Google Interview Roadmap](00-start-here/01-roadmap.md)
+* [Round Cheatsheet](00-start-here/02-round-cheatsheet.md)
+* [L4 (SDE-2) Delta — what changes on top of the L3 base](00-start-here/03-l4-sde2-delta.md)
+* [SDE-3 / Senior Delta — what changes on top of the L4 base](00-start-here/04-senior-delta.md)
+
+## 01 · Foundations
+* [How to Think — first-principles pattern intuition](01-foundations/01-how-to-think.md)
+* [Complexity & Python Toolkit](01-foundations/02-complexity-and-python.md)
+
+## 02 · Data Structures
+* [Index & Must-Solve](02-data-structures/README.md)
+* [Array](02-data-structures/01-array.md)
+* [Hashing](02-data-structures/02-hashing.md)
+* [String](02-data-structures/03-string.md)
+* [Matrix / Grid](02-data-structures/04-matrix.md)
+* [Stack](02-data-structures/05-stack.md)
+* [Queue](02-data-structures/06-queue.md)
+* [Linked List](02-data-structures/07-linked-list.md)
+* [Tree](02-data-structures/08-tree.md)
+* [Trie](02-data-structures/09-trie.md)
+* [Heap](02-data-structures/10-heap.md)
+* [Graphs](02-data-structures/11-graphs.md)
+
+## 03 · Algorithms
+* [Index & Must-Solve](03-algorithms/README.md)
+* [Sorting](03-algorithms/01-sorting.md)
+* [Two Pointers](03-algorithms/02-two-pointers.md)
+* [Sliding Window](03-algorithms/03-sliding-window.md)
+* [Binary Search](03-algorithms/04-binary-search.md)
+* [Recursion — Complete Reference](03-algorithms/05-recursion.md)
+* [Backtracking](03-algorithms/06-backtracking.md)
+* [Recursion & DP Masterclass — from first call to bottom-up tables](03-algorithms/07-recursion-to-dp.md)
+* [Dynamic Programming — Complete Guide](03-algorithms/08-dynamic-programming.md)
+* [Greedy](03-algorithms/09-greedy.md)
+* [Union Find](03-algorithms/10-union-find.md)
+* [String Algorithms](03-algorithms/12-string-algorithms.md)
+* [Bit Manipulation](03-algorithms/13-bit-manipulation.md)
+* [Math & Number Theory](03-algorithms/14-math-and-number-theory.md)
+* [Range Queries](03-algorithms/15-range-queries.md)
+
+## 04 · Practice
 * [Problem Index](04-practice/README.md)
-
----
-
-## L3 Execution Meta-Skills
-* [L3 Cheatsheet — execution plan, constraints, decision guide, Python, edge cases, Big-O, what to skip](00-start-here/L3_CHEATSHEET.md)
-
----
-
-## Data Structures
-* [L3 Index & Must-Solve List](01-data-structures/README.md)
-* [Array](01-data-structures/01-array.md)
-* [Hashing](01-data-structures/02-hashing.md)
-* [String](01-data-structures/03-string.md)
-* [**Matrix / Grid**](01-data-structures/04-matrix.md)
-* [Stack](01-data-structures/05-stack.md)
-* [Queue](01-data-structures/06-queue.md)
-* [Linked List](01-data-structures/07-linked-list.md)
-* [Tree](01-data-structures/08-tree.md)
-* [Trie](01-data-structures/09-trie.md)
-* [Heap](01-data-structures/10-heap.md)
-* [Graphs](01-data-structures/13-graphs.md)
-
----
-
-## Algorithms
-* [L3 Index & Must-Solve List](02-algorithms/README.md)
-* [**String Algorithms**](02-algorithms/02-string-algorithms.md)
-* [Two Pointers](02-algorithms/03-two-pointers.md)
-* [Sliding Window](02-algorithms/04-sliding-window.md)
-* [Binary Search](02-algorithms/11-binary-search.md)
-* [Sorting (reference)](02-algorithms/00-sorting.md)
-* [Union Find](02-algorithms/14-union-find.md)
-* [Greedy](02-algorithms/16-greedy.md)
-* [Backtracking](02-algorithms/12-backtracking.md)
-* [Dynamic Programming](02-algorithms/15-dynamic-programming.md)
-* [Recursion](02-algorithms/09-recursion.md)
-* [Recursion → DP Bridge](02-algorithms/10-recursion-to-dp.md)
-* [**Bit Manipulation**](02-algorithms/17-bit-manipulation.md)
-* [**Math & Number Theory**](02-algorithms/18-math-and-number-theory.md)
-* [**Range Queries (prefix / Fenwick / segment tree)**](02-algorithms/19-range-queries.md)
-
----
-
-## Practice Problem Bank (`04-practice/`)
-
-Companion to [Mind Map](03-patterns/mindmap.md) — full problem walkthroughs.
 
 ### Data Structures
 * [Array](04-practice/data-structures/01-array.md)
 * [Hashing](04-practice/data-structures/02-hashing.md)
 * [String](04-practice/data-structures/03-string.md)
-* [**Matrix / Grid**](04-practice/data-structures/04-matrix.md)
+* [Matrix / Grid](04-practice/data-structures/04-matrix.md)
 * [Stack](04-practice/data-structures/05-stack.md)
 * [Queue](04-practice/data-structures/06-queue.md)
 * [Linked List](04-practice/data-structures/07-linked-list.md)
 * [Tree](04-practice/data-structures/08-tree.md)
 * [Trie](04-practice/data-structures/09-trie.md)
 * [Heap](04-practice/data-structures/10-heap.md)
-* [Graph](04-practice/data-structures/13-graph.md)
-* [**Design a Data Structure (L4)**](04-practice/data-structures/14-design.md)
+* [Graph](04-practice/data-structures/11-graph.md)
+* [Design a Data Structure](04-practice/data-structures/12-design.md)
 
 ### Algorithms
-* [Two Pointers](04-practice/algorithms/03-two-pointers.md)
-* [Sliding Window](04-practice/algorithms/04-sliding-window.md)
-* [Binary Search](04-practice/algorithms/11-binary-search.md)
-* [Sorting](04-practice/algorithms/00-sorting.md)
-* [Graph Algorithms](04-practice/algorithms/13-graph-algorithms.md)
-* [Union Find](04-practice/algorithms/14-union-find.md)
-* [Greedy](04-practice/algorithms/16-greedy.md)
-* [Backtracking](04-practice/algorithms/12-backtracking.md)
-* [String Algorithms](04-practice/algorithms/02-string-algorithms.md)
-* [Dynamic Programming](04-practice/algorithms/15-dynamic-programming.md)
-* [Recursion](04-practice/algorithms/09-recursion.md)
-* [Bit Manipulation](04-practice/algorithms/17-bit-manipulation.md)
-* [Math & Number Theory](04-practice/algorithms/18-math-and-number-theory.md)
-* [Range Queries](04-practice/algorithms/19-range-queries.md)
+* [Sorting](04-practice/algorithms/01-sorting.md)
+* [Two Pointers](04-practice/algorithms/02-two-pointers.md)
+* [Sliding Window](04-practice/algorithms/03-sliding-window.md)
+* [Binary Search](04-practice/algorithms/04-binary-search.md)
+* [Recursion & Backtracking](04-practice/algorithms/05-recursion.md)
+* [Backtracking](04-practice/algorithms/06-backtracking.md)
+* [Dynamic Programming](04-practice/algorithms/08-dynamic-programming.md)
+* [Greedy Algorithms](04-practice/algorithms/09-greedy.md)
+* [Union-Find (DSU)](04-practice/algorithms/10-union-find.md)
+* [Graph Algorithms](04-practice/algorithms/11-graph-algorithms.md)
+* [String Algorithms](04-practice/algorithms/12-string-algorithms.md)
+* [Bit Manipulation](04-practice/algorithms/13-bit-manipulation.md)
+* [Math & Number Theory](04-practice/algorithms/14-math-and-number-theory.md)
+* [Range Queries](04-practice/algorithms/15-range-queries.md)
 
----
+## 05 · Review
+* [Review Index](05-review/README.md)
+* [Patterns Master](05-review/01-pattern-sheet.md)
+* [Pattern Ladders](05-review/02-ladders.md)
+* [Interview Judgment — reasoning tools & live decision-making](05-review/03-interview-judgment.md)
 
-## Patterns & Revision
-* [Patterns Index](03-patterns/README.md)
-* [**Patterns Master — triggers & decision trees**](03-patterns/patterns-master.md)
-* [**How to Think — first principles + ladders**](03-patterns/HOW_TO_THINK.md)
-* [**Recursion & DP Masterclass**](03-patterns/RECURSION_AND_DP_MASTERCLASS.md)
-* [Topic Questions, Tricks & Variants](03-patterns/TOPIC_QUESTIONS_LOGIC_AND_TRICKS.md)
-* [**Interview Judgment — execution, mocks, senior chains**](03-patterns/INTERVIEW_JUDGMENT.md)
-* [Mind Map (problems + hints)](03-patterns/mindmap.md)
-
----
-
-## Behavioral (required at L3)
-* [**Behavioral + Googliness — complete guide**](05-behavioral/BEHAVIORAL_GOOGLINESS.md)
-* [Behavioral Index & attribute map](05-behavioral/README.md)
-
----
-
-## Striver A2Z Course Notes
-* [Course map](striver-a2z/README.md)
-* [Study plan](striver-a2z/STUDY_PLAN.md)
-* [Problem index](striver-a2z/PROBLEM_INDEX.md)
-* [Master cheatsheet](striver-a2z/MASTER_CHEATSHEET.md)
+## 06 · Behavioral
+* [Behavioral Index](06-behavioral/README.md)
+* [Behavioral + Googliness](06-behavioral/BEHAVIORAL_GOOGLINESS.md)

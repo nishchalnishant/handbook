@@ -5,7 +5,7 @@ tags: [data-structures, heap]
 ---
 # Heap / Priority Queue — L3 Core
 
-← [Data structures index](./README.md) · [Patterns master](../03-patterns/patterns-master.md)
+← [Data structures index](README.md) · [Patterns master](../05-review/01-pattern-sheet.md)
 
 ## What this covers
 
@@ -13,7 +13,7 @@ tags: [data-structures, heap]
 > **Covers:** Binary heaps and priority queues: heapify cost, top-K, K-way merge, two-heap median, scheduling, heap-driven Dijkstra.
 > **You'll be able to:** Choose heap vs sort vs quickselect for top-K; handle max-heap in Python (negation / tuples); write two-heap median and K-way merge.
 > **Prereqs:** Arrays, tree · **Pair with:** [Heap problems](../04-practice/data-structures/10-heap.md) · **Time:** 1.5 h
-> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../00-start-here/l3-google-roadmap.md#tier-legend))
+> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../00-start-here/01-roadmap.md#tier-legend))
 
 **Sections:** [Core Idea](#core-idea) · [Theory & Mental Models](#theory--mental-models) · [1. Concept Overview](#1-concept-overview) · [2. Core Algorithms & Click Moments](#2-core-algorithms--click-moments) · [3. Common Interview Problems](#3-common-interview-problems) · [Interview Questions — Logic & Trickiness](#interview-questions--logic--trickiness) · [Quick Revision Triggers](#quick-revision-triggers) · [Flashcards](#flashcards)
 
@@ -311,7 +311,7 @@ def ipo_maximize_capital(k: int, w: int, profits: list[int], capital: list[int])
 - **[Top K Frequent Elements](../04-practice/data-structures/02-hashing.md#top-k-frequent-elements--t1) `⚡ T1`** — Count with map; min-heap on `(freq, key)` of size K, or bucket sort.
 - **[Reorganize String](../04-practice/data-structures/10-heap.md#reorganize-string-lc-767--t1) `⚡ T1`** — Max-heap by frequency; place most frequent not equal to previous.
 - **[Task Scheduler](../04-practice/data-structures/06-queue.md#task-scheduler--t1) `⚡ T1`** — Math: `(max_freq - 1) * (n + 1) + count_of_max_freq`, capped at `len(tasks)`.
-- **[Find Median from Data Stream](../04-practice/algorithms/00-sorting.md#find-median-from-data-stream-lc-295--t1) `⚡ T1`** — Two heaps with rebalancing.
+- **[Find Median from Data Stream](../04-practice/algorithms/01-sorting.md#find-median-from-data-stream-lc-295--t1) `⚡ T1`** — Two heaps with rebalancing.
 
 ### Hard
 - **[Merge K Sorted Lists](../04-practice/data-structures/10-heap.md#merge-k-sorted-lists--t1) `⚡ T1`** — K-way merge; handle empty lists; tie-break with list index.
@@ -362,10 +362,10 @@ def ipo_maximize_capital(k: int, w: int, profits: list[int], capital: list[int])
 
 ## See also
 
-- [Sorting](../02-algorithms/00-sorting.md) — QuickSelect vs heap for top-K; external merge sort using K-way merge
+- [Sorting](../03-algorithms/01-sorting.md) — QuickSelect vs heap for top-K; external merge sort using K-way merge
 - [Queue](06-queue.md) — priority queue vs FIFO; blocking queue for concurrency
-- [Graph](13-graphs.md) — Dijkstra's algorithm uses a min-heap
-- [Patterns Master](../03-patterns/patterns-master.md) — top-K and merge-K pattern triggers
+- [Graph](11-graphs.md) — Dijkstra's algorithm uses a min-heap
+- [Patterns Master](../05-review/01-pattern-sheet.md) — top-K and merge-K pattern triggers
 
 ## Flashcards
 

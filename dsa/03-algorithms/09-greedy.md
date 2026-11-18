@@ -5,15 +5,15 @@ tags: [algorithms, greedy]
 ---
 # Greedy Algorithms — L3 Gold Standard
 
-← [Algorithms index](./README.md) · [Patterns master](../03-patterns/patterns-master.md)
+← [Algorithms index](README.md) · [Patterns master](../05-review/01-pattern-sheet.md)
 
 ## What this covers
 
 > [!abstract] In this file
 > **Covers:** When greedy is correct (exchange argument, greedy-stays-ahead), interval scheduling/merging, jump games, gas station, task scheduler, sorting-based greedy.
 > **You'll be able to:** Prove (or disprove with a counterexample) a greedy choice before coding it; solve the interval family with sort + one pass.
-> **Prereqs:** Sorting · **Pair with:** [Greedy problems](../04-practice/algorithms/16-greedy.md) · **Time:** 1.5 h
-> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../00-start-here/l3-google-roadmap.md#tier-legend))
+> **Prereqs:** Sorting · **Pair with:** [Greedy problems](../04-practice/algorithms/09-greedy.md) · **Time:** 1.5 h
+> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../00-start-here/01-roadmap.md#tier-legend))
 
 **Sections:** [Core Idea](#core-idea) · [Theory & Mental Models](#theory--mental-models) · [1. Concept Overview: The L3 Bar](#1-concept-overview-the-l3-bar) · [2. Core Patterns & Click Moments](#2-core-patterns--click-moments) · [3. L3 Deep Dives](#3-l3-deep-dives) · [4. Common Interview Problems](#4-common-interview-problems) · [Interview Questions — Logic & Trickiness](#interview-questions--logic--trickiness) · [Quick Revision Triggers](#quick-revision-triggers) · [The Coach's Dialogue: Mastering the "Greedy" Mindset](#the-coachs-dialogue-mastering-the-greedy-mindset) · [Flashcards](#flashcards)
 
@@ -202,9 +202,9 @@ def max_overlap(intervals):                 # Meeting Rooms II 🎯 T2 — sweep
 | Max concurrent / min rooms | Sweep events **or** min-heap of ends | End before start at equal time |
 | Remove fewest / max kept | Sort by end, keep earliest finish | Overlap iff `s < last_end` |
 | Min arrows | Sort by end | New arrow iff `s > arrow` (strict) |
-| Many range adds, read once | Difference array (`+v` at l, `−v` at r+1) | See [array lecture](../01-data-structures/01-array.md) |
+| Many range adds, read once | Difference array (`+v` at l, `−v` at r+1) | See [array lecture](../02-data-structures/01-array.md) |
 
-**Trap:** `>` vs `>=` decides whether touching intervals overlap. Read the problem's definition and test it on `[1,2],[2,3]` before coding. Full problem table: [Algorithms index → Intervals](README.md#intervals).
+**Trap:** `>` vs `>=` decides whether touching intervals overlap. Read the problem's definition and test it on `[1,2],[2,3]` before coding. Practice: [greedy problems](../04-practice/algorithms/09-greedy.md).
 
 ### Jump Game — Reachability
 
@@ -459,23 +459,23 @@ def find_maximized_capital(k: int, w: int, profits: list[int], capital: list[int
 ## 4. Common Interview Problems
 
 ### Easy
-- **[Assign Cookies](../04-practice/algorithms/16-greedy.md#assign-cookies-lc-455) `🎯 T2`** — Sort kids and cookies; two-pointer greedy matching.
-- **[Largest Perimeter Triangle](../04-practice/algorithms/16-greedy.md#largest-perimeter-triangle-lc-976) `🎯 T2`** — Sort descending; first triple where `a < b + c`.
+- **[Assign Cookies](../04-practice/algorithms/09-greedy.md#simple-greedy) `🎯 T2`** — Sort kids and cookies; two-pointer greedy matching.
+- **[Largest Perimeter Triangle](../04-practice/algorithms/09-greedy.md#simple-greedy) `🎯 T2`** — Sort descending; first triple where `a < b + c`.
 
 ### Medium
 - **[Task Scheduler](../04-practice/data-structures/06-queue.md#task-scheduler--t1) `⚡ T1`** — Formula or heap simulation.
-- **[Jump Game I](../04-practice/algorithms/16-greedy.md#jump-game-can-reach--t2) `🎯 T2`** — Track `farthest`; O(N) single pass.
+- **[Jump Game I](../04-practice/algorithms/09-greedy.md#jump-game-can-reach--t2) `🎯 T2`** — Track `farthest`; O(N) single pass.
 - **Meeting Rooms II** `🎯 T2` — Min-heap of end times; active room count = heap size.
-- **[Candy](../04-practice/algorithms/16-greedy.md#candy-lc-135--t2) `🎯 T2`** — Two-pass: left-right then right-left.
-- **[Jump Game II](../04-practice/algorithms/16-greedy.md#jump-game-ii-minimum-jumps--t2) `🎯 T2`** — Greedy BFS levels; O(N).
-- **[Non-overlapping Intervals](../04-practice/algorithms/16-greedy.md#non-overlapping-intervals-minimum-number-to-remove--t2) `🎯 T2`** — Sort by end; keep non-overlapping.
-- **[Gas Station](../04-practice/algorithms/16-greedy.md#gas-station--t2) `🎯 T2`** — Running tank; reset start on deficit.
-- **[Partition Labels](../04-practice/algorithms/16-greedy.md#partition-labels-lc-763) `🎯 T2`** — Last occurrence map; sweep and cut.
-- **[Minimum Arrows to Burst Balloons](../04-practice/algorithms/16-greedy.md#minimum-number-of-arrows-to-burst-balloons) `🎯 T2`** — Sort by end; shoot at end of each new balloon.
+- **[Candy](../04-practice/algorithms/09-greedy.md#candy-lc-135--t2) `🎯 T2`** — Two-pass: left-right then right-left.
+- **[Jump Game II](../04-practice/algorithms/09-greedy.md#jump-game-ii-minimum-jumps--t2) `🎯 T2`** — Greedy BFS levels; O(N).
+- **[Non-overlapping Intervals](../04-practice/algorithms/09-greedy.md#non-overlapping-intervals-minimum-number-to-remove--t2) `🎯 T2`** — Sort by end; keep non-overlapping.
+- **[Gas Station](../04-practice/algorithms/09-greedy.md#gas-station--t2) `🎯 T2`** — Running tank; reset start on deficit.
+- **[Partition Labels](../04-practice/algorithms/09-greedy.md#string--array-greedy) `🎯 T2`** — Last occurrence map; sweep and cut.
+- **[Minimum Arrows to Burst Balloons](../04-practice/algorithms/09-greedy.md#interval-greedy) `🎯 T2`** — Sort by end; shoot at end of each new balloon.
 
 ### Hard
 - **[Minimum Refueling Stops](../04-practice/data-structures/10-heap.md#minimum-refueling-stops-lc-871--t2) `🎯 T2`** — Max-heap of reachable fuel; refuel largest when tank runs dry.
-- **[IPO (Maximize Capital)](../04-practice/algorithms/16-greedy.md#ipo-maximize-capital-lc-502--t1) `⚡ T1`** — Sort by capital; max-heap of available profits.
+- **[IPO (Maximize Capital)](../04-practice/algorithms/09-greedy.md#ipo-maximize-capital-lc-502--t1) `⚡ T1`** — Sort by capital; max-heap of available profits.
 - **[Smallest Range Covering K Lists](../04-practice/data-structures/10-heap.md#smallest-range-covering-elements-from-k-lists-heap-variant--t1) `⚡ T1`** — K-way merge + greedy window shrink.
 
 ---
@@ -523,7 +523,7 @@ def find_maximized_capital(k: int, w: int, profits: list[int], capital: list[int
 
 ## See also
 
-- [Patterns Master](../03-patterns/patterns-master.md) — greedy pattern triggers
+- [Patterns Master](../05-review/01-pattern-sheet.md) — greedy pattern triggers
 
 ---
 

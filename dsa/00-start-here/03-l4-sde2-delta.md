@@ -9,14 +9,14 @@ topic: L4 (SDE-2) Delta — what changes on top of the L3 base
 > [!abstract] In this file
 > **Covers:** What changes at L4 (SDE-2): the higher bar, tier promotions from the L3 track, gap problems, a 6-week schedule, behavioral delta.
 > **You'll be able to:** Upgrade an L3-ready prep to the L4 bar without re-studying everything.
-> **Prereqs:** L3 roadmap · **Pair with:** [L3 roadmap](l3-google-roadmap.md) · [Senior delta](sde3-senior-delta.md) · **Time:** 20 min
-> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](l3-google-roadmap.md#tier-legend))
+> **Prereqs:** L3 roadmap · **Pair with:** [L3 roadmap](01-roadmap.md) · [Senior delta](04-senior-delta.md) · **Time:** 20 min
+> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](01-roadmap.md#tier-legend))
 
 **Sections:** [1. What actually changes at L4](#1-what-actually-changes-at-l4) · [2. Tier promotions (L3 → L4)](#2-tier-promotions-l3--l4) · [3. Gap problems (not in the L3 track)](#3-gap-problems-not-in-the-l3-track) · [4. L4 6-week schedule](#4-l4-6-week-schedule) · [5. Behavioral delta](#5-behavioral-delta)
 
 ---
 
-> **How to use this file:** Everything in the L3 track ([`l3-google-roadmap.md`](l3-google-roadmap.md)) is still the foundation — L4 loops draw from the *same* topic pool. This file lists only what **changes**: the higher bar, tier promotions, and ~35 gap problems the L3 track doesn't cover. Study the L3 base first; layer this on top.
+> **How to use this file:** Everything in the L3 track ([Roadmap](01-roadmap.md)) is still the foundation — L4 loops draw from the *same* topic pool. This file lists only what **changes**: the higher bar, tier promotions, and ~35 gap problems the L3 track doesn't cover. Study the L3 base first; layer this on top.
 
 ---
 
@@ -38,7 +38,7 @@ The topic list barely changes. The **bar** changes:
 
 **Still skipped at L4** (unchanged from L3): segment trees / BIT implementation (concept sentence only), Tarjan SCC/bridges implementation, bitmask DP, digit DP, Manacher, suffix automata, system design (L4 loops at Google are still DSA + behavioral; design appears at L5).
 
-**Outside Google / hard rounds** (Meta E5 hard rounds, HFT, competitive-leaning teams): promote the `💤 T3` material to `🎯 T2` — [Range Queries](../02-algorithms/19-range-queries.md) (Fenwick, segment tree, merge-sort counting; [practice](../04-practice/algorithms/19-range-queries.md)), bitmask / digit / game DP in [DP practice](../04-practice/algorithms/15-dynamic-programming.md), and bit tricks in [Bit Manipulation practice](../04-practice/algorithms/17-bit-manipulation.md).
+**Outside Google / hard rounds** (Meta E5 hard rounds, HFT, competitive-leaning teams): promote the `💤 T3` material to `🎯 T2` — [Range Queries](../03-algorithms/15-range-queries.md) (Fenwick, segment tree, merge-sort counting; [practice](../04-practice/algorithms/15-range-queries.md)), bitmask / digit / game DP in [DP practice](../04-practice/algorithms/08-dynamic-programming.md), and bit tricks in [Bit Manipulation practice](../04-practice/algorithms/13-bit-manipulation.md).
 
 ---
 
@@ -64,7 +64,7 @@ Tiers below are **L4 tiers**. Format matches the topic indexes: tier, difficulty
 
 ### 3.1 Design-a-data-structure `⚡ T1` — the biggest L3→L4 gap
 
-The pattern behind all of these: **compose two structures so each covers the other's weak operation**, and reason out loud about per-op complexity. Full walkthroughs with code: [`04-practice/data-structures/14-design.md`](../04-practice/data-structures/14-design.md).
+The pattern behind all of these: **compose two structures so each covers the other's weak operation**, and reason out loud about per-op complexity. Full walkthroughs with code: [`04-practice/data-structures/12-design.md`](../04-practice/data-structures/12-design.md).
 
 - **Insert Delete GetRandom O(1)** `⚡ T1` · Medium
   - Key insight: array (O(1) random via `random.choice`) + hashmap value→index. Delete = swap-with-last, pop. The swap trick is the whole problem.
@@ -85,7 +85,7 @@ The pattern behind all of these: **compose two structures so each covers the oth
 
 ### 3.2 Intervals / sweep line `⚡ T1`
 
-Full walkthroughs with code: [`04-practice/algorithms/16-greedy.md` → "Interval Greedy"](../04-practice/algorithms/16-greedy.md#interval-greedy).
+Full walkthroughs with code: [`04-practice/algorithms/09-greedy.md` → "Interval Greedy"](../04-practice/algorithms/09-greedy.md#interval-greedy).
 
 - **Insert Interval** `⚡ T1` · Medium
   - Key insight: three phases — copy all ending before, merge all overlapping into one, copy rest. No sort needed (input sorted).
@@ -100,7 +100,7 @@ Full walkthroughs with code: [`04-practice/algorithms/16-greedy.md` → "Interva
 
 ### 3.3 Graphs — the harder layer `⚡ T1`
 
-Full walkthroughs with code: [`04-practice/data-structures/13-graph.md` → "BFS on Graphs"](../04-practice/data-structures/13-graph.md#bfs-on-graphs); LIP: [`04-matrix.md` → "DP on the Grid"](../04-practice/data-structures/04-matrix.md#dp-on-the-grid-memoized-dfs).
+Full walkthroughs with code: [`04-practice/data-structures/11-graph.md` → "BFS on Graphs"](../04-practice/data-structures/11-graph.md#bfs-on-graphs); LIP: [`04-matrix.md` → "DP on the Grid"](../04-practice/data-structures/04-matrix.md#dp-on-the-grid-memoized-dfs).
 
 - **Longest Increasing Path in a Matrix** `⚡ T1` · Hard
   - Key insight: DFS + memo; strictly-increasing rule means no cycles → no visited set needed. This *is* DP on an implicit DAG — say that.
@@ -143,9 +143,9 @@ Full walkthroughs with code: [`04-practice/data-structures/05-stack.md` → "Mon
 ### 3.7 DP — the L4 layer (on top of the L3 T2 list)
 
 - **Longest Increasing Path in Matrix** — see §3.3; the canonical "DP meets graphs" bridge.
-- **Maximum Profit in Job Scheduling** `🎯 T2` · Hard — [walkthrough](../04-practice/algorithms/15-dynamic-programming.md#dp-on-sequences)
+- **Maximum Profit in Job Scheduling** `🎯 T2` · Hard — [walkthrough](../04-practice/algorithms/08-dynamic-programming.md#dp-on-sequences)
   - Key insight: sort by end; `dp[i] = max(dp[i-1], profit + dp[bisect(ends, start)])`. DP + binary search composition — very Google.
-- **Partition to K Equal Sum Subsets** `🎯 T2` · Medium — [walkthrough](../04-practice/algorithms/12-backtracking.md#partition-to-k-equal-sum-subsets--t2)
+- **Partition to K Equal Sum Subsets** `🎯 T2` · Medium — [walkthrough](../04-practice/algorithms/06-backtracking.md#partition-to-k-equal-sum-subsets--t2)
   - Key insight: backtracking filling one bucket at a time + pruning (sort desc, skip equal failures). Mention bitmask-DP exists; don't implement it.
 - **Cherry Pickup II / Minimum Falling Path** `💤 T3` — only if time remains.
 
@@ -153,12 +153,12 @@ Full walkthroughs with code: [`04-practice/data-structures/05-stack.md` → "Mon
 
 ## 4. L4 6-week schedule
 
-Weeks 1–4 = the L3 schedule ([roadmap](l3-google-roadmap.md)), with two amendments: treat DP as T1 from week 3, and implement Dijkstra cold in week 1. Then:
+Weeks 1–4 = the L3 schedule ([roadmap](01-roadmap.md)), with two amendments: treat DP as T1 from week 3, and implement Dijkstra cold in week 1. Then:
 
 | Week | Focus |
 | :--- | :--- |
 | **5** | §3.1 design-DS family + §3.2 intervals + §3.4 parsing. One 45-min mock mid-week. |
-| **6** | §3.3 hard graphs + §3.5–3.7 + **follow-up drills**: for every T1 problem you know, answer "what if it's a stream?", "what if it doesn't fit in memory?", "what if there are updates?" out loud. 3 timed mocks from the [L4 mock rounds](../03-patterns/INTERVIEW_JUDGMENT.md#l4-sde-2-mock-rounds--follow-up-chains). |
+| **6** | §3.3 hard graphs + §3.5–3.7 + **follow-up drills**: for every T1 problem you know, answer "what if it's a stream?", "what if it doesn't fit in memory?", "what if there are updates?" out loud. 3 timed mocks from the [L4 mock rounds](../05-review/03-interview-judgment.md#l4-sde-2-mock-rounds--follow-up-chains). |
 
 **Follow-up drill table** (the L4-defining skill):
 
@@ -176,7 +176,7 @@ Weeks 1–4 = the L3 schedule ([roadmap](l3-google-roadmap.md)), with two amendm
 
 ## 5. Behavioral delta
 
-Same STAR bank ([`05-behavioral/`](../05-behavioral/BEHAVIORAL_GOOGLINESS.md)), but L4 interviewers probe for **scope and ownership**. Make sure at least 3 stories hit:
+Same STAR bank ([`06-behavioral/BEHAVIORAL_GOOGLINESS.md`](../06-behavioral/BEHAVIORAL_GOOGLINESS.md)), but L4 interviewers probe for **scope and ownership**. Make sure at least 3 stories hit:
 
 1. **Drove a decision across disagreement** — you changed the outcome, not just participated.
 2. **Owned a failure end-to-end** — detection, fix, prevention, what you'd do differently.

@@ -16,7 +16,7 @@ tags: [behavioral, index]
 
 ---
 
-**Everything lives in [`BEHAVIORAL_GOOGLINESS.md`](./BEHAVIORAL_GOOGLINESS.md)** — attributes, STAR, story bank, question types, follow-ups, red flags, interview-day checklist.
+**Everything lives in [`BEHAVIORAL_GOOGLINESS.md`](BEHAVIORAL_GOOGLINESS.md)** — attributes, STAR, story bank, question types, follow-ups, red flags, interview-day checklist.
 
 This file is the index + the question→attribute decision map.
 

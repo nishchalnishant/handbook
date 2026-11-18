@@ -10,8 +10,8 @@ difficulty: mixed
 > [!abstract] In this file
 > **Covers:** Worked heap problems: top-K, scheduling/reorganization, K-way merge, Dijkstra-style.
 > **You'll be able to:** Choose the heap key and size correctly; code top-K and K-way merge cold.
-> **Prereqs:** Heap lecture · **Pair with:** [Heap lecture](../../01-data-structures/10-heap.md) · **Time:** 2–3 h
-> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../../00-start-here/l3-google-roadmap.md#tier-legend))
+> **Prereqs:** Heap lecture · **Pair with:** [Heap lecture](../../02-data-structures/10-heap.md) · **Time:** 2–3 h
+> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../../00-start-here/01-roadmap.md#tier-legend))
 
 **Sections:** [Heap Interview Checklist](#heap-interview-checklist) · [Top-K Pattern](#top-k-pattern) · [Scheduling / Reorganization](#scheduling--reorganization) · [K-Way Merge](#k-way-merge) · [Dijkstra / Graph](#dijkstra--graph) · [Heap Applications](#heap-applications)
 
@@ -597,7 +597,6 @@ difficulty: mixed
 
 ---
 
-
 ## K-Way Merge
 
 ---
@@ -745,7 +744,7 @@ difficulty: mixed
 
 ### Kth Smallest Element in a Sorted Matrix `⚡ T1`
 
-> Full walkthrough: [Kth Smallest Element in a Sorted Matrix (LC 378)](../algorithms/11-binary-search.md#kth-smallest-element-in-a-sorted-matrix-lc-378--t1).
+> Full walkthrough: [Kth Smallest Element in a Sorted Matrix (LC 378)](../algorithms/04-binary-search.md#kth-smallest-element-in-a-sorted-matrix-lc-378--t1).
 
 ---
 
@@ -888,7 +887,7 @@ difficulty: mixed
 
 ### Path with Minimum Effort `⚡ T1`
 
-> Full walkthrough: [Path with Minimum Effort (LC 1631)](13-graph.md#path-with-minimum-effort-lc-1631--t1).
+> Full walkthrough: [Path with Minimum Effort (LC 1631)](11-graph.md#path-with-minimum-effort-lc-1631--t1).
 
 ---
 

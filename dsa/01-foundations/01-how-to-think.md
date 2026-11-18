@@ -1,5 +1,5 @@
 ---
-module: 03-patterns
+module: 01-foundations
 topic: How to Think — first-principles pattern intuition
 tags: [patterns, intuition, first-principles, google-l3, l4]
 ---
@@ -8,18 +8,18 @@ tags: [patterns, intuition, first-principles, google-l3, l4]
 ## What this covers
 
 > [!abstract] In this file
-> **Covers:** The reasoning machine behind every pattern: four ways algorithms get faster, the solve loop, constraints as hints, unsticking moves, and each pattern derived from first principles, and twelve graded problem ladders to pressure-test them.
+> **Covers:** The reasoning machine behind every pattern: four ways algorithms get faster, the solve loop, constraints as hints, unsticking moves, and each pattern derived from first principles, with graded ladders to pressure-test them in [Pattern ladders](../05-review/02-ladders.md).
 > **You'll be able to:** Reconstruct a pattern you forgot from its invariant, instead of recalling it.
-> **Prereqs:** Basic DS knowledge · **Pair with:** [Interview judgment](INTERVIEW_JUDGMENT.md) · [Patterns master](patterns-master.md) · **Time:** 3 h + 2–3 weeks of ladders
+> **Prereqs:** Basic DS knowledge · **Pair with:** [Interview judgment](../05-review/03-interview-judgment.md) · [Patterns master](../05-review/01-pattern-sheet.md) · **Time:** 3 h
 
-**Sections:** [1. There are only four ways an algorithm gets faster](#1-there-are-only-four-ways-an-algorithm-gets-faster) · [2. The solve loop (run this every single time)](#2-the-solve-loop-run-this-every-single-time) · [3. Constraints are the answer key](#3-constraints-are-the-answer-key) · [4. When you are truly stuck — the seven moves](#4-when-you-are-truly-stuck--the-seven-moves) · [Hashing — buy O(1) answers to "have I seen it?"](#hashing--buy-o1-answers-to-have-i-seen-it) · [Two Pointers — discard candidates with a one-line proof](#two-pointers--discard-candidates-with-a-one-line-proof) · [Sliding Window — two pointers where the answer is a range](#sliding-window--two-pointers-where-the-answer-is-a-range) · [Prefix Sums & Difference Arrays — answer ranges by subtracting](#prefix-sums--difference-arrays--answer-ranges-by-subtracting) · [Binary Search — bisect a monotone predicate, not an array](#binary-search--bisect-a-monotone-predicate-not-an-array) · [Stacks & Monotonic Stacks — deferred work, resolved most-recent-first](#stacks--monotonic-stacks--deferred-work-resolved-most-recent-first) · [Heaps — a changing collection where only the extreme matters](#heaps--a-changing-collection-where-only-the-extreme-matters) · [Linked Lists — pointer surgery under an invariant](#linked-lists--pointer-surgery-under-an-invariant) · [Trees & Recursion — trust the contract, don't trace the calls](#trees--recursion--trust-the-contract-dont-trace-the-calls) · [Tries — pay for each prefix once](#tries--pay-for-each-prefix-once) · [Graphs — the skill is modeling; the algorithms are a lookup table](#graphs--the-skill-is-modeling-the-algorithms-are-a-lookup-table) · [Backtracking — exhaustive search with a disciplined skeleton](#backtracking--exhaustive-search-with-a-disciplined-skeleton) · [Recursion → DP — same tree, cached; the skill is state design](#recursion--dp--same-tree-cached-the-skill-is-state-design) · [Greedy — the only pattern that requires a proof](#greedy--the-only-pattern-that-requires-a-proof) · [Intervals & Sweep Line — sort, then one pass with the right invariant](#intervals--sweep-line--sort-then-one-pass-with-the-right-invariant) · [Design-a-Data-Structure — compose, so each part covers the other's weakness](#design-a-data-structure--compose-so-each-part-covers-the-others-weakness) · [Hard problems are two patterns with a seam](#hard-problems-are-two-patterns-with-a-seam) · [The escalation grammar (what follow-ups will be)](#the-escalation-grammar-what-follow-ups-will-be) · [The training protocol (how to study this file)](#the-training-protocol-how-to-study-this-file) · [The interview-day card](#the-interview-day-card) · [The study protocol (non-negotiable)](#the-study-protocol-non-negotiable) · [Ladder 1 — Sliding Window](#ladder-1--sliding-window) · [Ladder 2 — Two Pointers (converging)](#ladder-2--two-pointers-converging) · [Ladder 3 — Binary Search (on index → on answer)](#ladder-3--binary-search-on-index--on-answer) · [Ladder 4 — Hashing for O(n) lookups](#ladder-4--hashing-for-on-lookups) · [Ladder 5 — BFS / DFS on grids & graphs](#ladder-5--bfs--dfs-on-grids--graphs) · [Ladder 6 — Monotonic Stack](#ladder-6--monotonic-stack) · [Ladder 7 — Heaps & Top-K](#ladder-7--heaps--top-k) · [Ladder 8 — Shortest Path Beyond BFS](#ladder-8--shortest-path-beyond-bfs) · [Ladder 9 — Recursion → Backtracking](#ladder-9--recursion--backtracking) · [Ladder 10 — Recursion → DP](#ladder-10--recursion--dp) · [Ladder 11 — Intervals & Sweep](#ladder-11--intervals--sweep) · [Ladder 12 — Design-a-Data-Structure (L4 signature)](#ladder-12--design-a-data-structure-l4-signature) · [After the ladders](#after-the-ladders) · [See Also](#see-also)
+**Sections:** [1. There are only four ways an algorithm gets faster](#1-there-are-only-four-ways-an-algorithm-gets-faster) · [2. The solve loop (run this every single time)](#2-the-solve-loop-run-this-every-single-time) · [3. Constraints are the answer key](#3-constraints-are-the-answer-key) · [4. When you are truly stuck — the seven moves](#4-when-you-are-truly-stuck--the-seven-moves) · [Hashing — buy O(1) answers to "have I seen it?"](#hashing--buy-o1-answers-to-have-i-seen-it) · [Two Pointers — discard candidates with a one-line proof](#two-pointers--discard-candidates-with-a-one-line-proof) · [Sliding Window — two pointers where the answer is a range](#sliding-window--two-pointers-where-the-answer-is-a-range) · [Prefix Sums & Difference Arrays — answer ranges by subtracting](#prefix-sums--difference-arrays--answer-ranges-by-subtracting) · [Binary Search — bisect a monotone predicate, not an array](#binary-search--bisect-a-monotone-predicate-not-an-array) · [Stacks & Monotonic Stacks — deferred work, resolved most-recent-first](#stacks--monotonic-stacks--deferred-work-resolved-most-recent-first) · [Heaps — a changing collection where only the extreme matters](#heaps--a-changing-collection-where-only-the-extreme-matters) · [Linked Lists — pointer surgery under an invariant](#linked-lists--pointer-surgery-under-an-invariant) · [Trees & Recursion — trust the contract, don't trace the calls](#trees--recursion--trust-the-contract-dont-trace-the-calls) · [Tries — pay for each prefix once](#tries--pay-for-each-prefix-once) · [Graphs — the skill is modeling; the algorithms are a lookup table](#graphs--the-skill-is-modeling-the-algorithms-are-a-lookup-table) · [Backtracking — exhaustive search with a disciplined skeleton](#backtracking--exhaustive-search-with-a-disciplined-skeleton) · [Recursion → DP — same tree, cached; the skill is state design](#recursion--dp--same-tree-cached-the-skill-is-state-design) · [Greedy — the only pattern that requires a proof](#greedy--the-only-pattern-that-requires-a-proof) · [Intervals & Sweep Line — sort, then one pass with the right invariant](#intervals--sweep-line--sort-then-one-pass-with-the-right-invariant) · [Design-a-Data-Structure — compose, so each part covers the other's weakness](#design-a-data-structure--compose-so-each-part-covers-the-others-weakness) · [Hard problems are two patterns with a seam](#hard-problems-are-two-patterns-with-a-seam) · [The escalation grammar (what follow-ups will be)](#the-escalation-grammar-what-follow-ups-will-be) · [The training protocol (how to study this file)](#the-training-protocol-how-to-study-this-file) · [The interview-day card](#the-interview-day-card) · [See Also](#see-also)
 
 ---
 
 > [!IMPORTANT]
 > **What this file is.** Every other file in this repo tells you *what* the patterns are. This one builds the machine in your head that **derives** them. Read a chapter, close the file, and re-derive the pattern on paper from its core question — if you can't, re-read. The goal: given a problem you have never seen, you reconstruct the right approach from reasoning, not recall.
 >
-> Parts I–III = *why each pattern works*; [Part IV](#part-iv--pattern-ladders) = *graded ladders to pressure-test it*.
+> This file = *why each pattern works*; [Pattern ladders](../05-review/02-ladders.md) = *graded ladders to pressure-test it*.
 
 ---
 
@@ -369,7 +369,7 @@ The skeleton is always `choose → recurse → un-choose`; the un-choose restore
 
 **Core question:** the brute-force recursion revisits identical subproblems — cache them.
 
-> Full lesson-format treatment of this chapter — recursion from zero, top-down, bottom-up, state design, worked tables: [RECURSION_AND_DP_MASTERCLASS.md](RECURSION_AND_DP_MASTERCLASS.md).
+> Full lesson-format treatment of this chapter — recursion from zero, top-down, bottom-up, state design, worked tables: [Recursion → DP](../03-algorithms/07-recursion-to-dp.md).
 
 **The derivation path — always the same three steps, never skip to step 3:**
 1. **Write the brute-force recursion** by articulating *the last (or first) decision*: "the answer for the first i items either uses item i or doesn't" · "this path came from the cell above or the left" · "either these two characters match, or one gets deleted." Get this sentence right and the recurrence writes itself.
@@ -445,7 +445,7 @@ The skeleton is always `choose → recurse → un-choose`; the un-choose restore
 
 Worked cold: Insert/Delete/GetRandom O(1). Random needs index-access → array. Delete-by-value needs find → hash `val → idx`. Array's weakness: deleting mid-array is O(n) — but order was never required, so **swap the victim with the last element, pop the end** — O(1). The swap trick is the whole problem; and the canonical bug is update-order (repoint the moved element's hash entry *before* deleting the victim's, or deleting the last element corrupts the map).
 
-**The standard composition table** (derive each row by the 3-step method; walkthroughs in [`04-practice/data-structures/14-design.md`](../04-practice/data-structures/14-design.md)):
+**The standard composition table** (derive each row by the 3-step method; walkthroughs in [`04-practice/data-structures/12-design.md`](../04-practice/data-structures/12-design.md)):
 
 | Need | Composition |
 |---|---|
@@ -481,11 +481,11 @@ Genuinely hard interview problems are rarely a *new* idea — they're two chapte
 | LFU Cache | hash map | frequency-bucketed ordered dicts |
 | Minimum Days to Make m Bouquets | binary search on answer | greedy feasibility check |
 
-When stuck on a hard problem, explicitly ask: *"is there an inner subproblem here I already know?"* — usually the inner one is a T1 pattern, and identifying it cracks the outer shell. Quick lookup of common pairings: [patterns-master § Hybrid Patterns](patterns-master.md#hybrid-patterns--t2).
+When stuck on a hard problem, explicitly ask: *"is there an inner subproblem here I already know?"* — usually the inner one is a T1 pattern, and identifying it cracks the outer shell. Quick lookup of common pairings: [Pattern sheet § Hybrid Patterns](../05-review/01-pattern-sheet.md#hybrid-patterns--t2).
 
 ## The escalation grammar (what follow-ups will be)
 
-Every follow-up an interviewer asks is one of five transformations. Pre-compute your answers for each T1 problem you know — this table is the L4 bar in one place (concrete per-family chains: [patterns-master § Follow-Up Chains](patterns-master.md#follow-up-chains--interview-progression--t1)):
+Every follow-up an interviewer asks is one of five transformations. Pre-compute your answers for each T1 problem you know — this table is the L4 bar in one place (concrete per-family chains: [Pattern sheet § Follow-Up Chains](../05-review/01-pattern-sheet.md#follow-up-chains--interview-progression--t1)):
 
 | Transformation | What it does to your solution | Standard response |
 |---|---|---|
@@ -501,7 +501,7 @@ Knowing the derivations and *producing them under pressure* are different skills
 
 1. **Derivation reps.** For one pattern per day: blank paper, write the core question, reconstruct the derivation and invariant from memory, then check against this file. 15 minutes. When you can do all ~16 chapters cold, the "which pattern is this?" anxiety disappears — you're recognizing *waste types*, not problem titles.
 2. **Solve with the loop, visibly.** Every practice problem, run §2's ten steps *out loud* — especially 4 (brute force), 5 (name the waste), and 7 (state the invariant). Solving silently trains the wrong skill; the interview is a spoken exam.
-3. **Log misses by cause, not by problem.** After a failed attempt, record *which step failed*: didn't decode constraints? wrong waste named? invariant never stated? state dimension missing? Your miss-log will cluster hard around 2–3 causes within twenty problems — those are what you drill, via the matching rungs in [Part IV](#part-iv--pattern-ladders).
+3. **Log misses by cause, not by problem.** After a failed attempt, record *which step failed*: didn't decode constraints? wrong waste named? invariant never stated? state dimension missing? Your miss-log will cluster hard around 2–3 causes within twenty problems — those are what you drill, via the matching rungs in [Part IV](../05-review/02-ladders.md).
 4. **Escalate every solve.** After each clean solve, ask yourself the five grammar transformations and answer aloud in one minute each. This drill is the cheapest way to close the L3→L4 gap.
 5. **The 20-minute rule.** Stuck past 20 minutes → read *only* the key insight, not the code — then implement from the insight alone. You keep the derivation practice, lose only the trivia.
 
@@ -521,227 +521,10 @@ The compressed version of this entire file — the nine sentences to hold in wor
 
 ---
 
-# PART IV — PATTERN LADDERS
-
-> **The problem this part solves:** the rest of the repo is organized topic-first with per-problem "key insights." That builds *recognition*, which fails on unseen problems. This part builds *derivation*: for each pattern you learn one **invariant** (the reason the pattern works), then climb a ladder of problems where each rung changes exactly **one thing** from the previous. When the interview problem is new, you don't search memory for a lookalike — you check which invariant applies.
-
-## The study protocol (non-negotiable)
-
-Same rules as [the training protocol](#the-training-protocol-how-to-study-this-file), specialized to ladders:
-
-1. **Read only the invariant** at the top of a ladder. Not the rungs' annotations.
-2. **Attempt each rung for 20 min** before reading anything. Struggling *is* the mechanism — an insight you derived is stored differently from one you read.
-3. If stuck, read only the **"what changed"** line (the ladder's version of "key insight only"). Try 10 more minutes.
-4. Log the miss by cause: *"the trigger I missed was ___."*
-5. **Spaced repetition on triggers, not solutions.** Re-attempt failed rungs at +2 days and +7 days. Re-reading a solution you've seen is near-zero learning.
-6. One ladder at a time — the single-delta ordering is the point.
-
-Time per rung, not per ladder: if a rung falls in 5 minutes, move on immediately.
-
-Tier tags (`⚡ T1` / `🎯 T2`) match the canonical tiers in `04-practice/`; a rung's tier says how likely it is to appear, not how hard the rung is.
-
----
-
-## Ladder 1 — Sliding Window
-
-**Invariant:** a window `[l, r]` maintains a property P. Grow `r` until P breaks; shrink `l` until P is restored. This is O(n) *because each pointer only moves forward* — every element enters and leaves the window at most once. The pattern applies iff **P is monotone**: extending a bad window keeps it bad (or extending a good one keeps it good). If adding an element can *fix* a violation (e.g., sums with negative numbers), the invariant is dead — use prefix sums instead.
-
-| # | Problem | What changed from previous rung |
-|---|---------|---------------------------------|
-| 1 | Best Time to Buy/Sell Stock `🎯 T2` | Degenerate window: track min-so-far. The "window" is implicit. |
-| 2 | Longest Substring Without Repeating Characters `⚡ T1` | P = "no duplicates," tracked with a set. First real grow/shrink loop. |
-| 3 | Max Consecutive Ones III `⚡ T1` | P becomes a **budget** ("≤ k zeros") instead of a boolean property. |
-| 4 | Longest Repeating Character Replacement `⚡ T1` | Budget is now *derived*: `window_len - max_freq ≤ k`. Bonus insight: `max_freq` never needs to shrink. |
-| 5 | Permutation in String `⚡ T1` | Window becomes **fixed-size**; P = "counts match." Compare via a `matches` counter, not full dict compare. |
-| 6 | Minimum Window Substring `⚡ T1` | Flip the objective: **shrink for the answer** (minimize) instead of grow. Record answer on valid, not on invalid. |
-| 7 | Sliding Window Maximum `⚡ T1` | The tracked property needs a **monotonic deque** — window + mono-structure composition. Bridge to Ladder 6. |
-
-**Failure drill:** "Subarray Sum Equals K" with negatives — explain in one sentence why the window breaks and what replaces it (prefix-sum hashmap).
-
----
-
-## Ladder 2 — Two Pointers (converging)
-
-**Invariant:** on a **sorted** (or otherwise monotone) structure, comparing the two ends lets you discard one element *with certainty* — the discarded element can't be in any better answer. O(n) because every step discards someone forever. If you can't state *why* the discard is safe, the pattern doesn't apply.
-
-| # | Problem | What changed |
-|---|---------|--------------|
-| 1 | Two Sum II (sorted) `⚡ T1` | The base move: sum too small → `l++` (nothing pairs with `a[l]` anymore), too big → `r--`. |
-| 2 | Valid Palindrome `🎯 T2` | Same converging move; the "compare" is equality, not a sum. |
-| 3 | Container With Most Water `⚡ T1` | The discard argument gets subtle: move the **shorter** wall — keeping it can never beat the current answer. Say the proof out loud. |
-| 4 | 3Sum `⚡ T1` | Wrap the two-pointer scan in an outer loop; new sub-skill = **duplicate skipping** at both levels. |
-| 5 | Trapping Rain Water `⚡ T1` | Discard argument on **maxes**: the side with smaller max is fully determined regardless of the other side. Hardest proof in the ladder. |
-
----
-
-## Ladder 3 — Binary Search (on index → on answer)
-
-**Invariant:** you need a **monotone predicate** `f(x)`: false…false,true…true. Binary search finds the boundary. The array being sorted is just the special case `f(x) = a[x] >= target`. The L4 move is inventing `f` when there's no array at all.
-
-| # | Problem | What changed |
-|---|---------|--------------|
-| 1 | Binary Search / First & Last Position `⚡ T1` | Boundary template: `while l < r`, bias mid correctly. Own ONE template. |
-| 2 | Search in Rotated Sorted Array `⚡ T1` | Array not fully sorted — but **one half always is**; test which, then decide side. |
-| 3 | Find Minimum in Rotated Sorted Array `⚡ T1` | Compare `mid` to `right` instead of to a target. Predicate = "am I in the right segment?" |
-| 4 | Koko Eating Bananas `⚡ T1` | **The big leap:** search the *answer space* (speed k), predicate = "can finish in h hours?" No array anywhere. |
-| 5 | Split Array Largest Sum `⚡ T1` | Same answer-space search; predicate is now a **greedy feasibility check**. Two patterns composed. |
-| 6 | Median of Two Sorted Arrays `⚡ T1` | Search a **partition point**; predicate = "left maxes ≤ right mins." L4 stretch rung. |
-
-**Trigger to burn in:** "minimize the maximum / maximize the minimum" ⇒ binary search on answer, almost always.
-
----
-
-## Ladder 4 — Hashing for O(n) lookups
-
-**Invariant:** you're scanning and repeatedly asking "have I seen X before?" where X is *computable from the current element* (complement, prefix sum, canonical form). The hashmap trades O(n) space to make that question O(1). The creative step is always **choosing the key**.
-
-| # | Problem | What changed |
-|---|---------|--------------|
-| 1 | Two Sum `⚡ T1` | Key = complement. The archetype. |
-| 2 | Group Anagrams `⚡ T1` | Key = **canonical form** (sorted string / count tuple). |
-| 3 | Subarray Sum Equals K `⚡ T1` | Key = **prefix sum**; count of `prefix - k` seen so far. The single most reusable trick in this repo. |
-| 4 | Longest Consecutive Sequence `⚡ T1` | Set membership + "only start at sequence heads" — the key insight is *when not to start work*. |
-| 5 | Contiguous Array / binary subarrays `⚡ T1` | Prefix-sum key with a **transform** (0 → -1). Recognize "equal counts of A and B" as prefix-sum-equals-zero. |
-
----
-
-## Ladder 5 — BFS / DFS on grids & graphs
-
-**Invariant:** BFS explores in rings ⇒ first arrival = shortest path **when all edges cost the same**. DFS explores exhaustively ⇒ use for reachability, components, and anything needing backtrack. The L4-level skill is spotting a graph where the problem gives you none: states are nodes, legal moves are edges.
-
-| # | Problem | What changed |
-|---|---------|--------------|
-| 1 | Number of Islands `⚡ T1` | Flood fill; visited-marking discipline. |
-| 2 | Rotting Oranges `⚡ T1` | **Multi-source** BFS: seed the queue with all sources; level = time. |
-| 3 | 01 Matrix / Walls and Gates `⚡ T1` | Invert the direction: BFS **from targets** to everything, not from each cell. |
-| 4 | Word Ladder `⚡ T1` | **Implicit graph**: nodes = words, edges = one-letter change. Nobody hands you an adjacency list. |
-| 5 | Snakes and Ladders `🎯 T2` | Implicit graph + an **encoding chore** (square → cell). The mapping is the problem. |
-| 6 | Bus Routes `🎯 T2` | Choose the right **node type**: BFS over routes, not stops, because the answer counts buses. |
-| 7 | Path With Minimum Effort `⚡ T1` | Edge weights differ ⇒ BFS breaks ⇒ **Dijkstra**. Understand exactly which invariant died. Bridge to Ladder 8. |
-
----
-
-## Ladder 6 — Monotonic Stack
-
-**Invariant:** scanning left→right, the stack holds "elements still waiting for their answer," kept sorted so that the current element **resolves** everyone it beats, in one pop-burst. O(n) because each element is pushed and popped once. Trigger: "next/previous greater/smaller" or "how far until…".
-
-| # | Problem | What changed |
-|---|---------|--------------|
-| 1 | Next Greater Element `🎯 T2` | The archetype: pop-and-resolve. |
-| 2 | Daily Temperatures `🎯 T2` | Store **indices**; answer = distance, not value. |
-| 3 | Car Fleet `🎯 T2` | The "elements" are cars sorted by position; the monotone quantity is arrival time. |
-| 4 | Largest Rectangle in Histogram `🎯 T2` | Pop computes an **area** using prev-smaller as boundary. The classic hard rung. |
-| 5 | Sum of Subarray Minimums `🎯 T2` | From "find" to **counting contribution**: `left[i] * right[i] * a[i]`. Strict/non-strict asymmetry for duplicates. |
-
----
-
-## Ladder 7 — Heaps & Top-K
-
-**Invariant:** you repeatedly need the current min/max of a *changing* collection — and nothing else. A heap gives that in O(log n) per op. Top-K trick: to keep the K largest, use a **min**-heap of size K (the root is the bouncer). If the collection never changes, just sort.
-
-| # | Problem | What changed |
-|---|---------|--------------|
-| 1 | Kth Largest Element in a Stream `⚡ T1` | Min-heap of size k. The bouncer idea. |
-| 2 | K Closest Points / Top K Frequent `⚡ T1` | Same, keyed by a derived value. (Mention quickselect as the O(n) alternative.) |
-| 3 | Merge K Sorted Lists `⚡ T1` | Heap as a **k-way frontier**: always extend the smallest head. |
-| 4 | Task Scheduler / Reorganize String `⚡ T1` | **Greedy + heap**: always spend the most constrained resource first. Bridge to greedy. |
-| 5 | Find Median from Data Stream `⚡ T1` | **Two heaps** balanced around the median. Composition of the invariant with itself. |
-| 6 | Stock Price Fluctuation `🎯 T2` | Two heaps + **lazy deletion** (validate on pop). The L4 rung. |
-
----
-
-## Ladder 8 — Shortest Path Beyond BFS
-
-**Invariant:** Dijkstra = BFS where the queue becomes a min-heap keyed by distance, valid because with non-negative weights, the closest unvisited node's distance can never improve. Negative edges kill that proof → Bellman-Ford (relax all edges V-1 times).
-
-| # | Problem | What changed |
-|---|---------|--------------|
-| 1 | Network Delay Time `🎯 T2` | Textbook Dijkstra. Implement cold: heap of `(dist, node)`, skip stale pops. |
-| 2 | Path With Minimum Effort `⚡ T1` | Dijkstra on a **grid**, and "distance" = max edge on path, not sum. The relax rule changes; the proof survives. |
-| 3 | Swim in Rising Water `⚡ T1` | Same shape; distance = max cell value. (Also solvable by BS-on-answer + BFS — say both.) |
-| 4 | Cheapest Flights Within K Stops `⚡ T1` | The **constraint (≤ k stops)** breaks Dijkstra's "final when popped" → Bellman-Ford with **k+1 rounds** (k stops = k+1 edges), relaxing from a copy of the previous round. |
-
----
-
-## Ladder 9 — Recursion → Backtracking
-
-**Invariant:** every backtracking problem is one template — `choose → recurse → unchoose` over a decision tree. The three design questions: (1) what is a *state*? (2) what are the *choices* at each state? (3) what *prunes* a branch early? Complexity = branching^depth; say it before coding.
-
-| # | Problem | What changed |
-|---|---------|--------------|
-| 1 | Subsets `🎯 T2` | The pure template: include/exclude each element. |
-| 2 | Permutations `🎯 T2` | Choices shrink as you pick — `used` set. |
-| 3 | Combination Sum `🎯 T2` | Reuse allowed → recurse with same index; dedup by never going backward. |
-| 4 | Subsets II / Permutations II `🎯 T2` | **Duplicate input**: sort + "skip equal siblings at the same level." The rule to internalize, not memorize. |
-| 5 | Word Search `⚡ T1` | Backtracking on a **grid** — unchoose = unmark cell. |
-| 6 | Palindrome Partitioning `🎯 T2` | Choices = cut points; pruning via a validity check. |
-| 7 | N-Queens `🎯 T2` | All three design questions get nontrivial answers (cols/diagonals sets = pruning). |
-
----
-
-## Ladder 10 — Recursion → DP
-
-**Invariant:** DP is *not* a new technique. It's Ladder 9's recursion where (a) subproblems **repeat** and (b) you only need the *value* of a subtree, not its members ⇒ cache it. Derivation order, always: brute recursion → identify state → memoize → (optionally) tabulate → (optionally) compress space. Never start at the table.
-
-| # | Problem | What changed |
-|---|---------|--------------|
-| 1 | Climbing Stairs `🎯 T2` | State = index. Watch recursion → memo → two variables happen. |
-| 2 | House Robber `🎯 T2` | Add a **decision** to the state transition: rob or skip. |
-| 3 | Coin Change `🎯 T2` | State = amount; answer = min over choices. First "unbounded" feel. |
-| 4 | Longest Increasing Subsequence `⚡ T1` | State = "ending at i" — the first *non-obvious* state definition. (Mention the O(n log n) patience upgrade.) |
-| 5 | Unique Paths → Minimum Path Sum `⚡ T1` | State becomes **2-D (grid)**; transitions from top/left only. |
-| 6 | Longest Common Subsequence `🎯 T2` | 2-D over **two sequences** — the template behind edit distance and friends. |
-| 7 | Edit Distance `🎯 T2` | LCS shape + three-way choice. If LCS is solid this is one delta. |
-| 8 | Longest Increasing Path in a Matrix `⚡ T1` | DP on an **implicit DAG** (memoized DFS on a grid). Where Ladders 5 and 10 meet — the L4 capstone. |
-
-**Failure drill:** for any DP you solve, state in one sentence what the state *means* in English. If you can't, you memorized the table.
-
----
-
-## Ladder 11 — Intervals & Sweep
-
-**Invariant:** two intervals overlap iff `start_A < end_B and start_B < end_A` (half-open; use `≤` if touching endpoints count — confirm with the interviewer). Learn this symmetric form; it kills off-by-one debates. Almost every interval problem = sort by one endpoint + one linear pass; "max simultaneous" problems = sweep line (sort event points, +1/−1).
-
-| # | Problem | What changed |
-|---|---------|--------------|
-| 1 | Merge Intervals `🎯 T2` | Sort by start; extend or emit. |
-| 2 | Insert Interval `🎯 T2` | Input pre-sorted → three-phase pass, no sort. |
-| 3 | Non-overlapping Intervals `🎯 T2` | Flip to **greedy**: sort by *end*, keep earliest-ending. Proof: earliest end leaves max room. |
-| 4 | Meeting Rooms II `🎯 T2` | **Sweep line** debut: +1/−1 events, track running max. (Equivalent: min-heap of end times.) |
-| 5 | Interval List Intersections `⚡ T1` | Two sorted lists + two pointers; intersection = `[max(starts), min(ends)]`. |
-| 6 | My Calendar I → II `⚡ T1` → `🎯 T2` | The **online** version: intervals arrive one at a time. II = store overlaps separately. The L4 rung. |
-| 7 | Employee Free Time `🎯 T2` | Merge k interval lists; the answer is the *gaps*. |
-
----
-
-## Ladder 12 — Design-a-Data-Structure (L4 signature)
-
-**Invariant:** every one of these is "support ops X, Y, Z, each in O(1) or O(log n)" — and no single structure does all of them. The move: **compose two structures so each covers the other's weak op**, then keep them in sync. Always draw the ops-vs-structure table first, out loud.
-
-| # | Problem | What changed |
-|---|---------|--------------|
-| 1 | Min Stack `🎯 T2` | The archetype: second stack shadows the first with running mins. |
-| 2 | Logger Rate Limiter → Hit Counter `💤 warm-up` → `⚡ T1` | Map / deque with time-based eviction. Follow-up: bounded memory via circular buffer. |
-| 3 | Insert Delete GetRandom O(1) `⚡ T1` | Array (random) + map (locate); **swap-with-last** delete keeps both O(1). |
-| 4 | LRU Cache `🎯 T2` | Map (locate) + **doubly linked list** (order). Sync on every touch. |
-| 5 | LFU Cache `⚡ T1` | LRU + one more dimension: freq → DLL buckets + `min_freq`. Hardest sync in the family. |
-| 6 | Snapshot Array / Stock Price Fluctuation `🎯 T2` | Add **time/versioning**: binary search over history, or heaps with lazy deletion. |
-| 7 | Flatten Nested List Iterator `🎯 T2` | **Laziness** as the requirement: stack of iterators, work in `hasNext`. |
-
----
-
-## After the ladders
-
-- Breadth pass: topic indexes [`01-data-structures/README.md`](../01-data-structures/README.md), [`02-algorithms/README.md`](../02-algorithms/README.md) — everything there should now feel like "rung 2 of a ladder I know."
-- Integration: [Mock rounds](INTERVIEW_JUDGMENT.md#part-d--mock-rounds) timed, plus the follow-up drill table in [`00-start-here/l4-sde2-delta.md`](../00-start-here/l4-sde2-delta.md#4-l4-6-week-schedule).
-- If a mock problem stumps you, the postmortem question is never "which problem was this like?" — it's "**which invariant did I fail to test for?**" Log it.
-
----
-
 ## See Also
 
-- [INTERVIEW_JUDGMENT.md](INTERVIEW_JUDGMENT.md) — counterexample hunting, invariant proofs, commit-vs-pivot, hint decoding, recovery, mocks, senior chains
-- [patterns-master.md](patterns-master.md) — trigger-phrase quick reference
-- [Mock rounds](INTERVIEW_JUDGMENT.md#part-d--mock-rounds) — 25-problem cold set + L4 follow-up chains
-- [`00-start-here/l4-sde2-delta.md`](../00-start-here/l4-sde2-delta.md) — the L4 bar, tier promotions, gap problems
-- [`00-start-here/L3_CHEATSHEET.md`](../00-start-here/L3_CHEATSHEET.md) — 45-minute round plan + decision guide
+- [Interview judgment](../05-review/03-interview-judgment.md) — counterexample hunting, invariant proofs, commit-vs-pivot, hint decoding, recovery, mocks, senior chains
+- [Pattern sheet](../05-review/01-pattern-sheet.md) — trigger-phrase quick reference
+- [Mock rounds](../05-review/03-interview-judgment.md#part-d--mock-rounds) — 25-problem cold set + L4 follow-up chains
+- [`00-start-here/03-l4-sde2-delta.md`](../00-start-here/03-l4-sde2-delta.md) — the L4 bar, tier promotions, gap problems
+- [Round cheatsheet](../00-start-here/02-round-cheatsheet.md) — 45-minute round plan + decision guide

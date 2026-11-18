@@ -10,8 +10,8 @@ difficulty: mixed
 > [!abstract] In this file
 > **Covers:** Worked DP problems by pattern: linear, knapsack, LCS, grid, stock state machine, LIS, string DP, bitmask, interval, DP + binary search.
 > **You'll be able to:** Derive state/transition for unseen DP problems and space-optimise.
-> **Prereqs:** DP lecture · **Pair with:** [DP lecture](../../02-algorithms/15-dynamic-programming.md) · [Recursion → DP](../../02-algorithms/10-recursion-to-dp.md) · **Time:** 6–8 h
-> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../../00-start-here/l3-google-roadmap.md#tier-legend))
+> **Prereqs:** DP lecture · **Pair with:** [DP lecture](../../03-algorithms/08-dynamic-programming.md) · [Recursion → DP](../../03-algorithms/07-recursion-to-dp.md) · **Time:** 6–8 h
+> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../../00-start-here/01-roadmap.md#tier-legend))
 
 **Sections:** [Linear DP (1-D)](#linear-dp-1-d) · [0/1 Knapsack](#01-knapsack) · [Unbounded Knapsack](#unbounded-knapsack) · [LCS Family](#lcs-family) · [Grid DP](#grid-dp) · [State Machine DP (Stock Problems)](#state-machine-dp-stock-problems) · [Longest Increasing Subsequence (LIS) Family](#longest-increasing-subsequence-lis-family) · [String DP](#string-dp) · [Bitmask DP](#bitmask-dp) · [DP on Sequences](#dp-on-sequences) · [Interval DP](#interval-dp) · [Game Theory (Minimax) DP](#game-theory-minimax-dp) · [Digit DP](#digit-dp)
 
@@ -21,12 +21,12 @@ difficulty: mixed
 > **Unbounded Knapsack:** [Coin Change (Min Coins)](#coin-change-min-coins--t2) · [Coin Change II (Total Ways)](#coin-change-ii-total-ways--t2) · [Combination Sum IV (LC 377)](#combination-sum-iv-lc-377--t2) · [Perfect Squares](#perfect-squares--t2)  
 > **LCS Family:** [Longest Common Subsequence](#longest-common-subsequence--t2) · [Edit Distance](#edit-distance--t2) · [Longest Palindromic Subsequence](#longest-palindromic-subsequence--t2) · [Minimum ASCII Delete Sum for Two Strings](#minimum-ascii-delete-sum-for-two-strings--t2) · [Minimum Window Subsequence (LC 727)](#minimum-window-subsequence-lc-727--t2)  
 > **Grid DP:** [Unique Paths](#unique-paths--t1) · [Unique Paths II (With Obstacles)](#unique-paths-ii-with-obstacles--t2) · [Minimum Path Sum](#minimum-path-sum--t1) · [Maximal Square](#maximal-square--t2) · [Dungeon Game (LC 174)](#dungeon-game-lc-174--t2) · [Cherry Pickup (LC 741)](#cherry-pickup-lc-741--t3)  
-> **State Machine DP (Stock Problems):** [Best Time to Buy and Sell Stock (All Variants)](#best-time-to-buy-and-sell-stock-all-variants--t2) · [Best Time to Buy and Sell Stock with Cooldown (LC 309)](#best-time-to-buy-and-sell-stock-with-cooldown-lc-309--t2) · [Stock with Transaction Fee](#stock-with-transaction-fee) · [Best Time to Buy and Sell Stock IV (LC 188)](#best-time-to-buy-and-sell-stock-iv-lc-188--t2)  
-> **Longest Increasing Subsequence (LIS) Family:** [Longest Increasing Subsequence](#longest-increasing-subsequence--t1) · [Number of LIS](#number-of-lis)  
-> **String DP:** [Distinct Subsequences](#distinct-subsequences--t2) · [Interleaving String](#interleaving-string--t2) · [Regular Expression Matching](#regular-expression-matching) · [Wildcard Matching (LC 44)](#wildcard-matching-lc-44--t2)  
+> **State Machine DP (Stock Problems):** [Best Time to Buy and Sell Stock (All Variants)](#best-time-to-buy-and-sell-stock-all-variants--t2) · [Best Time to Buy and Sell Stock with Cooldown (LC 309)](#best-time-to-buy-and-sell-stock-with-cooldown-lc-309--t2) · [Stock with Transaction Fee](#state-machine-dp-stock-problems) · [Best Time to Buy and Sell Stock IV (LC 188)](#best-time-to-buy-and-sell-stock-iv-lc-188--t2)  
+> **Longest Increasing Subsequence (LIS) Family:** [Longest Increasing Subsequence](#longest-increasing-subsequence--t1) · [Number of LIS](#longest-increasing-subsequence-lis-family)  
+> **String DP:** [Distinct Subsequences](#distinct-subsequences--t2) · [Interleaving String](#interleaving-string--t2) · [Regular Expression Matching](#string-dp) · [Wildcard Matching (LC 44)](#wildcard-matching-lc-44--t2)  
 > **Bitmask DP:** [Partition to K Equal Subset Sums](#partition-to-k-equal-subset-sums--t2) · [Smallest Sufficient Team (LC 1125)](#smallest-sufficient-team-lc-1125--t3)  
-> **DP on Sequences:** [Jump Game II](#jump-game-ii--t2) · [Maximum Product Subarray](#maximum-product-subarray--t2) · [Longest Common Substring](#longest-common-substring) · [Russian Doll Envelopes (LC 354)](#russian-doll-envelopes-lc-354) · [Maximum Profit in Job Scheduling](#maximum-profit-in-job-scheduling--t2) · [Super Egg Drop (LC 887)](#super-egg-drop-lc-887--t3) · [Minimum Number of Refueling Stops (LC 871)](#minimum-number-of-refueling-stops-lc-871--t2)  
-> **Interval DP:** [Matrix Chain Multiplication](#matrix-chain-multiplication) · [Burst Balloons (LC 312)](#burst-balloons-lc-312--t2) · [Minimum Cost to Cut a Stick (LC 1547)](#minimum-cost-to-cut-a-stick-lc-1547--t2) · [Strange Printer (LC 664)](#strange-printer-lc-664--t3)  
+> **DP on Sequences:** [Jump Game II](#jump-game-ii--t2) · [Maximum Product Subarray](#maximum-product-subarray--t2) · [Longest Common Substring](#dp-on-sequences) · [Russian Doll Envelopes (LC 354)](#dp-on-sequences) · [Maximum Profit in Job Scheduling](#maximum-profit-in-job-scheduling--t2) · [Super Egg Drop (LC 887)](#super-egg-drop-lc-887--t3) · [Minimum Number of Refueling Stops (LC 871)](#minimum-number-of-refueling-stops-lc-871--t2)  
+> **Interval DP:** [Matrix Chain Multiplication](#interval-dp) · [Burst Balloons (LC 312)](#burst-balloons-lc-312--t2) · [Minimum Cost to Cut a Stick (LC 1547)](#minimum-cost-to-cut-a-stick-lc-1547--t2) · [Strange Printer (LC 664)](#strange-printer-lc-664--t3)  
 > **Game Theory (Minimax) DP:** [Predict the Winner / Stone Game (LC 486 / 877)](#predict-the-winner--stone-game-lc-486--877--t2) · [Stone Game II (LC 1140)](#stone-game-ii-lc-1140--t2)  
 > **Digit DP:** [Numbers At Most N Given Digit Set (LC 902)](#numbers-at-most-n-given-digit-set-lc-902--t3) · [Count Numbers with Unique Digits (LC 357)](#count-numbers-with-unique-digits-lc-357--t2)  
 
@@ -777,7 +777,6 @@ difficulty: mixed
 > Top-down `@cache def f(t): return t == 0 or sum(f(t-x) for x in nums if x <= t)`. **Follow-up (negatives allowed):** unbounded cycles → infinite answers; must cap sequence length.
 
 ---
-
 
 ### Perfect Squares `🎯 T2`
 
@@ -1564,31 +1563,6 @@ difficulty: mixed
 
 ---
 
-### Stock with Transaction Fee
-
-> [!example] Problem
-> Unlimited transactions; fixed `fee` per sell.
-
-> [!info] Approach
-> Two states: `hold` (best profit holding), `cash` (best profit not holding). `hold = max(hold, cash - price)`, `cash = max(cash, hold + price - fee)`.
-
-> [!note]- Python Solution
-> ```python
-> def max_profit(prices, fee):
->     hold, cash = float('-inf'), 0
->     for p in prices:
->         hold, cash = max(hold, cash - p), max(cash, hold + p - fee)
->     return cash
-> ```
-
-> [!success] Complexity
-> Time O(n), Space O(1).
-
-> [!tip] Alternatives
-> Apply fee on buy side: `cash - p - fee` when buying. Equivalent result.
-
----
-
 ### Best Time to Buy and Sell Stock IV (LC 188) `🎯 T2`
 
 > [!example] Problem
@@ -1622,6 +1596,10 @@ difficulty: mixed
 
 > [!tip] Alternatives
 > `dp[t][i]` 2D form with a running `max(dp[t-1][j] - prices[j])`. Generalizes LC 121 (`k=1`), LC 123 (`k=2`), LC 122 (`k=∞`).
+
+**Also try:**
+
+- **Stock with Transaction Fee** — Two states: `hold` (best profit holding), `cash` (best profit not holding)
 
 ---
 
@@ -1686,39 +1664,9 @@ difficulty: mixed
 > [!tip] Alternatives
 > O(n²) DP: `dp[i] = max(dp[j]+1 for j<i if nums[j]<nums[i])`. To reconstruct the actual subsequence, maintain a `parent` array alongside the patience sort.
 
----
+**Also try:**
 
-### Number of LIS
-
-> [!example] Problem
-> Given `nums`, return the number of longest increasing subsequences (LC 673).
-
-> [!info] Approach
-> Length alone isn't enough; need to count paths. Two parallel arrays track both. `length[i]` = LIS length ending at index `i`. `count[i]` = number of such subsequences. For each `i`, scan `j < i`. If `nums[j] < nums[i]`: if `length[j]+1 > length[i]`, update both; if equal, add `count[j]` to `count[i]`. Answer = sum of `count[i]` where `length[i] == max_length`.
-
-> [!note]- Python Solution
-> ```python
-> def find_number_of_lis(nums):
->     n = len(nums)
->     length = [1] * n
->     count = [1] * n
->     for i in range(n):
->         for j in range(i):
->             if nums[j] < nums[i]:
->                 if length[j] + 1 > length[i]:
->                     length[i] = length[j] + 1
->                     count[i] = count[j]
->                 elif length[j] + 1 == length[i]:
->                     count[i] += count[j]
->     max_len = max(length)
->     return sum(c for l, c in zip(length, count) if l == max_len)
-> ```
-
-> [!success] Complexity
-> Time O(n²), Space O(n).
-
-> [!tip] Alternatives
-> O(n log n) with a BIT/segment tree storing (max_length, count) pairs per compressed value.
+- **Number of LIS** — Length alone isn't enough; need to count paths
 
 ---
 
@@ -1854,73 +1802,6 @@ difficulty: mixed
 
 ---
 
-### Regular Expression Matching
-
-> [!example] Problem
-> Given an input string s and a pattern p, implement regular expression matching with support for '.' and '*' where:
-> The matching should cover the entire input string (not partial).
-> 
-> **Example 1:**
-> ```
-> Input: s = "aa", p = "a"
-> Output: false
-> Explanation: "a" does not match the entire string "aa".
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: s = "aa", p = "a*"
-> Output: true
-> Explanation: '*' means zero or more of the preceding element, 'a'. Therefore, by repeating 'a' once, it becomes "aa".
-> ```
-> 
-> **Example 3:**
-> ```
-> Input: s = "ab", p = ".*"
-> Output: true
-> Explanation: ".*" means "zero or more (*) of any character (.)".
-> ```
-> 
-> **Constraints:**
-> - 1 <= s.length <= 20
-> - 1 <= p.length <= 20
-> - s contains only lowercase English letters.
-> - p contains only lowercase English letters, '.', and '*'.
-> - It is guaranteed for each appearance of the character '*', there will be a previous valid character to match.
-
-> [!tip] Recognize · Gotcha
-> **Signal:** `*` = zero-or-more of PRECEDING char · **Gotcha:** Base case: leading `a*b*` matches `""`
-
-> [!info] Approach
-> `*` introduces branching — match zero occurrences (skip pattern pair) or one-or-more — creating overlapping sub-problems. `dp[i][j]` = true if `s[:i]` matches `p[:j]`. If `p[j-1] == '*'`: `dp[i][j] = dp[i][j-2]` (zero uses) or `(dp[i-1][j] and (p[j-2]=='.' or p[j-2]==s[i-1]))` (one+ uses). Else: `dp[i][j] = dp[i-1][j-1] and (p[j-1]=='.' or p[j-1]==s[i-1])`.
-
-> [!note]- Python Solution
-> ```python
-> def is_match(s, p):
->     m, n = len(s), len(p)
->     dp = [[False] * (n + 1) for _ in range(m + 1)]
->     dp[0][0] = True
->     for j in range(2, n + 1):
->         if p[j - 1] == '*':
->             dp[0][j] = dp[0][j - 2]
->     for i in range(1, m + 1):
->         for j in range(1, n + 1):
->             if p[j - 1] == '*':
->                 dp[i][j] = dp[i][j - 2] or \
->                     (dp[i - 1][j] and p[j - 2] in {'.', s[i - 1]})
->             else:
->                 dp[i][j] = dp[i - 1][j - 1] and p[j - 1] in {'.', s[i - 1]}
->     return dp[m][n]
-> ```
-
-> [!success] Complexity
-> Time O(mn), Space O(mn); reducible to O(n) with two rows.
-
-> [!tip] Alternatives
-> LC 44 (Wildcard Matching) replaces `*` semantics — similar structure but `*` matches any sequence directly.
-
----
-
 ### Wildcard Matching (LC 44) `🎯 T2`
 
 > [!example] Problem
@@ -1955,6 +1836,10 @@ difficulty: mixed
 
 > [!tip] Alternatives
 > Two-pointer greedy with backtracking to the last `*` is O(m · n) worst case but O(1) space — often what interviewers want as a follow-up.
+
+**Also try:**
+
+- **Regular Expression Matching** — `*` introduces branching — match zero occurrences (skip pattern pair) or one-or-more — creating overlapping sub-problems
 
 ---
 
@@ -2052,7 +1937,7 @@ difficulty: mixed
 
 ### Jump Game II `🎯 T2`
 
-> Full walkthrough: [Jump Game II (minimum jumps)](16-greedy.md#jump-game-ii-minimum-jumps--t2).
+> Full walkthrough: [Jump Game II (minimum jumps)](09-greedy.md#jump-game-ii-minimum-jumps--t2).
 
 ---
 
@@ -2100,95 +1985,6 @@ difficulty: mixed
 
 > [!tip] Alternatives
 > Prefix product with reset at zeros; or observe the answer is always a prefix or suffix product between zeros.
-
----
-
-### Longest Common Substring
-
-> [!example] Problem
-> Find the length of the longest common contiguous substring shared by two strings.
-
-> [!info] Approach
-> Unlike LCS, contiguity matters. A mismatch breaks the chain, so the DP state must reset to zero on mismatch. `dp[i][j]` is the length of the longest common substring ending at `s1[i-1]` and `s2[j-1]`. If characters match, extend the diagonal: `dp[i][j] = dp[i-1][j-1] + 1`; else `dp[i][j] = 0`. Track the global maximum.
-
-> [!note]- Python Solution
-> ```python
-> def longest_common_substring(s1, s2):
->     m, n = len(s1), len(s2)
->     prev = [0] * (n + 1)
->     best = 0
->     for i in range(1, m + 1):
->         cur = [0] * (n + 1)
->         for j in range(1, n + 1):
->             if s1[i - 1] == s2[j - 1]:
->                 cur[j] = prev[j - 1] + 1
->                 best = max(best, cur[j])
->         prev = cur
->     return best
-> ```
-
-> [!success] Complexity
-> O(mn) time, O(n) space with row compression.
-
-> [!tip] Alternatives
-> Suffix automaton or suffix array can solve richer substring problems faster, but DP is the clean interview answer.
-
----
-
-### Russian Doll Envelopes (LC 354)
-
-> [!example] Problem
-> You are given a 2D array of integers envelopes where envelopes[i] = [wi, hi] represents the width and the height of an envelope.
-> One envelope can fit into another if and only if both the width and height of one envelope are greater than the other envelope's width and height.
-> Return the maximum number of envelopes you can Russian doll (i.e., put one inside the other).
-> Note: You cannot rotate an envelope.
-> 
-> **Example 1:**
-> ```
-> Input: envelopes = [[5,4],[6,4],[6,7],[2,3]]
-> Output: 3
-> Explanation: The maximum number of envelopes you can Russian doll is 3 ([2,3] => [5,4] => [6,7]).
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: envelopes = [[1,1],[1,1],[1,1]]
-> Output: 1
-> ```
-> 
-> **Constraints:**
-> - 1 <= envelopes.length <= 10^5
-> - envelopes[i].length == 2
-> - 1 <= wi, hi <= 10^5
-
-> [!tip] Recognize · Gotcha
-> **Signal:** 2D nesting · **Gotcha:** Descending `h` blocks equal widths nesting
-
-> [!info] Approach
-> If we sort by width, this becomes LIS on heights. But with equal widths, we can't include two envelopes (a wider envelope can't fit inside one of the same width). Fix: sort by `(width asc, height desc)` — the descending height ensures equal-width envelopes can never form an increasing subsequence. Sort by `(w asc, h desc)`. Extract heights. Run patience sort (O(n log n) LIS) on heights. `bisect_left` on the `tails` array — same as LC 300 LIS.
-
-> [!note]- Python Solution
-> ```python
-> import bisect
-> >
-> def max_envelopes(envelopes):
->     envelopes.sort(key=lambda x: (x[0], -x[1]))
->     tails = []
->     for _, h in envelopes:
->         pos = bisect.bisect_left(tails, h)
->         if pos == len(tails):
->             tails.append(h)
->         else:
->             tails[pos] = h
->     return len(tails)
-> ```
-
-> [!success] Complexity
-> Time O(n log n), Space O(n).
-
-> [!tip] Alternatives
-> - O(n²) DP: for each envelope, check all previous ones and extend. Too slow for large inputs (n up to 10^5).
-> - Key trick: the `(w asc, h desc)` sort is the entire insight — without it, equal-width envelopes would incorrectly contribute to the LIS.
 
 ---
 
@@ -2290,41 +2086,14 @@ difficulty: mixed
 > [!tip] Alternatives
 > In interviews, present the O(n²) DP first (shows the state), then the heap as the optimization — both are accepted.
 
+**Also try:**
+
+- **Longest Common Substring** — Unlike LCS, contiguity matters
+- **Russian Doll Envelopes (LC 354)** — If we sort by width, this becomes LIS on heights
+
 ---
 
 ## Interval DP
-
----
-
-### Matrix Chain Multiplication
-
-> [!example] Problem
-> Given a sequence of matrices with dimensions `dims[i-1] × dims[i]`, find the minimum number of scalar multiplications to compute their product.
-
-> [!info] Approach
-> The order of multiplication matters. Interval DP: `dp[i][j]` = minimum cost to multiply matrices `i` through `j`. Split at every `k` from `i` to `j-1`. `dp[i][j] = min over k in [i, j-1] of dp[i][k] + dp[k+1][j] + dims[i-1] * dims[k] * dims[j]`. Fill by increasing interval length (length 1 has cost 0). Outer loop: `length` from 2 to n. Inner loops: `i`, then `k`.
-
-> [!note]- Python Solution
-> ```python
-> def matrix_chain_order(dims):
->     n = len(dims) - 1
->     dp = [[0] * n for _ in range(n)]
->     for length in range(2, n + 1):
->         for i in range(n - length + 1):
->             j = i + length - 1
->             dp[i][j] = float('inf')
->             for k in range(i, j):
->                 cost = dp[i][k] + dp[k+1][j] + dims[i] * dims[k+1] * dims[j+1]
->                 dp[i][j] = min(dp[i][j], cost)
->     return dp[0][n-1]
-> ```
-
-> [!success] Complexity
-> Time O(n³), Space O(n²).
-
-> [!tip] Alternatives
-> - Top-down with a memo dict on `(i, j)` — same asymptotic, easy to explain in an interview.
-> - Pattern: this is the canonical "interval DP" template. Also appears in: burst balloons, remove boxes, strange printer.
 
 ---
 
@@ -2431,6 +2200,10 @@ difficulty: mixed
 
 > [!tip] Alternatives
 > Remove Boxes (LC 546, `💤 T3`) uses the same "merge equal characters across a gap" idea with an extra state for the count of attached boxes.
+
+**Also try:**
+
+- **Matrix Chain Multiplication** — The order of multiplication matters
 
 ---
 

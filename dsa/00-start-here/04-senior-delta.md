@@ -9,14 +9,14 @@ topic: SDE-3 / Senior Delta — what changes on top of the L4 base
 > [!abstract] In this file
 > **Covers:** What changes at SDE-3/senior: grading dimensions, bare-`T3` senior promotions, senior-only variants, behavioral delta.
 > **You'll be able to:** Know which follow-ups a senior loop expects on top of the L4 bar.
-> **Prereqs:** L4 delta · **Pair with:** [L4 delta](l4-sde2-delta.md) · [Senior follow-ups](../03-patterns/INTERVIEW_JUDGMENT.md#part-e--senior-follow-up-chains) · **Time:** 20 min
-> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](l3-google-roadmap.md#tier-legend))
+> **Prereqs:** L4 delta · **Pair with:** [L4 delta](03-l4-sde2-delta.md) · [Senior follow-ups](../05-review/03-interview-judgment.md#part-e--senior-follow-up-chains) · **Time:** 20 min
+> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](01-roadmap.md#tier-legend))
 
 **Sections:** [1. What actually changes at senior level](#1-what-actually-changes-at-senior-level) · [2. Tier promotions (L4 → Senior)](#2-tier-promotions-l4--senior) · [3. Senior-only problems / variants (not in L3 or L4 tracks)](#3-senior-only-problems--variants-not-in-l3-or-l4-tracks) · [4. Senior-relevant behavioral delta](#4-senior-relevant-behavioral-delta) · [5. How this plugs into the existing tracks](#5-how-this-plugs-into-the-existing-tracks)
 
 ---
 
-> **How to use this file:** Everything in the L3 base ([`l3-google-roadmap.md`](l3-google-roadmap.md)) and the L4 delta ([`l4-sde2-delta.md`](l4-sde2-delta.md)) is still the foundation — senior loops draw from the *same* topic pool. This file lists only what **changes again**: the senior bar, `T3` tier promotions, and the problems/variants neither prior track covers. Study L3 → L4 first; layer this on top last.
+> **How to use this file:** Everything in the L3 base ([Roadmap](01-roadmap.md)) and the L4 delta ([L4 delta](03-l4-sde2-delta.md)) is still the foundation — senior loops draw from the *same* topic pool. This file lists only what **changes again**: the senior bar, `T3` tier promotions, and the problems/variants neither prior track covers. Study L3 → L4 first; layer this on top last.
 
 ---
 
@@ -34,7 +34,7 @@ The topic list barely changes again. What changes is **what you're graded on**:
 | Communication | Explain your approach | **Drive the room** — narrate reasoning as a senior would review someone else's approach, including naming why alternatives are worse |
 | Recovery | Fix bugs when pointed at | Catch your own bugs via **self-directed dry run**, and explain the class of bug (off-by-one vs. state-definition vs. invariant violation) |
 
-**Still out of scope** (unchanged from L3/L4): full system design, LLD, formal concurrency primitives implementation, segment trees/BIT implementation, Tarjan SCC, bitmask/digit DP, Manacher, suffix automata. Senior *coding* rounds stay DSA + follow-up chains + bounded systems discussion — not a design round. If the target company runs hard rounds, use the promotion list in the [L4 delta](l4-sde2-delta.md) — the material exists in the repo as `💤 T3`.
+**Still out of scope** (unchanged from L3/L4): full system design, LLD, formal concurrency primitives implementation, segment trees/BIT implementation, Tarjan SCC, bitmask/digit DP, Manacher, suffix automata. Senior *coding* rounds stay DSA + follow-up chains + bounded systems discussion — not a design round. If the target company runs hard rounds, use the promotion list in the [L4 delta](03-l4-sde2-delta.md) — the material exists in the repo as `💤 T3`.
 
 ---
 
@@ -44,7 +44,7 @@ Introduces `T3` — **senior follow-up tier**: not asked as a base problem, but 
 
 | Topic | L4 tier | Senior tier | Why |
 | :--- | :--- | :--- | :--- |
-| Follow-up chains (any T1 base) | bonus | `T3` mandatory | The chain itself is graded, not just the base solve — see [`03-patterns/INTERVIEW_JUDGMENT.md` Part E](../03-patterns/INTERVIEW_JUDGMENT.md#part-e--senior-follow-up-chains) |
+| Follow-up chains (any T1 base) | bonus | `T3` mandatory | The chain itself is graded, not just the base solve — see [Interview judgment Part E](../05-review/03-interview-judgment.md#part-e--senior-follow-up-chains) |
 | Design-a-data-structure | `⚡ T1` (single structure) | `T3` add: **composed / layered** designs (e.g. LFU + TTL eviction, rate limiter + sliding window) | Senior loops chain two design patterns together, not one |
 | Concurrency discussion (no implementation) | not present | `T3` | Expected for any shared-state design problem (cache, rate limiter, counter) — narrate lock granularity, not code it |
 | Streaming / online variants | occasional follow-up | `T3` systematic | Any T1 offline problem should have a ready streaming answer — see follow-up file §2 |
@@ -59,7 +59,7 @@ Tiers below are **senior tiers**. These are almost always reached as follow-ups 
 
 ### 3.1 Composed / layered design `T3`
 
-Full base-structure walkthroughs: [`04-practice/data-structures/14-design.md`](../04-practice/data-structures/14-design.md). These extend that file's structures by stacking a second requirement on top.
+Full base-structure walkthroughs: [`04-practice/data-structures/12-design.md`](../04-practice/data-structures/12-design.md). These extend that file's structures by stacking a second requirement on top.
 
 - **LFU Cache + TTL eviction** `T3` · Hard
   - Key insight: base LFU (freq→DLL map) + a min-heap or sorted structure on expiry time; evict on read (lazy) rather than a background sweep — narrate the trade-off between the two.
@@ -70,7 +70,7 @@ Full base-structure walkthroughs: [`04-practice/data-structures/14-design.md`](.
 
 ### 3.2 Streaming / online escalations `T3`
 
-These are the standard "now make it a stream" answer for common T1 bases — see the full chain table in [`03-patterns/INTERVIEW_JUDGMENT.md` Part E §2](../03-patterns/INTERVIEW_JUDGMENT.md#2-streaming--online).
+These are the standard "now make it a stream" answer for common T1 bases — see the full chain table in [Interview judgment Part E §2](../05-review/03-interview-judgment.md#2-streaming--online).
 
 - **Kth Largest in a Stream → Sliding Window Median with corrections** `T3` · Hard
   - Key insight: two heaps with lazy deletion (validate top against a hashmap of "pending removals" on pop) — same trick as Stock Price Fluctuation (L4 §3.1).
@@ -79,7 +79,7 @@ These are the standard "now make it a stream" answer for common T1 bases — see
 
 ### 3.3 Concurrency discussion (narrate, don't implement) `T3`
 
-No code — this is a talking-points drill. Full framework: [`03-patterns/INTERVIEW_JUDGMENT.md` Part E §5](../03-patterns/INTERVIEW_JUDGMENT.md#5-concurrency-discussion).
+No code — this is a talking-points drill. Full framework: [Interview judgment Part E §5](../05-review/03-interview-judgment.md#5-concurrency-discussion).
 
 - **LRU/LFU Cache — thread safety** `T3`
   - Talking points: coarse lock vs. per-bucket lock, read/write lock split, why a naive global lock kills throughput under high read/write ratio.
@@ -88,7 +88,7 @@ No code — this is a talking-points drill. Full framework: [`03-patterns/INTERV
 
 ### 3.4 Scale-change drills `T3`
 
-Not new problems — a mandatory reflex check on **every** T1 problem: "what if n is 100x larger?" Full drill table: [`03-patterns/INTERVIEW_JUDGMENT.md` Part E §7](../03-patterns/INTERVIEW_JUDGMENT.md#7-scale-change-100x).
+Not new problems — a mandatory reflex check on **every** T1 problem: "what if n is 100x larger?" Full drill table: [Interview judgment Part E §7](../05-review/03-interview-judgment.md#7-scale-change-100x).
 
 - If your approach is O(n log n) and n grows 100x: still fine, say so and move on — don't over-engineer.
 - If your approach is O(n²) and n grows 100x: this must trigger an immediate redesign proposal, unprompted. This reflex — not the redesign itself — is what's being graded.
@@ -97,13 +97,13 @@ Not new problems — a mandatory reflex check on **every** T1 problem: "what if 
 
 ## 4. Senior-relevant behavioral delta
 
-Same STAR bank ([`05-behavioral/`](../05-behavioral/BEHAVIORAL_GOOGLINESS.md)), same 3 focus areas as the L4 delta (drove a decision, owned a failure end-to-end, influenced without authority) — at senior level, the bar is **scope**: stories should span teams or systems, not just a single project, and show judgment calls made under ambiguity, not just execution.
+Same STAR bank ([`06-behavioral/BEHAVIORAL_GOOGLINESS.md`](../06-behavioral/BEHAVIORAL_GOOGLINESS.md)), same 3 focus areas as the L4 delta (drove a decision, owned a failure end-to-end, influenced without authority) — at senior level, the bar is **scope**: stories should span teams or systems, not just a single project, and show judgment calls made under ambiguity, not just execution.
 
 ---
 
 ## 5. How this plugs into the existing tracks
 
-1. Finish the L3 base ([`l3-google-roadmap.md`](l3-google-roadmap.md)) and L4 delta ([`l4-sde2-delta.md`](l4-sde2-delta.md)) first — this file assumes T1 fluency across both.
-2. Run the L4 mock rounds ([`03-patterns/INTERVIEW_JUDGMENT.md` Part D §"L4 Mock Rounds"](../03-patterns/INTERVIEW_JUDGMENT.md#l4-sde-2-mock-rounds--follow-up-chains)) until base + follow-up 1 + follow-up 2 are clean.
-3. Then drill this file's `T3` items as **follow-up 3** on top of those same rounds, plus the senior follow-up chains in [`INTERVIEW_JUDGMENT.md` Part E](../03-patterns/INTERVIEW_JUDGMENT.md#part-e--senior-follow-up-chains).
+1. Finish the L3 base ([Roadmap](01-roadmap.md)) and L4 delta ([L4 delta](03-l4-sde2-delta.md)) first — this file assumes T1 fluency across both.
+2. Run the L4 mock rounds ([Interview judgment Part D §"L4 Mock Rounds"](../05-review/03-interview-judgment.md#l4-sde-2-mock-rounds--follow-up-chains)) until base + follow-up 1 + follow-up 2 are clean.
+3. Then drill this file's `T3` items as **follow-up 3** on top of those same rounds, plus the senior follow-up chains in [Interview judgment Part E](../05-review/03-interview-judgment.md#part-e--senior-follow-up-chains).
 4. Log which chain link you failed on and revisit those bases on a 2/7/21-day schedule.

@@ -5,17 +5,17 @@ tags: [data-structures, graphs]
 ---
 # Graphs (Data Structure) — L3 Core
 
-← [Data structures index](./README.md) · [Patterns master](../03-patterns/patterns-master.md)
+← [Data structures index](README.md) · [Patterns master](../05-review/01-pattern-sheet.md)
 
 ## What this covers
 
 > [!abstract] In this file
-> **Covers:** Graph representations, BFS/DFS, cycle detection, topological sort, bipartite check; then shortest paths (Dijkstra, Bellman-Ford, 0-1 BFS) and MST (Kruskal/Prim).
+> **Covers:** Graph representations, BFS/DFS, cycle detection, topological sort, bipartite check; then shortest paths (Dijkstra, Bellman-Ford, Floyd-Warshall, 0-1 BFS), MST (Kruskal/Prim), Eulerian path and bridges.
 > **You'll be able to:** Model a word/grid/state problem as a graph; pick the right traversal or shortest-path algorithm from edge weights; detect cycles in directed vs undirected graphs.
-> **Prereqs:** Queue, stack, recursion, heap · **Pair with:** [Graph problems](../04-practice/data-structures/13-graph.md) · [Graph algorithm problems](../04-practice/algorithms/13-graph-algorithms.md) · [Union-Find](../02-algorithms/14-union-find.md) · **Time:** 3 h
-> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../00-start-here/l3-google-roadmap.md#tier-legend))
+> **Prereqs:** Queue, stack, recursion, heap · **Pair with:** [Graph problems](../04-practice/data-structures/11-graph.md) · [Graph algorithm problems](../04-practice/algorithms/11-graph-algorithms.md) · [Union-Find](../03-algorithms/10-union-find.md) · **Time:** 3 h
+> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../00-start-here/01-roadmap.md#tier-legend))
 
-**Sections:** [Core Idea](#core-idea) · [Theory & Mental Models](#theory--mental-models) · [1. Representation Choice](#1-representation-choice) · [2. Core Patterns & Click Moments](#2-core-patterns--click-moments) · [3. Weighted & Advanced Algorithms](#3-weighted--advanced-algorithms) · [4. Common Interview Problems](#4-common-interview-problems) · [Interview Questions — Logic & Trickiness](#interview-questions--logic--trickiness) · [Quick Revision Triggers](#quick-revision-triggers) · [Flashcards](#flashcards)
+**Sections:** [Core Idea](#core-idea) · [Theory & Mental Models](#theory--mental-models) · [1. Representation Choice](#1-representation-choice) · [2. Core Patterns & Click Moments](#2-core-patterns--click-moments) · [3. Weighted & Advanced Algorithms](#3-weighted--advanced-algorithms) · [4. Common Interview Problems](#4-common-interview-problems) · [Interview Questions — Logic & Trickiness](#interview-questions--logic--trickiness) · [Quick Revision Triggers](#quick-revision-triggers) · [See also](#see-also) · [Flashcards](#flashcards)
 
 ---
 
@@ -532,6 +532,35 @@ def prim_mst(n: int, adj: dict) -> int:
    - **What (The Problem & Goal):** Connect all points in a 2D plane with minimum cost, where cost between points is Manhattan distance.
    - **How (Intuition & Mental Model):** This is an MST problem on a complete graph (O(V^2) edges). Kruskal's would be O(V^2 log V). Prim's with a simple array (instead of a heap) is O(V^2), which is better for dense graphs.
 
+### Eulerian Path (Hierholzer) & Bridges (Tarjan)
+
+`🎯 T2` Hierholzer · `💤 T3` Tarjan — know the trigger; name Tarjan, don't implement it at L3.
+
+| Trigger | Algorithm | Complexity |
+| :--- | :--- | :--- |
+| "use every ticket / edge exactly once", "draw without lifting pen" | Hierholzer's Eulerian path | O(V+E) |
+| "remove one edge and the network splits" | Tarjan bridges | O(V+E) |
+
+```python
+def find_itinerary(tickets):           # Reconstruct Itinerary
+    g = defaultdict(list)
+    for a, b in sorted(tickets, reverse=True):
+        g[a].append(b)                 # reverse-sorted → .pop() gives lexicographic min
+    route = []
+    def dfs(u):
+        while g[u]:
+            dfs(g[u].pop())
+        route.append(u)                # post-order: append only after all edges used
+    dfs("JFK")
+    return route[::-1]
+```
+
+- **Eulerian existence (directed):** start has out−in = +1, end has in−out = +1, all others balanced.
+- **Hierholzer gotcha:** pre-order DFS dead-ends; only post-order append + reverse works.
+- **Tarjan one-liner:** track `disc[]`, `low[]`; edge `(u,v)` is a bridge iff `low[v] > disc[u]`. With multi-edges, skip the parent **edge index**, not the parent node.
+
+**Stretch problems:** [Cheapest Flights Within K Stops](../04-practice/algorithms/11-graph-algorithms.md#cheapest-flights-within-k-stops--t1) `⚡ T1` (Bellman-Ford K+1 rounds on a snapshot; Dijkstra ignores the stop count) · Reconstruct Itinerary `⚡ T1` (above) · [Word Ladder II](../04-practice/algorithms/11-graph-algorithms.md#word-ladder-ii-all-shortest-transformation-sequences--t1) `⚡ T1` (finish each BFS layer before removing words; parent map + DFS) · Evaluate Division `⚡ T1` (weighted graph, product along path; or [weighted DSU](../03-algorithms/10-union-find.md#weighted-dsu--variable-ratios-evaluate-division)) · [Critical Connections](../04-practice/algorithms/11-graph-algorithms.md#critical-connections-in-a-network-tarjans-bridges--t3) `💤 T3`.
+
 ### Grid & Bidirectional BFS
 
 > [!TIP]
@@ -551,25 +580,26 @@ def prim_mst(n: int, adj: dict) -> int:
 | All-pairs | Floyd-Warshall | O(V³); simple DP on adjacency matrix |
 | Dense graph (E ≈ V²) | Prim with array | O(V²) < O(E log V) for dense |
 | Sparse graph (E ≈ V) | Kruskal | O(E log E) = O(V log V) |
+| Every edge exactly once | Hierholzer | O(V+E); post-order DFS |
 
 ---
 
 ## 4. Common Interview Problems
 
 ### Easy / Medium (High Frequency)
-- **[Flood Fill](../04-practice/data-structures/13-graph.md#flood-fill--t1) `⚡ T1`** — BFS/DFS from `(sr, sc)`; recolor connected component.
-- **[Surrounded Regions](../04-practice/data-structures/13-graph.md#surrounded-regions--t1) `⚡ T1`** — Flood fill from border `O`s to mark safe; flip remaining interior `O`→`X`.
-- **[Max Area of Island](../04-practice/data-structures/13-graph.md#max-area-of-island--t1) `⚡ T1`** — DFS/BFS; return max area across all components.
-- **[Number of Islands](../04-practice/data-structures/13-graph.md#number-of-islands-bfs--t1) `⚡ T1`** — DFS/BFS flood fill; count calls to unvisited `1`.
-- **[Rotting Oranges](../04-practice/data-structures/13-graph.md#rotting-oranges--t1) `⚡ T1`** — Multi-source BFS from all rotten oranges at distance 0; count levels.
+- **[Flood Fill](../04-practice/data-structures/11-graph.md#flood-fill--t1) `⚡ T1`** — BFS/DFS from `(sr, sc)`; recolor connected component.
+- **[Surrounded Regions](../04-practice/data-structures/11-graph.md#surrounded-regions--t1) `⚡ T1`** — Flood fill from border `O`s to mark safe; flip remaining interior `O`→`X`.
+- **[Max Area of Island](../04-practice/data-structures/11-graph.md#max-area-of-island--t1) `⚡ T1`** — DFS/BFS; return max area across all components.
+- **[Number of Islands](../04-practice/data-structures/11-graph.md#number-of-islands-bfs--t1) `⚡ T1`** — DFS/BFS flood fill; count calls to unvisited `1`.
+- **[Rotting Oranges](../04-practice/data-structures/11-graph.md#rotting-oranges--t1) `⚡ T1`** — Multi-source BFS from all rotten oranges at distance 0; count levels.
 - **[Course Schedule](../04-practice/data-structures/06-queue.md#course-schedule--t1) `⚡ T1`** — Kahn's topo sort; cycle ⟺ `len(order) < n`.
-- **[Clone Graph](../04-practice/data-structures/13-graph.md#clone-graph--t1) `⚡ T1`** — DFS/BFS with `old → clone` map; create before traversing to handle cycles.
+- **[Clone Graph](../04-practice/data-structures/11-graph.md#clone-graph--t1) `⚡ T1`** — DFS/BFS with `old → clone` map; create before traversing to handle cycles.
 
 ### Hard / Stretch (Common at Google)
-- **[Pacific Atlantic Water Flow](../04-practice/data-structures/13-graph.md#pacific-atlantic-water-flow--t1) `⚡ T1`** — Reverse BFS: which cells can reach Pacific? Atlantic? Intersect.
-- **[Word Ladder](../04-practice/data-structures/13-graph.md#word-ladder--t1) `⚡ T1`** — BFS; neighbors = one-letter edits in word set; remove visited words.
-- **[Alien Dictionary](../04-practice/algorithms/00-sorting.md#alien-dictionary-lc-269--t1) `⚡ T1`** — Build directed edges from adjacent word pairs; topo sort all characters.
-- **[Network Delay Time](../04-practice/data-structures/13-graph.md#network-delay-time-dijkstras) `🎯 T2`** — Dijkstra from source; answer = max dist if all nodes reached.
+- **[Pacific Atlantic Water Flow](../04-practice/data-structures/11-graph.md#pacific-atlantic-water-flow--t1) `⚡ T1`** — Reverse BFS: which cells can reach Pacific? Atlantic? Intersect.
+- **[Word Ladder](../04-practice/data-structures/11-graph.md#word-ladder--t1) `⚡ T1`** — BFS; neighbors = one-letter edits in word set; remove visited words.
+- **[Alien Dictionary](../04-practice/algorithms/01-sorting.md#alien-dictionary-lc-269--t1) `⚡ T1`** — Build directed edges from adjacent word pairs; topo sort all characters.
+- **[Network Delay Time](../04-practice/data-structures/11-graph.md#shortest-path--weighted) `🎯 T2`** — Dijkstra from source; answer = max dist if all nodes reached.
 
 ---
 
@@ -613,8 +643,8 @@ def prim_mst(n: int, adj: dict) -> int:
 
 ## See also
 
-- [Union-Find](../02-algorithms/14-union-find.md) — DSU for Kruskal and connectivity
-- [Patterns Master](../03-patterns/patterns-master.md) — graph pattern recognition triggers
+- [Union-Find](../03-algorithms/10-union-find.md) — DSU for Kruskal and connectivity
+- [Patterns Master](../05-review/01-pattern-sheet.md) — graph pattern recognition triggers
 
 ## Flashcards
 

@@ -10,8 +10,8 @@ difficulty: mixed
 > [!abstract] In this file
 > **Covers:** Worked binary-search problems: bounds, search on answer, rotated arrays, peaks, median/order statistics.
 > **You'll be able to:** Define the monotone predicate and boundaries before writing the loop.
-> **Prereqs:** Binary search lecture · **Pair with:** [Binary search lecture](../../02-algorithms/11-binary-search.md) · **Time:** 3 h
-> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../../00-start-here/l3-google-roadmap.md#tier-legend))
+> **Prereqs:** Binary search lecture · **Pair with:** [Binary search lecture](../../03-algorithms/04-binary-search.md) · **Time:** 3 h
+> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../../00-start-here/01-roadmap.md#tier-legend))
 
 **Sections:** [Lower Bound / Upper Bound](#lower-bound--upper-bound) · [Binary Search on Answer (Predicate Pattern)](#binary-search-on-answer-predicate-pattern) · [Rotated Sorted Array](#rotated-sorted-array) · [Peak Element](#peak-element) · [Median / Order Statistics](#median--order-statistics) · [Classic / Miscellaneous](#classic--miscellaneous)
 
@@ -765,48 +765,6 @@ difficulty: mixed
 
 ---
 
-### Aggressive Cows / Maximize Minimum Distance
-
-> [!example] Problem
-> Given stall positions and `k` cows, place the cows so the minimum distance between any two cows is as large as possible.
-
-> [!info] Approach
-> If a distance `d` works, any smaller distance also works. That monotonic predicate makes the answer searchable. Sort positions and binary search the answer `d`. The feasibility check greedily places each cow at the earliest valid stall. Place the first cow at the first stall, then keep placing the next cow at the first position with gap `>= d`.
-
-> [!note]- Python Solution
-> ```python
-> def aggressive_cows(positions, k):
->     positions.sort()
-> 
->     def can_place(distance):
->         cows = 1
->         last = positions[0]
->         for pos in positions[1:]:
->             if pos - last >= distance:
->                 cows += 1
->                 last = pos
->                 if cows == k:
->                     return True
->         return False
-> 
->     lo, hi = 1, positions[-1] - positions[0]
->     while lo < hi:
->         mid = lo + (hi - lo + 1) // 2
->         if can_place(mid):
->             lo = mid
->         else:
->             hi = mid - 1
->     return lo
-> ```
-
-> [!success] Complexity
-> O(n log R) time, where `R = positions[-1] - positions[0]`; O(1) extra space.
-
-> [!tip] Alternatives
-> Reuse this template for router placement, aggressive seating, and maximize-minimum-distance questions.
-
----
-
 ### Find K-th Smallest Pair Distance (LC 719) `⚡ T1`
 
 > [!example] Problem
@@ -934,6 +892,10 @@ difficulty: mixed
 > [!tip] Alternatives
 > - Newton's method: `x = x - (x*x - n) / (2*x)`. Converges in O(log log n) iterations — faster in practice.
 > - Bit manipulation: set bits from high to low, keep if result doesn't exceed target. O(log n) but less readable.
+
+**Also try:**
+
+- **Aggressive Cows / Maximize Minimum Distance** — If a distance `d` works, any smaller distance also works
 
 ---
 
@@ -1500,60 +1462,9 @@ difficulty: mixed
 > [!tip] Alternatives
 > Min-heap O(k log n) — better when k is small; BS on value dominates for large k.
 
----
+**Also try:**
 
-### Search a 2D Matrix II (LC 240)
-
-> [!example] Problem
-> Write an efficient algorithm that searches for a value target in an m x n integer matrix matrix. This matrix has the following properties
-> 
-> **Example 1:**
-> ```
-> Input: matrix = [[1,4,7,11,15],[2,5,8,12,19],[3,6,9,16,22],[10,13,14,17,24],[18,21,23,26,30]], target = 5
-> Output: true
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: matrix = [[1,4,7,11,15],[2,5,8,12,19],[3,6,9,16,22],[10,13,14,17,24],[18,21,23,26,30]], target = 20
-> Output: false
-> ```
-> 
-> **Constraints:**
-> - m == matrix.length
-> - n == matrix[i].length
-> - 1 <= n, m <= 300
-> - -10^9 <= matrix[i][j] <= 10^9
-> - All the integers in each row are sorted in ascending order.
-> - All the integers in each column are sorted in ascending order.
-> - -10^9 <= target <= 10^9
-
-> [!info] Approach
-> Rows AND columns are sorted but rows don't have total order (first of row i+1 may be less than last of row i). Can't treat as a 1D sorted array. Staircase search — start from the top-right corner. If matrix[r][c] == target: found. If > target: go left (c--). If < target: go down (r++). Each step eliminates a row or column. O(m+n) total.
-
-> [!note]- Python Solution
-> ```python
-> def search_matrix_ii(matrix, target):
->     if not matrix or not matrix[0]:
->         return False
->     m, n = len(matrix), len(matrix[0])
->     r, c = 0, n - 1          # start top-right
->     while r < m and c >= 0:
->         val = matrix[r][c]
->         if val == target:
->             return True
->         elif val > target:
->             c -= 1            # eliminate this column
->         else:
->             r += 1            # eliminate this row
->     return False
-> ```
-
-> [!success] Complexity
-> O(m+n) time, O(1) space.
-
-> [!tip] Alternatives
-> Binary search each row O(m log n) — worse than staircase when m and n are comparable.
+- **Search a 2D Matrix II (LC 240)** — Rows AND columns are sorted but rows don't have total order (first of row i+1 may be less than last of row i)
 
 ---
 
@@ -1708,72 +1619,10 @@ difficulty: mixed
 
 ---
 
-### Search a 2D Matrix — Row + Column BS (LC 74 variant note)
-
-> [!example] Problem
-> You are given an m x n integer matrix matrix with the following two properties:
-> Given an integer target, return true if target is in matrix or false otherwise.
-> You must write a solution in O(log(m * n)) time complexity.
-> 
-> **Example 1:**
-> ```
-> Input: matrix = [[1,3,5,7],[10,11,16,20],[23,30,34,60]], target = 3
-> Output: true
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: matrix = [[1,3,5,7],[10,11,16,20],[23,30,34,60]], target = 13
-> Output: false
-> ```
-> 
-> **Constraints:**
-> - m == matrix.length
-> - n == matrix[i].length
-> - 1 <= m, n <= 100
-> - -10^4 <= matrix[i][j], target <= 10^4
-
-> [!info] Approach
-> Useful when the single-index trick is not obvious in an interview. Also illustrates composing two independent binary searches. BS on rows: find the last row where `matrix[row][0] <= target` (this is the only row that can contain target). Then BS within that row. Row search: `if matrix[mid][0] <= target: lo = mid` else `hi = mid - 1`. Then standard column search.
-
-> [!note]- Python Solution
-> ```python
-> def search_matrix_two_pass(matrix, target):
->     m, n = len(matrix), len(matrix[0])
->     # find candidate row
->     lo, hi = 0, m - 1
->     while lo < hi:
->         mid = lo + (hi - lo + 1) // 2   # upper-mid to avoid infinite loop
->         if matrix[mid][0] <= target:
->             lo = mid
->         else:
->             hi = mid - 1
->     row = lo
->     # binary search within row
->     lo, hi = 0, n - 1
->     while lo <= hi:
->         mid = lo + (hi - lo) // 2
->         if matrix[row][mid] == target:
->             return True
->         elif matrix[row][mid] < target:
->             lo = mid + 1
->         else:
->             hi = mid - 1
->     return False
-> ```
-
-> [!success] Complexity
-> O(log m + log n) = O(log(mn)) time, O(1) space.
-
-> [!tip] Alternatives
-> Single flattened-index BS is more concise; this form is useful for understanding the row-then-column decomposition.
-
----
-
 ### Longest Increasing Subsequence — Length via BS (LC 300) `⚡ T1`
 
 > [!example] Problem
-> Same problem as [Longest Increasing Subsequence](15-dynamic-programming.md#longest-increasing-subsequence--t1) — this section covers the alternative approach only.
+> Same problem as [Longest Increasing Subsequence](08-dynamic-programming.md#longest-increasing-subsequence--t1) — this section covers the alternative approach only.
 
 > [!info] Approach
 > Patience sorting uses a `tails` array where `tails[i]` is the smallest tail of all LIS of length `i+1`. `tails` is always sorted → binary search for insertion point. For each element, `bisect_left(tails, num)` gives the position to replace (or extend if at end). The length of `tails` at the end is the LIS length. If `num > tails[-1]` → append (extend LIS). Else → replace `tails[pos]` = num (maintain smallest tails for future options).
@@ -1838,6 +1687,10 @@ difficulty: mixed
 
 > [!tip] Alternatives
 > Store timestamps and values in two parallel lists to `bisect_right` on timestamps alone — avoids the tuple sentinel trick. Follow-up to expect: what changes if timestamps are NOT increasing? (insort → O(n) set, or sort lazily on first get.)
+
+**Also try:**
+
+- **Search a 2D Matrix — Row + Column BS (LC 74 variant note)** — Useful when the single-index trick is not obvious in an interview
 
 ---
 

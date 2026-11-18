@@ -5,15 +5,15 @@ difficulty: mixed
 ---
 # Matrix / Grid — Problem Walkthroughs
 
-← [Concept deep-dive](../../01-data-structures/04-matrix.md) · [Data Structures index](../../01-data-structures/README.md)
+← [Concept deep-dive](../../02-data-structures/04-matrix.md) · [Data Structures index](../../02-data-structures/README.md)
 
 ## What this covers
 
 > [!abstract] In this file
 > **Covers:** Worked grid problems: islands, multi-source BFS, shortest path in grid, in-place transforms, grid DP, 2D prefix sum.
 > **You'll be able to:** Write grid BFS/DFS and grid DP cleanly under time pressure.
-> **Prereqs:** Matrix lecture · **Pair with:** [Matrix lecture](../../01-data-structures/04-matrix.md) · **Time:** 3 h
-> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../../00-start-here/l3-google-roadmap.md#tier-legend))
+> **Prereqs:** Matrix lecture · **Pair with:** [Matrix lecture](../../02-data-structures/04-matrix.md) · **Time:** 3 h
+> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../../00-start-here/01-roadmap.md#tier-legend))
 
 **Sections:** [Traversal Foundations](#traversal-foundations) · [Number of Islands `⚡ T1`](#number-of-islands--t1) · [Walls and Gates `⚡ T1`](#walls-and-gates--t1) · [Shortest Path in Binary Matrix `⚡ T1`](#shortest-path-in-binary-matrix--t1) · [Rotting Oranges `⚡ T1`](#rotting-oranges--t1) · [Spiral Matrix `🎯 T2`](#spiral-matrix--t2) · [Rotate Image `🎯 T2`](#rotate-image--t2) · [Set Matrix Zeroes `🎯 T2`](#set-matrix-zeroes--t2) · [Unique Paths `⚡ T1`](#unique-paths--t1) · [Minimum Path Sum `⚡ T1`](#minimum-path-sum--t1) · [Maximal Square `🎯 T2`](#maximal-square--t2) · [2D Prefix Sum `🎯 T2`](#2d-prefix-sum--t2) · [Pattern Summary](#pattern-summary) · [DP on the Grid (Memoized DFS)](#dp-on-the-grid-memoized-dfs)
 
@@ -25,28 +25,9 @@ Grid problems are graphs in disguise. Every cell is a node; edges connect 4-dire
 
 ## Traversal Foundations
 
-### 4-Directional BFS Template
-```python
-from collections import deque
+**Also try:**
 
-def bfs_grid(grid, start_r, start_c):
-    ROWS, COLS = len(grid), len(grid[0])
-    visited = set()
-    queue = deque([(start_r, start_c, 0)])   # (row, col, dist)
-    visited.add((start_r, start_c))
-    dirs = [(0,1),(0,-1),(1,0),(-1,0)]
-    while queue:
-        r, c, dist = queue.popleft()
-        for dr, dc in dirs:
-            nr, nc = r + dr, c + dc
-            if 0 <= nr < ROWS and 0 <= nc < COLS and (nr, nc) not in visited:
-                visited.add((nr, nc))
-                queue.append((nr, nc, dist + 1))
-```
-
-**Mark visited on enqueue, not dequeue** — prevents the same cell from being added to the queue multiple times.
-
-**TC**: O(R·C) — each cell enqueued at most once, 4 neighbor checks each | **SC**: O(R·C) for `visited` + queue (worst case a full frontier).
+- **4-Directional BFS Template**
 
 ---
 
@@ -461,9 +442,9 @@ def uniquePathsWithObstacles(grid):
 
 ## See Also
 
-- Matrix/grid theory: [`01-data-structures/13-graphs.md`](../../01-data-structures/13-graphs.md)
-- Graph algorithms: [`04-practice/algorithms/13-graph-algorithms.md`](../algorithms/13-graph-algorithms.md)
-- DP patterns: [`04-practice/algorithms/15-dynamic-programming.md`](../algorithms/15-dynamic-programming.md)
+- Matrix/grid theory: [`02-data-structures/11-graphs.md`](../../02-data-structures/11-graphs.md)
+- Graph algorithms: [`04-practice/algorithms/11-graph-algorithms.md`](../algorithms/11-graph-algorithms.md)
+- DP patterns: [`04-practice/algorithms/08-dynamic-programming.md`](../algorithms/08-dynamic-programming.md)
 
 ---
 

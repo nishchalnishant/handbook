@@ -5,15 +5,15 @@ tags: [algorithms, bit-manipulation]
 ---
 # Bit Manipulation — L3 Gold Standard
 
-← [Algorithms index](./README.md) · [Patterns master](../03-patterns/patterns-master.md)
+← [Algorithms index](README.md) · [Patterns master](../05-review/01-pattern-sheet.md)
 
 ## What this covers
 
 > [!abstract] In this file
 > **Covers:** Bitwise operators and the 8 essential tricks: XOR cancellation, lowbit, clear lowest bit, popcount, power-of-two test, masks and subset enumeration.
 > **You'll be able to:** Solve single-number / counting-bits / subset-mask problems; read and write bit tricks without guessing.
-> **Prereqs:** None · **Pair with:** [Bit Manipulation problems](../04-practice/algorithms/17-bit-manipulation.md) · [Bit questions](../03-patterns/TOPIC_QUESTIONS_LOGIC_AND_TRICKS.md#bit-manipulation) · **Time:** 1 h
-> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../00-start-here/l3-google-roadmap.md#tier-legend))
+> **Prereqs:** None · **Pair with:** [Bit Manipulation problems](../04-practice/algorithms/13-bit-manipulation.md) · [Bit questions](../04-practice/README.md#bit-manipulation) · **Time:** 1 h
+> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../00-start-here/01-roadmap.md#tier-legend))
 
 **Sections:** [Core Idea](#core-idea) · [Operator Reference](#operator-reference) · [Core Tricks — The Essential 8](#core-tricks--the-essential-8) · [Canonical Interview Problems](#canonical-interview-problems) · [Problem Deep Dives](#problem-deep-dives) · [Interview Questions — Logic & Trickiness](#interview-questions--logic--trickiness) · [Quick Revision Triggers](#quick-revision-triggers) · [Flashcards](#flashcards)
 
@@ -781,9 +781,9 @@ def all_subsets(nums: list[int]) -> list[list[int]]:
 
 ## See Also
 
-- [Dynamic Programming](./15-dynamic-programming.md) — Bitmask DP for TSP / subset problems
-- [Backtracking](./12-backtracking.md) — Alternative to bitmask for subset enumeration
-- [Math & Number Theory](./18-math-and-number-theory.md) — GCD, prime, modular arithmetic
+- [Dynamic Programming](08-dynamic-programming.md) — Bitmask DP for TSP / subset problems
+- [Backtracking](06-backtracking.md) — Alternative to bitmask for subset enumeration
+- [Math & Number Theory](14-math-and-number-theory.md) — GCD, prime, modular arithmetic
 
 ---
 

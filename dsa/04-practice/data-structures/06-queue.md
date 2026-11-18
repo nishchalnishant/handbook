@@ -10,8 +10,8 @@ difficulty: mixed
 > [!abstract] In this file
 > **Covers:** Worked queue problems: monotonic deque, BFS (single/multi-source), topological sort, queue design, scheduling.
 > **You'll be able to:** Write BFS and deque solutions fluently.
-> **Prereqs:** Queue lecture · **Pair with:** [Queue lecture](../../01-data-structures/06-queue.md) · **Time:** 3 h
-> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../../00-start-here/l3-google-roadmap.md#tier-legend))
+> **Prereqs:** Queue lecture · **Pair with:** [Queue lecture](../../02-data-structures/06-queue.md) · **Time:** 3 h
+> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../../00-start-here/01-roadmap.md#tier-legend))
 
 **Sections:** [Queue Patterns to Recognize](#queue-patterns-to-recognize) · [Monotonic Deque](#monotonic-deque) · [BFS / Level-order](#bfs--level-order) · [BFS Multi-Source](#bfs-multi-source) · [BFS Single-Source](#bfs-single-source) · [Topological Sort (Kahn's BFS)](#topological-sort-kahns-bfs) · [Design](#design) · [Priority Queue / Heap](#priority-queue--heap)
 
@@ -40,139 +40,19 @@ difficulty: mixed
 
 ### Sliding Window Maximum `⚡ T1`
 
-> Full walkthrough: [Sliding Window Maximum (LC 239)](../algorithms/04-sliding-window.md#sliding-window-maximum-lc-239--t1).
-
----
-
-### Sliding Window Minimum
-
-> Full walkthrough: [Sliding Window Minimum (LC variant)](../algorithms/04-sliding-window.md#sliding-window-minimum-lc-variant).
-
----
-
-### Shortest Subarray with Sum at Least K
-
-> [!example] Problem
-> Given an integer array nums and an integer k, return the length of the shortest non-empty subarray of nums with a sum of at least k. If there is no such subarray, return -1.
-> A subarray is a contiguous part of an array.
-> 
-> **Example 1:**
-> ```
-> Input: nums = [1], k = 1
-> Output: 1
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: nums = [1,2], k = 4
-> Output: -1
-> ```
-> 
-> **Example 3:**
-> ```
-> Input: nums = [2,-1,2], k = 3
-> Output: 3
-> ```
-> 
-> **Constraints:**
-> - 1 <= nums.length <= 10^5
-> - -10^5 <= nums[i] <= 10^5
-> - 1 <= k <= 10^9
-
-> [!info] Approach
-> Negative values break the simple two-pointer sliding window — shrinking from the left doesn't always decrease the sum. We need a different invariant. Prefix sums + a monotonic increasing deque of prefix-sum indices. `prefix[j] - prefix[i] >= k` with `j > i` means subarray `i..j-1` has sum ≥ k. We want to minimize `j - i`. Compute prefix sums. Maintain a deque of indices with strictly increasing prefix-sum values. For each `j`: while the front of the deque satisfies `prefix[j] - prefix[front] >= k`, update the answer with `j - front` and pop the front (we want the smallest valid `j - i`, so once a shorter subarray is found the front is no longer useful). Then maintain the increasing invariant by popping from the back while `prefix[back] >= prefix[j]`, and append `j`.
-
-> - **EDGE CASES:** Keep `prefix[0] = 0` so subarrays starting at index `0` are handled naturally; if no qualifying subarray exists, return `-1`.
-
-> [!note]- Python Solution
-> ```python
-> from collections import deque
-> >
-> def shortest_subarray(nums, k):
->     n = len(nums)
->     prefix = [0] * (n + 1)
->     for i in range(n):
->         prefix[i + 1] = prefix[i] + nums[i]
-> >
->     dq: deque[int] = deque()   # indices of prefix
->     monotonically increasing prefix values
->     ans = float('inf')
->     for j in range(n + 1):
->         # try to satisfy sum >= k using front as left boundary
->         while dq and prefix[j] - prefix[dq[0]] >= k:
->             ans = min(ans, j - dq.popleft())
->         # maintain increasing deque
->         while dq and prefix[dq[-1]] >= prefix[j]:
->             dq.pop()
->         dq.append(j)
->     return ans if ans != float('inf') else -1
-> ```
-
-> [!success] Complexity
-> Time O(n). Space O(n).
-
-> [!tip] Alternatives
-> - Segment tree / sparse table for range min prefix sum: O(n log n) — correct but overcomplicated.
-> - Brute force O(n²): try all `(i, j)` pairs — baseline only.
+> Full walkthrough: [Sliding Window Maximum (LC 239)](../algorithms/03-sliding-window.md#sliding-window-maximum-lc-239--t1).
 
 ---
 
 ### Jump Game VI (DP + Sliding Window Max) `🎯 T2`
 
-> Full walkthrough: [Jump Game VI (LC 1696)](../algorithms/04-sliding-window.md#jump-game-vi-lc-1696--t2).
+> Full walkthrough: [Jump Game VI (LC 1696)](../algorithms/03-sliding-window.md#jump-game-vi-lc-1696--t2).
 
----
+**Also try:**
 
-### Maximum of Minimums of Every Window Size
-
-> [!example] Problem
-> Given an array of length `n`, for every window size `k` from 1 to `n`, find the maximum value among all minimums of contiguous windows of size `k`. Return an array of size `n`.
-
-> [!info] Approach
-> Brute force is O(n³). Instead, for each index `i`, find the nearest smaller element on the left and right with a monotonic stack. Then `i` is the minimum for any window up to size `right[i] - left[i] - 1`. Record `ans[window_size] = max(ans[window_size], nums[i])`. Finally run a suffix max on `ans` — a value that wins for a large window also works for smaller ones.
-
-> [!note]- Python Solution
-> ```python
-> def max_min_of_windows(nums):
->     n = len(nums)
->     left = [-1] * n    # index of previous smaller element
->     right = [n] * n    # index of next smaller element
->     stack = []
-> >
->     # previous smaller (left boundary)
->     for i in range(n):
->         while stack and nums[stack[-1]] >= nums[i]:
->             stack.pop()
->         left[i] = stack[-1] if stack else -1
->         stack.append(i)
-> >
->     stack.clear()
-> >
->     # next smaller (right boundary)
->     for i in range(n - 1, -1, -1):
->         while stack and nums[stack[-1]] >= nums[i]:
->             stack.pop()
->         right[i] = stack[-1] if stack else n
->         stack.append(i)
-> >
->     ans = [0] * (n + 1)   # ans[k] = max of minimums for window size k (1-indexed)
->     for i in range(n):
->         w = right[i] - left[i] - 1
->         ans[w] = max(ans[w], nums[i])
-> >
->     # suffix maximum: smaller windows can use larger-window answers
->     for k in range(n - 1, 0, -1):
->         ans[k] = max(ans[k], ans[k + 1])
-> >
->     return ans[1:]   # return 1-indexed results as 0-indexed array
-> ```
-
-> [!success] Complexity
-> Time O(n) — two monotonic stack passes + one suffix pass. Space O(n).
-
-> [!tip] Alternatives
-> - Segment tree: O(n log n) build + O(log n) per query — for each window size enumerate all windows and take min via range-min query. O(n² log n) total for all sizes — worse.
-> - Sparse table RMQ: O(n log n) build, O(1) range-min query — O(n²) total over all window sizes. Still worse than monotonic stack for this specific problem.
+- **Sliding Window Minimum** — see [Sliding Window Minimum (LC variant)](../algorithms/03-sliding-window.md#sliding-window--monotonic-deque)
+- **Shortest Subarray with Sum at Least K** — Negative values break the simple two-pointer sliding window — shrinking from the left doesn't always decrease the sum
+- **Maximum of Minimums of Every Window Size** — Brute force is O(n³)
 
 ---
 
@@ -325,56 +205,13 @@ difficulty: mixed
 
 ### 01 Matrix `⚡ T1`
 
-> Full walkthrough: [01 Matrix (LC 542)](13-graph.md#01-matrix-lc-542--t1).
+> Full walkthrough: [01 Matrix (LC 542)](11-graph.md#01-matrix-lc-542--t1).
 
 ---
 
 ### Walls and Gates `⚡ T1`
 
-> Full walkthrough: [Walls and Gates (LC 286)](13-graph.md#walls-and-gates-lc-286--t1).
-
----
-
-### Farthest Building from Land (As Far from Land as Possible)
-
-> [!example] Problem
-> Given binary grid where `1` = land and `0` = water, find the water cell that has the maximum Manhattan distance to the nearest land cell. Return that distance, or -1 if no water or no land exists.
-
-> [!info] Approach
-> The cell farthest from all land is the last cell reached when BFS expands outward from all land cells simultaneously. Multi-source BFS from all land cells. The last cell dequeued gives the maximum distance. Seed the queue with all `1` cells at distance 0. BFS outward filling `0` cells. Track the last distance assigned — that is the answer.
-
-> [!note]- Python Solution
-> ```python
-> from collections import deque
-> >
-> def max_distance(grid):
->     n = len(grid)
->     queue: deque[tuple[int, int]] = deque()
->     for r in range(n):
->         for c in range(n):
->             if grid[r][c] == 1:
->                 queue.append((r, c))
->     if len(queue) == 0 or len(queue) == n * n:
->         return -1   # all water or all land
->     dist = -1
->     dirs = [(0, 1), (0, -1), (1, 0), (-1, 0)]
->     while queue:
->         r, c = queue.popleft()
->         for dr, dc in dirs:
->             nr, nc = r + dr, c + dc
->             if 0 <= nr < n and 0 <= nc < n and grid[nr][nc] == 0:
->                 grid[nr][nc] = grid[r][c] + 1
->                 dist = grid[nr][nc] - 1
->                 queue.append((nr, nc))
->     return dist
-> ```
-
-> [!success] Complexity
-> Time O(n²). Space O(n²).
-
-> [!tip] Alternatives
-> - BFS from each water cell: O(n⁴) — correct, too slow.
-> - DP two-pass: O(n²) time and O(1) extra space — valid, but multi-source BFS is more intuitive.
+> Full walkthrough: [Walls and Gates (LC 286)](11-graph.md#walls-and-gates-lc-286--t1).
 
 ---
 
@@ -525,6 +362,10 @@ difficulty: mixed
 > - Bidirectional BFS: meets in the middle, ~4× fewer states explored — recommended for large `(x, y)`.
 > - Math formula: closed-form exists for specific quadrant cases — not worth memorizing, but mention as O(1) follow-up.
 
+**Also try:**
+
+- **Farthest Building from Land (As Far from Land as Possible)** — The cell farthest from all land is the last cell reached when BFS expands outward from all land cells simultaneously
+
 ---
 
 ## BFS Single-Source
@@ -610,67 +451,6 @@ difficulty: mixed
 
 ---
 
-### Bus Routes
-
-> Full walkthrough: [Bus Routes](13-graph.md#bus-routes--t2).
-
----
-
-### Shortest Path in Grid with Obstacles Elimination
-
-> [!example] Problem
-> Given an `m × n` grid of `0` (free) and `1` (obstacle), you can eliminate at most `k` obstacles. Return the minimum steps from `(0,0)` to `(m-1, n-1)`, or -1 if impossible.
-
-> [!tip] Recognize · Gotcha
-> **Signal:** "Min steps allowing K obstacle removals" · **Gotcha:** State space is `R × C × (K+1)` — mark visited per `(r, c, k)` not just `(r, c)`.
-
-> [!info] Approach
-> Standard BFS doesn't capture how many eliminations have been used — two paths to the same cell may have different remaining `k`. The state must include `k`. BFS with 3D state `(row, col, remaining_k)`. Enqueue `(0, 0, k)` with 0 steps. For each cell, try all 4 neighbors — if a neighbor is free, step to it; if it's an obstacle and `remaining_k > 0`, step to it and decrement `k`. Mark `(r, c, k)` as visited — not just `(r, c)`.
-
-> [!note]- Python Solution
-> ```python
-> from collections import deque
-> >
-> def shortest_path(grid, k):
->     m, n = len(grid), len(grid[0])
->     if m == 1 and n == 1:
->         return 0
->     # State: (r, c, remaining_k)
->     visited = {(0, 0, k)}
->     queue: deque[tuple[int, int, int, int]] = deque([(0, 0, k, 0)])
->     dirs = [(0, 1), (0, -1), (1, 0), (-1, 0)]
->     while queue:
->         r, c, rem, steps = queue.popleft()
->         for dr, dc in dirs:
->             nr, nc = r + dr, c + dc
->             if not (0 <= nr < m and 0 <= nc < n):
->                 continue
->             new_rem = rem - grid[nr][nc]
->             if new_rem < 0:
->                 continue
->             if nr == m - 1 and nc == n - 1:
->                 return steps + 1
->             if (nr, nc, new_rem) not in visited:
->                 visited.add((nr, nc, new_rem))
->                 queue.append((nr, nc, new_rem, steps + 1))
->     return -1
-> ```
-
-> [!success] Complexity
-> Time O(m × n × k). Space O(m × n × k).
-
-> [!tip] Alternatives
-> - Greedy shortcut: if `k >= m + n - 2`, the entire path can be cleared — return `m + n - 2` directly (O(1)).
-> - A* with `(steps + Manhattan)` heuristic: prunes states faster in practice but same worst-case.
-
----
-
-### Cheapest Flights Within K Stops
-
-> Full walkthrough: [Cheapest Flights Within K Stops](../algorithms/13-graph-algorithms.md#cheapest-flights-within-k-stops--t1).
-
----
-
 ### Jump Game III `🎯 T2`
 
 > [!example] Problem
@@ -741,6 +521,12 @@ difficulty: mixed
 > [!tip] Alternatives
 > - DFS / recursion with visited set: same O(n) complexity, risk of stack overflow on large inputs.
 > - Marking visited by negating `arr[i]` in place: avoids the set, O(1) extra space, but mutates input.
+
+**Also try:**
+
+- **Bus Routes** — see [Bus Routes](11-graph.md#bus-routes--t2)
+- **Shortest Path in Grid with Obstacles Elimination** — Standard BFS doesn't capture how many eliminations have been used — two paths to the same cell may have different remaining `k`
+- **Cheapest Flights Within K Stops** — see [Cheapest Flights Within K Stops](../algorithms/11-graph-algorithms.md#cheapest-flights-within-k-stops--t1)
 
 ---
 
@@ -921,362 +707,14 @@ difficulty: mixed
 
 ## Design
 
----
+**Also try:**
 
-### Design Hit Counter
-
-> Full walkthrough: [Design Hit Counter](14-design.md#design-hit-counter--t1).
-
----
-
-### Design Circular Queue
-
-> [!example] Problem
-> Design your implementation of the circular queue. The circular queue is a linear data structure in which the operations are performed based on FIFO (First In First Out) principle, and the last position is connected back to the first position to make a circle. It is also called "Ring Buffer".
-> One of the benefits of the circular queue is that we can make use of the spaces in front of the queue. In a normal queue, once the queue becomes full, we cannot insert the next element even if there is a space in front of the queue. But using the circular queue, we can use the space to store new values.
-> Implement the MyCircularQueue class:
-> You must solve the problem without using the built-in queue data structure in your programming language.
-> 
-> **Example 1:**
-> ```
-> Input
-> ["MyCircularQueue", "enQueue", "enQueue", "enQueue", "enQueue", "Rear", "isFull", "deQueue", "enQueue", "Rear"]
-> [[3], [1], [2], [3], [4], [], [], [], [4], []]
-> Output
-> [null, true, true, true, false, 3, true, true, true, 4]
-> 
-> Explanation
-> MyCircularQueue myCircularQueue = new MyCircularQueue(3);
-> myCircularQueue.enQueue(1); // return True
-> myCircularQueue.enQueue(2); // return True
-> myCircularQueue.enQueue(3); // return True
-> myCircularQueue.enQueue(4); // return False
-> myCircularQueue.Rear();     // return 3
-> myCircularQueue.isFull();   // return True
-> myCircularQueue.deQueue();  // return True
-> myCircularQueue.enQueue(4); // return True
-> myCircularQueue.Rear();     // return 4
-> ```
-> 
-> **Constraints:**
-> - 1 <= k <= 1000
-> - 0 <= value <= 1000
-> - At most 3000 calls will be made to enQueue, deQueue, Front, Rear, isEmpty, and isFull.
-
-> [!tip] Recognize · Gotcha
-> **Signal:** "Bounded FIFO with O(1) all ops" · **Gotcha:** Use `size` counter over wasted-slot trick — cleaner. Thread-safety follow-up: add a mutex around enqueue/dequeue.
-
-> [!info] Approach
-> A plain list wastes space as the front pointer drifts forward. Modular arithmetic wraps pointers around, reusing vacated slots. Fixed-size array with `front`, `size`, and `capacity`. Rear index = `(front + size) % cap`. Using a `size` counter eliminates the ambiguity between full and empty (the "wasted slot" problem). Enqueue writes to `(front + size) % cap` and increments size. Dequeue advances `front` by 1 (mod cap) and decrements size.
-
-> [!note]- Python Solution
-> ```python
-> class MyCircularQueue:
->     def __init__(self, k):
->         self._data = [0] * k
->         self._front = 0
->         self._size = 0
->         self._cap = k
-> >
->     def en_queue(self, value):
->         if self._size == self._cap:
->             return False
->         rear = (self._front + self._size) % self._cap
->         self._data[rear] = value
->         self._size += 1
->         return True
-> >
->     def de_queue(self):
->         if self._size == 0:
->             return False
->         self._front = (self._front + 1) % self._cap
->         self._size -= 1
->         return True
-> >
->     def front(self):
->         return -1 if self._size == 0 else self._data[self._front]
-> >
->     def rear(self):
->         if self._size == 0:
->             return -1
->         return self._data[(self._front + self._size - 1) % self._cap]
-> >
->     def is_empty(self):
->         return self._size == 0
-> >
->     def is_full(self):
->         return self._size == self._cap
-> ```
-
-> [!success] Complexity
-> Time O(1) all operations. Space O(k).
-
-> [!tip] Alternatives
-> - Doubly linked list: O(1) all operations, dynamic sizing but more memory overhead per node.
-> - Two-pointer without size counter ("wasted slot"): `(rear+1) % cap == front` means full — works but wastes one slot and is error-prone.
-
----
-
-### Moving Average from Data Stream
-
-> [!example] Problem
-> Given a stream of integers and a window size, calculate the moving average of all integers in the sliding window.
-> 
-> Implement the `MovingAverage` class:
-> 
-> 	
-> - `MovingAverage(int size)` Initializes the object with the size of the window `size`.
-> 	
-> - `double next(int val)` Returns the moving average of the last `size` values of the stream.
-> 
->  
-> 
-> Example 1:
-> 
-> ```
-> 
-> **Input**
-> ["MovingAverage", "next", "next", "next", "next"]
-> [[3], [1], [10], [3], [5]]
-> **Output**
-> [null, 1.0, 5.5, 4.66667, 6.0]
-> 
-> **Explanation**
-> MovingAverage movingAverage = new MovingAverage(3);
-> movingAverage.next(1); // return 1.0 = 1 / 1
-> movingAverage.next(10); // return 5.5 = (1 + 10) / 2
-> movingAverage.next(3); // return 4.66667 = (1 + 10 + 3) / 3
-> movingAverage.next(5); // return 6.0 = (10 + 3 + 5) / 3
-> 
-> ```
-> 
->  
-> 
-> **Constraints:**
-> 
-> 	
-> - `1 <= size <= 1000`
-> 	
-> - `-10^5 <= val <= 10^5`
-> 	
-> - At most `10^4` calls will be made to `next`.
-
-> [!tip] Recognize · Gotcha
-> **Signal:** "Average of last k values in O(1)" · **Gotcha:** Float division. Python `deque(maxlen=k)` auto-evicts but you still need the running sum — don't recompute.
-
-> [!info] Approach
-> Recomputing the sum from scratch on each insertion is O(size). Maintain a running sum and update it incrementally in O(1). Fixed-size deque with a running sum. Append each new value to the deque and add to sum. If the deque exceeds `size`, pop from the front and subtract from sum. Return `sum / len(deque)`.
-
-> [!note]- Python Solution
-> ```python
-> from collections import deque
-> >
-> class MovingAverage:
->     def __init__(self, size):
->         self._window: deque[int] = deque()
->         self._size = size
->         self._sum = 0
-> >
->     def next(self, val):
->         self._window.append(val)
->         self._sum += val
->         if len(self._window) > self._size:
->             self._sum -= self._window.popleft()
->         return self._sum / len(self._window)
-> ```
-
-> [!success] Complexity
-> Time O(1) per call. Space O(size).
-
-> [!tip] Alternatives
-> - Circular array instead of deque: same O(1), avoids Python deque overhead — use when size is fixed and performance matters.
-> - Recompute sum each time: O(size) per call — correct but unnecessary.
-
----
-
-### Number of Recent Calls
-
-> [!example] Problem
-> You have a RecentCounter class which counts the number of recent requests within a certain time frame.
-> Implement the RecentCounter class:
-> It is guaranteed that every call to ping uses a strictly larger value of t than the previous call.
-> 
-> **Example 1:**
-> ```
-> Input
-> ["RecentCounter", "ping", "ping", "ping", "ping"]
-> [[], [1], [100], [3001], [3002]]
-> Output
-> [null, 1, 2, 3, 3]
-> 
-> Explanation
-> RecentCounter recentCounter = new RecentCounter();
-> recentCounter.ping(1);     // requests = [1], range is [-2999,1], return 1
-> recentCounter.ping(100);   // requests = [1, 100], range is [-2900,100], return 2
-> recentCounter.ping(3001);  // requests = [1, 100, 3001], range is [1,3001], return 3
-> recentCounter.ping(3002);  // requests = [1, 100, 3001, 3002], range is [2,3002], return 3
-> ```
-> 
-> **Constraints:**
-> - 1 <= t <= 10^9
-> - Each test case will call ping with strictly increasing values of t.
-> - At most 10^4 calls will be made to ping.
-
-> [!tip] Recognize · Gotcha
-> **Signal:** "Count requests in last 3000ms window" · **Gotcha:** Deque size = answer; no need to count separately.
-
-> [!info] Approach
-> Old timestamps outside the window are never useful again. A deque lets us discard them from the front in O(1). Deque storing timestamps. At each `ping`, evict all timestamps < `t - 3000` from the front. Deque size = answer. Append `t`. Pop from front while `front < t - 3000`. Return `len(deque)`.
-
-> [!note]- Python Solution
-> ```python
-> from collections import deque
-> >
-> class RecentCounter:
->     def __init__(self):
->         self._q: deque[int] = deque()
-> >
->     def ping(self, t):
->         self._q.append(t)
->         while self._q[0] < t - 3000:
->             self._q.popleft()
->         return len(self._q)
-> ```
-
-> [!success] Complexity
-> Time O(1) amortized per ping (each timestamp appended and removed at most once). Space O(3000) = O(1).
-
-> [!tip] Alternatives
-> Binary search on a list of all timestamps: O(log n) per call — unnecessary since timestamps are monotonically increasing.
-
----
-
-### Implement Stack Using Queues
-
-> [!example] Problem
-> Implement a last-in-first-out (LIFO) stack using only two queues. The implemented stack should support all the functions of a normal stack (push, top, pop, and empty).
-> Implement the MyStack class:
-> Notes
-> 
-> **Example 1:**
-> ```
-> Input
-> ["MyStack", "push", "push", "top", "pop", "empty"]
-> [[], [1], [2], [], [], []]
-> Output
-> [null, null, null, 2, 2, false]
-> 
-> Explanation
-> MyStack myStack = new MyStack();
-> myStack.push(1);
-> myStack.push(2);
-> myStack.top(); // return 2
-> myStack.pop(); // return 2
-> myStack.empty(); // return False
-> ```
-> 
-> **Constraints:**
-> - 1 <= x <= 9
-> - At most 100 calls will be made to push, pop, top, and empty.
-> - All the calls to pop and top are valid.
-
-> [!tip] Recognize · Gotcha
-> **Signal:** "LIFO from one FIFO" · **Gotcha:** `push` is O(N); `pop` and `top` are O(1) — opposite of stack-from-queues.
-
-> [!info] Approach
-> A queue is FIFO; to make the most recently pushed element accessible first, we must rotate older elements behind the new one after each push. Single queue. After each `push(x)`, rotate the queue by popping from the front and re-appending, `len(q) - 1` times — x is now at the front. Push is O(n); pop and top are O(1). (Trade-off: opposite of queue-from-stacks.)
-
-> [!note]- Python Solution
-> ```python
-> from collections import deque
-> >
-> class MyStack:
->     def __init__(self):
->         self._q: deque[int] = deque()
-> >
->     def push(self, x):
->         self._q.append(x)
->         # rotate so x is at the front
->         for _ in range(len(self._q) - 1):
->             self._q.append(self._q.popleft())
-> >
->     def pop(self):
->         return self._q.popleft()
-> >
->     def top(self):
->         return self._q[0]
-> >
->     def empty(self):
->         return not self._q
-> ```
-
-> [!success] Complexity
-> Time O(n) push, O(1) pop/top. Space O(n).
-
-> [!tip] Alternatives
-> - Two queues: push to q2, move all of q1 behind it, swap names — same O(n) push but uses more memory.
-> - Make pop O(n) instead: keep push O(1), rotate on pop. Choose based on which operation is called more frequently.
-
----
-
-### Design Circular Deque
-
-> [!example] Problem
-> Design your implementation of the circular double-ended queue (deque).
-> Implement the MyCircularDeque class
-> 
-> **Example 1:**
-> ```
-> Input
-> ["MyCircularDeque", "insertLast", "insertLast", "insertFront", "insertFront", "getRear", "isFull", "deleteLast", "insertFront", "getFront"]
-> [[3], [1], [2], [3], [4], [], [], [], [4], []]
-> Output
-> [null, true, true, true, false, 2, true, true, true, 4]
-> 
-> Explanation
-> MyCircularDeque myCircularDeque = new MyCircularDeque(3);
-> myCircularDeque.insertLast(1);  // return True
-> myCircularDeque.insertLast(2);  // return True
-> myCircularDeque.insertFront(3); // return True
-> myCircularDeque.insertFront(4); // return False, the queue is full.
-> myCircularDeque.getRear();      // return 2
-> myCircularDeque.isFull();       // return True
-> myCircularDeque.deleteLast();   // return True
-> myCircularDeque.insertFront(4); // return True
-> myCircularDeque.getFront();     // return 4
-> ```
-> 
-> **Constraints:**
-> - 1 <= k <= 1000
-> - 0 <= value <= 1000
-> - At most 2000 calls will be made to insertFront, insertLast, deleteFront, deleteLast, getFront, getRear, isEmpty, isFull.
-
-> [!info] Approach
-> A circular buffer lets us use O(1) index arithmetic without shifting elements. Maintain `front`, `rear`, `size`, and an array of capacity `k`. Update indices with modulo arithmetic. For example, moving left uses `(idx - 1 + k) % k` and moving right uses `(idx + 1) % k`.
-
-> [!note]- Python Solution
-> ```python
-> class MyCircularDeque:
->     def __init__(self, k):
->         self.arr = [0] * k
->         self.k = k
->         self.front = 0
->         self.size = 0
-> 
->     def insert_front(self, value):
->         if self.isFull():
->             return False
->         self.front = (self.front - 1 + self.k) % self.k
->         self.arr[self.front] = value
->         self.size += 1
->         return True
-> ```
-
-> [!success] Complexity
-> O(1) for every operation, O(k) space.
-
-> [!tip] Alternatives
-> Linked-list deque is easier to generalize but has more pointer overhead than a circular array.
+- **Design Hit Counter** — see [Design Hit Counter](12-design.md#design-hit-counter--t1)
+- **Design Circular Queue** — A plain list wastes space as the front pointer drifts forward
+- **Moving Average from Data Stream** — Recomputing the sum from scratch on each insertion is O(size)
+- **Number of Recent Calls** — Old timestamps outside the window are never useful again
+- **Implement Stack Using Queues** — A queue is FIFO; to make the most recently pushed element accessible first, we must rotate older elements behind the new one after each push…
+- **Design Circular Deque** — A circular buffer lets us use O(1) index arithmetic without shifting elements
 
 ---
 

@@ -12,8 +12,8 @@ difficulty: mixed
 > [!abstract] In this file
 > **Covers:** Prefix sums, Fenwick tree, segment tree, merge-sort counting, sorted-list interval problems, heap sweeps.
 > **You'll be able to:** Pick the lightest structure for the update/query mix and write a Fenwick or iterative segment tree from memory.
-> **Prereqs:** Range Queries lecture · **Pair with:** [Range Queries lecture](../../02-algorithms/19-range-queries.md) · **Time:** 3 h
-> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../../00-start-here/l3-google-roadmap.md#tier-legend))
+> **Prereqs:** Range Queries lecture · **Pair with:** [Range Queries lecture](../../03-algorithms/15-range-queries.md) · **Time:** 3 h
+> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../../00-start-here/01-roadmap.md#tier-legend))
 
 **Sections:** [Prefix Sums](#prefix-sums) · [Fenwick Tree & Segment Tree](#fenwick-tree--segment-tree) · [Counting Pairs: Compression & Merge Sort](#counting-pairs-compression--merge-sort) · [Sweep Line & Intervals](#sweep-line--intervals) · [Heaps & Windows](#heaps--windows) · [Order Statistics with Fenwick](#order-statistics-with-fenwick)
 

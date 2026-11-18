@@ -10,8 +10,8 @@ difficulty: mixed
 > [!abstract] In this file
 > **Covers:** Worked hashing problems: complement map, frequency map, set operations, design, rolling hash.
 > **You'll be able to:** Reach for a map/set reflexively and pick the right key.
-> **Prereqs:** Hashing lecture · **Pair with:** [Hashing lecture](../../01-data-structures/02-hashing.md) · **Time:** 3 h
-> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../../00-start-here/l3-google-roadmap.md#tier-legend))
+> **Prereqs:** Hashing lecture · **Pair with:** [Hashing lecture](../../02-data-structures/02-hashing.md) · **Time:** 3 h
+> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../../00-start-here/01-roadmap.md#tier-legend))
 
 **Sections:** [Complement Map](#complement-map) · [Prefix Sum + Map](#prefix-sum--map) · [Frequency Map](#frequency-map) · [Design](#design) · [Set Operations](#set-operations) · [Rolling Hash / Dedup](#rolling-hash--dedup)
 
@@ -91,7 +91,7 @@ difficulty: mixed
 ### 3Sum (hash-based) `⚡ T1`
 
 > [!example] Problem
-> Same problem as [3Sum (LC 15)](../algorithms/03-two-pointers.md#3sum-lc-15--t1) — this section covers the alternative approach only.
+> Same problem as [3Sum (LC 15)](../algorithms/02-two-pointers.md#3sum-lc-15--t1) — this section covers the alternative approach only.
 
 > [!info] Approach
 > Reduce to two-sum: fix element `a`, find pair `(b, c)` with `b + c = -a` in the remaining array. Sort first to handle duplicates. For each index `i`, use a set to find complements in `nums[i+1:]`. Sort. Skip duplicate values of `a`. For the inner scan, use a seen set: if `target - b` in seen, record triplet; else add `b` to seen.
@@ -133,7 +133,7 @@ difficulty: mixed
 ### 4Sum (hash-based) `⚡ T1`
 
 > [!example] Problem
-> Same problem as [4Sum (LC 18)](../algorithms/03-two-pointers.md#4sum-lc-18--t1) — this section covers the alternative approach only.
+> Same problem as [4Sum (LC 18)](../algorithms/02-two-pointers.md#4sum-lc-18--t1) — this section covers the alternative approach only.
 
 > [!info] Approach
 > Reduce to 3Sum by fixing one element. Reduce 3Sum to 2Sum by fixing another. Sort + two outer loops (skip duplicates) + hash set inner two-sum. Fix `nums[i]` and `nums[j]`. Inner target is `target - nums[i] - nums[j]`. Use seen set for two-sum on remaining elements.
@@ -172,12 +172,6 @@ difficulty: mixed
 
 > [!tip] Alternatives
 > Four-pointer two-pointer approach O(n³) O(1) space. For exactly 4 arrays (4Sum II), hash all A+B sums then count complementary C+D — O(n²) time and space.
-
----
-
-### Max Number of K-Sum Pairs
-
-> Full walkthrough: [Max Number of K-Sum Pairs (LC 1679)](../algorithms/03-two-pointers.md#max-number-of-k-sum-pairs-lc-1679).
 
 ---
 
@@ -235,6 +229,10 @@ difficulty: mixed
 
 > [!tip] Alternatives
 > Meet-in-the-middle generalizes: split k arrays into two halves of k/2, hash one half's sums, probe with the other. Always yields O(n^(k/2)) for k-sum variants.
+
+**Also try:**
+
+- **Max Number of K-Sum Pairs** — see [Max Number of K-Sum Pairs (LC 1679)](../algorithms/02-two-pointers.md#sorted-array--two-pointer-greedy)
 
 ---
 
@@ -302,43 +300,6 @@ difficulty: mixed
 
 ---
 
-### Longest Subarray with Sum K
-
-> [!example] Problem
-> Find the maximum length of a contiguous subarray with sum equal to `k`. Array may contain negatives.
-
-> [!info] Approach
-> Sliding window fails with negatives. Prefix sum trick: subarray `[i+1, j]` has sum `k` iff `prefix[j] - prefix[i] = k`, i.e., `prefix[i] = prefix[j] - k`. For maximum length, store the *first* occurrence of each prefix sum. When we see `prefix - k` again later, the gap is as large as possible. `first_seen = {0: -1}`. At index `i`, if `prefix - k` in map, update `best = max(best, i - first_seen[prefix - k])`. Only insert prefix if not already present (preserve earliest index).
-
-> [!note]- Python Solution
-> ```python
-> def max_subarray_len(nums, k):
->     first_seen = {0: -1}
->     prefix = 0
->     best = 0
->     for i, x in enumerate(nums):
->         prefix += x
->         if prefix - k in first_seen:
->             best = max(best, i - first_seen[prefix - k])
->         if prefix not in first_seen:
->             first_seen[prefix] = i
->     return best
-> ```
-
-> [!success] Complexity
-> Time O(n); Space O(n).
-
-> [!tip] Alternatives
-> For non-negative arrays only: sliding window O(n) O(1). For the general case this prefix-map approach is optimal.
-
----
-
-### Count Number of Nice Subarrays
-
-> Full walkthrough: [Count Number of Nice Subarrays (LC 1248)](../algorithms/04-sliding-window.md#count-number-of-nice-subarrays-lc-1248).
-
----
-
 ### Subarray Sum Equals K `⚡ T1`
 
 > [!example] Problem
@@ -389,40 +350,6 @@ difficulty: mixed
 
 > [!tip] Alternatives
 > O(n²) prefix sum array with nested loop — correct but slow. Sliding window — only works for positive numbers.
-
----
-
-### Make the Array Sum Divisible by P
-
-> [!example] Problem
-> Remove the shortest subarray so that the remaining sum is divisible by `P`.
-
-> [!info] Approach
-> We want `(total - subarray_sum) % P == 0`, i.e., `subarray_sum % P == total % P`. Find the shortest subarray with that remainder. Prefix sums mod P. For each `j`, want the most recent `i` where `prefix[i] % P == (prefix[j] - rem) % P`. `rem = sum(nums) % P`. If `rem == 0`, return 0. Use `seen = {0: -1}`. At each step store `prefix % P → i`. Look up `(prefix - rem) % P`.
-
-> [!note]- Python Solution
-> ```python
-> def min_subarray(nums, p):
->     rem = sum(nums) % p
->     if rem == 0:
->         return 0
->     seen = {0: -1}
->     prefix = 0
->     best = len(nums)
->     for i, x in enumerate(nums):
->         prefix = (prefix + x) % p
->         target = (prefix - rem) % p
->         if target in seen:
->             best = min(best, i - seen[target])
->         seen[prefix] = i
->     return best if best < len(nums) else -1
-> ```
-
-> [!success] Complexity
-> Time O(n); Space O(n).
-
-> [!tip] Alternatives
-> No better approach — this is the canonical O(n) solution.
 
 ---
 
@@ -479,115 +406,15 @@ difficulty: mixed
 > [!tip] Alternatives
 > Prefix array + O(n²) nested loop — correct, slow. This is optimal.
 
+**Also try:**
+
+- **Longest Subarray with Sum K** — Sliding window fails with negatives
+- **Count Number of Nice Subarrays** — see [Count Number of Nice Subarrays (LC 1248)](../algorithms/03-sliding-window.md#variable-window--exactly-k)
+- **Make the Array Sum Divisible by P** — We want `(total - subarray_sum) % P == 0`, i.e., `subarray_sum % P == total % P`
+
 ---
 
 ## Frequency Map
-
----
-
-### First Unique Character in a String
-
-> [!example] Problem
-> Given a string s, find the first non-repeating character in it and return its index. If it does not exist, return -1.
-> 
-> **Example 1:**
-> ```
-> Input: s = "leetcode"
-> Output: 0
-> Explanation:
-> The character 'l' at index 0 is the first character that does not occur at any other index.
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: s = "loveleetcode"
-> Output: 2
-> ```
-> 
-> **Example 3:**
-> ```
-> Input: s = "aabb"
-> Output: -1
-> ```
-> 
-> **Constraints:**
-> - 1 <= s.length <= 10^5
-> - s consists of only lowercase English letters.
-
-> [!info] Approach
-> Need both frequency (to identify unique) and order (to find the first). Count all frequencies, then scan left to right for the first character with count 1. `Counter` in one pass; second pass finds first with count 1. Two O(n) passes.
-
-> [!note]- Python Solution
-> ```python
-> from collections import Counter
-> >
-> def first_uniq_char(s):
->     freq = Counter(s)
->     for i, ch in enumerate(s):
->         if freq[ch] == 1:
->             return i
->     return -1
-> ```
-
-> [!success] Complexity
-> Time O(n); Space O(1) — 26-character alphabet.
-
-> [!tip] Alternatives
-> OrderedDict to track first occurrence — same complexity, more verbose.
-
----
-
-### Ransom Note
-
-> [!example] Problem
-> Given two strings ransomNote and magazine, return true if ransomNote can be constructed by using the letters from magazine and false otherwise.
-> Each letter in magazine can only be used once in ransomNote.
-> 
-> **Example 1:**
-> ```
-> Input: ransomNote = "a", magazine = "b"
-> Output: false
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: ransomNote = "aa", magazine = "ab"
-> Output: false
-> ```
-> 
-> **Example 3:**
-> ```
-> Input: ransomNote = "aa", magazine = "aab"
-> Output: true
-> ```
-> 
-> **Constraints:**
-> - 1 <= ransomNote.length, magazine.length <= 10^5
-> - ransomNote and magazine consist of lowercase English letters.
-
-> [!info] Approach
-> This is a frequency matching problem; each character in the note must be available at least as many times as needed. Count letters in the magazine and decrement as you consume letters from the note. Use a hash map or `Counter`; if any needed character drops below zero, return `false`. A quick length check can short-circuit impossible cases.
-
-> [!note]- Python Solution
-> ```python
-> from collections import Counter
-> >
-> def can_construct(ransom_note, magazine):
->     if len(ransom_note) > len(magazine):
->         return False
->     count = Counter(magazine)
->     for ch in ransom_note:
->         if count[ch] == 0:
->             return False
->         count[ch] -= 1
->     return True
-> ```
-
-> [!success] Complexity
-> Time O(m + n); Space O(1) extra for lowercase letters.
-
-> [!tip] Alternatives
-> Sort + two pointers works too, but frequency counting is the direct interview answer.
 
 ---
 
@@ -647,267 +474,14 @@ difficulty: mixed
 > [!tip] Alternatives
 > `heapq.nlargest(k, freq, key=freq.get)` — O(n log k), clean one-liner but not O(n). QuickSelect on frequencies — O(n) average, O(n²) worst.
 
----
+**Also try:**
 
-### Subdomain Visit Count
-
-> [!example] Problem
-> A website domain "discuss.leetcode.com" consists of various subdomains. At the top level, we have "com", at the next level, we have "leetcode.com" and at the lowest level, "discuss.leetcode.com". When we visit a domain like "discuss.leetcode.com", we will also visit the parent domains "leetcode.com" and "com" implicitly.
-> A count-paired domain is a domain that has one of the two formats "rep d1.d2.d3" or "rep d1.d2" where rep is the number of visits to the domain and d1.d2.d3 is the domain itself.
-> Given an array of count-paired domains cpdomains, return an array of the count-paired domains of each subdomain in the input. You may return the answer in any order.
-> 
-> **Example 1:**
-> ```
-> Input: cpdomains = ["9001 discuss.leetcode.com"]
-> Output: ["9001 leetcode.com","9001 discuss.leetcode.com","9001 com"]
-> Explanation: We only have one website domain: "discuss.leetcode.com".
-> As discussed above, the subdomain "leetcode.com" and "com" will also be visited. So they will all be visited 9001 times.
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: cpdomains = ["900 google.mail.com", "50 yahoo.com", "1 intel.mail.com", "5 wiki.org"]
-> Output: ["901 mail.com","50 yahoo.com","900 google.mail.com","5 wiki.org","5 org","1 intel.mail.com","951 com"]
-> Explanation: We will visit "google.mail.com" 900 times, "yahoo.com" 50 times, "intel.mail.com" once and "wiki.org" 5 times.
-> For the subdomains, we will visit "mail.com" 900 + 1 = 901 times, "com" 900 + 50 + 1 = 951 times, and "org" 5 times.
-> ```
-> 
-> **Constraints:**
-> - 1 <= cpdomain.length <= 100
-> - 1 <= cpdomain[i].length <= 100
-> - cpdomain[i] follows either the "repi d1i.d2i.d3i" format or the "repi d1i.d2i" format.
-> - repi is an integer in the range [1, 10^4].
-> - d1i, d2i, and d3i consist of lowercase English letters.
-
-> [!info] Approach
-> Each domain contributes its count to itself and all suffix domains. Aggregate with a frequency map. Parse count and domain. Split domain on `.` and generate all suffixes. Accumulate counts. For `"9 discuss.leetcode.com"` add 9 to `discuss.leetcode.com`, `leetcode.com`, and `com`. Format output as `"count domain"` strings.
-
-> [!note]- Python Solution
-> ```python
-> from collections import defaultdict
-> >
-> def subdomain_visits(cpdomains):
->     counts = defaultdict(int)
->     for entry in cpdomains:
->         count_str, domain = entry.split()
->         count = int(count_str)
->         parts = domain.split('.')
->         for i in range(len(parts)):
->             subdomain = '.'.join(parts[i:])
->             counts[subdomain] += count
->     return [f"{v} {k}" for k, v in counts.items()]
-> ```
-
-> [!success] Complexity
-> Time O(n * L) where L = max domain depth; Space O(n * L).
-
-> [!tip] Alternatives
-> No significantly different approach — the suffix enumeration is inherent.
-
----
-
-### Sort Characters by Frequency
-
-> [!example] Problem
-> Given a string s, sort it in decreasing order based on the frequency of the characters. The frequency of a character is the number of times it appears in the string.
-> Return the sorted string. If there are multiple answers, return any of them.
-> 
-> **Example 1:**
-> ```
-> Input: s = "tree"
-> Output: "eert"
-> Explanation: 'e' appears twice while 'r' and 't' both appear once.
-> So 'e' must appear before both 'r' and 't'. Therefore "eetr" is also a valid answer.
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: s = "cccaaa"
-> Output: "aaaccc"
-> Explanation: Both 'c' and 'a' appear three times, so both "cccaaa" and "aaaccc" are valid answers.
-> Note that "cacaca" is incorrect, as the same characters must be together.
-> ```
-> 
-> **Example 3:**
-> ```
-> Input: s = "Aabb"
-> Output: "bbAa"
-> Explanation: "bbaA" is also a valid answer, but "Aabb" is incorrect.
-> Note that 'A' and 'a' are treated as two different characters.
-> ```
-> 
-> **Constraints:**
-> - 1 <= s.length <= 5 * 10^5
-> - s consists of uppercase and lowercase English letters and digits.
-
-> [!info] Approach
-> Need characters ordered by count descending. Count frequencies, then rebuild string: higher-frequency characters first. `Counter`, then sort by count descending, rebuild via `ch * count` concatenation.
-
-> [!note]- Python Solution
-> ```python
-> from collections import Counter
-> >
-> def frequency_sort(s):
->     freq = Counter(s)
->     sorted_chars = sorted(freq.keys(), key=lambda c: -freq[c])
->     return ''.join(c * freq[c] for c in sorted_chars)
-> ```
-
-> [!success] Complexity
-> Time O(n + k log k) where k = distinct chars; Space O(n).
-
-> [!tip] Alternatives
-> Bucket sort by frequency — O(n) time. Index is frequency, bucket contains chars with that frequency. Iterate buckets high to low.
-
----
-
-### Substring with Concatenation of All Words
-
-> [!example] Problem
-> You are given a string s and an array of strings words. All the strings of words are of the same length.
-> A concatenated string is a string that exactly contains all the strings of any permutation of words concatenated.
-> Return an array of the starting indices of all the concatenated substrings in s. You can return the answer in any order.
-> 
-> **Example 1:**
-> ```
-> Input: s = "barfoothefoobarman", words = ["foo","bar"]
-> Output: [0,9]
-> Explanation:
-> The substring starting at 0 is "barfoo" . It is the concatenation of ["bar","foo"] which is a permutation of words . The substring starting at 9 is "foobar" . It is the concatenation of ["foo","bar"] which is a permutation of words .
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: s = "wordgoodgoodgoodbestword", words = ["word","good","best","word"]
-> Output: []
-> Explanation:
-> There is no concatenated substring.
-> ```
-> 
-> **Example 3:**
-> ```
-> Input: s = "barfoofoobarthefoobarman", words = ["bar","foo","the"]
-> Output: [6,9,12]
-> Explanation:
-> The substring starting at 6 is "foobarthe" . It is the concatenation of ["foo","bar","the"] . The substring starting at 9 is "barthefoo" . It is the concatenation of ["bar","the","foo"] . The substring starting at 12 is "thefoobar" . It is the concatenation of ["the","foo","bar"] .
-> ```
-> 
-> **Constraints:**
-> - 1 <= s.length <= 10^4
-> - 1 <= words.length <= 5000
-> - 1 <= words[i].length <= 30
-> - s and words[i] consist of lowercase English letters.
-
-> [!info] Approach
-> Words are fixed length. Enumerate all starting offsets 0 to `word_len - 1`. For each, slide a window of `num_words` words and compare word frequency maps. `words_count` = Counter of required words. Slide a window by one word at a time. Track current window word frequencies and a `have` count. For each offset in `[0, word_len)`, maintain a sliding window of exactly `num_words * word_len` characters. Add/remove one word at a time from window ends.
-
-> [!note]- Python Solution
-> ```python
-> from collections import Counter
-> >
-> def find_substring(s, words):
->     if not s or not words:
->         return []
->     wlen = len(words[0])
->     num_words = len(words)
->     total = wlen * num_words
->     words_count = Counter(words)
->     result = []
->     for offset in range(wlen):
->         window = {}
->         have = 0
->         left = offset
->         for right in range(offset, len(s) - wlen + 1, wlen):
->             word = s[right:right + wlen]
->             if word in words_count:
->                 window[word] = window.get(word, 0) + 1
->                 if window[word] == words_count[word]:
->                     have += 1
->                 while window[word] > words_count[word]:
->                     left_word = s[left:left + wlen]
->                     if window[left_word] == words_count.get(left_word, 0):
->                         have -= 1
->                     window[left_word] -= 1
->                     left += wlen
->                 if have == len(words_count):
->                     result.append(left)
->             else:
->                 window.clear()
->                 have = 0
->                 left = right + wlen
->     return result
-> ```
-
-> [!success] Complexity
-> Time O(n * word_len); Space O(num_words).
-
-> [!tip] Alternatives
-> Brute force generating all permutations — O(n * n! * word_len), infeasible. The sliding window per offset is optimal.
-
----
-
-### Max Points on a Line
-
-> [!example] Problem
-> Given an array of points where points[i] = [xi, yi] represents a point on the X-Y plane, return the maximum number of points that lie on the same straight line.
-> 
-> **Example 1:**
-> ```
-> Input: points = [[1,1],[2,2],[3,3]]
-> Output: 3
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: points = [[1,1],[3,2],[5,3],[4,1],[2,3],[1,4]]
-> Output: 4
-> ```
-> 
-> **Constraints:**
-> - 1 <= points.length <= 300
-> - points[i].length == 2
-> - -10^4 <= xi, yi <= 10^4
-> - All the points are unique.
-
-> [!info] Approach
-> For each pair of points, their line is defined by slope. Points on the same line share the same slope relative to a fixed anchor. Fix each point as anchor. For all other points, compute the slope as a reduced fraction `(dy/gcd, dx/gcd)`. Count max slope frequency. For each anchor `i`, build a slope map. Use `gcd` to normalize: slope = `(dy // g, dx // g)`. Handle vertical lines (`dx == 0`) and same-point duplicates separately.
-
-> [!note]- Python Solution
-> ```python
-> from math import gcd
-> from collections import defaultdict
-> >
-> def max_points(points):
->     n = len(points)
->     if n <= 2:
->         return n
->     best = 2
->     for i in range(n):
->         slopes = defaultdict(int)
->         duplicates = 0
->         for j in range(i + 1, n):
->             dx = points[j][0] - points[i][0]
->             dy = points[j][1] - points[i][1]
->             if dx == 0 and dy == 0:
->                 duplicates += 1
->                 continue
->             g = gcd(abs(dx), abs(dy))
->             dx //= g
->             dy //= g
->             # Normalize sign: keep dx positive (or dy positive if dx == 0)
->             if dx < 0 or (dx == 0 and dy < 0):
->                 dx, dy = -dx, -dy
->             slopes[(dx, dy)] += 1
->         local_best = max(slopes.values(), default=0) + 1 + duplicates
->         best = max(best, local_best)
->     return best
-> ```
-
-> [!success] Complexity
-> Time O(n² log(max_coord)); Space O(n).
-
-> [!tip] Alternatives
-> O(n³) brute force checking all triples for collinearity — correct but cubic. The slope map approach is canonical.
+- **First Unique Character in a String** — Need both frequency (to identify unique) and order (to find the first)
+- **Ransom Note** — This is a frequency matching problem; each character in the note must be available at least as many times as needed
+- **Subdomain Visit Count** — Each domain contributes its count to itself and all suffix domains
+- **Sort Characters by Frequency** — Need characters ordered by count descending
+- **Substring with Concatenation of All Words** — Words are fixed length
+- **Max Points on a Line** — For each pair of points, their line is defined by slope
 
 ---
 
@@ -917,7 +491,7 @@ difficulty: mixed
 
 ### Insert Delete GetRandom O(1) `⚡ T1`
 
-> Full walkthrough: [Insert Delete GetRandom O(1)](14-design.md#insert-delete-getrandom-o1--t1).
+> Full walkthrough: [Insert Delete GetRandom O(1)](12-design.md#insert-delete-getrandom-o1--t1).
 
 ---
 
@@ -992,99 +566,6 @@ difficulty: mixed
 ---
 
 ## Set Operations
-
----
-
-### Contains Duplicate
-
-> [!example] Problem
-> Given an integer array nums, return true if any value appears at least twice in the array, and return false if every element is distinct.
-> 
-> **Example 1:**
-> ```
-> Input: nums = [1,2,3,1]
-> Output: true
-> Explanation:
-> The element 1 occurs at the indices 0 and 3.
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: nums = [1,2,3,4]
-> Output: false
-> Explanation:
-> All elements are distinct.
-> ```
-> 
-> **Example 3:**
-> ```
-> Input: nums = [1,1,1,3,3,4,3,2,4,2]
-> Output: true
-> ```
-> 
-> **Constraints:**
-> - 1 <= nums.length <= 10^5
-> - -10^9 <= nums[i] <= 10^9
-
-> [!info] Approach
-> Membership check in O(1) is exactly what a hash set provides. Insert elements one by one. If an element is already in the set, a duplicate exists. Single pass: if `x in seen` return True; else `seen.add(x)`. Short-circuits on first duplicate.
-
-> [!note]- Python Solution
-> ```python
-> def contains_duplicate(nums):
->     seen = set()
->     for x in nums:
->         if x in seen:
->             return True
->         seen.add(x)
->     return False
-> ```
-
-> [!success] Complexity
-> Time O(n); Space O(n).
-
-> [!tip] Alternatives
-> `len(nums) != len(set(nums))` — one-liner, same complexity. Sort and scan adjacent pairs — O(n log n) O(1) space.
-
----
-
-### Intersection of Two Arrays
-
-> [!example] Problem
-> Given two integer arrays nums1 and nums2, return an array of their intersection. Each element in the result must be unique and you may return the result in any order.
-> 
-> **Example 1:**
-> ```
-> Input: nums1 = [1,2,2,1], nums2 = [2,2]
-> Output: [2]
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: nums1 = [4,9,5], nums2 = [9,4,9,8,4]
-> Output: [9,4]
-> Explanation: [4,9] is also accepted.
-> ```
-> 
-> **Constraints:**
-> - 1 <= nums1.length, nums2.length <= 1000
-> - 0 <= nums1[i], nums2[i] <= 1000
-
-> [!info] Approach
-> Set intersection directly models the problem. O(1) membership check makes it efficient. Convert both to sets. Return their intersection as a list. `set(nums1) & set(nums2)` in Python. For an explicit approach: iterate the smaller set, check membership in the larger.
-
-> [!note]- Python Solution
-> ```python
-> def intersection(nums1, nums2):
->     set1, set2 = set(nums1), set(nums2)
->     return list(set1 & set2)
-> ```
-
-> [!success] Complexity
-> Time O(n + m); Space O(min(n, m)) for the result.
-
-> [!tip] Alternatives
-> Sort both + two pointers — O(n log n + m log m), O(1) extra space. Use for follow-up "what if arrays are sorted?"
 
 ---
 
@@ -1252,6 +733,11 @@ difficulty: mixed
 > [!tip] Follow-up
 > Use a single set of strings like `"5 in row 0"`, `"5 in col 1"`, `"5 in box 0"` for a compact one-set variant. Sudoku Solver (backtracking) reuses these exact structures to prune.
 
+**Also try:**
+
+- **Contains Duplicate** — Membership check in O(1) is exactly what a hash set provides
+- **Intersection of Two Arrays** — Set intersection directly models the problem
+
 ---
 
 ## Rolling Hash / Dedup
@@ -1260,63 +746,11 @@ difficulty: mixed
 
 ### Longest Duplicate Substring (Rabin-Karp) `⚡ T1`
 
-> Full walkthrough: [Longest Duplicate Substring](../algorithms/02-string-algorithms.md#longest-duplicate-substring--t1).
+> Full walkthrough: [Longest Duplicate Substring](../algorithms/12-string-algorithms.md#longest-duplicate-substring--t1).
 
----
+**Also try:**
 
-### Find Duplicate File in System
-
-> [!example] Problem
-> Given a list paths of directory info, including the directory path, and all the files with contents in this directory, return all the duplicate files in the file system in terms of their paths. You may return the answer in any order.
-> A group of duplicate files consists of at least two files that have the same content.
-> A single directory info string in the input list has the following format:
-> It means there are n files (f1.txt, f2.txt ... fn.txt) with content (f1_content, f2_content ... fn_content) respectively in the directory "root/d1/d2/.../dm". Note that n >= 1 and m >= 0. If m = 0, it means the directory is just the root directory.
-> The output is a list of groups of duplicate file paths. For each group, it contains all the file paths of the files that have the same content. A file path is a string that has the following format
-> 
-> **Example 1:**
-> ```
-> Input: paths = ["root/a 1.txt(abcd) 2.txt(efgh)","root/c 3.txt(abcd)","root/c/d 4.txt(efgh)","root 4.txt(efgh)"]
-> Output: [["root/a/2.txt","root/c/d/4.txt","root/4.txt"],["root/a/1.txt","root/c/3.txt"]]
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: paths = ["root/a 1.txt(abcd) 2.txt(efgh)","root/c 3.txt(abcd)","root/c/d 4.txt(efgh)"]
-> Output: [["root/a/2.txt","root/c/d/4.txt"],["root/a/1.txt","root/c/3.txt"]]
-> ```
-> 
-> **Constraints:**
-> - 1 <= paths.length <= 2 * 10^4
-> - 1 <= paths[i].length <= 3000
-> - 1 <= sum(paths[i].length) <= 5 * 10^5
-> - paths[i] consist of English letters, digits, '/', '.', '(', ')', and ' '.
-> - You may assume no files or directories share the same name in the same directory.
-> - You may assume each given directory info represents a unique directory. A single blank space separates the directory path and file info.
-
-> [!info] Approach
-> Files with the same content are duplicates. Content is the natural key for a hash map. Parse each string into `(directory, filename, content)`. Group file paths by content string. For each entry split on spaces: first token is directory, rest are `name(content)` tokens. Extract content between `(` and `)`. Map `content → list[full_path]`. Return groups with size ≥ 2.
-
-> [!note]- Python Solution
-> ```python
-> from collections import defaultdict
-> >
-> def find_duplicate(paths):
->     content_map = defaultdict(list)
->     for path in paths:
->         parts = path.split()
->         directory = parts[0]
->         for file_entry in parts[1:]:
->             name, _, content = file_entry.partition('(')
->             content = content.rstrip(')')
->             content_map[content].append(f"{directory}/{name}")
->     return [files for files in content_map.values() if len(files) > 1]
-> ```
-
-> [!success] Complexity
-> Time O(total characters); Space O(total characters).
-
-> [!tip] Alternatives
-> Real-world: hash file contents (MD5/SHA) rather than store raw content — avoids loading entire files. Then group by hash, verify collisions by byte comparison.
+- **Find Duplicate File in System** — Files with the same content are duplicates
 
 ---
 

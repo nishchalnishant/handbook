@@ -5,7 +5,7 @@ tags: [data-structures, linked-list]
 ---
 # Linked List — L3 Core
 
-← [Data structures index](./README.md) · [Patterns master](../03-patterns/patterns-master.md)
+← [Data structures index](README.md) · [Patterns master](../05-review/01-pattern-sheet.md)
 
 ## What this covers
 
@@ -13,7 +13,7 @@ tags: [data-structures, linked-list]
 > **Covers:** Pointer manipulation under invariants: dummy head, in-place reversal, fast/slow (middle, cycle, Floyd), merge, copy with random pointer, LRU (map + DLL).
 > **You'll be able to:** Reverse/merge/split lists without losing nodes; prove Floyd's cycle-start step; build LRU cache in O(1).
 > **Prereqs:** None · **Pair with:** [Linked list problems](../04-practice/data-structures/07-linked-list.md) · **Time:** 1.5 h
-> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../00-start-here/l3-google-roadmap.md#tier-legend))
+> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../00-start-here/01-roadmap.md#tier-legend))
 
 **Sections:** [Core Idea](#core-idea) · [Theory & Mental Models](#theory--mental-models) · [1. Concept Overview](#1-concept-overview) · [2. Core Algorithms & Click Moments](#2-core-algorithms--click-moments) · [3. Common Interview Problems](#3-common-interview-problems) · [Interview Questions — Logic & Trickiness](#interview-questions--logic--trickiness) · [Quick Revision Triggers](#quick-revision-triggers) · [Flashcards](#flashcards)
 
@@ -376,8 +376,8 @@ class LRUCache:
 - **[Remove Nth From End](../04-practice/data-structures/07-linked-list.md#remove-nth-node-from-end-of-list--t2) `🎯 T2`** — Fast advances N steps first; both advance together until fast.next is null.
 - **[Copy List with Random Pointer](../04-practice/data-structures/07-linked-list.md#copy-list-with-random-pointer--t2) `🎯 T2`** — Map `old → clone`; two passes. Or: interleave clones O(1) extra space.
 - **[Palindrome Linked List](../04-practice/data-structures/07-linked-list.md#palindrome-linked-list--t2) `🎯 T2`** — Find middle, reverse second half, compare, restore.
-- **[Add Two Numbers](../04-practice/data-structures/07-linked-list.md#add-two-numbers) `🎯 T2`** — Digit-by-digit sum with carry; handle length mismatch.
-- **[Swap Nodes in Pairs](../04-practice/data-structures/07-linked-list.md#swap-nodes-in-pairs) `🎯 T2`** — Reverse every two nodes; dummy node simplifies head case.
+- **[Add Two Numbers](../04-practice/data-structures/07-linked-list.md#other-manipulation) `🎯 T2`** — Digit-by-digit sum with carry; handle length mismatch.
+- **[Swap Nodes in Pairs](../04-practice/data-structures/07-linked-list.md#other-manipulation) `🎯 T2`** — Reverse every two nodes; dummy node simplifies head case.
 
 ### Hard
 - **[Merge K Sorted Lists](../04-practice/data-structures/10-heap.md#merge-k-sorted-lists--t1) `⚡ T1`** — Min-heap of K nodes; or divide-and-conquer pairwise merge.
@@ -429,7 +429,7 @@ class LRUCache:
 - [Heap](10-heap.md) — Merge K sorted lists via min-heap
 - [Hashing](02-hashing.md) — Copy list with random pointer; LRU cache hash map component
 - [Stack](05-stack.md) — Recursion uses call stack; iterative reversal eliminates it
-- [Patterns Master](../03-patterns/patterns-master.md) — fast & slow pointer pattern triggers
+- [Patterns Master](../05-review/01-pattern-sheet.md) — fast & slow pointer pattern triggers
 
 ## Flashcards
 

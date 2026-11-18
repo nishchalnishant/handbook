@@ -1,13 +1,18 @@
-# Google L3 Execution & Meta Cheatsheet
+---
+module: 00-start-here
+topic: Round Cheatsheet
+tags: [cheatsheet, round-execution, revision]
+---
+# Round Cheatsheet — Execution & Revision
 
 ## What this covers
 
 > [!abstract] In this file
-> **Covers:** Round execution: the 45-minute plan, constraint → Big-O table, decision keywords, Python essentials, universal edge cases, Big-O reference, what to skip at L3.
-> **You'll be able to:** Run every round on the same clock and pick the target complexity from N.
-> **Prereqs:** None · **Pair with:** [Interview judgment](../03-patterns/INTERVIEW_JUDGMENT.md) · [L3 roadmap](l3-google-roadmap.md) · **Time:** 20 min (reread before every mock)
+> **Covers:** The 45-minute plan, universal edge cases, what to skip at L3, what Google scores, how to talk, and 7-day / 48-hour / night-before revision plans.
+> **You'll be able to:** Run every round on the same clock and plan the final week.
+> **Prereqs:** None · **Pair with:** [Complexity & Python](../01-foundations/02-complexity-and-python.md) · [Pattern sheet](../05-review/01-pattern-sheet.md) · [Roadmap](01-roadmap.md) · **Time:** 20 min (reread before every mock)
 
-**Sections:** [1. 45-Minute Execution Plan](#1-45-minute-execution-plan) · [2. Constraint Analysis (N=10^5 → O(N) or O(N log N))](#2-constraint-analysis-n105--on-or-on-log-n) · [3. Decision Guide & Keywords](#3-decision-guide--keywords) · [4. Python Whiteboarding Essentials](#4-python-whiteboarding-essentials) · [5. Universal Edge Cases](#5-universal-edge-cases) · [6. Big-O Reference](#6-big-o-reference) · [7. Complexity Gotchas](#7-complexity-gotchas) · [8. What to Skip at L3](#8-what-to-skip-at-l3)
+**Sections:** [1. 45-Minute Execution Plan](#1-45-minute-execution-plan) · [2. Choosing the pattern](#2-choosing-the-pattern) · [3. Universal edge cases](#3-universal-edge-cases) · [4. What to skip at L3](#4-what-to-skip-at-l3) · [Round cheatsheet (one page)](#round-cheatsheet-one-page) · [Communication (how to sound clear at Google)](#communication-how-to-sound-clear-at-google) · [Revision schedules](#revision-schedules) · [After the interview](#after-the-interview)
 
 ---
 
@@ -17,48 +22,11 @@
 - **Min 15-35 (Code):** Write clean, modular, bug-free code. Stop talking to focus. Use helper functions.
 - **Min 35-45 (Dry Run & Big-O):** Trace code line-by-line with custom example. State Time/Space complexity. Fix bugs gracefully.
 
-## 2. Constraint Analysis (N=10^5 → O(N) or O(N log N))
-| N limit | Target Big-O | Algorithm Family |
-|---|---|---|
-| ≤ 10 | O(N!) | Permutations, exhaustive search |
-| ≤ 20 | O(2^N) | Backtracking, subsets, bitmask DP |
-| ≤ 500 | O(N^3) | 3D DP, interval DP, Floyd-Warshall |
-| ≤ 2,000 | O(N^2) | 2D DP, nested loops, matrix paths |
-| 10^5 | O(N log N) | Sorting, Binary Search, Heaps |
-| 10^5 - 10^6 | O(N) | Sliding Window, Two Pointers, Hash Maps |
-| 10^9+ | O(log N) or O(1) | Binary Search on Answer, Math |
+## 2. Choosing the pattern
 
-## 3. Decision Guide & Keywords
-- **Array/String:**
-  - Pair/target sum → HashMap
-  - Subarray sum = K → Prefix Sum + HashMap
-  - Longest/shortest substring → Sliding Window
-  - Max in window K → Monotonic Deque
-  - Next greater element → Monotonic Stack
-  - Sorted array target → Binary Search
-- **Grid/Graph:**
-  - Shortest path (unweighted) → BFS
-  - Shortest path (weighted) → Dijkstra
-  - Connected components / Islands → BFS/DFS or Union-Find
-  - Prerequisites / dependencies → Topological Sort (Kahn's)
-- **Trees/Lists:**
-  - Level-by-level → BFS
-  - Cycle detection → Fast/Slow pointers
-  - K sorted lists → Min-Heap
-- **DP/Optimization:**
-  - Min/Max target (overlapping) → DP
-  - All combinations → Backtracking
-  - Interval scheduling → Greedy (sort by end)
-  - Top K / dynamic extremum → Heap
+Keywords → technique: [Pattern sheet — quick decision trees](../05-review/01-pattern-sheet.md#quick-decision-trees). Constraint → target complexity: [Complexity budget](../01-foundations/02-complexity-and-python.md#1-constraint--complexity-budget).
 
-## 4. Python Whiteboarding Essentials
-- **Heaps:** `import heapq` (min-heap default). Multiply by -1 for max-heap. `heapify(arr)`, `heappush(arr, x)`, `heappop(arr)`.
-- **Queues:** `from collections import deque`. `q.append()`, `q.appendleft()`, `q.popleft()`, `q.pop()`. (Never `list.pop(0)`!)
-- **Maps/Sets:** `from collections import defaultdict, Counter`.
-- **Sorting:** `arr.sort(key=lambda x: (x[1], x[0]))`.
-- **Binary Search:** `import bisect`. `bisect_left(arr, x)`, `bisect_right(arr, x)`.
-
-## 5. Universal Edge Cases
+## 3. Universal edge cases
 - **General:** Empty input, single element, all identical, negative values, integer max bounds.
 - **Array:** Already sorted, reverse sorted, duplicates.
 - **String:** Case sensitivity, whitespace, special chars.
@@ -66,49 +34,90 @@
 - **Trees:** Skewed tree (O(n) height), `None` root, disconnected graphs, graph with cycles.
 - **Binary Search:** Off-by-one bounds (`lo <= hi`), infinite loops (`mid = (lo+hi)//2`).
 
-## 6. Big-O Reference
+## 4. What to skip at L3
+- **Do NOT study:** Segment Trees, Fenwick Trees (BIT), Tarjan/Kosaraju SCC, Floyd-Warshall, Bitmask/Digit DP, System Design. (They live in the repo as `💤 T3` — [Range Queries](../03-algorithms/15-range-queries.md), [DP practice](../04-practice/algorithms/08-dynamic-programming.md) — for L4+ or hard-round companies.) (Focus heavily on BFS/DFS, Heaps, Two Pointers, Binary Search instead).
 
-### Data structures
+---
+## Round cheatsheet (one page)
 
-| Structure | Insert | Search | Delete | Notes |
-| :--- | :--- | :--- | :--- | :--- |
-| Array | O(1) tail | O(n) | O(n) | Random access O(1) |
-| Hash map | O(1)* | O(1)* | O(1)* | *amortized average |
-| Stack / Queue | O(1) | — | O(1) | |
-| Linked list | O(1) head | O(n) | O(n) | |
-| Binary heap | O(log n) | O(1) peek | O(log n) | |
-| BST (balanced) | O(log n) | O(log n) | O(log n) | |
-| Trie | O(L) | O(L) | O(L) | L = key length |
+### What Google looks for (coding round)
 
-### Algorithm patterns
+- **Problem-solving**: Clarify → brute force → optimize → code → test → complexity.
+- **Communication**: Think out loud; state assumptions; ask about constraints (empty input, duplicates, size limits).
+- **Code quality**: Clear names, handle edge cases, correct complexity analysis.
 
-| Pattern | Time | Space | When |
-| :--- | :--- | :--- | :--- |
-| Two pointers | O(n) | O(1) | Sorted array, opposite ends |
-| Sliding window | O(n) | O(1)–O(k) | Contiguous subarray/substring |
-| Binary search | O(log n) | O(1) | Sorted or monotonic feasibility |
-| Sort + scan | O(n log n) | O(1)–O(n) | Intervals, greedy prep |
-| BFS / DFS | O(V+E) | O(V) | Graphs, grids |
-| Dijkstra | O((V+E) log V) | O(V) | Non-negative weights |
-| Topological sort | O(V+E) | O(V) | DAG dependencies |
-| Union-Find | O(α(n)) per op | O(n) | Dynamic connectivity |
-| 1D DP | O(n) | O(n) → O(1) | Linear recurrence |
-| 2D DP | O(n·m) | O(n·m) → O(m) | Grid, LCS, edit distance |
-| Backtracking | O(k^n) worst | O(n) stack | Generate all valid configs |
+### Topic priority (typical frequency)
 
-### Common complexity mistakes
+| Priority | Topics | Patterns to nail |
+|----------|--------|------------------|
+| **1** | Arrays, Strings, Hashing | Two pointers, sliding window, prefix sum + map, frequency map |
+| **2** | Trees, Graphs | BFS/DFS, LCA, topo sort, shortest path (BFS / Dijkstra) |
+| **3** | DP | 1D recurrence, 2D (LCS/grid), interval DP basics |
+| **4** | Heap, Binary Search | Top-K, merge K lists, BS on answer, rotated array |
+| **5** | Stack/Queue | Monotonic stack, monotonic deque |
 
-- Nested loop on n=10⁵ → O(n²) TLE
-- BFS on weighted graph → wrong; use Dijkstra
-- Greedy on coin change (arbitrary denominations) → wrong; use DP
-- Forgetting `seen[0]=1` in prefix-sum counting
-- Marking graph nodes visited **after** enqueue (BFS duplicates)
+### Complexity you must state correctly
 
-## 7. Complexity Gotchas
-- **Amortized O(1):** Hash map insertions, Python `list.append()`.
-- **Space:** Recursion depth uses stack space! DFS on skewed tree is O(N) space.
-- **String Concat:** `s += c` in a loop is O(N^2). Use `"".join(list)` for O(N).
-- **Master Theorem:** Recognize when halving vs subtracting changes complexity.
+Sound bites — say them exactly like this:
 
-## 8. What to Skip at L3
-- **Do NOT study:** Segment Trees, Fenwick Trees (BIT), Tarjan/Kosaraju SCC, Floyd-Warshall, Bitmask/Digit DP, System Design. (They live in the repo as `💤 T3` — [Range Queries](../02-algorithms/19-range-queries.md), [DP practice](../04-practice/algorithms/15-dynamic-programming.md) — for L4+ or hard-round companies.) (Focus heavily on BFS/DFS, Heaps, Two Pointers, Binary Search instead).
+- “We visit each node/edge at most once → **O(V + E)**” (BFS/DFS); Dijkstra: **O((V + E) log V)** with min-heap.
+- “Sorting dominates → **O(N log N)**.”
+- “Hash map gives O(1) average lookup, so overall **O(N)**.”
+- “Binary search on answer: O(N) check per mid × O(log range) mids → **O(N log range)**.”
+- Sliding window: usually **O(N)** time.
+
+### Open with / Close with
+
+**Open:** repeat the problem in your words; ask — size limits? duplicates? can we modify input?
+**Close:** state time and space; run two test cases (normal + edge); name a follow-up (stream, huge n).
+
+---
+
+## Communication (how to sound clear at Google)
+
+1. **Start:** “Let me restate the problem and confirm constraints: can the array be empty? Are numbers non-negative?”
+2. **Brute force:** “A naive approach would be O(…) because …”
+3. **Optimize:** “We can improve by … which brings it to O(…) because …”
+4. **While coding:** Narrate non-obvious indices and invariants (“`left` is always the start of the valid window”).
+5. **End:** “Time is O(…), space is O(…). Edge cases: empty input, single element, …”
+
+If stuck: “I’m considering BFS vs DFS — for shortest path in an unweighted graph I’ll use BFS because…”
+
+---
+
+## Revision schedules
+
+### If you have 7 days
+
+| Day | Focus | Action |
+|-----|--------|--------|
+| 1 | Arrays + hashing | Review [array](../02-data-structures/01-array.md) + [hashing](../02-data-structures/02-hashing.md); 4 problems |
+| 2 | Strings + two pointers | [string](../02-data-structures/03-string.md) + sliding window pattern; 4 problems |
+| 3 | Trees + BST | [tree](../02-data-structures/08-tree.md); 3 problems |
+| 4 | Graphs | [graph](../02-data-structures/11-graphs.md); BFS/DFS/topo; 4 problems |
+| 5 | DP | [DP](../03-algorithms/08-dynamic-programming.md) + [recursion → DP](../03-algorithms/07-recursion-to-dp.md); 4 problems |
+| 6 | Heap + binary search + stack | [heap](../02-data-structures/10-heap.md), [binary search](../03-algorithms/04-binary-search.md), [stack](../02-data-structures/05-stack.md); 4 problems |
+| 7 | Mixed mock | 2 timed problems (45 min each) + review mistakes |
+
+### If you have 48 hours
+
+- **Hour 0–4:** [this cheatsheet](#1-45-minute-execution-plan) + redo 2 Medium problems you failed recently.
+- **Hour 4–12:** Skim Quick Revision in: array, tree, graph, DP, heap, binary search.
+- **Hour 12–24:** One full mock (2 problems); note gaps only.
+- **Hour 24–36:** Only gaps + Union-Find + topo sort if weak.
+- **Hour 36–48:** Sleep, light review of the round cheatsheet, no new problems.
+
+### Night before
+
+- Skim the **round cheatsheet** (edge cases, Big-O).
+- Do **not** cram new topics; review **one** problem per weak area only.
+- Prepare 2–3 questions for your interviewers (team, code review, on-call).
+
+---
+
+## After the interview
+
+- Jot down problems you saw (titles only) while memory is fresh — helps if you have future rounds.
+- Regardless of outcome, note **one** pattern to drill next time.
+
+---

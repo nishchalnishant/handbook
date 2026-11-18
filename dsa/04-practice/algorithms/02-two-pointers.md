@@ -10,8 +10,8 @@ difficulty: mixed
 > [!abstract] In this file
 > **Covers:** Worked two-pointer problems: converging, fast/slow, partition, palindrome, two-sum variants, greedy two-pointer.
 > **You'll be able to:** Solve the T1 two-pointer set cold with a stated invariant.
-> **Prereqs:** Two-pointers lecture · **Pair with:** [Two-pointers lecture](../../02-algorithms/03-two-pointers.md) · **Time:** 3 h
-> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../../00-start-here/l3-google-roadmap.md#tier-legend))
+> **Prereqs:** Two-pointers lecture · **Pair with:** [Two-pointers lecture](../../03-algorithms/02-two-pointers.md) · **Time:** 3 h
+> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../../00-start-here/01-roadmap.md#tier-legend))
 
 **Sections:** [Opposite Ends (Sorted Array)](#opposite-ends-sorted-array) · [Same Direction (Fast/Slow)](#same-direction-fastslow) · [Partition / Dutch National Flag](#partition--dutch-national-flag) · [Linked List Two Pointers](#linked-list-two-pointers) · [Palindrome Two Pointers](#palindrome-two-pointers) · [Hash Map Two-Sum Variant](#hash-map-two-sum-variant) · [Sorted Array / Two-Pointer Greedy](#sorted-array--two-pointer-greedy) · [Two-Pointer on Strings](#two-pointer-on-strings)
 
@@ -428,75 +428,6 @@ difficulty: mixed
 
 ---
 
-### Remove Element (LC 27)
-
-> [!example] Problem
-> Given an integer array nums and an integer val, remove all occurrences of val in nums in-place. The order of the elements may be changed. Then return the number of elements in nums which are not equal to val.
-> Consider the number of elements in nums which are not equal to val be k, to get accepted, you need to do the following things:
-> Custom Judge:
-> The judge will test your solution with the following code:
-> If all assertions pass, then your solution will be accepted.
-> 
-> **Example 1:**
-> ```
-> int[] nums = [...]; // Input array
-> int val = ...; // Value to remove
-> int[] expectedNums = [...]; // The expected answer with correct length.
->                             // It is sorted with no values equaling val.
-> 
-> int k = removeElement(nums, val); // Calls your implementation
-> 
-> assert k == expectedNums.length;
-> sort(nums, 0, k); // Sort the first k elements of nums
-> for (int i = 0; i < actualLength; i++) {
->     assert nums[i] == expectedNums[i];
-> }
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: nums = [3,2,2,3], val = 3
-> Output: 2, nums = [2,2,_,_]
-> Explanation: Your function should return k = 2, with the first two elements of nums being 2.
-> It does not matter what you leave beyond the returned k (hence they are underscores).
-> ```
-> 
-> **Example 3:**
-> ```
-> Input: nums = [0,1,2,2,3,0,4,2], val = 2
-> Output: 5, nums = [0,1,4,0,3,_,_,_]
-> Explanation: Your function should return k = 5, with the first five elements of nums containing 0, 0, 1, 3, and 4.
-> Note that the five elements can be returned in any order.
-> It does not matter what you leave beyond the returned k (hence they are underscores).
-> ```
-> 
-> **Constraints:**
-> - 0 <= nums.length <= 100
-> - 0 <= nums[i] <= 50
-> - 0 <= val <= 100
-
-> [!info] Approach
-> Need to compact array without extra space. Read scans forward; write only advances on non-val elements. `write = 0`. For each `read`, if `nums[read] != val` → copy to `nums[write]` and `write += 1`. Alternatively, swap with the end when val is found — useful when val is rare (avoids shifting).
-
-> [!note]- Python Solution
-> ```python
-> def remove_element(nums, val):
->     write = 0
->     for read in range(len(nums)):
->         if nums[read] != val:
->             nums[write] = nums[read]
->             write += 1
->     return write
-> ```
-
-> [!success] Complexity
-> O(n) time, O(1) space.
-
-> [!tip] Alternatives
-> Swap-with-end variant O(n) — fewer writes when val is rare but order isn't preserved.
-
----
-
 ### Move Zeroes (LC 283) `⚡ T1`
 
 > [!example] Problem
@@ -539,59 +470,6 @@ difficulty: mixed
 
 > [!tip] Alternatives
 > Swap `nums[write]` and `nums[read]` when `nums[read] != 0` — single pass but does redundant swaps of 0s.
-
----
-
-### Squares of a Sorted Array (LC 977)
-
-> [!example] Problem
-> Given an integer array nums sorted in non-decreasing order, return an array of the squares of each number sorted in non-decreasing order.
-> 
-> **Example 1:**
-> ```
-> Input: nums = [-4,-1,0,3,10]
-> Output: [0,1,9,16,100]
-> Explanation: After squaring, the array becomes [16,1,0,9,100].
-> After sorting, it becomes [0,1,9,16,100].
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: nums = [-7,-3,2,3,11]
-> Output: [4,9,9,49,121]
-> ```
-> 
-> **Constraints:**
-> - 1 <= nums.length <= 10^4
-> - -10^4 <= nums[i] <= 10^4
-> - nums is sorted in non-decreasing order.
-
-> [!info] Approach
-> Squares of negatives can be large. Largest squares are at the two ends. Fill result from the back. Converging pointers from both ends. Compare absolute values; place the larger square at `result[pos]` and advance that pointer. `pos = n-1`. While `lo <= hi`: if `abs(nums[lo]) >= abs(nums[hi])` → `result[pos] = nums[lo]**2; lo += 1`; else process hi.
-
-> [!note]- Python Solution
-> ```python
-> def sorted_squares(nums):
->     n = len(nums)
->     result = [0] * n
->     lo, hi = 0, n - 1
->     pos = n - 1
->     while lo <= hi:
->         if abs(nums[lo]) >= abs(nums[hi]):
->             result[pos] = nums[lo] ** 2
->             lo += 1
->         else:
->             result[pos] = nums[hi] ** 2
->             hi -= 1
->         pos -= 1
->     return result
-> ```
-
-> [!success] Complexity
-> O(n) time, O(n) space (output array).
-
-> [!tip] Alternatives
-> Square all then sort O(n log n) — simple but unnecessary given sorted input.
 
 ---
 
@@ -659,6 +537,11 @@ difficulty: mixed
 > [!tip] Alternatives
 > - Prefix sum + hash map: store prefix sums, search for `prefix[i] == total - x - suffix_sum`. O(n) time but O(n) space.
 > - Key insight: the "remove from both ends" framing is a classic redirect — always ask if the complement (middle subarray) is easier.
+
+**Also try:**
+
+- **Remove Element (LC 27)** — Need to compact array without extra space
+- **Squares of a Sorted Array (LC 977)** — Squares of negatives can be large
 
 ---
 
@@ -737,21 +620,14 @@ difficulty: mixed
 
 ---
 
-### Find Duplicate Number — Floyd's (LC 287)
-
-> Full walkthrough: [Find the Duplicate Number](../data-structures/01-array.md#find-the-duplicate-number--t2).
-
----
-
-### Middle of the Linked List (LC 876)
-
-> Full walkthrough: [Middle of the Linked List](../data-structures/07-linked-list.md#middle-of-the-linked-list).
-
----
-
 ### Remove Nth Node From End of List (LC 19) `🎯 T2`
 
 > Full walkthrough: [Remove Nth Node From End of List](../data-structures/07-linked-list.md#remove-nth-node-from-end-of-list--t2).
+
+**Also try:**
+
+- **Find Duplicate Number — Floyd's (LC 287)** — see [Find the Duplicate Number](../data-structures/01-array.md#find-the-duplicate-number--t2)
+- **Middle of the Linked List (LC 876)** — see [Middle of the Linked List](../data-structures/07-linked-list.md#fast--slow-pointers)
 
 ---
 
@@ -818,517 +694,31 @@ difficulty: mixed
 
 ## Hash Map Two-Sum Variant
 
----
+**Also try:**
 
-### Partition Array According to Given Pivot (LC 2161)
-
-> [!example] Problem
-> You are given a 0-indexed integer array nums and an integer pivot. Rearrange nums such that the following conditions are satisfied:
-> Return nums after the rearrangement.
-> 
-> **Example 1:**
-> ```
-> Input: nums = [9,12,5,10,14,3,10], pivot = 10
-> Output: [9,5,3,10,10,12,14]
-> Explanation: 
-> The elements 9, 5, and 3 are less than the pivot so they are on the left side of the array.
-> The elements 12 and 14 are greater than the pivot so they are on the right side of the array.
-> The relative ordering of the elements less than and greater than pivot is also maintained. [9, 5, 3] and [12, 14] are the respective orderings.
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: nums = [-3,4,3,2], pivot = 2
-> Output: [-3,2,4,3]
-> Explanation: 
-> The element -3 is less than the pivot so it is on the left side of the array.
-> The elements 4 and 3 are greater than the pivot so they are on the right side of the array.
-> The relative ordering of the elements less than and greater than pivot is also maintained. [-3] and [4, 3] are the respective orderings.
-> ```
-> 
-> **Constraints:**
-> - 1 <= nums.length <= 10^5
-> - -10^6 <= nums[i] <= 10^6
-> - pivot equals to an element of nums.
-
-> [!info] Approach
-> Relative order must be preserved, so an in-place swap (DNF-style) would break ordering. A stable partition using three buckets is correct and O(n). Single pass: collect elements into `less`, `equal`, `greater` lists. Concatenate. `less + equal + greater` preserves original relative order within each group.
-
-> [!note]- Python Solution
-> ```python
-> def pivot_array(nums, pivot):
->     less, equal, greater = [], [], []
->     for x in nums:
->         if x < pivot:
->             less.append(x)
->         elif x == pivot:
->             equal.append(x)
->         else:
->             greater.append(x)
->     return less + equal + greater
-> ```
-
-> [!success] Complexity
-> O(n) time, O(n) space.
-
-> [!tip] Alternatives
-> In-place DNF (LC 75 style) — O(1) extra space but does not preserve relative order; only valid when order doesn't matter.
-
----
-
-### Minimum Difference Between Highest and Lowest of K Scores (LC 1984)
-
-> [!example] Problem
-> You are given a 0-indexed integer array nums, where nums[i] represents the score of the ith student. You are also given an integer k.
-> Pick the scores of any k students from the array so that the difference between the highest and the lowest of the k scores is minimized.
-> Return the minimum possible difference.
-> 
-> **Example 1:**
-> ```
-> Input: nums = [90], k = 1
-> Output: 0
-> Explanation: There is one way to pick score(s) of one student:
-> - [90]. The difference between the highest and lowest score is 90 - 90 = 0.
-> The minimum possible difference is 0.
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: nums = [9,4,1,7], k = 2
-> Output: 2
-> Explanation: There are six ways to pick score(s) of two students:
-> - [9,4,1,7]. The difference between the highest and lowest score is 9 - 4 = 5.
-> - [9,4,1,7]. The difference between the highest and lowest score is 9 - 1 = 8.
-> - [9,4,1,7]. The difference between the highest and lowest score is 9 - 7 = 2.
-> - [9,4,1,7]. The difference between the highest and lowest score is 4 - 1 = 3.
-> - [9,4,1,7]. The difference between the highest and lowest score is 7 - 4 = 3.
-> - [9,4,1,7]. The difference between the highest and lowest score is 7 - 1 = 6.
-> The minimum possible difference is 2.
-> ```
-> 
-> **Constraints:**
-> - 1 <= k <= nums.length <= 1000
-> - 0 <= nums[i] <= 10^5
-
-> [!info] Approach
-> After sorting, the k elements with minimum spread must be contiguous (any non-contiguous selection can be improved by replacing the outlier with a neighbor). So the answer is the minimum of `nums[i+k-1] - nums[i]` over all valid windows. Sort then slide a fixed window of size k, record `nums[i + k - 1] - nums[i]`. This is a two-pointer fixed window (lo = i, hi = i + k - 1). Single pass after sort.
-
-> [!note]- Python Solution
-> ```python
-> def minimum_difference(nums, k):
->     nums.sort()
->     return min(nums[i + k - 1] - nums[i] for i in range(len(nums) - k + 1))
-> ```
-
-> [!success] Complexity
-> O(n log n) time (sort dominates), O(1) extra space.
-
-> [!tip] Alternatives
-> Brute force all k-subsets — exponential; sorting + sliding window is the canonical approach.
+- **Partition Array According to Given Pivot (LC 2161)** — Relative order must be preserved, so an in-place swap (DNF-style) would break ordering
+- **Minimum Difference Between Highest and Lowest of K Scores (LC 1984)** — After sorting, the k elements with minimum spread must be contiguous (any non-contiguous selection can be improved by replacing the outlier …
 
 ---
 
 ## Sorted Array / Two-Pointer Greedy
 
----
+**Also try:**
 
-### Number of Subsequences That Satisfy the Given Sum Condition (LC 1498)
-
-> [!example] Problem
-> You are given an array of integers nums and an integer target.
-> Return the number of non-empty subsequences of nums such that the sum of the minimum and maximum element on it is less or equal to target. Since the answer may be too large, return it modulo 109 + 7.
-> 
-> **Example 1:**
-> ```
-> Input: nums = [3,5,6,7], target = 9
-> Output: 4
-> Explanation: There are 4 subsequences that satisfy the condition.
-> [3] -> Min value + max value  (3 + 5  (3 + 6  (3 + 6 <= 9)
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: nums = [3,3,6,8], target = 10
-> Output: 6
-> Explanation: There are 6 subsequences that satisfy the condition. (nums can have repeated numbers).
-> [3] , [3] , [3,3], [3,6] , [3,6] , [3,3,6]
-> ```
-> 
-> **Example 3:**
-> ```
-> Input: nums = [2,3,3,4,6,7], target = 12
-> Output: 61
-> Explanation: There are 63 non-empty subsequences, two of them do not satisfy the condition ([6,7], [7]).
-> Number of valid subsequences (63 - 2 = 61).
-> ```
-> 
-> **Constraints:**
-> - 1 <= nums.length <= 10^5
-> - 1 <= nums[i] <= 10^6
-> - 1 <= target <= 10^6
-
-> [!info] Approach
-> After sorting, for a fixed minimum at index `lo`, find the furthest `hi` where `nums[lo] + nums[hi] <= target`. Every subset of elements between `lo+1` and `hi` can pair with `nums[lo]` as min — there are `2^(hi-lo)` such subsequences. Converging two-pointer. Precompute powers of 2 mod MOD. For each `lo`, binary-search or slide `hi` left until valid; add `pow2[hi - lo]`. `hi` never moves right (as `lo` increases, the valid range can only shrink), so two-pointer is O(n).
-
-> [!note]- Python Solution
-> ```python
-> def num_subseq(nums, target):
->     MOD = 10**9 + 7
->     nums.sort()
->     n = len(nums)
->     pow2 = [1] * n
->     for i in range(1, n):
->         pow2[i] = pow2[i - 1] * 2 % MOD
-> 
->     lo, hi = 0, n - 1
->     result = 0
->     while lo <= hi:
->         if nums[lo] + nums[hi] <= target:
->             result = (result + pow2[hi - lo]) % MOD
->             lo += 1
->         else:
->             hi -= 1
->     return result
-> ```
-
-> [!success] Complexity
-> O(n log n) time (sort), O(n) space for power table.
-
-> [!tip] Alternatives
-> Binary search for `hi` given each `lo` — O(n log n) same asymptotic but with log factor in the main loop; sliding hi is cleaner.
-
----
-
-### Max Number of K-Sum Pairs (LC 1679)
-
-> [!example] Problem
-> You are given an integer array nums and an integer k.
-> In one operation, you can pick two numbers from the array whose sum equals k and remove them from the array.
-> Return the maximum number of operations you can perform on the array.
-> 
-> **Example 1:**
-> ```
-> Input: nums = [1,2,3,4], k = 5
-> Output: 2
-> Explanation: Starting with nums = [1,2,3,4]:
-> - Remove numbers 1 and 4, then nums = [2,3]
-> - Remove numbers 2 and 3, then nums = []
-> There are no more pairs that sum up to 5, hence a total of 2 operations.
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: nums = [3,1,3,4,3], k = 6
-> Output: 1
-> Explanation: Starting with nums = [3,1,3,4,3]:
-> - Remove the first two 3's, then nums = [1,4,3]
-> There are no more pairs that sum up to 6, hence a total of 1 operation.
-> ```
-> 
-> **Constraints:**
-> - 1 <= nums.length <= 10^5
-> - 1 <= nums[i] <= 10^9
-> - 1 <= k <= 10^9
-
-> [!info] Approach
-> Each operation removes a pair summing to k. After sorting, the same converging two-pointer as Two Sum II finds all such pairs greedily. Sort. `lo = 0, hi = n-1`. If sum == k → count++, lo++, hi--; if sum < k → lo++; if sum > k → hi--. Greedy pairing of smallest + largest exhausts all valid pairs optimally (each element can only be used once).
-
-> [!note]- Python Solution
-> ```python
-> def max_operations(nums, k):
->     nums.sort()
->     lo, hi = 0, len(nums) - 1
->     ops = 0
->     while lo < hi:
->         s = nums[lo] + nums[hi]
->         if s == k:
->             ops += 1
->             lo += 1
->             hi -= 1
->         elif s < k:
->             lo += 1
->         else:
->             hi -= 1
->     return ops
-> ```
-
-> [!success] Complexity
-> O(n log n) time (sort), O(1) space.
-
-> [!tip] Alternatives
-> HashMap: count frequencies, for each x check if k-x exists — O(n) time, O(n) space. Use when extra space is acceptable and sorting is undesirable.
-
----
-
-### Bag of Tokens (LC 948)
-
-> [!example] Problem
-> You start with an initial power of power, an initial score of 0, and a bag of tokens given as an integer array tokens, where each tokens[i] denotes the value of tokeni.
-> Your goal is to maximize the total score by strategically playing these tokens. In one move, you can play an unplayed token in one of the two ways (but not both for the same token):
-> Return the maximum possible score you can achieve after playing any number of tokens.
-> 
-> **Example 1:**
-> ```
-> Input: tokens = [100], power = 50
-> Output: 0
-> Explanation : Since your score is 0 initially, you cannot play the token face-down. You also cannot play it face-up since your power ( 50 ) is less than tokens[0] ( 100 ).
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: tokens = [200,100], power = 150
-> Output: 1
-> Explanation: Play token 1 ( 100 ) face-up, reducing your power to 50 and increasing your score to 1 .
-> There is no need to play token 0 , since you cannot play it face-up to add to your score. The maximum score achievable is 1 .
-> ```
-> 
-> **Example 3:**
-> ```
-> Input: tokens = [100,200,300,400], power = 200
-> Output: 2
-> Explanation: Play the tokens in this order to get a score of 2 :
-> The maximum score achievable is 2 .
-> ```
-> 
-> **Constraints:**
-> - 0 <= tokens.length <= 1000
-> - 0 <= tokens[i], power < 10^4
-
-> [!info] Approach
-> To maximize points, spend power on the cheapest token (face-up) and spend points on the most expensive token to regain power (face-down). Sorting enables greedy selection of cheapest/most-expensive with two pointers. Sort tokens. Greedily: if `power >= tokens[lo]` → play face-up (lo++, points++, power -= tokens[lo]); else if `points > 0` → play face-down (hi--, points--, power += tokens[hi]); else break. Always track `best = max(best, points)` — we may want to stop before spending all points.
-
-> [!note]- Python Solution
-> ```python
-> def bag_of_tokens_score(tokens, power):
->     tokens.sort()
->     lo, hi = 0, len(tokens) - 1
->     points = 0
->     best = 0
->     while lo <= hi:
->         if power >= tokens[lo]:
->             power -= tokens[lo]
->             points += 1
->             lo += 1
->             best = max(best, points)
->         elif points > 0:
->             power += tokens[hi]
->             points -= 1
->             hi -= 1
->         else:
->             break
->     return best
-> ```
-
-> [!success] Complexity
-> O(n log n) time (sort), O(1) space.
-
-> [!tip] Alternatives
-> DP — token values can be large so DP state space is infeasible; greedy two-pointer is the only practical approach.
-
----
-
-### Boats to Save People (LC 881)
-
-> [!example] Problem
-> You are given an array people where people[i] is the weight of the ith person, and an infinite number of boats where each boat can carry a maximum weight of limit. Each boat carries at most two people at the same time, provided the sum of the weight of those people is at most limit.
-> Return the minimum number of boats to carry every given person.
-> 
-> **Example 1:**
-> ```
-> Input: people = [1,2], limit = 3
-> Output: 1
-> Explanation: 1 boat (1, 2)
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: people = [3,2,2,1], limit = 3
-> Output: 3
-> Explanation: 3 boats (1, 2), (2) and (3)
-> ```
-> 
-> **Example 3:**
-> ```
-> Input: people = [3,5,3,4], limit = 5
-> Output: 4
-> Explanation: 4 boats (3), (3), (4), (5)
-> ```
-> 
-> **Constraints:**
-> - 1 <= people.length <= 5 * 10^4
-> - 1 <= people[i] <= limit <= 3 * 10^4
-
-> [!info] Approach
-> Greedy: pair the heaviest person with the lightest person if their combined weight fits. Otherwise, the heaviest person gets a boat alone. Two pointers on a sorted array implements this efficiently. Sort people. Use `left` and `right` pointers. If `people[left] + people[right] <= limit`, both fit — move both pointers. Otherwise, only `right` fits — move only `right`. Each iteration uses one boat. Count iterations until `left > right`.
-
-> [!note]- Python Solution
-> ```python
-> def num_rescue_boats(people, limit):
->     people.sort()
->     left = 0
->     right = len(people) - 1
->     boats = 0
->     while left <= right:
->         if people[left] + people[right] <= limit:
->             left += 1
->         right -= 1
->         boats += 1
->     return boats
-> ```
-
-> [!success] Complexity
-> Time O(n log n) for sorting, O(n) for the scan. Space O(1).
-
-> [!tip] Alternatives
-> - Greedy with priority queue: overkill — the two-pointer on sorted array is optimal.
-> - Key insight: always try to pair the heaviest with the lightest. If they don't fit, the heaviest must go alone.
+- **Number of Subsequences That Satisfy the Given Sum Condition (LC 1498)** — After sorting, for a fixed minimum at index `lo`, find the furthest `hi` where `nums[lo] + nums[hi] <= target`
+- **Max Number of K-Sum Pairs (LC 1679)** — Each operation removes a pair summing to k
+- **Bag of Tokens (LC 948)** — To maximize points, spend power on the cheapest token (face-up) and spend points on the most expensive token to regain power (face-down)
+- **Boats to Save People (LC 881)** — Greedy: pair the heaviest person with the lightest person if their combined weight fits
 
 ---
 
 ## Two-Pointer on Strings
 
----
+**Also try:**
 
-### Reverse String (LC 344)
-
-> [!example] Problem
-> Write a function that reverses a string. The input string is given as an array of characters s.
-> You must do this by modifying the input array in-place with O(1) extra memory.
-> 
-> **Example 1:**
-> ```
-> Input: s = ["h","e","l","l","o"]
-> Output: ["o","l","l","e","h"]
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: s = ["H","a","n","n","a","h"]
-> Output: ["h","a","n","n","a","H"]
-> ```
-> 
-> **Constraints:**
-> - 1 <= s.length <= 10^5
-> - s[i] is a printable ascii character.
-
-> [!info] Approach
-> Swapping from both ends converges in n/2 steps — the simplest two-pointer pattern. `lo = 0, hi = n-1`. Swap `s[lo]` and `s[hi]`, advance both, until they meet. Loop condition `lo < hi`; each iteration does one swap and two pointer moves.
-
-> [!note]- Python Solution
-> ```python
-> def reverse_string(s):
->     lo, hi = 0, len(s) - 1
->     while lo < hi:
->         s[lo], s[hi] = s[hi], s[lo]
->         lo += 1
->         hi -= 1
-> ```
-
-> [!success] Complexity
-> O(n) time, O(1) space.
-
-> [!tip] Alternatives
-> Python slice `s[::-1]` — not in-place (creates new list); in-place two-pointer is the expected interview answer.
-
----
-
-### Long Pressed Name (LC 925)
-
-> [!example] Problem
-> Your friend is typing his name into a keyboard. Sometimes, when typing a character c, the key might get long pressed, and the character will be typed 1 or more times.
-> You examine the typed characters of the keyboard. Return True if it is possible that it was your friends name, with some characters (possibly none) being long pressed.
-> 
-> **Example 1:**
-> ```
-> Input: name = "alex", typed = "aaleex"
-> Output: true
-> Explanation: 'a' and 'e' in 'alex' were long pressed.
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: name = "saeed", typed = "ssaaedd"
-> Output: false
-> Explanation: 'e' must have been pressed twice, but it was not in the typed output.
-> ```
-> 
-> **Constraints:**
-> - 1 <= name.length, typed.length <= 1000
-> - name and typed consist of only lowercase English letters.
-
-> [!info] Approach
-> Both strings share a subsequence structure — `name` characters must appear in `typed` in order, with possible repetitions in `typed`. Two pointers on both strings handles this in a single pass. Pointer `i` on `name`, `j` on `typed`. Advance both when chars match. If `typed[j] == typed[j-1]`, it's a long press — advance `j` only. Otherwise mismatch → false. After the loop, `i` must have consumed all of `name`.
-
-> [!note]- Python Solution
-> ```python
-> def is_long_pressed_name(name, typed):
->     i = 0
->     for j in range(len(typed)):
->         if i < len(name) and name[i] == typed[j]:
->             i += 1
->         elif j == 0 or typed[j] != typed[j - 1]:
->             return False
->         # else: typed[j] == typed[j-1] — long press, skip
->     return i == len(name)
-> ```
-
-> [!success] Complexity
-> O(n + m) time where n = len(name), m = len(typed). O(1) space.
-
-> [!tip] Alternatives
-> Regex matching — `re.fullmatch` with a pattern built from name; more code, harder to reason about; two-pointer is cleaner.
-
----
-
-### Reverse Vowels of a String
-
-> [!example] Problem
-> Given a string s, reverse only all the vowels in the string and return it.
-> The vowels are 'a', 'e', 'i', 'o', and 'u', and they can appear in both lower and upper cases, more than once.
-> 
-> **Example 1:**
-> ```
-> Input: s = "IceCreAm"
-> Output: "AceCreIm"
-> Explanation:
-> The vowels in s are ['I', 'e', 'e', 'A'] . On reversing the vowels, s becomes "AceCreIm" .
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: s = "leetcode"
-> Output: "leotcede"
-> ```
-> 
-> **Constraints:**
-> - 1 <= s.length <= 3 * 10^5
-> - s consist of printable ASCII characters.
-
-> [!info] Approach
-> The vowels to swap form a sparse subset, so moving two pointers inward and skipping non-vowels is optimal. Two pointers from the ends; advance each pointer until it points to a vowel, then swap. Maintain a vowel set; while `left < right`, skip non-vowels on both sides and swap the vowel pair.
-
-> [!note]- Python Solution
-> ```python
-> def reverse_vowels(s):
->     vowels = set("aeiouAEIOU")
->     chars = list(s)
->     left, right = 0, len(chars) - 1
->     while left < right:
->         while left < right and chars[left] not in vowels:
->             left += 1
->         while left < right and chars[right] not in vowels:
->             right -= 1
->         chars[left], chars[right] = chars[right], chars[left]
->         left += 1
->         right -= 1
->     return "".join(chars)
-> ```
-
-> [!success] Complexity
-> O(n) time, O(n) space for the mutable character list.
-
-> [!tip] Alternatives
-> The same two-pointer skip pattern works for palindrome checks, partitioning, and sorted-array pair problems.
+- **Reverse String (LC 344)** — Swapping from both ends converges in n/2 steps — the simplest two-pointer pattern
+- **Long Pressed Name (LC 925)** — Both strings share a subsequence structure — `name` characters must appear in `typed` in order, with possible repetitions in `typed`
+- **Reverse Vowels of a String** — The vowels to swap form a sparse subset, so moving two pointers inward and skipping non-vowels is optimal
 
 ---
 

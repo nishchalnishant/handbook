@@ -5,7 +5,7 @@ tags: [algorithms, fenwick, segment-tree, prefix-sum, range-queries]
 ---
 # Range Queries — Prefix Sums, Fenwick, Segment Trees
 
-← [Algorithms index](./README.md) · [Patterns master](../03-patterns/patterns-master.md)
+← [Algorithms index](README.md) · [Patterns master](../05-review/01-pattern-sheet.md)
 
 > 💤 T3 at L3 — promoted to 🎯 T2 for L4/SDE-2+ and hard-round companies. At L3 prefer prefix sums / sorting + binary search / heap.
 
@@ -14,8 +14,8 @@ tags: [algorithms, fenwick, segment-tree, prefix-sum, range-queries]
 > [!abstract] In this file
 > **Covers:** Choosing a range-query structure; prefix sums (1D/2D); coordinate compression; Fenwick tree (point update, range-update/point-query, k-th); iterative and lazy segment trees; sparse table; merge-sort counting; `SortedList` and its `bisect.insort` fallback.
 > **You'll be able to:** Pick the lightest structure that fits the update/query mix, code a Fenwick in 8 lines, and offer a merge-sort or sorted-list alternative when a segment tree is overkill.
-> **Prereqs:** Arrays, binary search, heaps, merge sort · **Pair with:** [Range Queries problems](../04-practice/algorithms/19-range-queries.md) · **Time:** 2 h
-> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../00-start-here/l3-google-roadmap.md#tier-legend))
+> **Prereqs:** Arrays, binary search, heaps, merge sort · **Pair with:** [Range Queries problems](../04-practice/algorithms/15-range-queries.md) · **Time:** 2 h
+> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../00-start-here/01-roadmap.md#tier-legend))
 
 **Sections:** [Core Idea](#core-idea) · [Decision Table](#decision-table) · [Theory & Mental Models](#theory--mental-models) · [1. Prefix Sums & Coordinate Compression](#1-prefix-sums--coordinate-compression) · [2. Fenwick Tree (BIT)](#2-fenwick-tree-bit) · [3. Segment Trees](#3-segment-trees) · [4. Sparse Table](#4-sparse-table) · [5. L3-Friendly Alternatives](#5-l3-friendly-alternatives) · [Interview Questions — Logic & Trickiness](#interview-questions--logic--trickiness) · [Quick Revision Triggers](#quick-revision-triggers) · [Flashcards](#flashcards)
 
@@ -389,11 +389,11 @@ except ImportError:
 
 ## See also
 
-- [Union-Find](14-union-find.md) — the other "log-ish" structure on this tier
-- [Sorting](00-sorting.md) — merge sort as the counting engine
-- [Binary Search](11-binary-search.md) — `bisect` semantics
-- [Heaps](../01-data-structures/10-heap.md) — skyline and sliding-window median
-- [Patterns Master](../03-patterns/patterns-master.md)
+- [Union-Find](10-union-find.md) — the other "log-ish" structure on this tier
+- [Sorting](01-sorting.md) — merge sort as the counting engine
+- [Binary Search](04-binary-search.md) — `bisect` semantics
+- [Heaps](../02-data-structures/10-heap.md) — skyline and sliding-window median
+- [Patterns Master](../05-review/01-pattern-sheet.md)
 
 ## Flashcards
 

@@ -8,16 +8,16 @@ tags: [logic, proof, counterexamples, decision-making, interview-strategy, googl
 ## What this covers
 
 > [!abstract] In this file
-> **Covers:** Reasoning tools (examples as experiments, invariants, quick proofs, feasibility estimates), live decisions (commit vs pivot, hints, recovery, trade-offs), the one-page round cheatsheet + revision schedules, a 25-problem mock set with L4 chains, and senior follow-up chains.
+> **Covers:** Reasoning tools (examples as experiments, invariants, quick proofs, feasibility estimates), live decisions (commit vs pivot, hints, recovery, trade-offs), a 25-problem mock set with L4 chains, and senior follow-up chains.
 > **You'll be able to:** Make and justify decisions out loud during a 45-minute round, run a final-week revision, and extend any solve along senior follow-up axes.
-> **Prereqs:** How to think · **Pair with:** [How to think](HOW_TO_THINK.md) · [L3 cheatsheet](../00-start-here/L3_CHEATSHEET.md) · [Senior delta](../00-start-here/sde3-senior-delta.md) · **Time:** 1.5 h + 25 × 45 min mocks
+> **Prereqs:** How to think · **Pair with:** [How to think](../01-foundations/01-how-to-think.md) · [L3 cheatsheet](../00-start-here/02-round-cheatsheet.md) · [Senior delta](../00-start-here/04-senior-delta.md) · **Time:** 1.5 h + 25 × 45 min mocks
 
-**Sections:** [A1. Examples are experiments — design them, don't just "try one"](#a1-examples-are-experiments--design-them-dont-just-try-one) · [A2. Invariants — the sentence that makes code correct by construction](#a2-invariants--the-sentence-that-makes-code-correct-by-construction) · [A3. The three proof moves you can actually run in 45 minutes](#a3-the-three-proof-moves-you-can-actually-run-in-45-minutes) · [A4. Estimate before you build — the 30-second feasibility check](#a4-estimate-before-you-build--the-30-second-feasibility-check) · [B1. Commit vs pivot — the explicit rule](#b1-commit-vs-pivot--the-explicit-rule) · [B2. Choosing between two plausible approaches](#b2-choosing-between-two-plausible-approaches) · [B3. Hints are data — decode them, don't survive them](#b3-hints-are-data--decode-them-dont-survive-them) · [B4. Recovery playbook — the three failure moments, scripted](#b4-recovery-playbook--the-three-failure-moments-scripted) · [B5. Trade-offs — always present them as a menu, never as a monologue](#b5-trade-offs--always-present-them-as-a-menu-never-as-a-monologue) · [B6. The judgment drill (how to train any of this)](#b6-the-judgment-drill-how-to-train-any-of-this) · [The one-card summary](#the-one-card-summary) · [Round cheatsheet (one page)](#round-cheatsheet-one-page) · [Communication (how to sound clear at Google)](#communication-how-to-sound-clear-at-google) · [Revision schedules](#revision-schedules) · [After the interview](#after-the-interview) · [Set 1: Must Solve Cleanly (No Hints)](#set-1-must-solve-cleanly-no-hints) · [Set 2: Build Fluency (Aim for Clean First Attempt)](#set-2-build-fluency-aim-for-clean-first-attempt) · [Set 3: Stretch Problems (Common at Google, Separates Offers)](#set-3-stretch-problems-common-at-google-separates-offers) · [Mock Interview Scoring Guide](#mock-interview-scoring-guide) · [Weak Area Drill List](#weak-area-drill-list) · [L4 (SDE-2) Mock Rounds — follow-up chains](#l4-sde-2-mock-rounds--follow-up-chains) · [1. Count-vs-existence](#1-count-vs-existence) · [2. Streaming / online](#2-streaming--online) · [3. Update-heavy / deletion-heavy](#3-update-heavy--deletion-heavy) · [4. Memory-constrained](#4-memory-constrained) · [5. Concurrency discussion](#5-concurrency-discussion) · [6. One-vs-all](#6-one-vs-all) · [7. Scale-change (100x)](#7-scale-change-100x) · [See Also](#see-also)
+**Sections:** [A1. Examples are experiments — design them, don't just "try one"](#a1-examples-are-experiments--design-them-dont-just-try-one) · [A2. Invariants — the sentence that makes code correct by construction](#a2-invariants--the-sentence-that-makes-code-correct-by-construction) · [A3. The three proof moves you can actually run in 45 minutes](#a3-the-three-proof-moves-you-can-actually-run-in-45-minutes) · [A4. Estimate before you build — the 30-second feasibility check](#a4-estimate-before-you-build--the-30-second-feasibility-check) · [B1. Commit vs pivot — the explicit rule](#b1-commit-vs-pivot--the-explicit-rule) · [B2. Choosing between two plausible approaches](#b2-choosing-between-two-plausible-approaches) · [B3. Hints are data — decode them, don't survive them](#b3-hints-are-data--decode-them-dont-survive-them) · [B4. Recovery playbook — the three failure moments, scripted](#b4-recovery-playbook--the-three-failure-moments-scripted) · [B5. Trade-offs — always present them as a menu, never as a monologue](#b5-trade-offs--always-present-them-as-a-menu-never-as-a-monologue) · [B6. The judgment drill (how to train any of this)](#b6-the-judgment-drill-how-to-train-any-of-this) · [The one-card summary](#the-one-card-summary) · [Set 1: Must Solve Cleanly (No Hints)](#set-1-must-solve-cleanly-no-hints) · [Set 2: Build Fluency (Aim for Clean First Attempt)](#set-2-build-fluency-aim-for-clean-first-attempt) · [Set 3: Stretch Problems (Common at Google, Separates Offers)](#set-3-stretch-problems-common-at-google-separates-offers) · [Mock Interview Scoring Guide](#mock-interview-scoring-guide) · [Weak Area Drill List](#weak-area-drill-list) · [L4 (SDE-2) Mock Rounds — follow-up chains](#l4-sde-2-mock-rounds--follow-up-chains) · [1. Count-vs-existence](#1-count-vs-existence) · [2. Streaming / online](#2-streaming--online) · [3. Update-heavy / deletion-heavy](#3-update-heavy--deletion-heavy) · [4. Memory-constrained](#4-memory-constrained) · [5. Concurrency discussion](#5-concurrency-discussion) · [6. One-vs-all](#6-one-vs-all) · [7. Scale-change (100x)](#7-scale-change-100x) · [See Also](#see-also)
 
 ---
 
 > [!IMPORTANT]
-> **The missing layer this file adds.** [HOW_TO_THINK.md](HOW_TO_THINK.md) teaches you to *derive* patterns. [The L3 Cheatsheet](../00-start-here/L3_CHEATSHEET.md) maps keywords → structures. Neither teaches the two skills that actually decide close interviews: **convincing yourself an idea is correct before spending 15 minutes coding it**, and **making good calls under uncertainty** — commit or pivot, which of two approaches, what to do with a hint, how to recover from a wrong path. Strong candidates don't fail because they lack patterns; they fail because they coded the wrong idea confidently or abandoned the right idea nervously. This file trains that judgment.
+> **The missing layer this file adds.** [How to think](../01-foundations/01-how-to-think.md) teaches you to *derive* patterns. [The round cheatsheet](../00-start-here/02-round-cheatsheet.md) maps keywords → structures. Neither teaches the two skills that actually decide close interviews: **convincing yourself an idea is correct before spending 15 minutes coding it**, and **making good calls under uncertainty** — commit or pivot, which of two approaches, what to do with a hint, how to recover from a wrong path. Strong candidates don't fail because they lack patterns; they fail because they coded the wrong idea confidently or abandoned the right idea nervously. This file trains that judgment.
 
 ---
 
@@ -32,7 +32,7 @@ Most candidates use examples passively (trace the given sample). Examples are ac
 | **Smallest interesting case** | "What does the mechanism look like with no noise?" | n = 2 or 3, the minimum where a real decision occurs. (n = 0/1 are edge cases, not insight cases.) |
 | **Structure-revealing case** | "What does my hand do when solving this?" | ~8–10 elements, solve it manually, then *introspect the procedure your eyes ran* — it's often the algorithm |
 | **Adversarial case** | "What input would embarrass my current idea?" | Attack your idea's assumption directly: duplicates if you assumed distinct, negatives if you assumed positive, ties if you sort, all-equal elements, already-sorted / reverse-sorted |
-| **Boundary case** | "Does the code survive the edges?" | Saved for the dry run — see [Universal Edge Cases](../00-start-here/L3_CHEATSHEET.md) |
+| **Boundary case** | "Does the code survive the edges?" | Saved for the dry run — see [Universal Edge Cases](../00-start-here/02-round-cheatsheet.md) |
 
 The discipline: after forming an approach and *before* coding it, spend 60 seconds deliberately trying to **break** it with an adversarial case. Finding your own counterexample at minute 8 costs one minute; the interviewer finding it at minute 35 costs the round. The mindset shift is from lawyer (defending your idea) to scientist (attacking it) — interviews reward scientists.
 
@@ -57,15 +57,15 @@ An **invariant** is one sentence that is true before and after every iteration. 
 
 Interviewers ask "why does this work?" — and there are only three answer shapes. Knowing them by name means never being speechless:
 
-1. **Invariant + induction** (for loops): "True initially; each step preserves it; at termination it implies the answer." This is the loop version of the DP contract / leap of faith ([Masterclass §1.2](RECURSION_AND_DP_MASTERCLASS.md#12-the-leap-of-faith--the-single-most-important-idea-in-this-file)) — the same induction, standing up instead of recursing down.
-2. **Exchange argument** (for greedy): "Take any optimal solution that disagrees with my first choice; swap my choice in; it got no worse; induct." Thirty spoken seconds. If you can't sketch it, downgrade your confidence in the greedy ([HOW_TO_THINK.md — Greedy](HOW_TO_THINK.md#greedy--the-only-pattern-that-requires-a-proof)).
+1. **Invariant + induction** (for loops): "True initially; each step preserves it; at termination it implies the answer." This is the loop version of the DP contract / leap of faith ([Masterclass §1.2](../03-algorithms/07-recursion-to-dp.md#12-the-leap-of-faith--the-single-most-important-idea-in-this-file)) — the same induction, standing up instead of recursing down.
+2. **Exchange argument** (for greedy): "Take any optimal solution that disagrees with my first choice; swap my choice in; it got no worse; induct." Thirty spoken seconds. If you can't sketch it, downgrade your confidence in the greedy ([How to think — Greedy](../01-foundations/01-how-to-think.md#greedy--the-only-pattern-that-requires-a-proof)).
 3. **No-candidate-escapes** (for discard-based patterns — two pointers, monotonic stack, binary search halving): "I only ever discard candidates that are *dominated* — here's the one-line domination proof — so the answer is never discarded." When you move a pointer, be able to finish the sentence "…and this can't skip the answer because ___."
 
 L3 bar: run these when asked. L4 bar: run move 2 or 3 *unprompted* in one sentence as you make the choice ("moving the shorter wall is safe because keeping it caps every future area"). One sentence, not a lecture.
 
 ## A4. Estimate before you build — the 30-second feasibility check
 
-Before committing to an approach, multiply it out: *states × work per state*, or *iterations × cost per iteration*, against ~10⁷–10⁸ simple operations/second. "n = 10⁵, my idea is O(n²) = 10¹⁰ — dead on arrival, don't code it." This one habit prevents the most expensive interview failure mode: 20 minutes implementing something that could never pass, discovered only when the interviewer asks for complexity. Feasibility math comes *before* implementation, always — it's step 2 of the [solve loop](HOW_TO_THINK.md#2-the-solve-loop-run-this-every-single-time) for exactly this reason.
+Before committing to an approach, multiply it out: *states × work per state*, or *iterations × cost per iteration*, against ~10⁷–10⁸ simple operations/second. "n = 10⁵, my idea is O(n²) = 10¹⁰ — dead on arrival, don't code it." This one habit prevents the most expensive interview failure mode: 20 minutes implementing something that could never pass, discovered only when the interviewer asks for complexity. Feasibility math comes *before* implementation, always — it's step 2 of the [solve loop](../01-foundations/01-how-to-think.md#2-the-solve-loop-run-this-every-single-time) for exactly this reason.
 
 ---
 
@@ -89,7 +89,7 @@ When both ideas pass the feasibility math, stop weighing "which is cleverer" —
 
 1. **Fewer moving parts under pressure.** BFS over Dijkstra when both work; sorting + one pass over a clever structure; iterative over recursive when depth is scary. You are choosing what your minute-30 self has to debug.
 2. **Which failure is recoverable?** An approach that degrades gracefully (works, but slower) beats one that's all-or-nothing (either the invariant is exactly right or the output is garbage).
-3. **Extendability** — only as a tiebreak, and only if you've internalized the [escalation grammar](HOW_TO_THINK.md#the-escalation-grammar-what-follow-ups-will-be): which version survives "now it's a stream / now return all of them"?
+3. **Extendability** — only as a tiebreak, and only if you've internalized the [escalation grammar](../01-foundations/01-how-to-think.md#the-escalation-grammar-what-follow-ups-will-be): which version survives "now it's a stream / now return all of them"?
 
 Then do the senior move: **offer the decision.** "I see a two-heap O(log n) design and a simpler sort-based O(n log n) per query; given 45 minutes I'd code the sort version and talk through the heap upgrade — sound good?" This shows both ideas, converts a private gamble into a shared plan, and interviewers almost always respond well to it. Choosing silently forfeits the credit for the road not taken.
 
@@ -100,7 +100,7 @@ A hint is not a deduction on your scorecard by itself; *missing* the hint is. In
 | Signal | What it actually means | Correct response |
 |---|---|---|
 | "Are you sure that handles X?" / "Walk me through X" | **There is a bug, and X triggers it.** This is never idle curiosity. | Stop. Trace X honestly and slowly. Do not say "yes it's fine" from memory — that answer, wrong, is the worst moment available in an interview. |
-| "Is there anything about the input you're not using?" / "What if it were sorted?" | You've missed the intended lever; they're pointing at it. | Take it fully: re-run the [stuck moves](HOW_TO_THINK.md#4-when-you-are-truly-stuck--the-seven-moves) *with their ingredient as the axis*. Half-taking a hint (nodding, continuing as before) reads worse than needing it. |
+| "Is there anything about the input you're not using?" / "What if it were sorted?" | You've missed the intended lever; they're pointing at it. | Take it fully: re-run the [stuck moves](../01-foundations/01-how-to-think.md#4-when-you-are-truly-stuck--the-seven-moves) *with their ingredient as the axis*. Half-taking a hint (nodding, continuing as before) reads worse than needing it. |
 | "OK. What's the complexity?" (mid-implementation) | Your approach is too slow and they're inviting you to notice. | Actually recompute it fresh — don't repeat your earlier claim. Then: "…which is n², too slow for this n — the bottleneck is this inner scan; replacing it with ___." |
 | Silence while you're stuck | You've been quiet too long. | Narrate your candidate directions and *ask a real question*: "I'm deciding between modeling this as a graph or as intervals — is one of those a dead end?" Asking a specific question is fine; asking "am I on the right track?" repeatedly is not. |
 
@@ -114,7 +114,7 @@ Pre-scripting these turns panic moments into procedure. Each has a wrong instinc
 
 **Approach collapses at minute 25.** (You now have evidence it can't work.) Not recoverable to full marks — recoverable to a hire: (1) say precisely *what* broke: "this window invariant dies with negative numbers — growing the window no longer moves the sum one way"; naming the cause proves the understanding the broken code can't. (2) Ask for the direction check *once*: "I think the fix is prefix sums + a hashmap — before I rebuild, does that direction make sense?" (When one approach has died, one direction-check is free; two is a pattern.) (3) Rebuild only what changed — most scaffolding (I/O, loops, helpers) usually survives.
 
-**Total blank at minute 5.** Wrong instinct: silence, or re-reading the problem a fourth time. Right procedure — this is exactly what the [solve loop](HOW_TO_THINK.md#2-the-solve-loop-run-this-every-single-time) steps 3–5 are *for*: solve a 10-element case by hand and watch your hand; say the brute force out loud with its complexity (this always exists — "try every subarray: O(n²)"); name its waste. Speaking the brute force has a second function beyond points: it breaks the freeze. Motion creates thought, not the other way around.
+**Total blank at minute 5.** Wrong instinct: silence, or re-reading the problem a fourth time. Right procedure — this is exactly what the [solve loop](../01-foundations/01-how-to-think.md#2-the-solve-loop-run-this-every-single-time) steps 3–5 are *for*: solve a 10-element case by hand and watch your hand; say the brute force out loud with its complexity (this always exists — "try every subarray: O(n²)"); name its waste. Speaking the brute force has a second function beyond points: it breaks the freeze. Motion creates thought, not the other way around.
 
 ## B5. Trade-offs — always present them as a menu, never as a monologue
 
@@ -131,7 +131,7 @@ Judgment doesn't improve by reading — it improves by *forcing the decision poi
 1. **Timestamp your mocks.** Note the clock when you commit to an approach, when doubts appear, and when you pivot. Review: was each pivot evidence-based or discomfort-based (B1)? Most people discover they pivot on discomfort and grind on sunk cost — the exact opposite of the rule.
 2. **Pre-mortem every commit.** Before coding, one sentence: "the most likely way this approach fails is ___." (Trains A1's adversarial instinct; also catches missing state dimensions early.)
 3. **Play interviewer.** Once a week, take a problem you know cold and write the three hints you'd give a struggling candidate, in escalating order. Nothing teaches hint-*decoding* (B3) faster than authoring hints.
-4. **Log misses by decision, not by topic** — extend the [training protocol](HOW_TO_THINK.md#the-training-protocol-how-to-study-this-file): was the failure a pattern gap, or a judgment failure (ignored the 10-minute checkpoint, defended instead of traced, silent trade-off)? Most candidates past 100 solved problems miss on judgment, not patterns — which means this log, not more problems, is where the next hire-signal comes from.
+4. **Log misses by decision, not by topic** — extend the [training protocol](../01-foundations/01-how-to-think.md#the-training-protocol-how-to-study-this-file): was the failure a pattern gap, or a judgment failure (ignored the 10-minute checkpoint, defended instead of traced, silent trade-off)? Most candidates past 100 solved problems miss on judgment, not patterns — which means this log, not more problems, is where the next hire-signal comes from.
 
 ---
 
@@ -147,97 +147,6 @@ Judgment doesn't improve by reading — it improves by *forcing the decision poi
 > 8. Hints are targeting data. "Are you sure about X?" means X breaks it — trace X, don't reassure.
 > 9. Bug found: classify **invariant vs transcription** before touching a line.
 > 10. Trade-offs are a **menu with prices and a recommendation**, spoken in three sentences.
-
----
-
-# PART C — ROUND EXECUTION & REVISION
-
-## Round cheatsheet (one page)
-
-### What Google looks for (coding round)
-
-- **Problem-solving**: Clarify → brute force → optimize → code → test → complexity.
-- **Communication**: Think out loud; state assumptions; ask about constraints (empty input, duplicates, size limits).
-- **Code quality**: Clear names, handle edge cases, correct complexity analysis.
-
-### Topic priority (typical frequency)
-
-| Priority | Topics | Patterns to nail |
-|----------|--------|------------------|
-| **1** | Arrays, Strings, Hashing | Two pointers, sliding window, prefix sum + map, frequency map |
-| **2** | Trees, Graphs | BFS/DFS, LCA, topo sort, shortest path (BFS / Dijkstra) |
-| **3** | DP | 1D recurrence, 2D (LCS/grid), interval DP basics |
-| **4** | Heap, Binary Search | Top-K, merge K lists, BS on answer, rotated array |
-| **5** | Stack/Queue | Monotonic stack, monotonic deque |
-
-### Complexity you must state correctly
-
-Sound bites — say them exactly like this:
-
-- “We visit each node/edge at most once → **O(V + E)**” (BFS/DFS); Dijkstra: **O((V + E) log V)** with min-heap.
-- “Sorting dominates → **O(N log N)**.”
-- “Hash map gives O(1) average lookup, so overall **O(N)**.”
-- “Binary search on answer: O(N) check per mid × O(log range) mids → **O(N log range)**.”
-- Sliding window: usually **O(N)** time.
-
-### Edge cases & complexity table
-
-Single-sourced in the cheatsheet — reread them there, not here:
-[edge cases](../00-start-here/L3_CHEATSHEET.md#5-universal-edge-cases) · [pattern → time/space table](../00-start-here/L3_CHEATSHEET.md#6-big-o-reference) · [pattern triggers](./patterns-master.md#quick-decision-trees).
-
-### Open with / Close with
-
-**Open:** repeat the problem in your words; ask — size limits? duplicates? can we modify input?
-**Close:** state time and space; run two test cases (normal + edge); name a follow-up (stream, huge n).
-
----
-
-## Communication (how to sound clear at Google)
-
-1. **Start:** “Let me restate the problem and confirm constraints: can the array be empty? Are numbers non-negative?”
-2. **Brute force:** “A naive approach would be O(…) because …”
-3. **Optimize:** “We can improve by … which brings it to O(…) because …”
-4. **While coding:** Narrate non-obvious indices and invariants (“`left` is always the start of the valid window”).
-5. **End:** “Time is O(…), space is O(…). Edge cases: empty input, single element, …”
-
-If stuck: “I’m considering BFS vs DFS — for shortest path in an unweighted graph I’ll use BFS because…”
-
----
-
-## Revision schedules
-
-### If you have 7 days
-
-| Day | Focus | Action |
-|-----|--------|--------|
-| 1 | Arrays + hashing | Review [array](../01-data-structures/01-array.md) + [hashing](../01-data-structures/02-hashing.md); 4 problems |
-| 2 | Strings + two pointers | [string](../01-data-structures/03-string.md) + sliding window pattern; 4 problems |
-| 3 | Trees + BST | [tree](../01-data-structures/08-tree.md); 3 problems |
-| 4 | Graphs | [graph](../01-data-structures/13-graphs.md); BFS/DFS/topo; 4 problems |
-| 5 | DP | [15-dynamic-programming.md](../02-algorithms/15-dynamic-programming.md) + [recursion-to-dp.md](../02-algorithms/10-recursion-to-dp.md); 4 problems |
-| 6 | Heap + binary search + stack | [heap](../01-data-structures/10-heap.md), [binary search](../02-algorithms/11-binary-search.md), [stack](../01-data-structures/05-stack.md); 4 problems |
-| 7 | Mixed mock | 2 timed problems (45 min each) + review mistakes |
-
-### If you have 48 hours
-
-- **Hour 0–4:** [Round cheatsheet](#round-cheatsheet-one-page) + redo 2 Medium problems you failed recently.
-- **Hour 4–12:** Skim Quick Revision in: array, tree, graph, DP, heap, binary search.
-- **Hour 12–24:** One full mock (2 problems); note gaps only.
-- **Hour 24–36:** Only gaps + Union-Find + topo sort if weak.
-- **Hour 36–48:** Sleep, light review of the round cheatsheet, no new problems.
-
-### Night before
-
-- Skim the **round cheatsheet** and the [L3 cheatsheet](../00-start-here/L3_CHEATSHEET.md) (edge cases, Big-O).
-- Do **not** cram new topics; review **one** problem per weak area only.
-- Prepare 2–3 questions for your interviewers (team, code review, on-call).
-
----
-
-## After the interview
-
-- Jot down problems you saw (titles only) while memory is fresh — helps if you have future rounds.
-- Regardless of outcome, note **one** pattern to drill next time.
 
 ---
 
@@ -332,7 +241,7 @@ Use this when a mock attempt reveals a gap:
 ## L4 (SDE-2) Mock Rounds — follow-up chains
 
 > [!IMPORTANT]
-> An L4 round is not one problem — it's a **chain**. Budget 45 min per round: base problem solved cleanly in ~20–25 min, then the interviewer escalates. Simulate that: solve the base, then *without a break* attempt each follow-up. A round "passes" only if you get through follow-up 1. Full L4 bar: [`00-start-here/l4-sde2-delta.md`](../00-start-here/l4-sde2-delta.md).
+> An L4 round is not one problem — it's a **chain**. Budget 45 min per round: base problem solved cleanly in ~20–25 min, then the interviewer escalates. Simulate that: solve the base, then *without a break* attempt each follow-up. A round "passes" only if you get through follow-up 1. Full L4 bar: [`00-start-here/03-l4-sde2-delta.md`](../00-start-here/03-l4-sde2-delta.md).
 
 | Round | Base (20–25 min) | Follow-up 1 | Follow-up 2 (stretch) |
 |---|---|---|---|
@@ -345,14 +254,14 @@ Use this when a mock attempt reveals a gap:
 | G | Longest Increasing Subsequence | O(n log n) version | 2-D: Longest Increasing Path in a Matrix |
 | H | Rotting Oranges | BFS from all targets (→ 01 Matrix) | answer counts *routes* not cells (→ Bus Routes) |
 
-Scoring per round: base unsolved = not ready; base + F1 = on the bar; base + F1 + F2 = strong hire territory. Log which *invariant* failed, per the [Pattern Ladders](HOW_TO_THINK.md#the-study-protocol-non-negotiable) protocol.
+Scoring per round: base unsolved = not ready; base + F1 = on the bar; base + F1 + F2 = strong hire territory. Log which *invariant* failed, per the [Pattern Ladders](02-ladders.md#the-study-protocol-non-negotiable) protocol.
 
 ---
 
 # PART E — SENIOR FOLLOW-UP CHAINS
 
 > [!IMPORTANT]
-> **How to use this part:** These are not new problems — they're the standard **third link** in a chain, attached to the `⚡ T1` / `🎯 T2` bases in [Part D](#part-d--mock-rounds) and [`00-start-here/l4-sde2-delta.md`](../00-start-here/l4-sde2-delta.md). At senior level you should propose these escalations yourself before the interviewer asks. Bare `T3` = senior follow-up tier; full tier context: [`00-start-here/sde3-senior-delta.md`](../00-start-here/sde3-senior-delta.md).
+> **How to use this part:** These are not new problems — they're the standard **third link** in a chain, attached to the `⚡ T1` / `🎯 T2` bases in [Part D](#part-d--mock-rounds) and [`00-start-here/03-l4-sde2-delta.md`](../00-start-here/03-l4-sde2-delta.md). At senior level you should propose these escalations yourself before the interviewer asks. Bare `T3` = senior follow-up tier; full tier context: [`00-start-here/04-senior-delta.md`](../00-start-here/04-senior-delta.md).
 
 ## 1. Count-vs-existence
 
@@ -369,7 +278,7 @@ The cheapest senior escalation: "can you also tell me *how many*, not just wheth
 
 ## 2. Streaming / online
 
-Full base structures: [`04-practice/data-structures/10-heap.md`](../04-practice/data-structures/10-heap.md), [`04-practice/data-structures/14-design.md`](../04-practice/data-structures/14-design.md).
+Full base structures: [`04-practice/data-structures/10-heap.md`](../04-practice/data-structures/10-heap.md), [`04-practice/data-structures/12-design.md`](../04-practice/data-structures/12-design.md).
 
 | Base (offline, all data upfront) | Streaming follow-up | Key insight |
 |---|---|---|
@@ -437,9 +346,8 @@ The reflex being tested: does a complexity-class change trigger an unprompted re
 
 ## See Also
 
-- [HOW_TO_THINK.md](HOW_TO_THINK.md) — the solve loop, four levers, stuck moves, escalation grammar, pattern ladders
-- [RECURSION_AND_DP_MASTERCLASS.md](RECURSION_AND_DP_MASTERCLASS.md) — the contract/induction method this file's proof moves generalize
-- [patterns-master.md](patterns-master.md) — triggers, decision trees, DS/algorithm selection
-- [TOPIC_QUESTIONS_LOGIC_AND_TRICKS.md](TOPIC_QUESTIONS_LOGIC_AND_TRICKS.md) — canonical problems + variants playbook
-- [`00-start-here/L3_CHEATSHEET.md`](../00-start-here/L3_CHEATSHEET.md) — execution timeline, edge-case checklist, keyword → structure tables
-- [`00-start-here/sde3-senior-delta.md`](../00-start-here/sde3-senior-delta.md) — senior tier definitions and bar
+- [How to think](../01-foundations/01-how-to-think.md) — the solve loop, four levers, stuck moves, escalation grammar, pattern ladders
+- [Recursion → DP](../03-algorithms/07-recursion-to-dp.md) — the contract/induction method this file's proof moves generalize
+- [Pattern sheet](01-pattern-sheet.md) — triggers, decision trees, DS/algorithm selection
+- [Round cheatsheet](../00-start-here/02-round-cheatsheet.md) — execution timeline, edge-case checklist, keyword → structure tables
+- [`00-start-here/04-senior-delta.md`](../00-start-here/04-senior-delta.md) — senior tier definitions and bar

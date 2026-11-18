@@ -1,11 +1,11 @@
-# Patterns — Index
+# Review — Index
 
 ## What this covers
 
 > [!abstract] In this file
-> **Covers:** Which pattern guide answers which question, and a pattern → lecture-file cross-reference.
-> **You'll be able to:** Know which pattern guide to open and when.
-> **Prereqs:** None · **Pair with:** [Patterns master](patterns-master.md) · **Time:** 10 min
+> **Covers:** The three review files (pattern sheet, ladders, interview judgment), and a pattern → lecture-file cross-reference.
+> **You'll be able to:** Know which review file to open and when.
+> **Prereqs:** Topics in 02–03 · **Pair with:** [Pattern sheet](01-pattern-sheet.md) · **Time:** 5 min
 > **How to use:** reference — read once, then use as a lookup.
 
 **Sections:** [Core Resources](#core-resources) · [Pattern → Topic Cross-Reference](#pattern--topic-cross-reference) · [60-Second Pattern Recognition](#60-second-pattern-recognition)
@@ -14,18 +14,13 @@
 
 ## Core Resources
 
-Each guide answers one question. Open the one that matches what you need right now.
-
 | File | Answers | Mode |
 |---|---|---|
-| [`patterns-master.md`](patterns-master.md) | "Which pattern is this?" — N-size/keyword trees, triggers, phrase → technique, when stuck | Lookup |
-| [`HOW_TO_THINK.md`](HOW_TO_THINK.md) | "Why does it work / how do I re-derive it?" + Part IV graded ladders | Read in order, then practice |
-| [`RECURSION_AND_DP_MASTERCLASS.md`](RECURSION_AND_DP_MASTERCLASS.md) | "I can't design recursion or DP states" | Lesson, in order |
-| [`TOPIC_QUESTIONS_LOGIC_AND_TRICKS.md`](TOPIC_QUESTIONS_LOGIC_AND_TRICKS.md) | "What's the trap in problem X?" + Variants playbook (interviewer changed the problem) | Lookup |
-| [`INTERVIEW_JUDGMENT.md`](INTERVIEW_JUDGMENT.md) | Commit/pivot, hints, recovery · C: round cheatsheet + revision schedules · D: mocks + rubric · E: senior follow-up chains | Reread before mocks |
-| [`mindmap.md`](mindmap.md) | Problem name → one-line hint recall | Final-week revision |
+| [Pattern sheet](01-pattern-sheet.md) | "Which pattern is this?" — decision trees, phrase → technique, pivots, variants playbook, when stuck | Lookup |
+| [Ladders](02-ladders.md) | "Can I climb a pattern from easy to hard?" — graded problem ladders | Practice, in order |
+| [Interview judgment](03-interview-judgment.md) | Commit/pivot, hints, recovery · D: mocks + rubric · E: senior follow-up chains | Reread before mocks |
 
-Outside this folder: [L3 cheatsheet](../00-start-here/L3_CHEATSHEET.md) (round clock, Big-O, edge cases) · [Questions index](../04-practice/README.md) (find a walkthrough).
+Elsewhere: [How to think](../01-foundations/01-how-to-think.md) (derive any pattern) · [Recursion → DP](../03-algorithms/07-recursion-to-dp.md) (state design) · [Round cheatsheet](../00-start-here/02-round-cheatsheet.md) (round clock, edge cases, revision schedules) · [Problem index](../04-practice/README.md).
 
 ---
 
@@ -33,33 +28,27 @@ Outside this folder: [L3 cheatsheet](../00-start-here/L3_CHEATSHEET.md) (round c
 
 | Pattern | When triggered | Primary file |
 |---------|---------------|-------------|
-| **Two Pointers (Converging)** | Sorted array, pair/triplet sum, palindrome, water container | `02-algorithms/03-two-pointers.md` |
-| **Two Pointers (Fast/Slow)** | Cycle detection, linked list middle, duplicate in array | `02-algorithms/03-two-pointers.md` |
-| **Sliding Window (Fixed)** | Max/min/avg of every K-window, anagram check | `02-algorithms/04-sliding-window.md` |
-| **Sliding Window (Variable)** | Longest/shortest subarray with constraint | `02-algorithms/04-sliding-window.md` |
-| **Binary Search (Exact)** | "Find in sorted", "is X in the array" | `02-algorithms/11-binary-search.md` |
-| **Binary Search (Bounds)** | First/last occurrence, insertion point | `02-algorithms/11-binary-search.md` |
-| **Binary Search on Answer** | Minimize max, maximize min, "can we do X in Y" | `02-algorithms/11-binary-search.md` |
-| **BFS** | Shortest path (unweighted), level-order, connected components, multi-source flood | `01-data-structures/13-graphs.md` |
-| **DFS** | Path existence, all paths, islands, cycle detection, backtracking | `01-data-structures/13-graphs.md` |
-| **Topological Sort** | Dependencies, build order, alien dictionary | `01-data-structures/13-graphs.md` |
-| **Dynamic Programming (1D)** | Linear recurrence — house robber, climb stairs, coin change | `02-algorithms/15-dynamic-programming.md` |
-| **Dynamic Programming (2D)** | Grid paths, edit distance, LCS, matrix chain | `02-algorithms/15-dynamic-programming.md` |
-| **Knapsack** | "Pick items with weight/value constraints" | `02-algorithms/15-dynamic-programming.md` |
-| **Greedy** | Interval scheduling, jump game, task scheduler | `02-algorithms/16-greedy.md` |
-| **Backtracking** | Permutations, combinations, subsets, N-Queens, Sudoku | `02-algorithms/12-backtracking.md` |
-| **Monotonic Stack** | Next greater/smaller element, histogram, trapped water | `01-data-structures/05-stack.md` |
-| **Monotonic Deque** | Sliding window max/min | `02-algorithms/04-sliding-window.md` |
-| **Union-Find** | Connected components, cycle in undirected, MST (Kruskal) | `02-algorithms/14-union-find.md` |
-| **Heap / Priority Queue** | Top-K, merge K sorted, Dijkstra, two-heap median | `01-data-structures/10-heap.md` |
-| **Trie** | Prefix matching, word search, autocomplete, XOR max | `01-data-structures/09-trie.md` |
-| **Prefix Sum** | Subarray sum queries, range sum, 2D prefix sum | `01-data-structures/01-array.md` |
-| **Divide & Conquer (reference)** | Merge sort, quick select — in sorting file | `02-algorithms/00-sorting.md` |
+| **Two Pointers (Converging)** | Sorted array, pair/triplet sum, palindrome, water container | [Two pointers](../03-algorithms/02-two-pointers.md) |
+| **Two Pointers (Fast/Slow)** | Cycle detection, linked list middle, duplicate in array | [Two pointers](../03-algorithms/02-two-pointers.md) |
+| **Sliding Window (Fixed)** | Max/min/avg of every K-window, anagram check | [Sliding window](../03-algorithms/03-sliding-window.md) |
+| **Sliding Window (Variable)** | Longest/shortest subarray with constraint | [Sliding window](../03-algorithms/03-sliding-window.md) |
+| **Binary Search (Exact / Bounds)** | Find in sorted, first/last occurrence, insertion point | [Binary search](../03-algorithms/04-binary-search.md) |
+| **Binary Search on Answer** | Minimize max, maximize min, "can we do X in Y" | [Binary search](../03-algorithms/04-binary-search.md) |
+| **BFS / DFS** | Shortest path (unweighted), level-order, components, islands, cycles | [Graphs](../02-data-structures/11-graphs.md) |
+| **Topological Sort** | Dependencies, build order, alien dictionary | [Graphs](../02-data-structures/11-graphs.md) |
+| **Dynamic Programming** | 1D recurrences, grid/LCS/edit distance, knapsack | [DP](../03-algorithms/08-dynamic-programming.md) |
+| **Greedy** | Interval scheduling, jump game, task scheduler | [Greedy](../03-algorithms/09-greedy.md) |
+| **Backtracking** | Permutations, combinations, subsets, N-Queens, Sudoku | [Backtracking](../03-algorithms/06-backtracking.md) |
+| **Monotonic Stack** | Next greater/smaller element, histogram, trapped water | [Stack](../02-data-structures/05-stack.md) |
+| **Monotonic Deque** | Sliding window max/min | [Sliding window](../03-algorithms/03-sliding-window.md) |
+| **Union-Find** | Connected components, cycle in undirected, MST (Kruskal) | [Union-find](../03-algorithms/10-union-find.md) |
+| **Heap / Priority Queue** | Top-K, merge K sorted, Dijkstra, two-heap median | [Heap](../02-data-structures/10-heap.md) |
+| **Trie** | Prefix matching, word search, autocomplete, XOR max | [Trie](../02-data-structures/09-trie.md) |
+| **Prefix Sum** | Subarray sum queries, range sum, 2D prefix sum | [Array](../02-data-structures/01-array.md) |
+| **Divide & Conquer** | Merge sort, quickselect | [Sorting](../03-algorithms/01-sorting.md) |
 
 ---
 
 ## 60-Second Pattern Recognition
 
-The ordered trigger questions, the keyword → pattern table, and the pre-code
-clarifying questions all live in one place:
-[`patterns-master.md` § Quick Decision Trees](./patterns-master.md#quick-decision-trees).
+Trigger questions, keyword → pattern, and pre-code clarifying questions: [Pattern sheet § Quick Decision Trees](01-pattern-sheet.md#quick-decision-trees).

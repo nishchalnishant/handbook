@@ -10,13 +10,13 @@ difficulty: mixed
 > [!abstract] In this file
 > **Covers:** Worked graph problems: BFS/DFS, topological sort, weighted shortest path, bipartite, implicit-graph BFS.
 > **You'll be able to:** Model the problem as a graph and pick the traversal in under 2 min.
-> **Prereqs:** Graph lecture · **Pair with:** [Graph lecture](../../01-data-structures/13-graphs.md) · [Graph algorithm problems](../algorithms/13-graph-algorithms.md) · **Time:** 4–5 h
-> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../../00-start-here/l3-google-roadmap.md#tier-legend))
+> **Prereqs:** Graph lecture · **Pair with:** [Graph lecture](../../02-data-structures/11-graphs.md) · [Graph algorithm problems](../algorithms/11-graph-algorithms.md) · **Time:** 4–5 h
+> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../../00-start-here/01-roadmap.md#tier-legend))
 
 **Sections:** [BFS on Graphs](#bfs-on-graphs) · [DFS on Graphs](#dfs-on-graphs) · [Topological Sort](#topological-sort) · [Shortest Path / Weighted](#shortest-path--weighted) · [Bipartite / Coloring](#bipartite--coloring) · [Advanced](#advanced)
 
 > [!tip] If you only have 20 minutes
-> **Do these first:** [Number of Islands (BFS)](#number-of-islands-bfs--t1) · [Rotting Oranges](#rotting-oranges--t1) · [Clone Graph](#clone-graph--t1) · [Course Schedule II](#course-schedule-ii--t1) · [Pacific Atlantic Water Flow](#pacific-atlantic-water-flow--t1) · [Word Ladder](#word-ladder--t1) · [Is Graph Bipartite?](#is-graph-bipartite--t1) · [Network Delay Time (Dijkstra's)](#network-delay-time-dijkstras) · [Redundant Connection](#redundant-connection--t1)
+> **Do these first:** [Number of Islands (BFS)](#number-of-islands-bfs--t1) · [Rotting Oranges](#rotting-oranges--t1) · [Clone Graph](#clone-graph--t1) · [Course Schedule II](#course-schedule-ii--t1) · [Pacific Atlantic Water Flow](#pacific-atlantic-water-flow--t1) · [Word Ladder](#word-ladder--t1) · [Is Graph Bipartite?](#is-graph-bipartite--t1) · [Network Delay Time (Dijkstra's)](#shortest-path--weighted) · [Redundant Connection](#redundant-connection--t1)
 > **Template:** Grid DFS/BFS: mark visited **when enqueuing**, 4-dir `for dr, dc in ((1,0),(-1,0),(0,1),(0,-1))`.
 > **Template:** Multi-source BFS: push all sources at distance 0, then expand level by level. Kahn's: queue indegree-0 nodes; `len(order) < n` ⇒ cycle.
 > **Gotchas:** Marking on pop instead of push → duplicates/TLE · directed cycle needs 3 colors, undirected needs `parent` · Dijkstra: skip stale heap entries (`if d > dist[u]: continue`) · reverse thinking (border-in, target-out) for Surrounded/Pacific.
@@ -344,70 +344,7 @@ difficulty: mixed
 
 ### Word Ladder `⚡ T1`
 
-> Full walkthrough: [Word Ladder (BFS on Implicit Graph)](../algorithms/13-graph-algorithms.md#word-ladder-bfs-on-implicit-graph--t1).
-
----
-
-### Employee Importance
-
-> [!example] Problem
-> You have a data structure of employee information, including the employee's unique ID, importance value, and direct subordinates' IDs.
-> You are given an array of employees employees where:
-> Given an integer id that represents an employee's ID, return the total importance value of this employee and all their direct and indirect subordinates.
-> 
-> **Example 1:**
-> ```
-> Input: employees = [[1,5,[2,3]],[2,3,[]],[3,3,[]]], id = 1
-> Output: 11
-> Explanation: Employee 1 has an importance value of 5 and has two direct subordinates: employee 2 and employee 3.
-> They both have an importance value of 3.
-> Thus, the total importance value of employee 1 is 5 + 3 + 3 = 11.
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: employees = [[1,2,[5]],[5,-3,[]]], id = 5
-> Output: -3
-> Explanation: Employee 5 has an importance value of -3 and has no direct subordinates.
-> Thus, the total importance value of employee 5 is -3.
-> ```
-> 
-> **Constraints:**
-> - 1 <= employees.length <= 2000
-> - 1 <= employees[i].id <= 2000
-> - All employees[i].id are unique.
-> - -100 <= employees[i].importance <= 100
-> - One employee has at most one direct leader and may have several subordinates.
-> - The IDs in employees[i].subordinates are valid IDs.
-
-> [!tip] Recognize · Gotcha
-> **Signal:** "Total importance of employee and all subordinates" · **Gotcha:** Build id→employee map first; then BFS on subordinate ids.
-
-> [!info] Approach
-> **Hash map + BFS over subordinate ids.** Tree/DAG reachability with value aggregation. Hash map first: direct subordinate ids require O(N) linear scan per lookup without a map; O(1) with a map. BFS/DFS from target employee id, sum importance values. Build `{id: employee}` map; BFS — dequeue id, add importance, enqueue all subordinate ids.
-
-> [!note]- Python Solution
-> ```python
-> from collections import deque
-> 
-> def get_importance(employees, id):
->     emp_map = {e.id: e for e in employees}
->     total = 0
->     queue = deque([id])
->     while queue:
->         eid = queue.popleft()
->         e = emp_map[eid]
->         total += e.importance
->         queue.extend(e.subordinates)
->     return total
-> ```
-
-> [!success] Complexity
-> Time O(N), Space O(N).
-
-> [!tip] Alternatives
-> - DFS recursive: `return emp.importance + sum(getImportance(..., sub) for sub in emp.subordinates)`. Clean but risks recursion depth for deep hierarchies.
-> - Without hash map: O(N²) — linear scan per id lookup, avoid.
+> Full walkthrough: [Word Ladder (BFS on Implicit Graph)](../algorithms/11-graph-algorithms.md#word-ladder-bfs-on-implicit-graph--t1).
 
 ---
 
@@ -456,56 +393,6 @@ difficulty: mixed
 > [!tip] Alternatives
 > - BFS/DFS: O(V+E), correct but does more work than needed for pure reachability.
 > - Bidirectional BFS: useful if graph is large and path likely exists — meets in the middle.
-
----
-
-### Find Center of Star Graph
-
-> [!example] Problem
-> There is an undirected star graph consisting of n nodes labeled from 1 to n. A star graph is a graph where there is one center node and exactly n - 1 edges that connect the center node with every other node.
-> You are given a 2D integer array edges where each edges[i] = [ui, vi] indicates that there is an edge between the nodes ui and vi. Return the center of the given star graph.
-> 
-> **Example 1:**
-> ```
-> Input: edges = [[1,2],[2,3],[4,2]]
-> Output: 2
-> Explanation: As shown in the figure above, node 2 is connected to every other node, so 2 is the center.
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: edges = [[1,2],[5,1],[1,3],[1,4]]
-> Output: 1
-> ```
-> 
-> **Constraints:**
-> - 3 <= n <= 10^5
-> - edges.length == n - 1
-> - edges[i].length == 2
-> - 1 <= ui, vi <= n
-> - ui != vi
-> - The given edges represent a valid star graph.
-
-> [!tip] Recognize · Gotcha
-> **Signal:** "Node connected to all others in star" · **Gotcha:** Any common node in `edges[0]` and `edges[1]` is the center — O(1).
-
-> [!info] Approach
-> **O(1) — center appears in both the first and second edges.** The center appears in every edge. The center is the only node common to both the first and second edges — no traversal needed. Find the intersection of `edges[0]` and `edges[1]`. Check if `edges[0][0]` is in `edges[1]`; if so, it's the center; otherwise `edges[0][1]` is the center.
-
-> [!note]- Python Solution
-> ```python
-> def find_center(edges):
->     a, b = edges[0]
->     c, d = edges[1]
->     return a if a == c or a == d else b
-> ```
-
-> [!success] Complexity
-> Time O(1), Space O(1).
-
-> [!tip] Alternatives
-> - Degree count: node with degree n-1 is center. O(E) — massively over-engineered.
-> - `set(edges[0]) & set(edges[1])` → pop(): Pythonic O(1) using set intersection.
 
 ---
 
@@ -600,7 +487,12 @@ difficulty: mixed
 
 ### Word Ladder II `⚡ T1`
 
-> Full walkthrough: [Word Ladder II (All Shortest Transformation Sequences)](../algorithms/13-graph-algorithms.md#word-ladder-ii-all-shortest-transformation-sequences--t1).
+> Full walkthrough: [Word Ladder II (All Shortest Transformation Sequences)](../algorithms/11-graph-algorithms.md#word-ladder-ii-all-shortest-transformation-sequences--t1).
+
+**Also try:**
+
+- **Employee Importance** — Hash map + BFS over subordinate ids
+- **Find Center of Star Graph** — O(1) — center appears in both the first and second edges
 
 ---
 
@@ -950,7 +842,7 @@ difficulty: mixed
 
 ### Number of Provinces (LC 547) `⚡ T1`
 
-> Full walkthrough: [Number of Provinces (Matrix Form)](../algorithms/14-union-find.md#number-of-provinces-matrix-form--t1).
+> Full walkthrough: [Number of Provinces (Matrix Form)](../algorithms/10-union-find.md#number-of-provinces-matrix-form--t1).
 
 ---
 
@@ -1104,7 +996,7 @@ difficulty: mixed
 
 ### Find Eventual Safe States `⚡ T1`
 
-> Full walkthrough: [Find Eventual Safe States (Reverse Graph / Kahn's)](../algorithms/13-graph-algorithms.md#find-eventual-safe-states-reverse-graph--kahns--t1).
+> Full walkthrough: [Find Eventual Safe States (Reverse Graph / Kahn's)](../algorithms/11-graph-algorithms.md#find-eventual-safe-states-reverse-graph--kahns--t1).
 
 ---
 
@@ -1277,84 +1169,13 @@ difficulty: mixed
 > - DFS with memo dict on node — top-down. O(V+E). Same idea, you just say the cache out loud.
 > - Bellman-Ford with negated weights: O(VE) — much slower; use only when you can't confirm DAG property.
 
----
+**Also try:**
 
-### Minimum Height Trees (LC 310)
-
-> [!example] Problem
-> A tree is an undirected graph in which any two vertices are connected by exactly one path. In other words, any connected graph without simple cycles is a tree.
-> Given a tree of n nodes labelled from 0 to n - 1, and an array of n - 1 edges where edges[i] = [ai, bi] indicates that there is an undirected edge between the two nodes ai and bi in the tree, you can choose any node of the tree as the root. When you select a node x as the root, the result tree has height h. Among all possible rooted trees, those with minimum height (i.e. min(h))  are called minimum height trees (MHTs).
-> Return a list of all MHTs' root labels. You can return the answer in any order.
-> The height of a rooted tree is the number of edges on the longest downward path between the root and a leaf.
-> 
-> **Example 1:**
-> ```
-> Input: n = 4, edges = [[1,0],[1,2],[1,3]]
-> Output: [1]
-> Explanation: As shown, the height of the tree is 1 when the root is the node with label 1 which is the only MHT.
-> ```
-> 
-> **Example 2:**
-> ```
-> Input: n = 6, edges = [[3,0],[3,1],[3,2],[3,4],[5,4]]
-> Output: [3,4]
-> ```
-> 
-> **Constraints:**
-> - 1 <= n <= 2 * 10^4
-> - edges.length == n - 1
-> - 0 <= ai, bi < n
-> - ai != bi
-> - All the pairs (ai, bi) are distinct.
-> - The given input is guaranteed to be a tree and there will be no repeated edges.
-
-> [!info] Approach
-> The roots of minimum height trees are the "center" nodes of the tree — at most 2 nodes lying on the longest path (diameter). Topological leaf-trimming: iteratively remove all current leaves; the last 1–2 remaining nodes are the answer. Build adjacency list and degree array. Seed a queue with all leaves (degree == 1). BFS layer-by-layer: remove current leaves, expose new leaves (nodes whose degree drops to 1). Stop when ≤ 2 nodes remain. Decrement `n` by the number of leaves removed each round; stop when `n <= 2` — remaining nodes are the answer.
-
-> [!note]- Python Solution
-> ```python
-> from collections import deque
-> 
-> def find_min_height_trees(n, edges):
->     if n == 1:
->         return [0]
->     graph = [set() for _ in range(n)]
->     for u, v in edges:
->         graph[u].add(v)
->         graph[v].add(u)
-> 
->     leaves = deque(i for i in range(n) if len(graph[i]) == 1)
->     remaining = n
-> 
->     while remaining > 2:
->         leaf_count = len(leaves)
->         remaining -= leaf_count
->         for _ in range(leaf_count):
->             leaf = leaves.popleft()
->             for nei in graph[leaf]:
->                 graph[nei].discard(leaf)
->                 if len(graph[nei]) == 1:
->                     leaves.append(nei)
-> 
->     return list(leaves)
-> ```
-
-> [!success] Complexity
-> Time O(V), Space O(V).
-
-> [!tip] Alternatives
-> - Two BFS to find diameter endpoints: find the farthest node from any node (BFS 1), then farthest from that node (BFS 2) — diameter endpoints found. Center of diameter path = answer. O(V) but more complex to implement.
-> - DFS with height computation: O(V) per root × O(V) roots = O(V²) — far too slow.
+- **Minimum Height Trees (LC 310)** — The roots of minimum height trees are the "center" nodes of the tree — at most 2 nodes lying on the longest path (diameter)
 
 ---
 
 ## Shortest Path / Weighted
-
----
-
-### Network Delay Time (Dijkstra's)
-
-> Full walkthrough: [Network Delay Time](../algorithms/13-graph-algorithms.md#network-delay-time).
 
 ---
 
@@ -1508,50 +1329,10 @@ difficulty: mixed
 > - Binary search on effort + BFS feasibility: O(M×N log(max_height)). Binary search on answer ∈ [0, 10^6]; BFS checks if path exists using only edges with diff ≤ mid.
 > - Union-Find with sorted edges: sort all edges by absolute diff; union endpoints one by one; stop when (0,0) and (M-1,N-1) are connected. O(M×N log(M×N)).
 
----
+**Also try:**
 
-### Shortest Path in a DAG
-
-> [!example] Problem
-> Given a directed acyclic graph with weighted edges, find shortest paths from a source node.
-
-> [!info] Approach
-> In a DAG, a topological order guarantees that when a node is processed, all incoming dependencies are already finalized. Topologically sort the graph, then relax outgoing edges in that order. Initialize distances, process nodes in topo order, and update `dist[v] = min(dist[v], dist[u] + w)` for each edge.
-
-> [!note]- Python Solution
-> ```python
-> from collections import deque, defaultdict
-> >
-> def shortest_path_dag(n, edges, int, int]], source):
->     graph = defaultdict(list)
->     indeg = [0] * n
->     for u, v, w in edges:
->         graph[u].append((v, w))
->         indeg[v] += 1
->     q = deque([i for i in range(n) if indeg[i] == 0])
->     topo = []
->     while q:
->         u = q.popleft()
->         topo.append(u)
->         for v, _ in graph[u]:
->             indeg[v] -= 1
->             if indeg[v] == 0:
->                 q.append(v)
->     dist = [float("inf")] * n
->     dist[source] = 0
->     for u in topo:
->         if dist[u] == float("inf"):
->             continue
->         for v, w in graph[u]:
->             dist[v] = min(dist[v], dist[u] + w)
->     return dist
-> ```
-
-> [!success] Complexity
-> O(V + E) time, O(V + E) space.
-
-> [!tip] Alternatives
-> If the graph can have cycles, use Dijkstra for non-negative edges or Bellman-Ford when negative edges are allowed.
+- **Network Delay Time (Dijkstra's)** — see [Network Delay Time](../algorithms/11-graph-algorithms.md#dijkstras-algorithm)
+- **Shortest Path in a DAG** — In a DAG, a topological order guarantees that when a node is processed, all incoming dependencies are already finalized
 
 ---
 
@@ -1627,11 +1408,9 @@ difficulty: mixed
 > - DFS coloring: same logic recursively. O(V+E). Stack overflow risk on deep graphs.
 > - Odd-cycle detection: explicitly find cycles and check parity. Equivalent, more complex.
 
----
+**Also try:**
 
-### Possible Bipartition (LC 886)
-
-> Full walkthrough: [Possible Bipartition](../algorithms/13-graph-algorithms.md#possible-bipartition).
+- **Possible Bipartition (LC 886)** — see [Possible Bipartition](../algorithms/11-graph-algorithms.md#multi-source-bfs--special-bfs)
 
 ---
 
@@ -1709,145 +1488,12 @@ difficulty: mixed
 > - DFS cycle detection: for each edge, DFS to check if path already exists between endpoints. O(N²) — inefficient.
 > - Note: Union-Find only correct here because the graph is undirected. For directed graphs, DFS back-edge detection or Kahn's is required.
 
----
+**Also try:**
 
-### Minimum Spanning Tree (Kruskal's)
-
-> [!example] Problem
-> Given a connected undirected weighted graph, find the minimum spanning tree — a subset of edges that connects all nodes with minimum total weight and no cycles.
-
-> [!tip] Recognize · Gotcha
-> **Signal:** "Min total edge weight connecting all nodes" · **Gotcha:** Edge count of MST = N-1; stop early when you've added N-1 edges.
-
-> [!info] Approach
-> **Kruskal's — sort edges by weight, greedily add if no cycle. `⚡ T1`** The cut property — the minimum weight edge crossing any cut belongs to some MST. Kruskal's: sort all edges by weight and greedily add each edge if it doesn't form a cycle. Union-Find for O(α) cycle detection per edge (vs O(V) DFS cycle check). Sort edges by weight; for each edge, union its endpoints if they're in different components; stop after adding V-1 edges.
-
-> [!note]- Python Solution
-> ```python
-> def kruskal(n, edges):
->     # edges: list of (weight, u, v)
->     parent = list(range(n))
->     rank   = [0] * n
-> 
->     def find(x):
->         while parent[x] != x:
->             parent[x] = parent[parent[x]]
->             x = parent[x]
->         return x
-> 
->     def union(a, b):
->         ra, rb = find(a), find(b)
->         if ra == rb:
->             return False
->         if rank[ra] < rank[rb]:
->             ra, rb = rb, ra
->         parent[rb] = ra
->         if rank[ra] == rank[rb]:
->             rank[ra] += 1
->         return True
-> 
->     edges.sort()
->     mst_cost = 0
->     mst_edges = []
->     for w, u, v in edges:
->         if union(u, v):
->             mst_cost += w
->             mst_edges.append((u, v, w))
->             if len(mst_edges) == n - 1:
->                 break  # MST complete
-> 
->     return mst_cost, mst_edges
-> ```
-
-> [!success] Complexity
-> Time O(E log E) dominated by sort. Space O(V).
-
-> [!tip] Alternatives
-> - Prim's: grow MST from a seed node using a min-heap; O((V+E) log V). Better for dense graphs (E close to V²).
-> - Borůvka's: O(E log V); each round adds the minimum outgoing edge for each component — parallelizable.
-
----
-
-### Reconstruct Itinerary (LC 332)
-
-> Full walkthrough: [Reconstruct Itinerary (Hierholzer's)](../algorithms/13-graph-algorithms.md#reconstruct-itinerary-hierholzers).
-
----
-
-### Minimum Spanning Tree — Prim's Algorithm
-
-> [!example] Problem
-> Given a weighted undirected connected graph, find the minimum spanning tree (MST) — the subset of edges that connects all vertices with minimum total weight.
-
-> [!info] Approach
-> Prim's grows the MST greedily from any starting node, always adding the cheapest edge that connects the current MST to an unvisited node. A min-heap makes this O(E log V). Use a min-heap of `(weight, node)`. Start with node 0. Greedily pick the smallest weight edge to an unvisited node, add it to the MST, and push all its edges into the heap. `visited` set tracks MST nodes. Pop from heap; if already visited, skip. Otherwise mark visited, add weight to MST cost, push all unvisited neighbours into the heap.
-
-> [!note]- Python Solution
-> ```python
-> import heapq
-> from collections import defaultdict
-> >
-> def prim_mst(n, edges, int, int]]):
->     graph = defaultdict(list)
->     for u, v, w in edges:
->         graph[u].append((w, v))
->         graph[v].append((w, u))
->     visited = set()
->     heap = [(0, 0)]   # (weight, node)
->     total_weight = 0
->     while heap and len(visited) < n:
->         weight, node = heapq.heappop(heap)
->         if node in visited:
->             continue
->         visited.add(node)
->         total_weight += weight
->         for edge_weight, neighbour in graph[node]:
->             if neighbour not in visited:
->                 heapq.heappush(heap, (edge_weight, neighbour))
->     return total_weight if len(visited) == n else -1
-> ```
-
-> [!success] Complexity
-> Time O(E log V), Space O(V + E).
-
-> [!tip] Alternatives
-> - Kruskal's: sort all edges, use Union-Find to pick the smallest edge that doesn't create a cycle. O(E log E). Better for sparse graphs; Prim's is better for dense graphs.
-> - Key difference: Prim's grows from a single root; Kruskal's builds components that merge.
-
----
-
-### All-Pairs Shortest Path — Floyd-Warshall
-
-> [!example] Problem
-> Given a weighted directed graph with `n` nodes (possibly with negative edges, but no negative cycles), find the shortest path between every pair of nodes.
-
-> [!info] Approach
-> Dijkstra's is per-source (O(V * E log V) total for all-pairs). Floyd-Warshall's DP is simpler to implement and handles negative edges. For dense graphs it's competitive. `dist[i][j]` = shortest path from `i` to `j`. For each intermediate node `k`, check if routing through `k` shortens `dist[i][j]`. Initialize `dist[i][j]` to edge weight if edge exists, 0 if `i == j`, infinity otherwise. Triple loop: for each `k`, for each `i`, for each `j`: `dist[i][j] = min(dist[i][j], dist[i][k] + dist[k][j])`.
-
-> [!note]- Python Solution
-> ```python
-> def floyd_warshall(n, edges, int, int]]):
->     INF = float('inf')
->     dist = [[INF] * n for _ in range(n)]
->     for i in range(n):
->         dist[i][i] = 0
->     for u, v, w in edges:
->         dist[u][v] = w
->     for k in range(n):
->         for i in range(n):
->             for j in range(n):
->                 if dist[i][k] + dist[k][j] < dist[i][j]:
->                     dist[i][j] = dist[i][k] + dist[k][j]
->     return dist
-> ```
-
-> [!success] Complexity
-> Time O(V³), Space O(V²).
-
-> [!tip] Alternatives
-> - Run Dijkstra from every source: O(V * E log V) — better for sparse graphs with non-negative edges.
-> - Bellman-Ford from every source: O(V² * E) — handles negative edges but much slower.
-> - Floyd-Warshall is the go-to when the graph is dense or the input is given as an adjacency matrix.
+- **Minimum Spanning Tree (Kruskal's)** — Kruskal's — sort edges by weight, greedily add if no cycle. `⚡ T1`
+- **Reconstruct Itinerary (LC 332)** — see [Reconstruct Itinerary (Hierholzer's)](../algorithms/11-graph-algorithms.md#eulerian-path)
+- **Minimum Spanning Tree — Prim's Algorithm** — Prim's grows the MST greedily from any starting node, always adding the cheapest edge that connects the current MST to an unvisited node
+- **All-Pairs Shortest Path — Floyd-Warshall** — Dijkstra's is per-source (O(V * E log V) total for all-pairs)
 
 ---
 

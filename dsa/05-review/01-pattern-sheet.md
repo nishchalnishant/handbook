@@ -1,5 +1,5 @@
 ---
-module: 03-patterns
+module: 05-review
 topic: Patterns Master
 tags: [patterns, patterns-master]
 ---
@@ -10,11 +10,11 @@ tags: [patterns, patterns-master]
 > [!abstract] In this file
 > **Covers:** Pattern recognition end to end: constraint budgets, keyword triggers, DS/algorithm selection, every core pattern's template, pivot logic, pre-code checks and gotchas, brute → optimal paths, implicit graphs, follow-up chains, hybrids, and the exhaustive phrase → technique lookup.
 > **You'll be able to:** Map signal words + constraints to a pattern and data structure, and know the pivot when the first idea fails.
-> **Prereqs:** Most lecture files · **Pair with:** [How to think](HOW_TO_THINK.md) · [Interview judgment](INTERVIEW_JUDGMENT.md) · **Time:** 2 h
+> **Prereqs:** Most lecture files · **Pair with:** [How to think](../01-foundations/01-how-to-think.md) · [Interview judgment](03-interview-judgment.md) · **Time:** 2 h
 > **How to use:** reference — read once, then use as a lookup.
-> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../00-start-here/l3-google-roadmap.md#tier-legend))
+> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../00-start-here/01-roadmap.md#tier-legend))
 
-**Sections:** [Quick Decision Trees](#quick-decision-trees) · [DS & Algorithm Selection](#ds--algorithm-selection) · [Core Patterns](#core-patterns) · [If-Not-X-Then-Y (Pivot Logic)](#if-not-x-then-y-pivot-logic) · [Mental Model Shifts](#mental-model-shifts) · [Pre-Code Checks & Gotchas](#pre-code-checks--gotchas) · [Progression Cheatsheet: Brute Force → Optimization → Optimal](#progression-cheatsheet-brute-force--optimization--optimal) · [Implicit Graph Pattern `⚡ T1`](#implicit-graph-pattern--t1) · [Follow-Up Chains — Interview Progression `⚡ T1`](#follow-up-chains--interview-progression--t1) · [Hybrid Patterns `🎯 T2`](#hybrid-patterns--t2) · [Phrase → Technique](#phrase--technique) · [When Stuck](#when-stuck) · [Flashcards](#flashcards) · [See Also](#see-also)
+**Sections:** [Quick Decision Trees](#quick-decision-trees) · [DS & Algorithm Selection](#ds--algorithm-selection) · [Core Patterns](#core-patterns) · [If-Not-X-Then-Y (Pivot Logic)](#if-not-x-then-y-pivot-logic) · [Mental Model Shifts](#mental-model-shifts) · [Pre-Code Checks & Gotchas](#pre-code-checks--gotchas) · [Progression Cheatsheet: Brute Force → Optimization → Optimal](#progression-cheatsheet-brute-force--optimization--optimal) · [Implicit Graph Pattern `⚡ T1`](#implicit-graph-pattern--t1) · [Follow-Up Chains — Interview Progression `⚡ T1`](#follow-up-chains--interview-progression--t1) · [Hybrid Patterns `🎯 T2`](#hybrid-patterns--t2) · [Phrase → Technique](#phrase--technique) · [When Stuck](#when-stuck) · [Variants Playbook](#variants-playbook) · [Flashcards](#flashcards) · [See Also](#see-also)
 
 ---
 
@@ -22,27 +22,7 @@ tags: [patterns, patterns-master]
 
 ### By Input Size (N)
 
-A budget of about 10⁸ simple operations per second is a safe rule. Full detail is in [Part 5](../striver-a2z/05-time-complexity/01-theory-with-examples.md).
-
-| n up to | Budget | Typical techniques |
-|---|---|---|
-| ≤ 10–12 | O(n!) or O(nⁿ) | Permutations, brute-force backtracking ([Part 18](../striver-a2z/18-recursion/README.md)) |
-| ≤ 20 | O(2ⁿ · n) | Subsets, bitmask DP ([Part 32 §2](../striver-a2z/32-beyond-the-sheet/02-advanced-dp-theory.md)) |
-| ≤ 40 | O(2^(n/2)) | Meet in the middle `💤 T3` ([Part 32 §4](../striver-a2z/32-beyond-the-sheet/04-techniques-toolbox-theory.md)) |
-| ≤ 100–500 | O(n³) | Floyd–Warshall, interval DP / MCM ([Part 27](../striver-a2z/27-graphs/README.md), [Part 28](../striver-a2z/28-dynamic-programming/README.md)) |
-| ≤ 10³–5·10³ | O(n²) | 2D DP (LCS, edit distance), all pairs |
-| ≤ 10⁵–10⁶ | O(n log n) | Sort, binary search, heap, Dijkstra |
-| ≤ 10⁷–10⁸ | O(n) | Two pointers, sliding window, prefix sums, hashing, monotonic stack, sieve |
-| ≥ 10⁹ (a value, not a length) | O(log n) or O(√n) | Binary search on the answer, binary exponentiation, √n divisor loop, maths |
-| 10¹⁸ | O(log n) or digit count | Closed form, binary exponentiation; digit DP / matrix power `💤 T3` |
-
-| Other constraint signal | Implication |
-|---|---|
-| "Answer modulo 10⁹+7" | Counting DP or combinatorics ([Part 31 §5](../striver-a2z/31-maths/05-modular-arithmetic-and-combinatorics-theory.md)) |
-| Values ≤ 10⁵ but n large | Counting array or bucket instead of a hashmap; sieve |
-| Sum of n over tests ≤ 2·10⁵ | Per-test cost must be linear in that test's n |
-| Grid m·n ≤ 10⁵ | BFS/DFS over cells, O(mn) |
-| Q queries ≥ 10⁵ | Precompute (prefix sums) or O(log n) per query via sort + binary search ([Part 32 §1](../striver-a2z/32-beyond-the-sheet/01-range-queries-theory.md)) |
+Full table: [Constraint → complexity budget](../01-foundations/02-complexity-and-python.md#1-constraint--complexity-budget).
 
 ### By Keyword/Constraint
 
@@ -81,11 +61,11 @@ Read constraints + examples (n, m, sorted?, negative?, tree/graph?)
 │   └── Feasibility on answer space → Binary Search on Answer → 11-binary-search.md `⚡ T1`
 │
 ├── Tree or graph structure?
-│   ├── Shortest path (unweighted) → BFS → 13-graphs.md `⚡ T1`
-│   ├── Connected components / flood fill → DFS → 13-graphs.md `⚡ T1`
-│   ├── Prerequisites / ordering → Topological Sort → 13-graphs.md `⚡ T1`
+│   ├── Shortest path (unweighted) → BFS → 11-graphs.md `⚡ T1`
+│   ├── Connected components / flood fill → DFS → 11-graphs.md `⚡ T1`
+│   ├── Prerequisites / ordering → Topological Sort → 11-graphs.md `⚡ T1`
 │   ├── Dynamic connectivity / grouping → Union-Find → 14-union-find.md `⚡ T1`
-│   └── Weighted shortest path (non-negative) → Dijkstra + heap → 13-graphs.md `⚡ T1`
+│   └── Weighted shortest path (non-negative) → Dijkstra + heap → 11-graphs.md `⚡ T1`
 │
 ├── Top-K / merge K streams / running median?
 │   └── Heap → 10-heap.md · 16-greedy.md `⚡ T1`
@@ -505,13 +485,12 @@ def backtrack(start, path):
 
 ## Pre-Code Checks & Gotchas
 
-Ask before coding (full edge-case table: [L3 cheatsheet §5](../00-start-here/L3_CHEATSHEET.md#5-universal-edge-cases)):
+Ask before coding (full edge-case table: [L3 cheatsheet §5](../00-start-here/02-round-cheatsheet.md#3-universal-edge-cases)):
 1. **Duplicates?** → Impacts hash map/set logic
 2. **Sorted?** → Enables binary search/two pointers
 3. **Empty/null input?** → Base case handling
 4. **Memory constraints?** → O(1) space required?
 5. **Negative values?** → Breaks simple sliding window, Dijkstra
-
 
 | Gotcha | Rule |
 |--------|------|
@@ -594,9 +573,9 @@ def bfs_implicit(start, target):
 
 ## Follow-Up Chains — Interview Progression `⚡ T1`
 
-> The five generic transformations behind every chain below: [HOW_TO_THINK § escalation grammar](HOW_TO_THINK.md#the-escalation-grammar-what-follow-ups-will-be).
+> The five generic transformations behind every chain below: [How to think § escalation grammar](../01-foundations/01-how-to-think.md#the-escalation-grammar-what-follow-ups-will-be).
 
-Each chain is the order an interviewer escalates. Senior-only escalations (streaming, deletes, memory, scale): [INTERVIEW_JUDGMENT Part E](INTERVIEW_JUDGMENT.md#part-e--senior-follow-up-chains).
+Each chain is the order an interviewer escalates. Senior-only escalations (streaming, deletes, memory, scale): [Interview judgment Part E](03-interview-judgment.md#part-e--senior-follow-up-chains).
 
 ### Two Sum family
 1. Two Sum (unsorted, hash map) → 2. Two Sum sorted (two pointers) → 3. 3Sum (fix one, two-pointer inner) → 4. 4Sum (fix two, two-pointer inner) → 5. Subarray Sum = K (prefix sum + hash map)
@@ -629,7 +608,7 @@ Each chain is the order an interviewer escalates. Senior-only escalations (strea
 
 ## Hybrid Patterns `🎯 T2`
 
-> How to *find* the seam between two patterns: [HOW_TO_THINK § two patterns with a seam](HOW_TO_THINK.md#hard-problems-are-two-patterns-with-a-seam).
+> How to *find* the seam between two patterns: [How to think § two patterns with a seam](../01-foundations/01-how-to-think.md#hard-problems-are-two-patterns-with-a-seam).
 
 When a problem combines two pattern families, name both upfront in the interview.
 
@@ -652,140 +631,198 @@ When a problem combines two pattern families, name both upfront in the interview
 
 ### Arrays and strings
 
-| Phrase / shape | Technique | Part |
-|---|---|---|
-| Sorted array, pair or triplet with target sum | Two pointers from both ends | [14](../striver-a2z/14-arrays/README.md), [22](../striver-a2z/22-sliding-window-and-2-pointer/README.md) |
-| Longest / shortest **contiguous** subarray or substring with a condition | Variable sliding window (expand right, shrink left) | [22](../striver-a2z/22-sliding-window-and-2-pointer/01-sliding-window-theory.md) |
-| **Count** subarrays with exactly K | `atMost(K) − atMost(K−1)` | [22](../striver-a2z/22-sliding-window-and-2-pointer/README.md) |
-| Subarray sum = K with negatives | Prefix sum + hashmap of counts | [14](../striver-a2z/14-arrays/README.md), [15](../striver-a2z/15-hashing/README.md) |
-| Maximum subarray sum | Kadane | [14](../striver-a2z/14-arrays/README.md) |
-| Majority element (> n/2, > n/3) | Boyer–Moore voting | [14](../striver-a2z/14-arrays/README.md) |
-| Values in 1..n, find missing / duplicate | Index marking, cyclic sort, XOR, or sum formulas | [14](../striver-a2z/14-arrays/README.md), [20](../striver-a2z/20-bit-manipulation/README.md) |
-| Next permutation, rotate in place | Reversal tricks | [14](../striver-a2z/14-arrays/README.md) |
-| Sort 0s/1s/2s | Dutch national flag (three pointers) | [14](../striver-a2z/14-arrays/README.md) |
-| Merge / insert / overlap intervals | Sort by start, then sweep | [21](../striver-a2z/21-greedy-algorithms/README.md), [32 sweep](../striver-a2z/32-beyond-the-sheet/04-techniques-toolbox-theory.md) |
-| Anagram, frequency, "same characters" | 26-count array | [11](../striver-a2z/11-basic-strings/README.md), [17](../striver-a2z/17-strings-basic-medium/00-string-basics-theory.md) |
-| Longest palindromic substring | Expand around centre O(n²); Manacher O(n) `💤 T3` | [17](../striver-a2z/17-strings-basic-medium/README.md), [30 §12](../striver-a2z/30-strings-advanced/01-string-hashing-and-matching-theory.md) |
-| Find a pattern in a text | KMP / Z-function / rolling hash | [30](../striver-a2z/30-strings-advanced/README.md) |
-| Matrix spiral, rotate, set zeroes | Boundary pointers, transpose + reverse, first row/col as markers | [14](../striver-a2z/14-arrays/README.md) |
+| Phrase / shape | Technique |
+|---|---|
+| Sorted array, pair or triplet with target sum | Two pointers from both ends |
+| Longest / shortest **contiguous** subarray or substring with a condition | Variable sliding window (expand right, shrink left) |
+| **Count** subarrays with exactly K | `atMost(K) − atMost(K−1)` |
+| Subarray sum = K with negatives | Prefix sum + hashmap of counts |
+| Maximum subarray sum | Kadane |
+| Majority element (> n/2, > n/3) | Boyer–Moore voting |
+| Values in 1..n, find missing / duplicate | Index marking, cyclic sort, XOR, or sum formulas |
+| Next permutation, rotate in place | Reversal tricks |
+| Sort 0s/1s/2s | Dutch national flag (three pointers) |
+| Merge / insert / overlap intervals | Sort by start, then sweep |
+| Anagram, frequency, "same characters" | 26-count array |
+| Longest palindromic substring | Expand around centre O(n²); Manacher O(n) `💤 T3` |
+| Find a pattern in a text | KMP / Z-function / rolling hash |
+| Matrix spiral, rotate, set zeroes | Boundary pointers, transpose + reverse, first row/col as markers |
 
 ### Searching and ordering
 
-| Phrase / shape | Technique | Part |
-|---|---|---|
-| Sorted or rotated-sorted array, find element / bound | Binary search, find the sorted half | [16](../striver-a2z/16-binary-search/01-binary-search-templates.md) |
-| "Minimise the maximum" / "maximise the minimum" | Binary search on the answer + greedy feasibility check | [16](../striver-a2z/16-binary-search/README.md) (aggressive cows, book allocation, split array) |
-| Smallest x such that f(x) holds, f monotone | Binary search on the answer | [16](../striver-a2z/16-binary-search/17-koko-eating-bananas.md) |
-| Peak, bitonic | Binary search on the slope | [16](../striver-a2z/16-binary-search/24-find-peak-element.md) |
-| Median / k-th of two sorted arrays | Binary search on the partition | [16](../striver-a2z/16-binary-search/25-median-of-two-sorted-arrays.md) |
-| Row- and column-sorted matrix | Staircase from a corner, or flatten the index | [16](../striver-a2z/16-binary-search/README.md) |
-| Count inversions / reverse pairs | Merge sort counting | [13](../striver-a2z/13-sorting/00-sorting-theory.md), [14](../striver-a2z/14-arrays/README.md) |
-| K-th largest / smallest | Heap of size k or quickselect | [26](../striver-a2z/26-heaps/README.md) |
-| Locally optimal choice is provably safe (exchange argument) | Greedy after sorting | [21](../striver-a2z/21-greedy-algorithms/01-greedy-fundamentals.md) |
-| Max meetings / min platforms / activity selection | Sort by end time; sweep events | [21](../striver-a2z/21-greedy-algorithms/README.md) |
+| Phrase / shape | Technique |
+|---|---|
+| Sorted or rotated-sorted array, find element / bound | Binary search, find the sorted half |
+| "Minimise the maximum" / "maximise the minimum" | Binary search on the answer + greedy feasibility check |
+| Smallest x such that f(x) holds, f monotone | Binary search on the answer |
+| Peak, bitonic | Binary search on the slope |
+| Median / k-th of two sorted arrays | Binary search on the partition |
+| Row- and column-sorted matrix | Staircase from a corner, or flatten the index |
+| Count inversions / reverse pairs | Merge sort counting |
+| K-th largest / smallest | Heap of size k or quickselect |
+| Locally optimal choice is provably safe (exchange argument) | Greedy after sorting |
+| Max meetings / min platforms / activity selection | Sort by end time; sweep events |
 
 ### Stacks, queues and heaps
 
-| Phrase / shape | Technique | Part |
-|---|---|---|
-| Next / previous greater or smaller element | Monotonic stack | [23](../striver-a2z/23-stack-and-queues/15-next-greater-element.md) |
-| Sum of subarray minimums or ranges, largest rectangle in a histogram | Monotonic stack, contribution technique (PSE/NSE) | [23](../striver-a2z/23-stack-and-queues/README.md) |
-| Balanced brackets, undo, nested structure | Stack | [23](../striver-a2z/23-stack-and-queues/08-balanced-parenthesis.md) |
-| Expression evaluation or conversion | Stack with precedence | [23](../striver-a2z/23-stack-and-queues/README.md) |
-| Remove k digits, smallest lexicographic subsequence | Greedy monotonic stack | [23](../striver-a2z/23-stack-and-queues/20-remove-k-digits.md) |
-| Sliding window max / min | Monotonic deque | [23](../striver-a2z/23-stack-and-queues/README.md) |
-| Top k, k closest, k most frequent | Size-k heap | [26](../striver-a2z/26-heaps/01-heap-theory.md) |
-| Merge k sorted lists or arrays | Min-heap of heads | [26](../striver-a2z/26-heaps/README.md) |
-| Running median | Two heaps | [26](../striver-a2z/26-heaps/README.md) |
-| Task scheduling with cooldown, reorganise string | Max-heap + greedy | [26](../striver-a2z/26-heaps/README.md) |
+| Phrase / shape | Technique |
+|---|---|
+| Next / previous greater or smaller element | Monotonic stack |
+| Sum of subarray minimums or ranges, largest rectangle in a histogram | Monotonic stack, contribution technique (PSE/NSE) |
+| Balanced brackets, undo, nested structure | Stack |
+| Expression evaluation or conversion | Stack with precedence |
+| Remove k digits, smallest lexicographic subsequence | Greedy monotonic stack |
+| Sliding window max / min | Monotonic deque |
+| Top k, k closest, k most frequent | Size-k heap |
+| Merge k sorted lists or arrays | Min-heap of heads |
+| Running median | Two heaps |
+| Task scheduling with cooldown, reorganise string | Max-heap + greedy |
 
 ### Recursion and DP
 
-| Phrase / shape | Technique | Part |
-|---|---|---|
-| "All" subsets, permutations, combinations, partitions | Backtracking (pick / not pick) | [18](../striver-a2z/18-recursion/01-subsequence-patterns.md) |
-| Place items under constraints (N-Queens, Sudoku, colouring) | Backtracking with pruning | [18](../striver-a2z/18-recursion/README.md) |
-| "Number of ways", "min/max cost", "is it possible", with overlapping choices | DP: recursion → memo → tabulation → space | [28](../striver-a2z/28-dynamic-programming/01-dp-theory.md) |
-| Linear sequence, choose or skip each element | 1D DP (climbing stairs, house robber) | [28](../striver-a2z/28-dynamic-programming/README.md) |
-| Grid paths with obstacles or costs | 2D grid DP | [28](../striver-a2z/28-dynamic-programming/README.md) |
-| Target sum with items, capacity | Subset sum / 0-1 knapsack; unbounded if items repeat | [28](../striver-a2z/28-dynamic-programming/README.md) |
-| Two strings: common, edit, match, wildcard | DP on strings `dp[i][j]` | [28](../striver-a2z/28-dynamic-programming/README.md) |
-| Stock buy/sell with transactions or cooldown | State machine DP (day, holding, count) | [28](../striver-a2z/28-dynamic-programming/README.md) |
-| Increasing subsequence, chains, envelopes | LIS; O(n log n) with binary search | [28](../striver-a2z/28-dynamic-programming/README.md) |
-| Burst, merge, cut, partition a range | Interval / MCM DP by length | [28](../striver-a2z/28-dynamic-programming/README.md) |
-| Largest square or rectangle of 1s | DP on squares; histogram per row | [28](../striver-a2z/28-dynamic-programming/README.md) |
-| n ≤ 20, "visit all" | Bitmask DP `💤 T3` | [32 §2](../striver-a2z/32-beyond-the-sheet/02-advanced-dp-theory.md) |
-| Count numbers in [L, R] with a digit property | Digit DP `💤 T3` | [32 §3](../striver-a2z/32-beyond-the-sheet/02-advanced-dp-theory.md) |
-| Answer for every node as root | Rerooting `💤 T3` | [32 §5](../striver-a2z/32-beyond-the-sheet/02-advanced-dp-theory.md) |
+| Phrase / shape | Technique |
+|---|---|
+| "All" subsets, permutations, combinations, partitions | Backtracking (pick / not pick) |
+| Place items under constraints (N-Queens, Sudoku, colouring) | Backtracking with pruning |
+| "Number of ways", "min/max cost", "is it possible", with overlapping choices | DP: recursion → memo → tabulation → space |
+| Linear sequence, choose or skip each element | 1D DP (climbing stairs, house robber) |
+| Grid paths with obstacles or costs | 2D grid DP |
+| Target sum with items, capacity | Subset sum / 0-1 knapsack; unbounded if items repeat |
+| Two strings: common, edit, match, wildcard | DP on strings `dp[i][j]` |
+| Stock buy/sell with transactions or cooldown | State machine DP (day, holding, count) |
+| Increasing subsequence, chains, envelopes | LIS; O(n log n) with binary search |
+| Burst, merge, cut, partition a range | Interval / MCM DP by length |
+| Largest square or rectangle of 1s | DP on squares; histogram per row |
+| n ≤ 20, "visit all" | Bitmask DP `💤 T3` |
+| Count numbers in [L, R] with a digit property | Digit DP `💤 T3` |
+| Answer for every node as root | Rerooting `💤 T3` |
 
 ### Trees
 
-| Phrase / shape | Technique | Part |
-|---|---|---|
-| Height, diameter, balanced, max path sum | Post-order DFS returning a value, updating a global | [24](../striver-a2z/24-binary-trees/01-binary-tree-theory.md) |
-| Level by level, zigzag, views, width | BFS with a level size; (column, level) maps for views | [24](../striver-a2z/24-binary-trees/README.md) |
-| Root-to-node path, LCA | DFS returning found/not found | [24](../striver-a2z/24-binary-trees/README.md) |
-| Build a tree from traversals | Inorder index map + preorder/postorder pointer | [24](../striver-a2z/24-binary-trees/README.md) |
-| Serialise / deserialise | Preorder with null markers, or BFS | [24](../striver-a2z/24-binary-trees/README.md) |
-| BST: search, floor/ceil, k-th smallest, validate | Use ordering; inorder is sorted; pass (min, max) bounds | [25](../striver-a2z/25-binary-search-trees/01-bst-theory.md) |
-| Two-sum in a BST, BST iterator | Inorder iterator with a stack | [25](../striver-a2z/25-binary-search-trees/README.md) |
-| Many LCA or k-th ancestor queries | Binary lifting `💤 T3` | [32 §1](../striver-a2z/32-beyond-the-sheet/03-advanced-trees-and-graphs-theory.md) |
-| Prefix lookups, autocomplete, max XOR pair | Trie (binary trie for XOR) | [29](../striver-a2z/29-tries/01-trie-theory.md) |
+| Phrase / shape | Technique |
+|---|---|
+| Height, diameter, balanced, max path sum | Post-order DFS returning a value, updating a global |
+| Level by level, zigzag, views, width | BFS with a level size; (column, level) maps for views |
+| Root-to-node path, LCA | DFS returning found/not found |
+| Build a tree from traversals | Inorder index map + preorder/postorder pointer |
+| Serialise / deserialise | Preorder with null markers, or BFS |
+| BST: search, floor/ceil, k-th smallest, validate | Use ordering; inorder is sorted; pass (min, max) bounds |
+| Two-sum in a BST, BST iterator | Inorder iterator with a stack |
+| Many LCA or k-th ancestor queries | Binary lifting `💤 T3` |
+| Prefix lookups, autocomplete, max XOR pair | Trie (binary trie for XOR) |
 
 ### Graphs
 
-| Phrase / shape | Technique | Part |
-|---|---|---|
-| Islands, regions, connected components, flood fill | DFS/BFS over a grid or adjacency list | [27](../striver-a2z/27-graphs/03-traversal-techniques-bfs-dfs.md) |
-| Nearest distance from many sources, "minutes to rot" | Multi-source BFS | [27](../striver-a2z/27-graphs/09-rotten-oranges.md) |
-| Shortest path, unit weights | BFS | [27](../striver-a2z/27-graphs/22-shortest-path-unit-weights.md) |
-| Shortest path, non-negative weights | Dijkstra (heap) | [27](../striver-a2z/27-graphs/25-dijkstra.md) |
-| Negative weights, detect a negative cycle, ≤ k edges | Bellman–Ford (k rounds for ≤ k stops) | [27](../striver-a2z/27-graphs/32-bellman-ford.md), [27](../striver-a2z/27-graphs/29-cheapest-flights-within-k-stops.md) |
-| All-pairs shortest paths, n ≤ 400 | Floyd–Warshall `🎯 T2` | [27](../striver-a2z/27-graphs/33-floyd-warshall.md) |
-| Minimise the max edge on a path | Dijkstra with max, or binary search + BFS, or DSU | [27](../striver-a2z/27-graphs/28-path-with-minimum-effort.md) |
-| Weights only 0/1 | 0-1 BFS | [32 §5](../striver-a2z/32-beyond-the-sheet/03-advanced-trees-and-graphs-theory.md) |
-| Prerequisites, ordering, dependencies | Topological sort (Kahn); cycle ⇔ not all nodes popped | [27](../striver-a2z/27-graphs/15-topological-sort-dfs-and-kahn.md) |
-| Order of letters from a sorted dictionary | Topological sort on the derived edges | [27](../striver-a2z/27-graphs/20-alien-dictionary.md) |
-| Two-colouring, "split into two groups" | Bipartite check (BFS colouring) | [27](../striver-a2z/27-graphs/14-bipartite-graph.md) |
-| Dynamic connectivity, "are they connected after merges" | Disjoint set union | [27](../striver-a2z/27-graphs/37-disjoint-set.md) |
-| Connect everything at minimum cost | MST (Kruskal + DSU, or Prim) | [27](../striver-a2z/27-graphs/02-mst-and-dsu-theory.md) |
-| Critical connections, SCCs | Tarjan / Kosaraju — out of scope `💤 T3`; name it, move on | [27](../striver-a2z/27-graphs/45-bridges-in-graph.md) |
-| Use every edge exactly once (itinerary) | Hierholzer `💤 T3` | [32 §4](../striver-a2z/32-beyond-the-sheet/03-advanced-trees-and-graphs-theory.md) |
-| Word transformation | BFS on implicit graph (wildcard buckets) | [27](../striver-a2z/27-graphs/23-word-ladder-i.md) |
+| Phrase / shape | Technique |
+|---|---|
+| Islands, regions, connected components, flood fill | DFS/BFS over a grid or adjacency list |
+| Nearest distance from many sources, "minutes to rot" | Multi-source BFS |
+| Shortest path, unit weights | BFS |
+| Shortest path, non-negative weights | Dijkstra (heap) |
+| Negative weights, detect a negative cycle, ≤ k edges | Bellman–Ford (k rounds for ≤ k stops) |
+| All-pairs shortest paths, n ≤ 400 | Floyd–Warshall `🎯 T2` |
+| Minimise the max edge on a path | Dijkstra with max, or binary search + BFS, or DSU |
+| Weights only 0/1 | 0-1 BFS |
+| Prerequisites, ordering, dependencies | Topological sort (Kahn); cycle ⇔ not all nodes popped |
+| Order of letters from a sorted dictionary | Topological sort on the derived edges |
+| Two-colouring, "split into two groups" | Bipartite check (BFS colouring) |
+| Dynamic connectivity, "are they connected after merges" | Disjoint set union |
+| Connect everything at minimum cost | MST (Kruskal + DSU, or Prim) |
+| Critical connections, SCCs | Tarjan / Kosaraju — out of scope `💤 T3`; name it, move on |
+| Use every edge exactly once (itinerary) | Hierholzer `💤 T3` |
+| Word transformation | BFS on implicit graph (wildcard buckets) |
 
 ### Bits and maths
 
-| Phrase / shape | Technique | Part |
-|---|---|---|
-| Every element twice except one | XOR all | [20](../striver-a2z/20-bit-manipulation/09-single-number-i.md) |
-| Every element thrice except one | Count bits mod 3 | [20](../striver-a2z/20-bit-manipulation/10-single-number-ii.md) |
-| Two unique numbers | XOR, split by the lowest set bit | [20](../striver-a2z/20-bit-manipulation/11-single-number-iii.md) |
-| Power of two, count set bits, lowest bit | `n & (n−1)`, `n & −n` | [20](../striver-a2z/20-bit-manipulation/01-bits-and-tricks.md) |
-| Enumerate subsets of ≤ 20 items | Mask from 0 to 2ⁿ − 1 | [20](../striver-a2z/20-bit-manipulation/13-power-set.md) |
-| XOR of 1..n or a range | Period-4 formula | [20](../striver-a2z/20-bit-manipulation/14-xor-of-numbers-in-a-given-range.md) |
-| Primes up to n, many factorisations | Sieve / smallest prime factor sieve | [31](../striver-a2z/31-maths/01-sieve-theory.md) |
-| Divisors, primality of one number | √n loop | [8](../striver-a2z/08-basic-maths/README.md) |
-| GCD, LCM, digit manipulation | Euclid, `% 10` peeling | [8](../striver-a2z/08-basic-maths/README.md) |
-| xⁿ, huge exponent | Binary exponentiation | [18](../striver-a2z/18-recursion/02-pow-x-n.md), [31 §5](../striver-a2z/31-maths/05-modular-arithmetic-and-combinatorics-theory.md) |
-| nCr, paths in a grid, Catalan structures | Factorials + inverses mod p | [31 §5](../striver-a2z/31-maths/05-modular-arithmetic-and-combinatorics-theory.md) |
+| Phrase / shape | Technique |
+|---|---|
+| Every element twice except one | XOR all |
+| Every element thrice except one | Count bits mod 3 |
+| Two unique numbers | XOR, split by the lowest set bit |
+| Power of two, count set bits, lowest bit | `n & (n−1)`, `n & −n` |
+| Enumerate subsets of ≤ 20 items | Mask from 0 to 2ⁿ − 1 |
+| XOR of 1..n or a range | Period-4 formula |
+| Primes up to n, many factorisations | Sieve / smallest prime factor sieve |
+| Divisors, primality of one number | √n loop |
+| GCD, LCM, digit manipulation | Euclid, `% 10` peeling |
+| xⁿ, huge exponent | Binary exponentiation |
+| nCr, paths in a grid, Catalan structures | Factorials + inverses mod p |
 
 ### Linked lists, design and streams
 
-| Phrase / shape | Technique | Part |
-|---|---|---|
-| LRU cache | Hashmap + doubly linked list | [23](../striver-a2z/23-stack-and-queues/README.md) |
-| LFU cache | key → node, freq → DLL, `minFreq` | [32 §7](../striver-a2z/32-beyond-the-sheet/04-techniques-toolbox-theory.md) |
-| Min stack | Pairs of (value, min) or an encoded difference | [23](../striver-a2z/23-stack-and-queues/README.md) |
-| Linked list cycle, middle, k-th from end | Fast/slow pointers | [19](../striver-a2z/19-linked-list/README.md) |
-| Reverse in groups, reorder, palindrome list | Reverse sub-lists, splice | [19](../striver-a2z/19-linked-list/README.md) |
-| Uniform sample from a stream | Reservoir sampling | [32 §4](../striver-a2z/32-beyond-the-sheet/04-techniques-toolbox-theory.md) |
-| Batch range adds, read once | Difference array | [32 §2](../striver-a2z/32-beyond-the-sheet/01-range-queries-theory.md) |
+| Phrase / shape | Technique |
+|---|---|
+| LRU cache | Hashmap + doubly linked list |
+| LFU cache | key → node, freq → DLL, `minFreq` |
+| Min stack | Pairs of (value, min) or an encoded difference |
+| Linked list cycle, middle, k-th from end | Fast/slow pointers |
+| Reverse in groups, reorder, palindrome list | Reverse sub-lists, splice |
+| Uniform sample from a stream | Reservoir sampling |
+| Batch range adds, read once | Difference array |
 
 ---
 
 ## When Stuck
 
-Use the 60-second tree above to pick a candidate. If nothing fits: [HOW_TO_THINK §4 — the seven moves](HOW_TO_THINK.md#4-when-you-are-truly-stuck--the-seven-moves). If two candidates fit: [INTERVIEW_JUDGMENT B2](INTERVIEW_JUDGMENT.md#b2-choosing-between-two-plausible-approaches). DP state design: [Masterclass](RECURSION_AND_DP_MASTERCLASS.md).
+Use the 60-second tree above to pick a candidate. If nothing fits: [How to think §4 — the seven moves](../01-foundations/01-how-to-think.md#4-when-you-are-truly-stuck--the-seven-moves). If two candidates fit: [Interview judgment B2](03-interview-judgment.md#b2-choosing-between-two-plausible-approaches). DP state design: [Masterclass](../03-algorithms/07-recursion-to-dp.md).
+
+---
+
+## Variants Playbook
+
+Pick the base pattern via [Pattern sheet § Quick Decision Trees](01-pattern-sheet.md#quick-decision-trees); then ask *"which invariant did they change?"* and use the matching section below.
+
+### How Variants Work
+
+- **Core insight:** a variant changes **one invariant** of a base problem — find which one shifted, re-derive only that part, keep the rest of the algorithm.
+- **Four mutation types:**
+
+| Mutation | Example | What changes |
+|---|---|---|
+| Constraint relaxed / tightened | remove "distinct"; add "at most k distinct" | duplicate handling; add a freq map to the window |
+| Output changed | count → list all / path | bookkeeping (parents, choices); count→all usually O(n) → O(2ⁿ) |
+| Input shape changed | sorted input; 1D → 2D; circular | hash → two pointers; 2D indexing; double the array / mod index |
+| Online / updates | static → stream of queries | precompute, incremental state, or versioning |
+
+- **Reusable tricks:** "exactly k" = atMost(k) − atMost(k−1); sorted input ⇒ two pointers beat hashing on space; "k stops/k uses" ⇒ add k to the state.
+- **Where it breaks:** a disguised *different* problem ("Two Sum on a graph" is graph traversal) — re-check the pattern trigger before reusing the base.
+- Interview follow-ups by transformation → [How to think § escalation grammar](../01-foundations/01-how-to-think.md#the-escalation-grammar-what-follow-ups-will-be); per-family chains → [Pattern sheet § Follow-Up Chains](01-pattern-sheet.md#follow-up-chains--interview-progression--t1).
+
+---
+
+### Variant table
+
+Base problem → the one invariant each variant changes → the fix. Tier and difficulty are for the base problem.
+
+| Base (tier · diff) | Core move | Variant → what changes |
+|---|---|---|
+| [LIS](https://leetcode.com/problems/longest-increasing-subsequence/) `🎯 T2` · M | O(n²) "which chain can I extend?"; O(n log n) patience sort: `tails` array + `bisect_left` | **Number of LIS** → carry `(len, count)` per index · **Russian Doll Envelopes** → sort width ↑, height ↓ on ties, LIS on height · **Longest Bitonic / Mountain** → LIS from left + LIS from right, peak = max(L+R−1) |
+| [Coin Change](https://leetcode.com/problems/coin-change/) `⚡ T1` · M | Unbounded knapsack: `dp[a] = min(dp[a − c] + 1)` | **Coin Change II** (combinations) → `+=`, coins outer loop · **Combination Sum IV** (order matters) → amount outer loop · **Min Cost for Tickets** → subtract pass length in days |
+| [House Robber](https://leetcode.com/problems/house-robber/) `⚡ T1` · M | `dp[i] = max(dp[i−1], dp[i−2] + x)`, two rolling vars | **Circular** → run on `[0..n−2]` and `[1..n−1]` · **Tree** → postorder returns `(rob, skip)` · **Delete and Earn** → bucket values into `sum[v]`, then House Robber |
+| [Permutations](https://leetcode.com/problems/permutations/) `⚡ T1` · M | Choose unused → recurse → undo | **With duplicates** → sort; skip `i` if `a[i] == a[i−1]` and `a[i−1]` unused · **Next Permutation** → no recursion: rightmost dip, swap with next larger on right, reverse suffix |
+| [Word Search](https://leetcode.com/problems/word-search/) `⚡ T1` · M | DFS, mark `#`, restore on return | **Word Search II** (many words) → Trie of words, walk grid and Trie together, prune dead branches and remove found words |
+| [Longest Substring w/o Repeat](https://leetcode.com/problems/longest-substring-without-repeating-characters/) `⚡ T1` · M | Window; `left = max(left, last[c] + 1)` | **Replace k chars** → valid while `len − maxFreq ≤ k` (maxFreq need not shrink) · **Min Window Substring** → expand until `need == 0`, shrink while valid · **Exactly k distinct** → atMost(k) − atMost(k−1) |
+| [Course Schedule](https://leetcode.com/problems/course-schedule/) `⚡ T1` · M | Kahn's: pop in-degree 0; processed < n ⇒ cycle | **Course Schedule II** → return pop order · **Alien Dictionary** → edge from first differing char of adjacent words; prefix longer-before-shorter ⇒ invalid |
+| [Subarray Sum = K](https://leetcode.com/problems/subarray-sum-equals-k/) `⚡ T1` · M | Prefix sum + count map seeded `{0: 1}`; window fails on negatives | **Contiguous Array** (equal 0/1) → map 0 → −1, store *first* index per prefix · **Path Sum III** (tree) → same map during DFS, decrement on backtrack · **Divisible by K** → key `prefix % k` (normalise negatives) |
+| [3Sum](https://leetcode.com/problems/3sum/) `⚡ T1` · M | Sort; fix `i`, converge `l, r`; skip duplicates at all three | **4Sum** → two fixed loops + two pointers · **3Sum Closest** → track min `|sum − target|` · **3Sum Smaller** → when `sum < t`, add `r − l` at once |
+| [Container With Most Water](https://leetcode.com/problems/container-with-most-water/) `⚡ T1` · M | Move the shorter wall — the taller can't help while the short one bounds area | **Trapping Rain Water** → water at i = `min(maxL, maxR) − h[i]`; move the side with the smaller max, O(1) space |
+| [Find Peak Element](https://leetcode.com/problems/find-peak-element/) `🎯 T2` · M | BS on slope: `a[mid] < a[mid+1]` ⇒ peak on right | **Peak in 2D** → BS on columns, take max row of mid column · **Koko / Ship Packages** → BS on answer with a greedy `feasible(x)` |
+| [Search in Rotated Array](https://leetcode.com/problems/search-in-rotated-sorted-array/) `⚡ T1` · M | One half is sorted; check if target lies in it | **With duplicates** → `a[l] == a[mid] == a[r]` ⇒ shrink both ends, worst O(n) · **Find minimum** → compare `a[mid]` with `a[r]` |
+| [Linked List Cycle II](https://leetcode.com/problems/linked-list-cycle-ii/) `🎯 T2` · M | Floyd; after meeting, reset one to head, step both by 1 → entry | **Middle** → `while fast and fast.next` · **k-th from end** → lead pointer k ahead · **Find Duplicate Number** → array as `i → a[i]` linked list, same Floyd |
+| [Merge K Sorted Lists](https://leetcode.com/problems/merge-k-sorted-lists/) `⚡ T1` · H | Min-heap of heads `(val, i, node)`; O(N log k) | **No heap** → pairwise divide-and-conquer merge, same O(N log k) · **Smallest Range Covering K Lists** → heap + track current max |
+| [LCA of Binary Tree](https://leetcode.com/problems/lowest-common-ancestor-of-a-binary-tree/) `⚡ T1` · M | Return p/q/null; both sides non-null ⇒ this node | **BST** → walk from root: both smaller go left, both larger go right, else here · **Parent pointers** → two-pointer like list intersection · **Many queries** → binary lifting `💤 T3` |
+| [Max Path Sum](https://leetcode.com/problems/binary-tree-maximum-path-sum/) `🎯 T2` · H | Postorder; gain = `max(0, child)`; global = `val + L + R`; return `val + max(L, R)` | **Diameter** → same shape with depths · **Longest Univalue Path** → gain only if child value matches |
+| [Serialize / Deserialize](https://leetcode.com/problems/serialize-and-deserialize-binary-tree/) `🎯 T2` · H | Preorder with `#` for null; rebuild from an iterator | **BST** → no null markers needed: preorder + bounds `(lo, hi)` rebuild in O(n) · **N-ary** → write child count after each value |
+| [Merge Intervals](https://leetcode.com/problems/merge-intervals/) `🎯 T2` · M | Sort by start; merge while `start ≤ cur_end` | **Insert Interval** → three phases: before, overlapping, after · **Meeting Rooms II** → min-heap of end times · **Non-overlapping** (min removals) → sort by end, greedy keep |
+| [Number of Islands](https://leetcode.com/problems/number-of-islands/) `⚡ T1` · M | DFS/BFS from each unvisited land, count launches | **Max Area** → return size · **Pacific Atlantic** → reverse BFS from each ocean's border, intersect · **01 Matrix / Rotting Oranges** → multi-source BFS · **Islands II** (online adds) → Union-Find |
+| [Unique Paths](https://leetcode.com/problems/unique-paths/) `⚡ T1` · M | `dp[i][j] = up + left`, 1D row | **Obstacles** → `dp = 0` on blocked cells · **Min Path Sum** → `min` + cell · **Dungeon Game** → DP from bottom-right (min HP needed going forward) |
+| [Daily Temperatures](https://leetcode.com/problems/daily-temperatures/) `⚡ T1` · M | Decreasing stack of indices; pop resolves the popped index | **Largest Rectangle** → increasing stack; pop gives height, width from new top · **Remove K Digits** → pop larger digits while k > 0, strip leading zeros · **Circular NGE** → iterate 2n with `i % n` |
+| [Top K Frequent](https://leetcode.com/problems/top-k-frequent-elements/) `⚡ T1` · M | Count map + min-heap of size k, O(n log k) | **O(n)** → bucket sort by frequency · **Kth Largest in Stream** → min-heap size k, top is answer · **Median of Stream** → two heaps, sizes differ ≤ 1 |
+| [Implement Trie](https://leetcode.com/problems/implement-trie-prefix-tree/) `⚡ T1` · M | Node = children map + `is_end`; walk/create | **Add and Search Words** → DFS all children at `.` · **Replace Words** → stop at first `is_end` on the walk · **Max XOR Pair** `🎯 T2` → bitwise trie, greedy opposite bit |
+| [Single Number](https://leetcode.com/problems/single-number/) `⚡ T1` · E | XOR all; pairs cancel | **Single Number II** → per-bit count mod 3 · **Single Number III** → split by lowest set bit of total XOR · **Missing Number** → XOR indices and values (or Gauss sum) |
+| [Happy Number](https://leetcode.com/problems/happy-number/) `🎯 T2` · E | Floyd on the implicit sequence `n → digit-square-sum(n)` | **Pow(x, n)** → binary exponentiation; negate `n` safely (Python fine, Java use `long`) · **Excel Column Number** → base 26, 1-indexed (`A = 1`) |
+
+---
 
 ---
 
@@ -819,7 +856,5 @@ Only when every edge has the **same weight**. 0/1 weights → 0-1 BFS with a deq
 
 ## See Also
 
-- [HOW_TO_THINK.md](HOW_TO_THINK.md) — derive each pattern from first principles, then pressure-test on graded ladders
-- [TOPIC_QUESTIONS_LOGIC_AND_TRICKS.md](TOPIC_QUESTIONS_LOGIC_AND_TRICKS.md) — canonical problems, traps, variants playbook
-- [INTERVIEW_JUDGMENT.md](INTERVIEW_JUDGMENT.md) — live decisions, round cheatsheet, mocks, senior follow-up chains
-- [mindmap.md](mindmap.md) — every practice problem by topic
+- [How to think](../01-foundations/01-how-to-think.md) — derive each pattern from first principles, then pressure-test on graded ladders
+- [Interview judgment](03-interview-judgment.md) — live decisions, mocks, senior follow-up chains

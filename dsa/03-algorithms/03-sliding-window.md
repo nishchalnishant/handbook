@@ -5,15 +5,15 @@ tags: [algorithms, sliding-window]
 ---
 # Sliding Window
 
-← [Algorithms index](./README.md) · [Patterns master](../03-patterns/patterns-master.md)
+← [Algorithms index](README.md) · [Patterns master](../05-review/01-pattern-sheet.md)
 
 ## What this covers
 
 > [!abstract] In this file
 > **Covers:** Fixed and variable windows, frequency-map windows, the 'exactly K = atMost(K) − atMost(K−1)' trick, monotonic deque for window max/min.
 > **You'll be able to:** Write the expand-right / shrink-left template from memory; know when windows fail (negatives → prefix sum); handle 'exactly K' counts.
-> **Prereqs:** Arrays, hashing, two pointers · **Pair with:** [Sliding window problems](../04-practice/algorithms/04-sliding-window.md) · **Time:** 2 h
-> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../00-start-here/l3-google-roadmap.md#tier-legend))
+> **Prereqs:** Arrays, hashing, two pointers · **Pair with:** [Sliding window problems](../04-practice/algorithms/03-sliding-window.md) · **Time:** 2 h
+> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../00-start-here/01-roadmap.md#tier-legend))
 
 **Sections:** [Core Idea](#core-idea) · [When to Use](#when-to-use) · [Variant 1: Fixed-Size Window](#variant-1-fixed-size-window) · [Variant 2: Variable-Size Window (Expand Right, Shrink Left)](#variant-2-variable-size-window-expand-right-shrink-left) · [Extension: With Frequency Map](#extension-with-frequency-map) · [Extension: Monotonic Deque (Sliding Window Max/Min)](#extension-monotonic-deque-sliding-window-maxmin) · [Complexity Summary](#complexity-summary) · [Canonical Problems](#canonical-problems) · [Edge Cases](#edge-cases) · [Interview Questions — Logic & Trickiness](#interview-questions--logic--trickiness) · [Quick Revision Triggers](#quick-revision-triggers) · [Flashcards](#flashcards)
 
@@ -338,7 +338,7 @@ def max_sliding_window(nums, k):
 | **Permutation in String `⚡ T1`** | Fixed | Same as anagram | `have == need` when all chars satisfied | Clarify if permutation must be contiguous (yes). |
 | **Subarrays with K Distinct** | At-most trick | `exactly(K) = atMost(K) - atMost(K-1)` | Two passes with helper | "Exactly K" is not monotonic — never use one sliding window for exactly. |
 
-Walkthroughs: problem-deep-dives.md. String windows: [string.md](../01-data-structures/03-string.md).
+Walkthroughs: problem-deep-dives.md. String windows: [03-string.md](../02-data-structures/03-string.md).
 
 ---
 
@@ -346,19 +346,19 @@ Walkthroughs: problem-deep-dives.md. String windows: [string.md](../01-data-stru
 
 - **Contiguous + longest/shortest with constraint** → sliding window (variable unless fixed size given).
 - **Fixed size K** → add on enter, subtract on leave; O(n).
-- **Negatives in numeric subarray sum** → prefix sum + map, **not** sliding window ([array.md](../01-data-structures/01-array.md)).
-- **Max/min in each window** → monotonic deque ([queue.md](../01-data-structures/06-queue.md)).
+- **Negatives in numeric subarray sum** → prefix sum + map, **not** sliding window ([01-array.md](../02-data-structures/01-array.md)).
+- **Max/min in each window** → monotonic deque ([06-queue.md](../02-data-structures/06-queue.md)).
 - **Exactly K distinct** → at-most(K) − at-most(K−1).
 
 ---
 
 ## See also
 
-- [two-pointers.md](./03-two-pointers.md) — opposite-end scans; often combined with windows on strings
-- [string.md](../01-data-structures/03-string.md) — KMP, Rabin-Karp (pattern matching, not window)
-- [01-data-structures/string.md](../01-data-structures/03-string.md) — anagram / window canonical problems
-- [01-data-structures/array.md](../01-data-structures/01-array.md) — prefix sum when window fails
-- [03-patterns/patterns-master.md](../03-patterns/patterns-master.md) — sliding window triggers
+- [02-two-pointers.md](02-two-pointers.md) — opposite-end scans; often combined with windows on strings
+- [03-string.md](../02-data-structures/03-string.md) — KMP, Rabin-Karp (pattern matching, not window)
+- [`02-data-structures/03-string.md`](../02-data-structures/03-string.md) — anagram / window canonical problems
+- [`02-data-structures/01-array.md`](../02-data-structures/01-array.md) — prefix sum when window fails
+- [`05-review/01-pattern-sheet.md`](../05-review/01-pattern-sheet.md) — sliding window triggers
 
 ---
 

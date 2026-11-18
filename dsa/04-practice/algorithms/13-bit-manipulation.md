@@ -10,8 +10,8 @@ difficulty: mixed
 > [!abstract] In this file
 > **Covers:** Worked bit problems: XOR cancellation, popcount, bit DP, two's-complement tricks, bitmask enumeration, Gray code, per-bit case analysis, XOR trie.
 > **You'll be able to:** Recognise the XOR / `n & (n-1)` / `n & -n` / mask-enumeration click moments and code each in under 5 minutes, including Python's infinite-width negative-int traps.
-> **Prereqs:** Bit Manipulation lecture · **Pair with:** [Bit Manipulation lecture](../../02-algorithms/17-bit-manipulation.md) · **Time:** 2 h
-> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../../00-start-here/l3-google-roadmap.md#tier-legend))
+> **Prereqs:** Bit Manipulation lecture · **Pair with:** [Bit Manipulation lecture](../../03-algorithms/13-bit-manipulation.md) · **Time:** 2 h
+> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../../00-start-here/01-roadmap.md#tier-legend))
 
 **Sections:** [XOR Cancellation & Single Occurrence](#xor-cancellation--single-occurrence) · [Counting & Testing Bits](#counting--testing-bits) · [Two's Complement, Masks & Arithmetic](#twos-complement-masks--arithmetic) · [Bitmask Enumeration & Construction](#bitmask-enumeration--construction) · [Per-Bit Case Analysis & XOR Trie](#per-bit-case-analysis--xor-trie)
 
@@ -19,7 +19,7 @@ difficulty: mixed
 > **Do these first:** [Single Number](#single-number--t1) · [Number of 1 Bits](#number-of-1-bits--t1) · [Counting Bits](#counting-bits--t1) · [Missing Number](#missing-number--t1) · [Power of Two / Power of Four](#power-of-two--power-of-four--t1) · [Subsets via Bitmask Enumeration](#subsets-via-bitmask-enumeration--t1) · [Maximum XOR of Two Numbers in an Array](#maximum-xor-of-two-numbers-in-an-array--t1)
 > **Template:** `n & (n-1)` clears the lowest set bit · `n & -n` isolates it · `x ^ x = 0`, `x ^ 0 = x` · subset `i` of `n` items = bits of `mask` in `range(1 << n)`.
 > **Gotchas:** Python ints are unbounded — mask with `0xFFFFFFFF` whenever the problem is 32-bit (Reverse Bits, Sum of Two Integers) · `>>` on a negative int never reaches 0 (loops forever) · `n > 0` guard on power-of-two checks · precedence: `+`/`-` bind tighter than `<<`/`&` (`1 << n - 1` is `1 << (n-1)`), so parenthesize mixed expressions.
-> **Lecture refs:** [XOR cancellation](../../02-algorithms/17-bit-manipulation.md#trick-1-xor-cancellation--find-the-single-number) · [Kernighan popcount](../../02-algorithms/17-bit-manipulation.md#trick-3-count-set-bits-hamming-weight--popcount) · [Two's complement / lowest set bit](../../02-algorithms/17-bit-manipulation.md#trick-5-twos-complement--lowest-set-bit) · [Subsets via bitmask](../../02-algorithms/17-bit-manipulation.md#trick-8-subsets-via-bitmask)
+> **Lecture refs:** [XOR cancellation](../../03-algorithms/13-bit-manipulation.md#trick-1-xor-cancellation--find-the-single-number) · [Kernighan popcount](../../03-algorithms/13-bit-manipulation.md#trick-3-count-set-bits-hamming-weight--popcount) · [Two's complement / lowest set bit](../../03-algorithms/13-bit-manipulation.md#trick-5-twos-complement--lowest-set-bit) · [Subsets via bitmask](../../03-algorithms/13-bit-manipulation.md#trick-8-subsets-via-bitmask)
 
 ---
 
@@ -35,7 +35,7 @@ difficulty: mixed
 
 > [!info] Approach
 > **Key insight:** `a ^ a = 0`, `a ^ 0 = a`, XOR is commutative/associative, so pairs cancel regardless of order.
-> XOR-fold the whole array; the survivor is the answer. See [lecture deep dive](../../02-algorithms/17-bit-manipulation.md#single-number--t1).
+> XOR-fold the whole array; the survivor is the answer. See [lecture deep dive](../../03-algorithms/13-bit-manipulation.md#single-number--t1).
 
 > [!note]- Python Solution
 > ```python
@@ -172,7 +172,7 @@ difficulty: mixed
 > Example: `11` (`1011`) → `3`.
 
 > [!info] Approach
-> **Key insight (Kernighan):** `n &= n - 1` clears the lowest set bit, so the loop runs exactly `popcount(n)` times, not 32. See [lecture](../../02-algorithms/17-bit-manipulation.md#number-of-1-bits-hamming-weight--t1).
+> **Key insight (Kernighan):** `n &= n - 1` clears the lowest set bit, so the loop runs exactly `popcount(n)` times, not 32. See [lecture](../../03-algorithms/13-bit-manipulation.md#number-of-1-bits-hamming-weight--t1).
 
 > [!note]- Python Solution
 > ```python
@@ -234,7 +234,7 @@ difficulty: mixed
 > Return whether `n` is `2^k` (Power of Two) or `4^k` (Power of Four), for integer `n` (may be ≤ 0).
 
 > [!info] Approach
-> **Key insight:** a power of two has exactly one set bit → `n > 0 and n & (n-1) == 0`. Power of four additionally has that bit at an even index → AND with `0x55555555` (`0101...01`) is non-zero. See [lecture](../../02-algorithms/17-bit-manipulation.md#trick-2-power-of-two-check).
+> **Key insight:** a power of two has exactly one set bit → `n > 0 and n & (n-1) == 0`. Power of four additionally has that bit at an even index → AND with `0x55555555` (`0101...01`) is non-zero. See [lecture](../../03-algorithms/13-bit-manipulation.md#trick-2-power-of-two-check).
 > Alternatives for four: `n % 3 == 1` (since `4^k ≡ 1 mod 3`, while `2·4^k ≡ 2`).
 
 > [!note]- Python Solution
@@ -264,7 +264,7 @@ difficulty: mixed
 > Example: `43261596` (`00000010100101000001111010011100`) → `964176192`.
 
 > [!info] Approach
-> **Key insight:** pop the LSB of `n`, push it onto the LSB of `r` after shifting `r` left; do exactly 32 iterations (not `while n`) so leading zeros of `n` become trailing zeros of the result. See [lecture](../../02-algorithms/17-bit-manipulation.md#reverse-bits--t2).
+> **Key insight:** pop the LSB of `n`, push it onto the LSB of `r` after shifting `r` left; do exactly 32 iterations (not `while n`) so leading zeros of `n` become trailing zeros of the result. See [lecture](../../03-algorithms/13-bit-manipulation.md#reverse-bits--t2).
 
 > [!note]- Python Solution
 > ```python
@@ -302,7 +302,7 @@ difficulty: mixed
 
 > [!info] Approach
 > **Key insight:** `a ^ b` is the sum ignoring carries; `(a & b) << 1` is the carries. Repeat until carry is 0.
-> **Python trap:** ints have infinite sign extension, so a negative carry would shift forever. Mask both values to 32 bits each iteration, and at the end reinterpret: if result `> 0x7FFFFFFF` it is a negative 32-bit number → `~(a ^ MASK)` (flip upper bits back to ones). See [lecture](../../02-algorithms/17-bit-manipulation.md#sum-of-two-integers--t2).
+> **Python trap:** ints have infinite sign extension, so a negative carry would shift forever. Mask both values to 32 bits each iteration, and at the end reinterpret: if result `> 0x7FFFFFFF` it is a negative 32-bit number → `~(a ^ MASK)` (flip upper bits back to ones). See [lecture](../../03-algorithms/13-bit-manipulation.md#sum-of-two-integers--t2).
 
 > [!note]- Python Solution
 > ```python
@@ -332,7 +332,7 @@ difficulty: mixed
 
 > [!info] Approach
 > **Key insight:** as the range sweeps from `left` to `right`, every bit below the highest differing bit takes both 0 and 1 and so ANDs to 0. The result is the **common binary prefix** of `left` and `right`, padded with zeros.
-> Shift both right until equal, counting shifts; shift the prefix back. See [lecture](../../02-algorithms/17-bit-manipulation.md#bitwise-and-of-numbers-range--t2).
+> Shift both right until equal, counting shifts; shift the prefix back. See [lecture](../../03-algorithms/13-bit-manipulation.md#bitwise-and-of-numbers-range--t2).
 
 > [!note]- Python Solution
 > ```python
@@ -365,7 +365,7 @@ difficulty: mixed
 > Example: `[1,2,3]` → 8 subsets including `[]` and `[1,2,3]`.
 
 > [!info] Approach
-> **Key insight:** each mask in `range(1 << n)` is one subset; bit `i` set ⇔ `nums[i]` included. Gives a bijection with no recursion. See [lecture](../../02-algorithms/17-bit-manipulation.md#trick-8-subsets-via-bitmask).
+> **Key insight:** each mask in `range(1 << n)` is one subset; bit `i` set ⇔ `nums[i]` included. Gives a bijection with no recursion. See [lecture](../../03-algorithms/13-bit-manipulation.md#trick-8-subsets-via-bitmask).
 > Sub-mask enumeration of a mask `m` (all subsets of its set bits): `s = m; while s: ...; s = (s-1) & m` — sums to `3^n` over all masks, the basis of bitmask DP.
 
 > [!note]- Python Solution
@@ -382,7 +382,7 @@ difficulty: mixed
 > Empty input → `[[]]` · only valid for `n` up to ~20 · duplicates (Subsets II) → sort first and dedupe, bitmask gets awkward — use backtracking · order differs from DFS order; most checkers accept any order.
 
 > [!tip] Alternatives
-> Backtracking/include-exclude (see [Backtracking](../../02-algorithms/12-backtracking.md)) — preferred when pruning is possible.
+> Backtracking/include-exclude (see [Backtracking](../../03-algorithms/06-backtracking.md)) — preferred when pruning is possible.
 
 > [!question] Follow-ups
 > Bitmask DP: TSP, assign tasks, partition into k equal sums, `dp[mask]` with `mask & -mask` to peel the lowest element · Subsets of size k via `mask.bit_count() == k`.
@@ -492,12 +492,12 @@ difficulty: mixed
 
 ## See Also
 
-- [Bit Manipulation lecture](../../02-algorithms/17-bit-manipulation.md) — tricks reference and quick revision triggers
+- [Bit Manipulation lecture](../../03-algorithms/13-bit-manipulation.md) — tricks reference and quick revision triggers
 - [Trie practice — XOR Trie](../data-structures/09-trie.md#xor-trie) — bitwise trie for maximum XOR
-- [Union-Find practice](14-union-find.md) — bitmask/DSU often paired in graph problems
-- [Math & Number Theory practice](18-math-and-number-theory.md) — Reverse Integer, GCD, modular arithmetic
-- [Dynamic Programming](../../02-algorithms/15-dynamic-programming.md) — bitmask DP (TSP, assignment)
-- [Backtracking](../../02-algorithms/12-backtracking.md) — recursive subset enumeration
+- [Union-Find practice](10-union-find.md) — bitmask/DSU often paired in graph problems
+- [Math & Number Theory practice](14-math-and-number-theory.md) — Reverse Integer, GCD, modular arithmetic
+- [Dynamic Programming](../../03-algorithms/08-dynamic-programming.md) — bitmask DP (TSP, assignment)
+- [Backtracking](../../03-algorithms/06-backtracking.md) — recursive subset enumeration
 
 ---
 

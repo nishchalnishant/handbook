@@ -5,15 +5,15 @@ tags: [algorithms, two-pointers]
 ---
 # Two Pointers
 
-← [Algorithms index](./README.md) · [Patterns master](../03-patterns/patterns-master.md)
+← [Algorithms index](README.md) · [Patterns master](../05-review/01-pattern-sheet.md)
 
 ## What this covers
 
 > [!abstract] In this file
 > **Covers:** Three variants: converging (sorted pairs), fast/slow (cycles, middle), same-direction write pointer (in-place filtering, partition).
 > **You'll be able to:** Identify which variant applies; justify each pointer move with a one-line 'why this can't skip the answer' proof.
-> **Prereqs:** Arrays, sorting · **Pair with:** [Two-pointer problems](../04-practice/algorithms/03-two-pointers.md) · **Time:** 1.5 h
-> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../00-start-here/l3-google-roadmap.md#tier-legend))
+> **Prereqs:** Arrays, sorting · **Pair with:** [Two-pointer problems](../04-practice/algorithms/02-two-pointers.md) · **Time:** 1.5 h
+> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../00-start-here/01-roadmap.md#tier-legend))
 
 **Sections:** [Core Idea](#core-idea) · [When to Use](#when-to-use) · [Variant 1: Converging Pointers (Opposite Ends)](#variant-1-converging-pointers-opposite-ends) · [Variant 2: Fast / Slow Pointers (Floyd's)](#variant-2-fast--slow-pointers-floyds) · [Variant 3: Same-Direction Pointers](#variant-3-same-direction-pointers) · [Complexity Summary](#complexity-summary) · [Canonical Problems](#canonical-problems) · [Edge Cases](#edge-cases) · [Interview Questions — Logic & Trickiness](#interview-questions--logic--trickiness) · [Quick Revision Triggers](#quick-revision-triggers) · [Flashcards](#flashcards)
 
@@ -264,7 +264,7 @@ def sort_colors(nums):
 | **Remove Duplicates (sorted)** | Same-direction | `write` only on new value | `if nums[fast] != nums[write]: write++` | Return `write+1` as new length. |
 | **Sort Colors (Dutch flag) `⚡ T1`** | Same-direction | Three pointers lo/mid/hi | 0→lo, 1→mid, 2→hi | Swap mid with hi then mid++ only if not 2. |
 
-Walkthroughs: problem-deep-dives.md. Linked lists: [linked-list.md](../01-data-structures/07-linked-list.md).
+Walkthroughs: problem-deep-dives.md. Linked lists: [07-linked-list.md](../02-data-structures/07-linked-list.md).
 
 ---
 
@@ -273,17 +273,17 @@ Walkthroughs: problem-deep-dives.md. Linked lists: [linked-list.md](../01-data-s
 - **Sorted array + pair/triplet sum** → converging two pointers after sort.
 - **Linked list cycle / middle / nth from end** → fast/slow (Floyd).
 - **In-place filter / partition / remove dupes** → same-direction write pointer.
-- **Unsorted two sum** → hash map, not two pointers ([hashing.md](../01-data-structures/02-hashing.md)).
+- **Unsorted two sum** → hash map, not two pointers ([02-hashing.md](../02-data-structures/02-hashing.md)).
 
 ---
 
 ## See also
 
-- [sliding-window.md](./04-sliding-window.md) — contiguous substring/subarray (often on strings)
-- [binary-search.md](./11-binary-search.md) — when monotonic predicate replaces scanning
-- [01-data-structures/linked-list.md](../01-data-structures/07-linked-list.md) — fast/slow canonical problems
-- [01-data-structures/array.md](../01-data-structures/01-array.md) — array two-pointer variants
-- [03-patterns/patterns-master.md](../03-patterns/patterns-master.md) — two-pointer triggers
+- [03-sliding-window.md](03-sliding-window.md) — contiguous substring/subarray (often on strings)
+- [04-binary-search.md](04-binary-search.md) — when monotonic predicate replaces scanning
+- [`02-data-structures/07-linked-list.md`](../02-data-structures/07-linked-list.md) — fast/slow canonical problems
+- [`02-data-structures/01-array.md`](../02-data-structures/01-array.md) — array two-pointer variants
+- [`05-review/01-pattern-sheet.md`](../05-review/01-pattern-sheet.md) — two-pointer triggers
 
 ---
 
