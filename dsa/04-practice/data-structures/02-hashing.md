@@ -1213,6 +1213,47 @@ difficulty: mixed
 
 ---
 
+### Valid Sudoku (LC 36) `🎯 T2`
+
+> [!example] Problem
+> Determine whether a partially filled 9x9 Sudoku board is valid: each row, each column and each of the nine 3x3 boxes must contain the digits 1-9 at most once. Empty cells are `'.'`. Only the filled cells are checked; the board need not be solvable.
+>
+> **Example 1:** the standard sample board (first row `53..7....`) returns `true`.
+>
+> **Example 2:** the same board with the first cell changed from `5` to `8` returns `false` (two 8s in the top-left box).
+
+> [!tip] Recognize · Gotcha
+> **Signal:** "no duplicates in rows / columns / blocks" · **Gotcha:** box index is `(r // 3) * 3 + c // 3`; do not compare against solvability, and skip `'.'`.
+
+> [!info] Approach
+> One pass with 27 sets: 9 rows, 9 columns, 9 boxes. For each filled cell, if its digit is already in its row, column or box set, return false; otherwise add it to all three. Trade-off: sets cost more memory than 9-bit bitmasks (`mask & bit`), which is the micro-optimization if asked, but sets are clearer.
+
+> [!note]- Python Solution
+> ```python
+> def is_valid_sudoku(board):
+>     rows = [set() for _ in range(9)]
+>     cols = [set() for _ in range(9)]
+>     boxes = [set() for _ in range(9)]
+>     for r in range(9):
+>         for c in range(9):
+>             ch = board[r][c]
+>             if ch == '.':
+>                 continue
+>             b = (r // 3) * 3 + c // 3
+>             if ch in rows[r] or ch in cols[c] or ch in boxes[b]:
+>                 return False
+>             rows[r].add(ch); cols[c].add(ch); boxes[b].add(ch)
+>     return True
+> ```
+
+> [!success] Complexity
+> Time O(81) = O(1) (O(n^2) for an n x n board); Space O(1).
+
+> [!tip] Follow-up
+> Use a single set of strings like `"5 in row 0"`, `"5 in col 1"`, `"5 in box 0"` for a compact one-set variant. Sudoku Solver (backtracking) reuses these exact structures to prune.
+
+---
+
 ## Rolling Hash / Dedup
 
 ---

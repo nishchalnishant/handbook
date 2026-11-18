@@ -12,7 +12,7 @@ tags: [algorithms, bit-manipulation]
 > [!abstract] In this file
 > **Covers:** Bitwise operators and the 8 essential tricks: XOR cancellation, lowbit, clear lowest bit, popcount, power-of-two test, masks and subset enumeration.
 > **You'll be able to:** Solve single-number / counting-bits / subset-mask problems; read and write bit tricks without guessing.
-> **Prereqs:** None · **Pair with:** [Bit questions](../03-patterns/TOPIC_QUESTIONS_LOGIC_AND_TRICKS.md#bit-manipulation) · **Time:** 1 h
+> **Prereqs:** None · **Pair with:** [Bit Manipulation problems](../04-practice/algorithms/17-bit-manipulation.md) · [Bit questions](../03-patterns/TOPIC_QUESTIONS_LOGIC_AND_TRICKS.md#bit-manipulation) · **Time:** 1 h
 > **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../00-start-here/l3-google-roadmap.md#tier-legend))
 
 **Sections:** [Core Idea](#core-idea) · [Operator Reference](#operator-reference) · [Core Tricks — The Essential 8](#core-tricks--the-essential-8) · [Canonical Interview Problems](#canonical-interview-problems) · [Problem Deep Dives](#problem-deep-dives) · [Interview Questions — Logic & Trickiness](#interview-questions--logic--trickiness) · [Quick Revision Triggers](#quick-revision-triggers) · [Flashcards](#flashcards)
@@ -203,7 +203,7 @@ def all_subsets(nums: list[int]) -> list[list[int]]:
 | Single Number III | Medium | `🎯 T2` | XOR + LSB partition | XOR all → `a^b`; split by any set bit |
 | Bitwise AND of Numbers Range | Medium | `🎯 T2` | Common prefix | Strip trailing bits until `m == n` |
 | Reverse Integer | Medium | `🎯 T2` | Modular arithmetic | Check 32-bit overflow before append digit |
-| Maximum XOR of Two Numbers | Hard | `💤 T3` | Bit trie | Greedy opposite bit at each level |
+| Maximum XOR of Two Numbers | Hard | `⚡ T1` | Bit trie | Greedy opposite bit at each level |
 
 ---
 
@@ -764,7 +764,7 @@ def all_subsets(nums: list[int]) -> list[list[int]]:
 | **Sum of Two Integers `🎯 T2`** | M | XOR + carry loop | `a^b` sum; `(a&b)<<1` carry | Mask in Python |
 | **Bitwise AND of Range `🎯 T2`** | M | Common prefix of m and n | Shift until equal; shift back | Brute AND TLEs |
 | **Reverse Integer `🎯 T2`** | M | Check overflow before multiply | Pop digit; pre-check bounds | Returns 0 on overflow |
-| **Maximum XOR `💤 T3`** | H | Trie on bits MSB→LSB | Greedy opposite bit | L3: concept > code |
+| **Maximum XOR `⚡ T1`** | H | Trie on bits MSB→LSB | Greedy opposite bit | Prefix-set greedy is the L3 code; trie is the follow-up |
 
 ---
 

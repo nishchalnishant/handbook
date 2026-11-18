@@ -165,12 +165,12 @@ _→ = one-line hint from each problem's Approach block_
     │   └── Two Sum Less Than K `⚡ T1`
     │       → We want the largest valid pair sum — greedy with two pointers after sorting is cleanest.
     ├── Miscellaneous
+    │   ├── Valid Sudoku (LC 36) `🎯 T2`
+    │   │   → 27 sets over rows, columns and 3x3 boxes (box = (r//3, c//3)); one pass.
     │   ├── Longest Consecutive Sequence `⚡ T1`
     │   │   → Sorting is O(n log n).
-    │   ├── Substring with Concatenation of All Words
-    │   │   → Words are fixed length.
-    │   └── Max Points on a Line
-    │       → For each pair of points, their line is defined by slope.
+    │   └── Substring with Concatenation of All Words
+    │       → Words are fixed length.
     └── Rolling Hash / Dedup
         ├── Longest Duplicate Substring (Rabin-Karp) `⚡ T1`
         │   → Binary search on length L: if a duplicate of length L exists, so does one of length L-1.
@@ -496,6 +496,8 @@ _→ = one-line hint from each problem's Approach block_
     │   │   → Recursive mirror(l, r) — outer and inner pair matching.
     │   ├── Maximum Depth of Binary Tree `🎯 T2`
     │   │   → Post-order recursive max height.
+    │   ├── Balanced Binary Tree (LC 110) `⚡ T1`
+    │   │   → Post-order height with a `-1` sentinel for "unbalanced"; O(n), not O(n log n).
     │   ├── Minimum Depth of Binary Tree
     │   │   → Critical trap: a node with only one child is NOT a leaf.
     │   ├── Path Sum `🎯 T2`
@@ -649,8 +651,10 @@ _→ = one-line hint from each problem's Approach block_
     │   │   → We need a window containing one element per list.
     │   ├── K-th Smallest in M Sorted Arrays `⚡ T1`
     │   │   → This is the general form of "Kth Smallest in a Sorted Matrix" — M sorted sequences, find the k-th minimum globally.
-    │   └── Maximum CPU Load `⚡ T1`
-    │       → Classic interval overlap problem — need to track which jobs are active at each moment.
+    │   ├── Maximum CPU Load `⚡ T1`
+    │   │   → Classic interval overlap problem — need to track which jobs are active at each moment.
+    │   └── Minimum Interval to Include Each Query (LC 1851) `🎯 T2`
+    │       → Offline: sort intervals and queries; min-heap of (size, right), pop while right < q.
     ├── Dijkstra / Design / Ordered Generation
     │   ├── Path with Minimum Effort `⚡ T1`
     │   │   → Minimizing the maximum edge weight along a path — modified Dijkstra where "dist" is the bottleneck edge.
@@ -661,7 +665,7 @@ _→ = one-line hint from each problem's Approach block_
     └── Heap Applications
         ├── Reorganize String (LC 767) `⚡ T1`
         │   → Greedy: always place the most frequent remaining character, as long as it is not the same as the last placed character.
-        └── Minimum Refueling Stops (LC 871) `⚡ T1`
+        └── Minimum Refueling Stops (LC 871) `🎯 T2`
 ```
 
 ### 13-graph.md
@@ -760,9 +764,31 @@ _→ = one-line hint from each problem's Approach block_
     │   │   → Copying per snapshot is the trap; per-index history [(snap_id, val)] + bisect on read.
     │   └── Stock Price Fluctuation `🎯 T2`
     │       → Map timestamp→price is the truth; heaps for max/min with lazy deletion — pop while the heap top disagrees with the map.
-    └── Iterators
-        └── Peeking Iterator / Flatten Nested List Iterator `🎯 T2`
-            → Peek = cache one element ahead; nested = stack holding reversed contents, flatten lazily on hasNext.
+    ├── Iterators
+    │   ├── Peeking Iterator / Flatten Nested List Iterator `🎯 T2`
+    │   │   → Peek = cache one element ahead; nested = stack holding reversed contents, flatten lazily on hasNext.
+    │   └── Zigzag Iterator / Combination Iterator `🎯 T2`
+    │       → Round-robin queue of iterators; combinations = lazy index odometer.
+    ├── Aggregates and Counters
+    │   ├── Design Underground System `⚡ T1`
+    │   │   → Open trips by id + per-route [sum, count]; O(1) per op.
+    │   ├── Design Tic-Tac-Toe `⚡ T1`
+    │   │   → Signed row/col/diag counters; win when |count| == n.
+    │   ├── Design Leaderboard `🎯 T2`
+    │   │   → Dict of scores; `nlargest(K)` on read, SortedList if reads dominate.
+    │   └── All O(1) Data Structure `🎯 T2`
+    │       → Doubly linked list of count buckets, each holding a key set.
+    └── Simulation and Allocation
+        ├── Design Browser History `⚡ T1`
+        │   → Two stacks (back top = current page); visit clears forward. Array + cursor is the O(1)-space follow-up.
+        ├── Design Snake Game `🎯 T2`
+        │   → Deque body + set; pop tail before the self-collision check.
+        ├── Design a Food Rating System `🎯 T2`
+        │   → Per-cuisine heap with lazy deletion against the live rating map.
+        ├── Design Phone Directory / Seat Reservation Manager `🎯 T2`
+        │   → Next-unused counter + min-heap of released ids.
+        └── Encode and Decode TinyURL `🎯 T2`
+            → Random base62 code, retry on collision; two maps.
 ```
 
 ## 04-practice/algorithms/
@@ -1389,9 +1415,29 @@ _→ = one-line hint from each problem's Approach block_
     ├── See Also
     │   └── Longest Common Substring
     │       → Unlike LCS, contiguity matters.
-    └── Dynamic Programming — Hard Problems
-        └── Russian Doll Envelopes (LC 354)
-            → If we sort by width, this becomes LIS on heights.
+    ├── Dynamic Programming — Hard Problems
+    │   ├── Russian Doll Envelopes (LC 354)
+    │   │   → If we sort by width, this becomes LIS on heights.
+    │   ├── Frog Jump (LC 403) `🎯 T2`
+    │   │   → Map stone → set of jump sizes that reach it; extend by k-1, k, k+1.
+    │   ├── Dungeon Game (LC 174) `🎯 T2`
+    │   │   → Fill from the princess backwards: need = max(1, min(down, right) - cell).
+    │   ├── Best Time to Buy and Sell Stock IV (LC 188) `🎯 T2`
+    │   │   → hold[j], sold[j] for j transactions; if k >= n/2 it is unlimited.
+    │   ├── Wildcard Matching (LC 44) `🎯 T2`
+    │   │   → `*` matches empty (dp[i][j-1]) or one more char (dp[i-1][j]).
+    │   ├── Minimum Number of Refueling Stops (LC 871) `🎯 T2`
+    │   │   → Max-heap of passed stations; refuel from the biggest only when stuck.
+    │   └── Minimum Cost to Cut a Stick (LC 1547) `🎯 T2`
+    │       → Add 0 and n to sorted cuts; interval DP over cut indices.
+    ├── Game Theory (Minimax) DP
+    │   ├── Predict the Winner / Stone Game (LC 486 / 877) `🎯 T2`
+    │   │   → dp(i, j) = best score difference for the player to move.
+    │   └── Stone Game II (LC 1140) `🎯 T2`
+    │       → Memo on (i, M); take x in 1..2M, value = suffix[i] - dp(i+x, max(M, x)).
+    └── Digit DP
+        └── Count Numbers with Unique Digits (LC 357) `🎯 T2`
+            → Length-k count = 9 * 9 * 8 * ...; sum over k <= n.
 ```
 
 ### 09-recursion.md
@@ -1466,6 +1512,124 @@ _→ = one-line hint from each problem's Approach block_
     └── Recursion — More Problems
         └── Predict the Winner (LC 486)
             → dp(i, j) = score advantage for the current player on subarray [i, j].
+```
+
+---
+
+### 17-bit-manipulation.md
+
+```
+04-practice/algorithms/17-bit-manipulation.md
+└── 17-bit-manipulation.md
+    ├── XOR Cancellation & Single Occurrence
+    │   ├── Single Number `⚡ T1`
+    │   │   → x ^ x = 0, so XOR of all leaves the unpaired value.
+    │   ├── Single Number II `🎯 T2`
+    │   │   → ones/twos state machine counts each bit mod 3.
+    │   ├── Single Number III `🎯 T2`
+    │   │   → XOR all, isolate a set bit with `x & -x`, split into two groups.
+    │   └── Missing Number `⚡ T1`
+    │       → XOR every index with every value; the missing one survives.
+    ├── Counting & Testing Bits
+    │   ├── Number of 1 Bits `⚡ T1`
+    │   │   → `n &= n - 1` drops the lowest set bit.
+    │   ├── Counting Bits `⚡ T1`
+    │   │   → `dp[i] = dp[i >> 1] + (i & 1)`.
+    │   ├── Power of Two / Power of Four `⚡ T1`
+    │   │   → `n > 0 and n & (n-1) == 0`; for 4 also mask `0x55555555`.
+    │   └── Reverse Bits `🎯 T2`
+    │       → Shift out the low bit, shift into the result, 32 times.
+    ├── Two's Complement, Masks & Arithmetic
+    │   ├── Sum of Two Integers `🎯 T2`
+    │   │   → XOR is sum without carry, `(a & b) << 1` is carry; mask to 32 bits in Python.
+    │   └── Bitwise AND of Numbers Range `🎯 T2`
+    │       → Answer is the common binary prefix of left and right.
+    ├── Bitmask Enumeration & Construction
+    │   └── Subsets via Bitmask Enumeration `⚡ T1`
+    │       → Mask 0..2^n-1; bit i set means element i is in.
+    └── Per-Bit Case Analysis & XOR Trie
+        ├── Minimum Flips to Make a OR b Equal to c `🎯 T2`
+        │   → Per bit: c=1 needs one of a,b; c=0 costs a_bit + b_bit.
+        └── Maximum XOR of Two Numbers in an Array `⚡ T1`
+            → Greedy MSB→LSB: keep a prefix set and test whether `best | bit` is reachable.
+```
+
+---
+
+### 18-math-and-number-theory.md
+
+```
+04-practice/algorithms/18-math-and-number-theory.md
+└── 18-math-and-number-theory.md
+    ├── Digits, Strings & Base Conversion
+    │   ├── Reverse Integer `🎯 T2`
+    │   │   → Build reversed value; return 0 outside the 32-bit range.
+    │   ├── Plus One `⚡ T1`
+    │   │   → Carry from the right; all 9s means prepend 1.
+    │   ├── Multiply Strings `⚡ T1`
+    │   │   → `res[i+j+1] += d1*d2`, then normalize carries.
+    │   ├── Add Binary `⚡ T1`
+    │   │   → Two pointers from the end with a carry.
+    │   └── Excel Sheet Column Number and Title `🎯 T2`
+    │       → Bijective base-26: subtract 1 before each `divmod`.
+    ├── Primes & Factors
+    │   ├── Count Primes `🎯 T2`
+    │   │   → Sieve of Eratosthenes from i*i.
+    │   └── Factorial Trailing Zeroes `🎯 T2`
+    │       → Count factors of 5: n//5 + n//25 + ...
+    ├── GCD, LCM & Fractions
+    │   └── Fraction to Recurring Decimal (with GCD/LCM) `🎯 T2`
+    │       → Remainder → position map marks where the repeat starts.
+    ├── Fast Exponentiation & Modular Arithmetic
+    │   └── Modular Exponentiation and nCr mod p `🎯 T2`
+    │       → Fast pow; inverse via Fermat `pow(a, p-2, p)`.
+    ├── Geometry & Designs With Math
+    │   ├── Rectangle Overlap and Rectangle Area `🎯 T2`
+    │   │   → Overlap per axis = max(0, min(right) - max(left)).
+    │   ├── Detect Squares `⚡ T1`
+    │   │   → Point counts; for each diagonal partner, multiply counts of the other two corners.
+    │   └── Max Points on a Line `🎯 T2`
+    │       → Per anchor, gcd-normalized slope counts.
+    ├── Random Sampling
+    │   └── Implement Rand10 Using Rand7 `🎯 T2`
+    │       → Two rolls give uniform 1..49; reject above 40.
+    └── Integer Square Root
+        └── Sqrt(x) and Valid Perfect Square `🎯 T2`
+            → Binary search on the answer.
+```
+
+---
+
+### 19-range-queries.md
+
+```
+04-practice/algorithms/19-range-queries.md
+└── 19-range-queries.md
+    ├── Prefix Sums
+    │   ├── Range Sum Query - Immutable `⚡ T1`
+    │   │   → `pre[r+1] - pre[l]`.
+    │   └── Range Sum Query 2D - Immutable `⚡ T1`
+    │       → Inclusion-exclusion over a padded 2D prefix grid.
+    ├── Fenwick Tree & Segment Tree
+    │   └── Range Sum Query - Mutable `🎯 T2`
+    │       → Fenwick: `i += i & -i` to update, `i -= i & -i` to query.
+    ├── Counting Pairs: Compression & Merge Sort
+    │   ├── Count of Smaller Numbers After Self `🎯 T2`
+    │   │   → Scan right to left, Fenwick over compressed ranks.
+    │   └── Reverse Pairs `🎯 T2`
+    │       → Merge sort: count `a[i] > 2*a[j]` across halves before merging.
+    ├── Sweep Line & Intervals
+    │   ├── The Skyline Problem `🎯 T2`
+    │   │   → Sweep x; max-heap of live heights with lazy expiry; emit on max change.
+    │   ├── My Calendar I `⚡ T1`
+    │   │   → Sorted starts + bisect; check only the two neighbours.
+    │   ├── My Calendar II `🎯 T2`
+    │   │   → Reject if new overlaps any double-booked segment; else record overlaps.
+    │   └── My Calendar III `🎯 T2`
+    │       → Boundary-delta map; running max of the prefix sum.
+    └── Heaps & Windows
+        └── Sliding Window Median `🎯 T2`
+            → Two heaps with lazy deletion, or a sorted window with bisect.
 ```
 
 ---

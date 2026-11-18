@@ -38,6 +38,8 @@ The topic list barely changes. The **bar** changes:
 
 **Still skipped at L4** (unchanged from L3): segment trees / BIT implementation (concept sentence only), Tarjan SCC/bridges implementation, bitmask DP, digit DP, Manacher, suffix automata, system design (L4 loops at Google are still DSA + behavioral; design appears at L5).
 
+**Outside Google / hard rounds** (Meta E5 hard rounds, HFT, competitive-leaning teams): promote the `💤 T3` material to `🎯 T2` — [Range Queries](../02-algorithms/19-range-queries.md) (Fenwick, segment tree, merge-sort counting; [practice](../04-practice/algorithms/19-range-queries.md)), bitmask / digit / game DP in [DP practice](../04-practice/algorithms/15-dynamic-programming.md), and bit tricks in [Bit Manipulation practice](../04-practice/algorithms/17-bit-manipulation.md).
+
 ---
 
 ## 2. Tier promotions (L3 → L4)

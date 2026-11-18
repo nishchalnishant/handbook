@@ -1,6 +1,6 @@
-# Summary — Google L3 (SWE)
+# Summary — Big-Tech DSA (Google L3 base)
 
-> L3 = 4–5 coding rounds (35–45 min each) + Googliness/behavioral. No system design, LLD, SQL, or concurrency. **Segment trees / Fenwick trees: skip for L3** → [What to Skip](00-start-here/L3_CHEATSHEET.md)
+> L3 = 4–5 coding rounds (35–45 min each) + Googliness/behavioral. No system design, LLD, SQL, or concurrency. **Segment trees / Fenwick trees: skip for L3**, covered as `💤 T3` in [Range Queries](02-algorithms/19-range-queries.md) for L4+ / hard rounds → [What to Skip](00-start-here/L3_CHEATSHEET.md)
 
 ## Start Here
 * [Overview](README.md)
@@ -48,6 +48,7 @@
 * [Recursion → DP Bridge](02-algorithms/10-recursion-to-dp.md)
 * [**Bit Manipulation**](02-algorithms/17-bit-manipulation.md)
 * [**Math & Number Theory**](02-algorithms/18-math-and-number-theory.md)
+* [**Range Queries (prefix / Fenwick / segment tree)**](02-algorithms/19-range-queries.md)
 
 ---
 
@@ -81,6 +82,9 @@ Companion to [Mind Map](03-patterns/mindmap.md) — full problem walkthroughs.
 * [String Algorithms](04-practice/algorithms/02-string-algorithms.md)
 * [Dynamic Programming](04-practice/algorithms/15-dynamic-programming.md)
 * [Recursion](04-practice/algorithms/09-recursion.md)
+* [Bit Manipulation](04-practice/algorithms/17-bit-manipulation.md)
+* [Math & Number Theory](04-practice/algorithms/18-math-and-number-theory.md)
+* [Range Queries](04-practice/algorithms/19-range-queries.md)
 
 ---
 

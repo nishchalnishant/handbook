@@ -111,4 +111,4 @@
 - **Master Theorem:** Recognize when halving vs subtracting changes complexity.
 
 ## 8. What to Skip at L3
-- **Do NOT study:** Segment Trees, Fenwick Trees (BIT), Tarjan/Kosaraju SCC, Floyd-Warshall, Bitmask/Digit DP, System Design. (Focus heavily on BFS/DFS, Heaps, Two Pointers, Binary Search instead).
+- **Do NOT study:** Segment Trees, Fenwick Trees (BIT), Tarjan/Kosaraju SCC, Floyd-Warshall, Bitmask/Digit DP, System Design. (They live in the repo as `💤 T3` — [Range Queries](../02-algorithms/19-range-queries.md), [DP practice](../04-practice/algorithms/15-dynamic-programming.md) — for L4+ or hard-round companies.) (Focus heavily on BFS/DFS, Heaps, Two Pointers, Binary Search instead).

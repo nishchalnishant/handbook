@@ -13,7 +13,7 @@ difficulty: meta
 > **Prereqs:** None · **Pair with:** [L3 cheatsheet](L3_CHEATSHEET.md) · [L4 delta](l4-sde2-delta.md) · **Time:** 15 min
 > **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](l3-google-roadmap.md#tier-legend))
 
-**Sections:** [Tier Legend](#tier-legend) · [TIER 1: High-Yield Google Favorites — Must Master `⚡ T1`](#tier-1-high-yield-google-favorites--must-master--t1) · [TIER 2: Highly Probable — Build Fluidity `🎯 T2`](#tier-2-highly-probable--build-fluidity--t2) · [TIER 3: Overkill / Lower Priority for L3 `💤 T3`](#tier-3-skip) · [L3 Study Schedule (4-Week Sprint) `⚡ T1`](#l3-study-schedule-4-week-sprint--t1) · [Quick-Reference: "What Pattern Is This?" `⚡ T1`](#quick-reference-what-pattern-is-this--t1) · [Files in This Repository — By Tier](#files-in-this-repository--by-tier)
+**Sections:** [Tier Legend](#tier-legend) · [TIER 1: High-Yield Google Favorites — Must Master `⚡ T1`](#tier-1-high-yield-google-favorites--must-master--t1) · [TIER 2: Highly Probable — Build Fluidity `🎯 T2`](#tier-2-highly-probable--build-fluidity--t2) · [TIER 3: Overkill / Lower Priority for L3 `💤 T3`](#tier-3-overkill--lower-priority-for-l3--t3) · [L3 Study Schedule (4-Week Sprint) `⚡ T1`](#l3-study-schedule-4-week-sprint--t1) · [Quick-Reference: "What Pattern Is This?" `⚡ T1`](#quick-reference-what-pattern-is-this--t1) · [Files in This Repository — By Tier](#files-in-this-repository--by-tier)
 
 ---
 
@@ -387,7 +387,7 @@ Know these cold:
 
 ---
 
-## TIER 3: Overkill / Lower Priority for L3 `💤 T3` {#tier-3-skip}
+## TIER 3: Overkill / Lower Priority for L3 `💤 T3`
 
 > [!warning] Do NOT Code These
 > These topics almost never appear in Google L3 interviews. Skimming a conceptual summary is enough. Redirect time to Tier 1.

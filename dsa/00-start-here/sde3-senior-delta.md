@@ -34,7 +34,7 @@ The topic list barely changes again. What changes is **what you're graded on**:
 | Communication | Explain your approach | **Drive the room** — narrate reasoning as a senior would review someone else's approach, including naming why alternatives are worse |
 | Recovery | Fix bugs when pointed at | Catch your own bugs via **self-directed dry run**, and explain the class of bug (off-by-one vs. state-definition vs. invariant violation) |
 
-**Still out of scope** (unchanged from L3/L4): full system design, LLD, formal concurrency primitives implementation, segment trees/BIT implementation, Tarjan SCC, bitmask/digit DP, Manacher, suffix automata. Senior *coding* rounds stay DSA + follow-up chains + bounded systems discussion — not a design round.
+**Still out of scope** (unchanged from L3/L4): full system design, LLD, formal concurrency primitives implementation, segment trees/BIT implementation, Tarjan SCC, bitmask/digit DP, Manacher, suffix automata. Senior *coding* rounds stay DSA + follow-up chains + bounded systems discussion — not a design round. If the target company runs hard rounds, use the promotion list in the [L4 delta](l4-sde2-delta.md) — the material exists in the repo as `💤 T3`.
 
 ---
 

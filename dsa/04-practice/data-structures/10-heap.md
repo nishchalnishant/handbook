@@ -1093,7 +1093,7 @@ difficulty: mixed
 
 ---
 
-### Minimum Refueling Stops (LC 871) `⚡ T1`
+### Minimum Refueling Stops (LC 871) `🎯 T2`
 
 > [!example] Problem
 > A car travels from a starting position to a destination which is target miles east of the starting position.
@@ -1163,6 +1163,52 @@ difficulty: mixed
 > [!tip] Alternatives
 > - DP: `dp[i]` = max distance reachable with exactly `i` stops. O(n²) — too slow for large inputs.
 > - Key insight: appending `[target, 0]` to stations unifies the "can we reach the target" check into the same loop, avoiding a separate post-loop check.
+
+---
+
+### Minimum Interval to Include Each Query (LC 1851) `🎯 T2`
+
+> [!example] Problem
+> Given `intervals[i] = [left, right]` (size = `right - left + 1`) and an array `queries`, return for each query the size of the smallest interval containing it (`left <= q <= right`), or `-1` if none.
+>
+> **Example 1:** `intervals = [[1,4],[2,4],[3,6],[4,4]], queries = [2,3,4,5]` returns `[3,3,1,4]`.
+>
+> **Example 2:** `intervals = [[2,3],[2,5],[1,8],[20,25]], queries = [2,19,5,22]` returns `[2,-1,4,6]`.
+
+> [!tip] Recognize · Gotcha
+> **Signal:** "smallest/best interval covering each point" offline · **Gotcha:** process queries in **sorted** order but write answers back by original position; expired intervals are removed lazily (only when at the heap top).
+
+> [!info] Approach
+> Offline sweep. Sort intervals by left endpoint and queries ascending. For each query `q`, push every interval with `left <= q` onto a min-heap keyed by `(size, right)`. Then pop from the top while the top's `right < q` (it ended before `q` and, since queries only increase, can never match again). The heap top, if any, is the smallest interval containing `q`. Intervals buried below the top that have expired are harmless: they only matter once they surface, and then they are discarded.
+
+> [!note]- Python Solution
+> ```python
+> import heapq
+>
+> def min_interval(intervals, queries):
+>     intervals = sorted(intervals)
+>     heap = []                               # (size, right_end)
+>     ans = {}
+>     i = 0
+>     for q in sorted(queries):
+>         while i < len(intervals) and intervals[i][0] <= q:
+>             l, r = intervals[i]
+>             heapq.heappush(heap, (r - l + 1, r))
+>             i += 1
+>         while heap and heap[0][1] < q:      # lazy: expired intervals only matter at the top
+>             heapq.heappop(heap)
+>         ans[q] = heap[0][0] if heap else -1
+>     return [ans[q] for q in queries]
+> ```
+
+> [!success] Complexity
+> Time O((n + q) log (n + q)); Space O(n + q).
+
+> [!warning] Gotcha
+> The answer dict is keyed by query value, which is safe for duplicate queries (same answer). Keying by index requires sorting `(q, idx)` pairs instead; either works.
+
+> [!tip] Follow-up
+> Online version (queries arrive in any order) needs a segment tree or sorted-list of disjoint coverage; the offline sort-and-sweep trade-off is why the problem allows reading all queries first.
 
 ---
 

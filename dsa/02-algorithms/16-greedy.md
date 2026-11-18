@@ -474,7 +474,7 @@ def find_maximized_capital(k: int, w: int, profits: list[int], capital: list[int
 - **[Minimum Arrows to Burst Balloons](../04-practice/algorithms/16-greedy.md#minimum-number-of-arrows-to-burst-balloons) `🎯 T2`** — Sort by end; shoot at end of each new balloon.
 
 ### Hard
-- **[Minimum Refueling Stops](../04-practice/data-structures/10-heap.md#minimum-refueling-stops-lc-871--t1) `⚡ T1`** — Max-heap of reachable fuel; refuel largest when tank runs dry.
+- **[Minimum Refueling Stops](../04-practice/data-structures/10-heap.md#minimum-refueling-stops-lc-871--t2) `🎯 T2`** — Max-heap of reachable fuel; refuel largest when tank runs dry.
 - **[IPO (Maximize Capital)](../04-practice/algorithms/16-greedy.md#ipo-maximize-capital-lc-502--t1) `⚡ T1`** — Sort by capital; max-heap of available profits.
 - **[Smallest Range Covering K Lists](../04-practice/data-structures/10-heap.md#smallest-range-covering-elements-from-k-lists-heap-variant--t1) `⚡ T1`** — K-way merge + greedy window shrink.
 
@@ -493,7 +493,7 @@ def find_maximized_capital(k: int, w: int, profits: list[int], capital: list[int
 | **Assign Cookies** | "Satisfy max children greedily" | Sort both; smallest sufficient cookie per smallest unsatisfied child | Two-pointer: greedily match smallest satisfied first. |
 | **Candy `🎯 T2`** | "Minimum candy with neighbor constraints" | Two-pass: L→R then R→L; `candy[i] = max(both passes)` | One pass fails — left and right constraints are independent. |
 | **Fractional Knapsack** | "Max value with fractional items" | Sort by value/weight; take greedily | 0/1 Knapsack is **not** greedy — needs DP. Verify items are divisible. |
-| **Minimum Refueling Stops `⚡ T1`** | "Fewest stops to reach destination" | Max-heap of reachable stations; refuel when tank < 0 | Greedily take the largest available fuel when you must stop — not the nearest. |
+| **Minimum Refueling Stops `🎯 T2`** | "Fewest stops to reach destination" | Max-heap of reachable stations; refuel when tank < 0 | Greedily take the largest available fuel when you must stop — not the nearest. |
 | **Partition Labels** | "Partition so each letter in one part" | `last[ch]` map; extend `end`; cut at `i == end` | Each letter's last occurrence defines the minimum partition end. |
 | **Lemonade Change** [E] | "Can you give correct change for each customer?" | Greedy: prefer using $10 over $5 when making $15 change | Use $10 before $5 to preserve smaller bills for future $5 change needs. |
 | **Score After Flipping Matrix** [M] | "Maximize sum of rows as binary numbers" | First: toggle row if first bit is 0 (MSB dominates); then: toggle column if zeros > ones | MSB of each row must be 1 first; then maximize each column independently. |

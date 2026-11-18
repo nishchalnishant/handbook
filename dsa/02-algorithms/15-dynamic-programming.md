@@ -3,7 +3,7 @@
 ## What this covers
 
 > [!abstract] In this file
-> **Covers:** The universal DP recipe and nine patterns: linear, 0/1 knapsack, unbounded knapsack, LCS, LIS, Kadane, interval (MCM), grid, tree DP.
+> **Covers:** The universal DP recipe and 15 patterns: linear, 0/1 knapsack, unbounded knapsack, LCS, LIS, Kadane, interval (MCM), grid, tree DP, plus bitmask, stock state machine, string/palindrome, game/minimax, digit DP and optimizations.
 > **You'll be able to:** Classify a DP problem into a pattern in 30 s; define state + transition + base case + order; space-optimise 2D → 1D.
 > **Prereqs:** Recursion, recursion → DP · **Pair with:** [DP problems](../04-practice/algorithms/15-dynamic-programming.md) · [Recursion → DP bridge](10-recursion-to-dp.md) · **Time:** 4–5 h
 > **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../00-start-here/l3-google-roadmap.md#tier-legend))
@@ -775,6 +775,41 @@ def find_paths(m: int, n: int, max_move: int, start_row: int, start_col: int) ->
 
 ---
 
+## Two-Walker Grid DP (Cherry Pickup)
+
+Round trip (0,0) → (n-1,n-1) → (0,0) is equivalent to **two walkers both going down-right at the same time**. After `t` steps both are on anti-diagonal `r + c = t`, so the state is `(t, r1, r2)` and `c = t - r`. If both stand on one cell, count it once.
+
+```python
+def cherry_pickup(grid: list[list[int]]) -> int:
+    """LC 741: -1 = thorn, 1 = cherry. Max cherries on a round trip; 0 if blocked."""
+    n = len(grid)
+    NEG = float('-inf')
+    dp = [[NEG] * n for _ in range(n)]       # dp[r1][r2] after t steps
+    dp[0][0] = grid[0][0]
+    for t in range(1, 2 * n - 1):
+        new = [[NEG] * n for _ in range(n)]
+        for r1 in range(max(0, t - n + 1), min(n - 1, t) + 1):
+            for r2 in range(r1, min(n - 1, t) + 1):     # r1 <= r2 by symmetry
+                c1, c2 = t - r1, t - r2
+                if grid[r1][c1] == -1 or grid[r2][c2] == -1:
+                    continue
+                best = max(dp[r1][r2],
+                           dp[r1 - 1][r2] if r1 else NEG,
+                           dp[r1][r2 - 1] if r2 else NEG,
+                           dp[r1 - 1][r2 - 1] if r1 and r2 else NEG)
+                if best == NEG:
+                    continue
+                gain = grid[r1][c1] + (grid[r2][c2] if r1 != r2 else 0)
+                new[r1][r2] = best + gain
+        dp = new
+    return max(0, dp[n - 1][n - 1])
+```
+
+- Time O(n³), space O(n²). Greedy "best path twice" is **wrong**: the first trip can steal cherries the second needs.
+- `r1 <= r2` is valid because the walkers are interchangeable; each transition has 4 predecessors (down|right × down|right).
+
+---
+
 # Pattern 9 — Tree DP
 
 ## Theory
@@ -942,6 +977,36 @@ def minimum_xor_sum(nums1: list[int], nums2: list[int]) -> int:
 | **Travelling Salesman** | `dp[mask][city]` | N ≤ 20 |
 | **Minimum XOR Sum (assignment)** | `dp[mask]` = cost assigning first `popcount(mask)` | N ≤ 14 |
 | **Stickers to Spell Word** | `dp[mask]` = min stickers to cover chars in mask | word ≤ 15 |
+
+---
+
+## Bitmask DP — Partition into k Groups (Subset Enumeration)
+
+When the answer is "fewest groups to cover/pack all n items" with n ≤ ~14, let `dp[mask]` = minimum groups needed for exactly the items in `mask`. The transition peels off one **group** (a submask) rather than one item, so enumerate submasks: total work O(3^n).
+
+```python
+def min_sessions(tasks: list[int], T: int) -> int:
+    """LC 1986: fewest work sessions of length <= T to finish all tasks."""
+    n = len(tasks)
+    full = 1 << n
+    need = [0] * full                       # need[mask] = sum of tasks in mask
+    for m in range(1, full):
+        low = (m & -m).bit_length() - 1
+        need[m] = need[m & (m - 1)] + tasks[low]
+    dp = [float('inf')] * full
+    dp[0] = 0
+    for m in range(1, full):
+        sub = m
+        while sub:                          # every non-empty submask of m
+            if need[sub] <= T:              # sub fits in one session
+                dp[m] = min(dp[m], dp[m ^ sub] + 1)
+            sub = (sub - 1) & m
+    return dp[full - 1]
+```
+
+- **Assignment form** (Minimum XOR Sum above): process items in order, `popcount(mask)` tells which item is next, so only O(2^n · n).
+- **Partition form** (this one): no canonical order, so enumerate submasks — O(3^n).
+- **Set-cover form** (Smallest Sufficient Team, LC 1125): `dp[skill_mask]` = smallest team; for each person, `dp[mask | person] = min(dp[mask] + 1)`. Keep a dict of reachable masks only.
 
 ---
 
@@ -1177,6 +1242,155 @@ def is_match_wildcard(s: str, p: str) -> bool:
 
 ---
 
+# Pattern 13 — Game / Minimax DP
+
+## Theory
+
+- **Core idea:** Two players alternate with perfect play. Instead of tracking both scores, store the **score difference from the viewpoint of the player to move**: `dp[state] = best (mine − opponent's)` achievable from `state`.
+- **Recurrence:** `dp[state] = max over moves of (gain(move) − dp[next_state])`. The minus sign flips perspective, so no separate min layer is needed.
+- **Answer:** first player wins or ties iff `dp[start] >= 0`. For raw totals use `mine = (total + diff) / 2`, or define `best(i)` = stones the mover collects from the suffix and use `suffix_sum − best(next)`.
+
+## Implementations
+
+```python
+def predict_the_winner(nums: list[int]) -> bool:
+    """LC 486 / LC 877. dp[j] for interval [i..j] = best (mine - theirs) for the mover."""
+    n = len(nums)
+    dp = nums[:]                               # i == j: take the only pile
+    for i in range(n - 2, -1, -1):
+        for j in range(i + 1, n):
+            dp[j] = max(nums[i] - dp[j],       # take left,  opponent then plays [i+1..j]
+                        nums[j] - dp[j - 1])   # take right, opponent then plays [i..j-1]
+    return dp[n - 1] >= 0
+```
+
+```python
+from functools import lru_cache
+
+def stone_game_ii(piles: list[int]) -> int:
+    """LC 1140: take 1..2M piles from the front, then M = max(M, X). Alice's max stones."""
+    n = len(piles)
+    suf = [0] * (n + 1)
+    for i in range(n - 1, -1, -1):
+        suf[i] = suf[i + 1] + piles[i]
+
+    @lru_cache(None)
+    def best(i, m):                            # max stones the mover gets from piles[i:]
+        if i + 2 * m >= n:
+            return suf[i]                      # can take everything
+        return max(suf[i] - best(i + x, max(m, x)) for x in range(1, 2 * m + 1))
+
+    return best(0, 1)
+```
+
+- **Gotcha:** taking `max` for both players is the classic bug; subtracting `dp[next]` is what models the opponent.
+- **State must capture every rule:** Stone Game II needs `M` in the state, not just the index.
+- Time: interval version O(n²); Stone Game II O(n³).
+
+---
+
+# Pattern 14 — Digit DP
+
+## Theory
+
+- **Core idea:** Count integers in `[0, N]` with a digit-level property by building the number left to right, one digit per recursion level.
+- **State:** `(pos, tight, started, extra)`
+  - `tight` — digits so far equal N's prefix, so the next digit is capped at `N[pos]`; otherwise 0–9.
+  - `started` — leading zeros are not real digits (matters for "no repeated digit", digit counts, lengths).
+  - `extra` — property state: bitmask of used digits, count of a digit, remainder mod k, previous digit.
+- **Memoize** with `lru_cache` keyed on the full state; only O(L) tight states exist so it costs nothing.
+- **Range [A, B]:** `f(B) − f(A − 1)`.
+
+## Implementations
+
+```python
+from functools import lru_cache
+
+def count_no_repeat(N: int) -> int:
+    """Count x in [0, N] whose decimal digits are all distinct."""
+    s = str(N)
+    L = len(s)
+
+    @lru_cache(None)
+    def go(pos, used, tight, started):
+        if pos == L:
+            return 1                            # a valid number (0 itself counted once)
+        lim = int(s[pos]) if tight else 9
+        total = 0
+        for d in range(lim + 1):
+            nt = tight and d == lim
+            if not started and d == 0:
+                total += go(pos + 1, used, nt, False)      # still in leading zeros
+            elif used >> d & 1:
+                continue                                    # repeated digit
+            else:
+                total += go(pos + 1, used | 1 << d, nt, True)
+        return total
+
+    return go(0, 0, True, False)
+```
+
+```python
+def at_most_n_given_digit_set(digits: list[str], n: int) -> int:
+    """LC 902: closed-form digit walk -- numbers <= n built only from `digits`."""
+    s, L, d = str(n), len(str(n)), len(digits)
+    total = sum(d ** k for k in range(1, L))          # every shorter length
+    for i, ch in enumerate(s):
+        total += sum(1 for x in digits if x < ch) * d ** (L - i - 1)
+        if ch not in digits:
+            return total                               # cannot stay tight
+    return total + 1                                   # n itself is buildable
+```
+
+- Time O(L · states · 10); with a digit-bitmask state that is O(L · 2^10 · 10).
+- **Gotchas:** forgetting `started` (treats `7` as `007`, repeated zeros); `pos == L` returning 1 includes the number 0; keep `lru_cache` inside the function so a new `N` never reuses a stale cache.
+
+---
+
+# Pattern 15 — DP with Optimization (Quick Reference)
+
+When the plain recurrence is O(n²) or O(n·k) but n is 10⁵, the transition is usually one of three shapes:
+
+| Transition shape | Optimization | Example |
+| :--- | :--- | :--- |
+| `dp[i] = x_i + max(dp[j])` over a **sliding window** `[i−k, i−1]` | **Monotonic deque** of indices with decreasing `dp` → O(n) | Jump Game VI (LC 1696), Constrained Subsequence Sum (LC 1425) |
+| `dp[i] = 1 + max(dp[j])` over `j < i` with `a[j] < a[i]` | **Binary search** on a `tails` array → O(n log n) | LIS (LC 300), Russian Doll (LC 354) |
+| Answer grows monotonically with a budget | **Flip the state**: dp over the answer, not the input size | Super Egg Drop (`dp[e]` = floors covered by `m` moves) |
+
+```python
+from collections import deque
+from bisect import bisect_left
+
+def jump_game_vi(nums: list[int], k: int) -> int:
+    dp = [0] * len(nums)
+    dp[0] = nums[0]
+    dq = deque([0])                              # indices, dp strictly decreasing
+    for i in range(1, len(nums)):
+        while dq[0] < i - k:
+            dq.popleft()                         # fell out of the window
+        dp[i] = nums[i] + dp[dq[0]]              # window max is at the front
+        while dq and dp[dq[-1]] <= dp[i]:
+            dq.pop()                             # dominated: older and not larger
+        dq.append(i)
+    return dp[-1]
+
+def lis_length(nums: list[int]) -> int:
+    tails = []                                   # tails[L-1] = smallest tail of an increasing run of length L
+    for x in nums:
+        i = bisect_left(tails, x)                # bisect_right for non-decreasing
+        if i == len(tails):
+            tails.append(x)
+        else:
+            tails[i] = x
+    return len(tails)
+```
+
+- `tails` is **not** the subsequence itself; to reconstruct, store predecessor indices.
+- Deque is amortized O(1): each index is pushed and popped at most once.
+- Out of scope for L3–L4: Convex Hull Trick, divide-and-conquer DP, Knuth, SOS — name them, don't implement.
+
+---
+
 # Common DP Bugs — The 12
 
 > [!CAUTION]
@@ -1328,3 +1542,21 @@ Overwriting a state and then reading the new value later in the *same* iteration
 
 **Substring DP vs subsequence DP — what changes in the recurrence?** #flashcard
 Subsequence (LCS) allows skipping: on a mismatch, take `max(dp[i-1][j], dp[i][j-1])`, and the answer is `dp[m][n]`. Substring requires contiguity: on a mismatch the run **resets to 0**, and the answer is the max over the whole table, not the last cell.
+
+**In game-theory interval DP, why is the recurrence `nums[i] - dp[i+1][j]` and not `nums[i] + min(...)`?** #flashcard
+`dp[i][j]` stores (mover's score − opponent's score) for the mover. After you move, the opponent becomes the mover on the smaller state and earns `dp[next]` of advantage, which is **your loss** — so subtract it. First player wins or ties iff `dp[0][n-1] >= 0`. Storing raw scores for both players needs a min/max alternation and a larger state.
+
+**What are the four components of a digit-DP state and what does each prevent?** #flashcard
+`pos` (which digit), `tight` (prefix equals N's prefix, so digit is capped at `N[pos]`), `started` (skip leading zeros so `7` is not `007`), and an `extra` property state (digit bitmask, remainder, count). Answer for a range is `f(B) − f(A−1)`.
+
+**Bitmask DP: when do you enumerate submasks (O(3^n)) versus add one item at a time (O(2^n · n))?** #flashcard
+One item at a time when the processing order is canonical (assignment: `popcount(mask)` says which item is next). Submask enumeration `sub = (sub-1) & mask` when you must peel off an entire **group** with no canonical order — partition into k groups, Minimum Work Sessions.
+
+**Why does Cherry Pickup reduce to two walkers moving simultaneously, and what is the state?** #flashcard
+A return trip reversed is another down-right path, so run both together. After `t` steps both lie on anti-diagonal `r + c = t`, so state is `(t, r1, r2)` with `c = t − r`; O(n³). A shared cell is counted once. Running the best path twice greedily is wrong.
+
+**Super Egg Drop: why flip the DP to `dp[moves][eggs]`?** #flashcard
+`dp[m][e]` = max floors distinguishable with `m` moves and `e` eggs = `dp[m-1][e-1] + dp[m-1][e] + 1` (egg breaks: floors below; survives: floors above; plus the tested floor). Increase `m` until `dp[m][k] >= n`. The classic `dp[eggs][floors]` is O(k·n²), or O(k·n log n) with binary search on the split.
+
+**Monotonic deque DP: what invariant does the deque hold, and when is it applicable?** #flashcard
+Indices inside the window `[i−k, i−1]` with **strictly decreasing** `dp` values, so the front is the window max. Applies when `dp[i] = cost_i + max/min(dp[j] for j in a sliding window)` (Jump Game VI, Constrained Subsequence Sum). Pop the front when it leaves the window; pop the back while `dp[back] <= dp[i]` — they are older and no better.

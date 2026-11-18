@@ -15,8 +15,8 @@ difficulty: mixed
 
 **Sections:** [DFS Traversal](#dfs-traversal) · [Level Order BFS](#level-order-bfs) · [Lowest Common Ancestor](#lowest-common-ancestor) · [Tree DP](#tree-dp) · [BST Operations](#bst-operations) · [Construction / Serialization](#construction--serialization) · [Morris Traversal / Iterative Postorder](#morris-traversal--iterative-postorder) · [Special Tree Problems](#special-tree-problems)
 
-> [!abstract]- Problem index (37)
-> **DFS Traversal:** [Binary Tree Inorder Traversal](#binary-tree-inorder-traversal--t2) · [Invert Binary Tree](#invert-binary-tree--t2) · [Symmetric Tree](#symmetric-tree--t2) · [Maximum Depth of Binary Tree](#maximum-depth-of-binary-tree--t2) · [Minimum Depth of Binary Tree](#minimum-depth-of-binary-tree) · [Path Sum](#path-sum--t2) · [Path Sum II](#path-sum-ii--t2) · [Sum Root to Leaf Numbers](#sum-root-to-leaf-numbers) · [Count Good Nodes in Binary Tree](#count-good-nodes-in-binary-tree--t2) · [Same Tree](#same-tree) · [Subtree of Another Tree](#subtree-of-another-tree) · [Flatten Binary Tree to Linked List](#flatten-binary-tree-to-linked-list--t2) · [Step-By-Step Directions From a Binary Tree Node to Another](#step-by-step-directions-from-a-binary-tree-node-to-another) · [Binary Tree Boundary Traversal](#binary-tree-boundary-traversal) · [Count Complete Tree Nodes (LC 222)](#count-complete-tree-nodes-lc-222)  
+> [!abstract]- Problem index (38)
+> **DFS Traversal:** [Balanced Binary Tree (LC 110)](#balanced-binary-tree-lc-110--t1) · [Binary Tree Inorder Traversal](#binary-tree-inorder-traversal--t2) · [Invert Binary Tree](#invert-binary-tree--t2) · [Symmetric Tree](#symmetric-tree--t2) · [Maximum Depth of Binary Tree](#maximum-depth-of-binary-tree--t2) · [Minimum Depth of Binary Tree](#minimum-depth-of-binary-tree) · [Path Sum](#path-sum--t2) · [Path Sum II](#path-sum-ii--t2) · [Sum Root to Leaf Numbers](#sum-root-to-leaf-numbers) · [Count Good Nodes in Binary Tree](#count-good-nodes-in-binary-tree--t2) · [Same Tree](#same-tree) · [Subtree of Another Tree](#subtree-of-another-tree) · [Flatten Binary Tree to Linked List](#flatten-binary-tree-to-linked-list--t2) · [Step-By-Step Directions From a Binary Tree Node to Another](#step-by-step-directions-from-a-binary-tree-node-to-another) · [Binary Tree Boundary Traversal](#binary-tree-boundary-traversal) · [Count Complete Tree Nodes (LC 222)](#count-complete-tree-nodes-lc-222)  
 > **Level Order BFS:** [Binary Tree Zigzag Level Order Traversal](#binary-tree-zigzag-level-order-traversal--t2) · [Populating Next Right Pointers in Each Node](#populating-next-right-pointers-in-each-node--t2) · [Vertical Order Traversal of a Binary Tree](#vertical-order-traversal-of-a-binary-tree--t2) · [All Nodes Distance K in Binary Tree](#all-nodes-distance-k-in-binary-tree--t2)  
 > **Lowest Common Ancestor:** [Lowest Common Ancestor of a Binary Tree](#lowest-common-ancestor-of-a-binary-tree--t2) · [Lowest Common Ancestor of a BST](#lowest-common-ancestor-of-a-bst--t2)  
 > **Tree DP:** [Diameter of Binary Tree](#diameter-of-binary-tree--t2) · [Binary Tree Maximum Path Sum](#binary-tree-maximum-path-sum--t2) · [House Robber III](#house-robber-iii--t2) · [Path Sum III](#path-sum-iii--t2) · [Binary Tree Cameras (LC 968)](#binary-tree-cameras-lc-968--t2)  
@@ -875,6 +875,50 @@ difficulty: mixed
 > [!tip] Alternatives
 > - O(n) full traversal — correct but ignores the complete tree property.
 > - Binary search on node indices with path existence check: also O(log²n), more complex.
+
+---
+
+### Balanced Binary Tree (LC 110) `⚡ T1`
+
+> [!example] Problem
+> Given a binary tree, determine whether it is height-balanced: for every node, the heights of its left and right subtrees differ by at most 1.
+>
+> **Example 1:** `root = [3,9,20,null,null,15,7]` returns `true`.
+>
+> **Example 2:** `root = [1,2,2,3,3,null,null,4,4]` returns `false`.
+>
+> **Constraints:** the number of nodes is in `[0, 5000]`; `-10^4 <= Node.val <= 10^4`.
+
+> [!tip] Recognize · Gotcha
+> **Signal:** "balanced" / "height differs by at most 1 at every node" · **Gotcha:** the O(n^2) version calls `height()` at every node; return a **sentinel** (`-1`) from one post-order pass instead, and propagate it upward immediately.
+
+> [!failure] Tempting wrong approach
+> `abs(height(left) - height(right)) <= 1` checked only at the root, or recomputing `height` from scratch at every node (O(n^2) on a skewed tree). Balance must hold at **every** node.
+
+> [!info] Approach
+> Post-order: `height(node)` returns the subtree height, or `-1` if any subtree below is unbalanced. After the left call, bail out on `-1` (skip the right subtree entirely); after both, return `-1` if the heights differ by more than 1, else `1 + max`. The tree is balanced iff the root's result is not `-1`.
+
+> [!note]- Python Solution
+> ```python
+> def is_balanced(root):
+>     def height(node):                       # -1 sentinel = "unbalanced somewhere below"
+>         if not node:
+>             return 0
+>         lh = height(node.left)
+>         if lh == -1:
+>             return -1
+>         rh = height(node.right)
+>         if rh == -1 or abs(lh - rh) > 1:
+>             return -1
+>         return 1 + max(lh, rh)
+>     return height(root) != -1
+> ```
+
+> [!success] Complexity
+> Time O(n), each node once, with early exit on the first imbalance; Space O(h) recursion (O(n) worst case on a skewed tree).
+
+> [!tip] Follow-up
+> Same "return a sentinel or a tuple from post-order" trick solves Diameter of Binary Tree and Check Subtree Sums. For the AVL variant, track `(height, is_balanced)` as a tuple instead of a sentinel.
 
 ---
 

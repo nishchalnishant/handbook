@@ -66,6 +66,9 @@ tags: [striver, a2z, dsa, course-notes]
 | [Master cheat sheet](MASTER_CHEATSHEET.md) | All part cheat sheets on one page for last-day revision |
 | [SDE 2 interview prep](33-sde2-interview-prep/README.md) | System design, low-level design, core CS, interview execution and behavioral prep |
 | [Patterns master](../03-patterns/patterns-master.md) | Prompt shape → likely topic → common problem type and solving approach |
+| [Bit manipulation](../02-algorithms/17-bit-manipulation.md) · [practice](../04-practice/algorithms/17-bit-manipulation.md) | Main-track lecture and tiered problems; pairs with Part 20 |
+| [Math & number theory](../02-algorithms/18-math-and-number-theory.md) · [practice](../04-practice/algorithms/18-math-and-number-theory.md) | Main-track lecture and tiered problems; pairs with Parts 8 and 31 |
+| [Range queries](../02-algorithms/19-range-queries.md) · [practice](../04-practice/algorithms/19-range-queries.md) | Prefix sums, Fenwick tree, segment tree, sweep line; not covered by the course |
 
 ---
 
@@ -73,5 +76,5 @@ tags: [striver, a2z, dsa, course-notes]
 
 1. **Read the lesson on takeuforward first, then the note.** The note restructures the lesson and adds to it. It is not a replacement for solving the problems yourself.
 2. **Do every practice exercise on paper** before you write any code. Part 1 is entirely about this habit.
-3. **Review the flashcards** with spaced repetition. The export command is in the [repo README](../README.md#flashcards-147-cards-spaced-repetition).
+3. **Review the flashcards** with spaced repetition. The export command is in the [repo README](../README.md#flashcards-189-cards-spaced-repetition).
 4. When a topic overlaps the interview track, follow the **Interview track →** link at the bottom of the note for tier-tagged problems.

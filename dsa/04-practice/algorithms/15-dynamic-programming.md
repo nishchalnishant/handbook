@@ -13,20 +13,22 @@ difficulty: mixed
 > **Prereqs:** DP lecture · **Pair with:** [DP lecture](../../02-algorithms/15-dynamic-programming.md) · [Recursion → DP](../../02-algorithms/10-recursion-to-dp.md) · **Time:** 6–8 h
 > **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../../00-start-here/l3-google-roadmap.md#tier-legend))
 
-**Sections:** [Linear DP (1-D)](#linear-dp-1-d) · [0/1 Knapsack](#01-knapsack) · [Unbounded Knapsack](#unbounded-knapsack) · [LCS Family](#lcs-family) · [Grid DP](#grid-dp) · [State Machine DP (Stock Problems)](#state-machine-dp-stock-problems) · [Longest Increasing Subsequence (LIS) Family](#longest-increasing-subsequence-lis-family) · [String DP](#string-dp) · [Bitmask DP](#bitmask-dp) · [DP on Sequences](#dp-on-sequences) · [Interval DP](#interval-dp)
+**Sections:** [Linear DP (1-D)](#linear-dp-1-d) · [0/1 Knapsack](#01-knapsack) · [Unbounded Knapsack](#unbounded-knapsack) · [LCS Family](#lcs-family) · [Grid DP](#grid-dp) · [State Machine DP (Stock Problems)](#state-machine-dp-stock-problems) · [Longest Increasing Subsequence (LIS) Family](#longest-increasing-subsequence-lis-family) · [String DP](#string-dp) · [Bitmask DP](#bitmask-dp) · [DP on Sequences](#dp-on-sequences) · [Interval DP](#interval-dp) · [Game Theory (Minimax) DP](#game-theory-minimax-dp) · [Digit DP](#digit-dp)
 
-> [!abstract]- Problem index (39)
-> **Linear DP (1-D):** [Climbing Stairs](#climbing-stairs--t2) · [Min Cost Climbing Stairs](#min-cost-climbing-stairs--t2) · [House Robber](#house-robber--t2) · [House Robber II (Circular)](#house-robber-ii-circular--t2) · [Maximum Subarray (Kadane's — DP view)](#maximum-subarray-kadanes--dp-view--t2) · [Word Break](#word-break--t2) · [Decode Ways](#decode-ways--t2)  
+> [!abstract]- Problem index (54)
+> **Linear DP (1-D):** [Climbing Stairs](#climbing-stairs--t2) · [Min Cost Climbing Stairs](#min-cost-climbing-stairs--t2) · [House Robber](#house-robber--t2) · [House Robber II (Circular)](#house-robber-ii-circular--t2) · [Maximum Subarray (Kadane's — DP view)](#maximum-subarray-kadanes--dp-view--t2) · [Word Break](#word-break--t2) · [Decode Ways](#decode-ways--t2) · [Word Break II (LC 140)](#word-break-ii-lc-140--t2) · [Frog Jump (LC 403)](#frog-jump-lc-403--t2)  
 > **0/1 Knapsack:** [Subset Sum Problem](#subset-sum-problem--t2) · [Partition Equal Subset Sum](#partition-equal-subset-sum--t2) · [Last Stone Weight II](#last-stone-weight-ii--t1)  
 > **Unbounded Knapsack:** [Coin Change (Min Coins)](#coin-change-min-coins--t2) · [Coin Change II (Total Ways)](#coin-change-ii-total-ways--t2) · [Combination Sum IV (LC 377)](#combination-sum-iv-lc-377--t2) · [Perfect Squares](#perfect-squares--t2)  
 > **LCS Family:** [Longest Common Subsequence](#longest-common-subsequence--t2) · [Edit Distance](#edit-distance--t2) · [Longest Palindromic Subsequence](#longest-palindromic-subsequence--t2) · [Minimum ASCII Delete Sum for Two Strings](#minimum-ascii-delete-sum-for-two-strings--t2) · [Minimum Window Subsequence (LC 727)](#minimum-window-subsequence-lc-727--t2)  
-> **Grid DP:** [Unique Paths](#unique-paths--t1) · [Unique Paths II (With Obstacles)](#unique-paths-ii-with-obstacles--t2) · [Minimum Path Sum](#minimum-path-sum--t1) · [Maximal Square](#maximal-square--t2)  
-> **State Machine DP (Stock Problems):** [Best Time to Buy and Sell Stock (All Variants)](#best-time-to-buy-and-sell-stock-all-variants--t2) · [Best Time to Buy and Sell Stock with Cooldown (LC 309)](#best-time-to-buy-and-sell-stock-with-cooldown-lc-309--t2) · [Stock with Transaction Fee](#stock-with-transaction-fee)  
+> **Grid DP:** [Unique Paths](#unique-paths--t1) · [Unique Paths II (With Obstacles)](#unique-paths-ii-with-obstacles--t2) · [Minimum Path Sum](#minimum-path-sum--t1) · [Maximal Square](#maximal-square--t2) · [Dungeon Game (LC 174)](#dungeon-game-lc-174--t2) · [Cherry Pickup (LC 741)](#cherry-pickup-lc-741--t3)  
+> **State Machine DP (Stock Problems):** [Best Time to Buy and Sell Stock (All Variants)](#best-time-to-buy-and-sell-stock-all-variants--t2) · [Best Time to Buy and Sell Stock with Cooldown (LC 309)](#best-time-to-buy-and-sell-stock-with-cooldown-lc-309--t2) · [Stock with Transaction Fee](#stock-with-transaction-fee) · [Best Time to Buy and Sell Stock IV (LC 188)](#best-time-to-buy-and-sell-stock-iv-lc-188--t2)  
 > **Longest Increasing Subsequence (LIS) Family:** [Longest Increasing Subsequence](#longest-increasing-subsequence--t1) · [Number of LIS](#number-of-lis)  
-> **String DP:** [Distinct Subsequences](#distinct-subsequences--t2) · [Interleaving String](#interleaving-string--t2) · [Regular Expression Matching](#regular-expression-matching)  
-> **Bitmask DP:** [Partition to K Equal Subset Sums](#partition-to-k-equal-subset-sums--t2)  
-> **DP on Sequences:** [Jump Game II](#jump-game-ii--t2) · [Maximum Product Subarray](#maximum-product-subarray--t2) · [Longest Common Substring](#longest-common-substring) · [Russian Doll Envelopes (LC 354)](#russian-doll-envelopes-lc-354) · [Maximum Profit in Job Scheduling](#maximum-profit-in-job-scheduling--t2)  
-> **Interval DP:** [Matrix Chain Multiplication](#matrix-chain-multiplication) · [Burst Balloons (LC 312)](#burst-balloons-lc-312--t2)  
+> **String DP:** [Distinct Subsequences](#distinct-subsequences--t2) · [Interleaving String](#interleaving-string--t2) · [Regular Expression Matching](#regular-expression-matching) · [Wildcard Matching (LC 44)](#wildcard-matching-lc-44--t2)  
+> **Bitmask DP:** [Partition to K Equal Subset Sums](#partition-to-k-equal-subset-sums--t2) · [Smallest Sufficient Team (LC 1125)](#smallest-sufficient-team-lc-1125--t3)  
+> **DP on Sequences:** [Jump Game II](#jump-game-ii--t2) · [Maximum Product Subarray](#maximum-product-subarray--t2) · [Longest Common Substring](#longest-common-substring) · [Russian Doll Envelopes (LC 354)](#russian-doll-envelopes-lc-354) · [Maximum Profit in Job Scheduling](#maximum-profit-in-job-scheduling--t2) · [Super Egg Drop (LC 887)](#super-egg-drop-lc-887--t3) · [Minimum Number of Refueling Stops (LC 871)](#minimum-number-of-refueling-stops-lc-871--t2)  
+> **Interval DP:** [Matrix Chain Multiplication](#matrix-chain-multiplication) · [Burst Balloons (LC 312)](#burst-balloons-lc-312--t2) · [Minimum Cost to Cut a Stick (LC 1547)](#minimum-cost-to-cut-a-stick-lc-1547--t2) · [Strange Printer (LC 664)](#strange-printer-lc-664--t3)  
+> **Game Theory (Minimax) DP:** [Predict the Winner / Stone Game (LC 486 / 877)](#predict-the-winner--stone-game-lc-486--877--t2) · [Stone Game II (LC 1140)](#stone-game-ii-lc-1140--t2)  
+> **Digit DP:** [Numbers At Most N Given Digit Set (LC 902)](#numbers-at-most-n-given-digit-set-lc-902--t3) · [Count Numbers with Unique Digits (LC 357)](#count-numbers-with-unique-digits-lc-357--t2)  
 
 > [!tip] If you only have 20 minutes
 > **Do these first:** [Climbing Stairs](#climbing-stairs--t2) · [House Robber](#house-robber--t2) · [Coin Change (Min Coins)](#coin-change-min-coins--t2) · [Coin Change II (Total Ways)](#coin-change-ii-total-ways--t2) · [Partition Equal Subset Sum](#partition-equal-subset-sum--t2) · [Longest Increasing Subsequence](#longest-increasing-subsequence--t1) · [Longest Common Subsequence](#longest-common-subsequence--t2) · [Edit Distance](#edit-distance--t2) · [Unique Paths](#unique-paths--t1) · [Word Break](#word-break--t2)
@@ -331,6 +333,48 @@ difficulty: mixed
 
 ---
 
+### Word Break II (LC 140) `🎯 T2`
+
+> [!example] Problem
+> Given string `s` and dictionary `wordDict`, return **all** sentences formed by inserting spaces so every word is in the dictionary. [H]
+
+> [!tip] Recognize · Gotcha
+> **Signal:** Word Break, but "return all" instead of "can it" · **Gotcha:** Memoize on the start index — without it, inputs like `"aaaa…a"` with `["a","aa",…]` explode exponentially. Output size itself can be exponential, so the bound is output-sensitive.
+
+> [!info] Approach
+> `go(i)` = list of word-lists that segment `s[i:]`. Base: `go(len(s)) = [[]]` (one way: the empty sentence). For each end `j` with `s[i:j]` in the dictionary, prepend the word to every segmentation of `go(j)`. Cap `j` at `i + max_word_len` to avoid useless slices.
+
+> [!note]- Python Solution
+> ```python
+> from functools import lru_cache
+>
+> def word_break_ii(s, word_dict):
+>     words = set(word_dict)
+>     maxlen = max(map(len, words))
+>
+>     @lru_cache(None)
+>     def go(i):
+>         if i == len(s):
+>             return [[]]
+>         out = []
+>         for j in range(i + 1, min(len(s), i + maxlen) + 1):
+>             w = s[i:j]
+>             if w in words:
+>                 for rest in go(j):
+>                     out.append([w] + rest)
+>         return out
+>
+>     return [" ".join(p) for p in go(0)]
+> ```
+
+> [!success] Complexity
+> Time O(n · L + output size), Space O(output size) where L = max word length.
+
+> [!tip] Alternatives
+> Run Word Break (boolean DP) first and return `[]` immediately if it fails — avoids building partial lists for unsegmentable inputs.
+
+---
+
 ### Decode Ways `🎯 T2`
 
 > [!example] Problem
@@ -400,6 +444,38 @@ difficulty: mixed
 
 > [!tip] Alternatives
 > Top-down memoization. Wildcard variant (LC 639) adds branching at `'*'` but same structure.
+
+---
+
+### Frog Jump (LC 403) `🎯 T2`
+
+> [!example] Problem
+> Stones at sorted positions `stones` (first is 0). A frog starts on stone 0 and its first jump is 1 unit. If its last jump was `k`, the next jump is `k-1`, `k`, or `k+1` (must be positive). Can it reach the last stone? [H]
+
+> [!tip] Recognize · Gotcha
+> **Signal:** Reachability where the allowed move depends on the previous move · **Gotcha:** State is `(stone, last_jump)`, not just the stone. Jump sizes never exceed `n`, so the state space is O(n²).
+
+> [!info] Approach
+> `reach[pos]` = set of jump sizes that can land on `pos`. Seed `reach[0] = {0}` so the first jump is 1. Process stones in order; for each `k` in `reach[pos]` and each `step` in `k-1, k, k+1` with `step > 0` and `pos + step` a stone, add `step` to that stone's set. Answer is whether the last stone's set is non-empty.
+
+> [!note]- Python Solution
+> ```python
+> def can_cross(stones):
+>     pos = {s: set() for s in stones}
+>     pos[stones[0]].add(0)
+>     for s in stones:
+>         for k in pos[s]:
+>             for step in (k - 1, k, k + 1):
+>                 if step > 0 and s + step in pos:
+>                     pos[s + step].add(step)
+>     return bool(pos[stones[-1]])
+> ```
+
+> [!success] Complexity
+> Time O(n²), Space O(n²).
+
+> [!tip] Alternatives
+> Top-down `f(stone_index, k)` with memo; same state space. Quick early exit: if `stones[1] != 1`, return False.
 
 ---
 
@@ -1293,6 +1369,84 @@ difficulty: mixed
 
 ---
 
+### Dungeon Game (LC 174) `🎯 T2`
+
+> [!example] Problem
+> A knight starts at the top-left of an `m×n` grid and must reach the bottom-right (moving only right or down). Each cell adds or subtracts health. Health must stay ≥ 1 at all times. Return the minimum initial health. [H]
+
+> [!tip] Recognize · Gotcha
+> **Signal:** Path where a running prefix must never dip below a threshold · **Gotcha:** Forward DP (min-sum or max-sum) fails — the best prefix and the future requirement interact. Go **backwards** from the princess: `dp[i][j]` = min health needed *entering* cell `(i,j)`.
+
+> [!info] Approach
+> At the goal you need `max(1, 1 - d)`. For any cell: health on entry must satisfy `entry + d[i][j] >= need_next` where `need_next = min(dp[i+1][j], dp[i][j+1])`, so `dp[i][j] = max(1, need_next - d[i][j])`. The `max(1, …)` clamp is the "never below 1" rule: a big heal cannot lower the requirement below 1. Rolling 1-D array, with `inf` sentinels beyond the edges.
+
+> [!note]- Python Solution
+> ```python
+> def calculate_minimum_hp(d):
+>     m, n = len(d), len(d[0])
+>     dp = [float('inf')] * (n + 1)
+>     dp[n - 1] = 1
+>     for i in range(m - 1, -1, -1):
+>         for j in range(n - 1, -1, -1):
+>             need = min(dp[j], dp[j + 1]) - d[i][j]
+>             dp[j] = max(1, need)
+>         dp[n] = float('inf')
+>     return dp[0]
+> ```
+
+> [!success] Complexity
+> Time O(m · n), Space O(n).
+
+> [!tip] Alternatives
+> Binary search on initial health + forward feasibility DP (maximize health with clamps) — O(mn log answer), more code.
+
+---
+
+### Cherry Pickup (LC 741) `💤 T3`
+
+> [!example] Problem
+> `n×n` grid: `0` empty, `1` cherry, `-1` thorn. Walk (0,0) → (n-1,n-1) moving right/down, then back to (0,0) moving left/up, picking cherries (a picked cell becomes 0). Return max cherries; `0` if no valid path. [H]
+
+> [!tip] Recognize · Gotcha
+> **Signal:** Round trip on a grid · **Gotcha:** "Best path, remove cherries, best path again" is greedy and wrong. Model two simultaneous down-right walkers; count a shared cell once.
+
+> [!info] Approach
+> Reverse the return trip: both walkers go down-right from (0,0). After `t` steps both are on diagonal `r + c = t`, so state is `dp[r1][r2]` with `c = t - r`. Each walker came from up or left, so four predecessors. Skip thorns and unreachable (`-inf`) states. By symmetry only `r1 <= r2` is needed. Answer `max(0, dp[n-1][n-1])` after `2n-2` steps.
+
+> [!note]- Python Solution
+> ```python
+> def cherry_pickup(grid):
+>     n = len(grid)
+>     NEG = float('-inf')
+>     dp = [[NEG] * n for _ in range(n)]
+>     dp[0][0] = grid[0][0]
+>     for t in range(1, 2 * n - 1):
+>         new = [[NEG] * n for _ in range(n)]
+>         for r1 in range(max(0, t - n + 1), min(n - 1, t) + 1):
+>             for r2 in range(r1, min(n - 1, t) + 1):
+>                 c1, c2 = t - r1, t - r2
+>                 if grid[r1][c1] == -1 or grid[r2][c2] == -1:
+>                     continue
+>                 best = max(dp[r1][r2],
+>                            dp[r1 - 1][r2] if r1 else NEG,
+>                            dp[r1][r2 - 1] if r2 else NEG,
+>                            dp[r1 - 1][r2 - 1] if r1 and r2 else NEG)
+>                 if best == NEG:
+>                     continue
+>                 gain = grid[r1][c1] + (grid[r2][c2] if r1 != r2 else 0)
+>                 new[r1][r2] = best + gain
+>         dp = new
+>     return max(0, dp[n - 1][n - 1])
+> ```
+
+> [!success] Complexity
+> Time O(n³), Space O(n²).
+
+> [!tip] Alternatives
+> Memoized `f(r1, c1, r2)` top-down (`c2 = r1 + c1 - r2`). See the lecture's *Two-Walker Grid DP* section.
+
+---
+
 ## State Machine DP (Stock Problems)
 
 ---
@@ -1432,6 +1586,42 @@ difficulty: mixed
 
 > [!tip] Alternatives
 > Apply fee on buy side: `cash - p - fee` when buying. Equivalent result.
+
+---
+
+### Best Time to Buy and Sell Stock IV (LC 188) `🎯 T2`
+
+> [!example] Problem
+> Given `prices` and integer `k`, return the max profit with at most `k` transactions (buy then sell, no overlapping). [H]
+
+> [!tip] Recognize · Gotcha
+> **Signal:** Stock with a transaction cap · **Gotcha:** If `k >= n // 2` the cap never binds — fall back to the unlimited-transactions sum of positive differences (also avoids allocating huge `k`-sized arrays).
+
+> [!info] Approach
+> Two states per transaction count `t`: `hold[t]` = best cash while holding a stock, having used `t` buys; `sold[t]` = best cash with `t` completed transactions. Per price `p`: `hold[t] = max(hold[t], sold[t-1] - p)`, `sold[t] = max(sold[t], hold[t] + p)`. Because `hold[t]` is updated first and reads only `sold[t-1]` (from a lower `t`, already updated for this day), a same-day buy-and-sell just adds `0` and is harmless.
+
+> [!note]- Python Solution
+> ```python
+> def max_profit_k(k, prices):
+>     n = len(prices)
+>     if n < 2 or k == 0:
+>         return 0
+>     if k >= n // 2:
+>         return sum(max(0, prices[i] - prices[i - 1]) for i in range(1, n))
+>     hold = [float('-inf')] * (k + 1)
+>     sold = [0] * (k + 1)
+>     for p in prices:
+>         for t in range(1, k + 1):
+>             hold[t] = max(hold[t], sold[t - 1] - p)
+>             sold[t] = max(sold[t], hold[t] + p)
+>     return sold[k]
+> ```
+
+> [!success] Complexity
+> Time O(n · k), Space O(k).
+
+> [!tip] Alternatives
+> `dp[t][i]` 2D form with a running `max(dp[t-1][j] - prices[j])`. Generalizes LC 121 (`k=1`), LC 123 (`k=2`), LC 122 (`k=∞`).
 
 ---
 
@@ -1731,6 +1921,43 @@ difficulty: mixed
 
 ---
 
+### Wildcard Matching (LC 44) `🎯 T2`
+
+> [!example] Problem
+> Implement matching of `s` against pattern `p` with `?` (any single char) and `*` (any sequence, including empty). The match must cover the entire string. [H]
+
+> [!tip] Recognize · Gotcha
+> **Signal:** Pattern match with free-standing `*` · **Gotcha:** Unlike regex (LC 10), `*` here is not tied to the preceding character. Initialize `dp[0][j] = dp[0][j-1]` when `p[j-1] == '*'` so leading stars match the empty string.
+
+> [!info] Approach
+> `dp[i][j]` = `s[:i]` matches `p[:j]`. If `p[j-1] == '*'`: either the star matches empty (`dp[i][j-1]`) or consumes `s[i-1]` and stays available (`dp[i-1][j]`). If `p[j-1]` is `?` or equals `s[i-1]`: `dp[i][j] = dp[i-1][j-1]`. Otherwise false.
+
+> [!note]- Python Solution
+> ```python
+> def is_match_wild(s, p):
+>     m, n = len(s), len(p)
+>     dp = [[False] * (n + 1) for _ in range(m + 1)]
+>     dp[0][0] = True
+>     for j in range(1, n + 1):
+>         if p[j - 1] == '*':
+>             dp[0][j] = dp[0][j - 1]
+>     for i in range(1, m + 1):
+>         for j in range(1, n + 1):
+>             if p[j - 1] == '*':
+>                 dp[i][j] = dp[i][j - 1] or dp[i - 1][j]
+>             elif p[j - 1] == '?' or p[j - 1] == s[i - 1]:
+>                 dp[i][j] = dp[i - 1][j - 1]
+>     return dp[m][n]
+> ```
+
+> [!success] Complexity
+> Time O(m · n), Space O(m · n) (rollable to O(n)).
+
+> [!tip] Alternatives
+> Two-pointer greedy with backtracking to the last `*` is O(m · n) worst case but O(1) space — often what interviewers want as a follow-up.
+
+---
+
 ## Bitmask DP
 
 ---
@@ -1778,6 +2005,44 @@ difficulty: mixed
 
 > [!tip] Alternatives
 > Backtracking with pruning often faster in practice. Bitmask DP guarantees polynomial in 2^n so preferred when n ≤ 20.
+
+---
+
+### Smallest Sufficient Team (LC 1125) `💤 T3`
+
+> [!example] Problem
+> Given `req_skills` (≤ 16) and `people` (each a list of skills), return indices of the smallest team that covers all required skills. [H]
+
+> [!tip] Recognize · Gotcha
+> **Signal:** Set cover with a small universe · **Gotcha:** Bitmask the *skills*, not the people (people can be 60). Skip people with zero required skills.
+
+> [!info] Approach
+> `dp[mask]` = smallest list of people whose combined skills equal `mask`. Start `dp = {0: []}`. For each person with skill mask `pm`, for each existing `(mask, team)`: `dp[mask | pm]` becomes `team + [p]` if absent or strictly shorter. Iterate over a snapshot (`list(dp.items())`) so the same person is not used twice in a pass. Answer `dp[full]`.
+
+> [!note]- Python Solution
+> ```python
+> def smallest_sufficient_team(req_skills, people):
+>     idx = {s: i for i, s in enumerate(req_skills)}
+>     full = (1 << len(req_skills)) - 1
+>     dp = {0: []}
+>     for p, skills in enumerate(people):
+>         pm = 0
+>         for s in skills:
+>             pm |= 1 << idx[s]
+>         if pm == 0:
+>             continue
+>         for mask, team in list(dp.items()):
+>             nm = mask | pm
+>             if nm not in dp or len(dp[nm]) > len(team) + 1:
+>                 dp[nm] = team + [p]
+>     return dp[full]
+> ```
+
+> [!success] Complexity
+> Time O(P · 2^S), Space O(2^S · S) where S = skills, P = people.
+
+> [!tip] Alternatives
+> Backtracking over uncovered skills with pruning; or min-sessions style `dp[mask]` array of ints with parent pointers to save memory.
 
 ---
 
@@ -1957,6 +2222,76 @@ difficulty: mixed
 
 ---
 
+### Super Egg Drop (LC 887) `💤 T3`
+
+> [!example] Problem
+> With `k` eggs and a building of `n` floors, find the minimum number of moves (egg drops) that guarantees finding the critical floor in the worst case. [H]
+
+> [!tip] Recognize · Gotcha
+> **Signal:** Min-max over a split point; `n` up to 10⁴ kills the O(k·n²) DP · **Gotcha:** Flip the question: with `m` moves and `e` eggs, how many floors can you resolve? Then the answer is the smallest `m` reaching `n`.
+
+> [!info] Approach
+> `f(m, e) = f(m-1, e-1) + f(m-1, e) + 1`: drop from some floor; if the egg breaks, `f(m-1, e-1)` floors below are resolvable; if not, `f(m-1, e)` above; plus the tested floor. Keep a 1-D array over `e` updated in place from high `e` to low (so `dp[e-1]` is still the previous move's value). Increase `moves` until `dp[k] >= n`.
+
+> [!note]- Python Solution
+> ```python
+> def super_egg_drop(k, n):
+>     dp = [0] * (k + 1)
+>     moves = 0
+>     while dp[k] < n:
+>         moves += 1
+>         for e in range(k, 0, -1):
+>             dp[e] = dp[e] + dp[e - 1] + 1
+>     return moves
+> ```
+
+> [!success] Complexity
+> Time O(k · moves) where moves ≤ n (≈ log n for large k), Space O(k).
+
+> [!tip] Alternatives
+> `dp[e][n]` with binary search on the drop floor (the break and survive terms are monotone): O(k · n log n). State the O(k·n²) version first, then optimize.
+
+---
+
+### Minimum Number of Refueling Stops (LC 871) `🎯 T2`
+
+> [!example] Problem
+> Car starts with `startFuel`, 1 fuel per mile. `stations[i] = [position, fuel]`. Return the fewest stops to reach `target`, or `-1`. [H]
+
+> [!tip] Recognize · Gotcha
+> **Signal:** "Fewest refuels" with reachable-range growth · **Gotcha:** Don't decide at a station whether to stop; decide **retroactively** — when you run out, fill from the largest station you already passed.
+
+> [!info] Approach
+> **Greedy/heap view:** drive through stations, pushing each station's fuel into a max-heap. When fuel goes negative, pop the largest fuel seen so far (as if you stopped there) and count a stop; if the heap empties while still negative, return `-1`. Append `[target, 0]` as a final station.
+> **DP view:** `dp[k]` = farthest distance reachable with exactly `k` stops. For each station (in order), for `k` from high to low: if `dp[k] >= pos`, `dp[k+1] = max(dp[k+1], dp[k] + fuel)`. Answer is the smallest `k` with `dp[k] >= target`.
+
+> [!note]- Python Solution
+> ```python
+> import heapq
+>
+> def min_refuel_stops(target, start_fuel, stations):
+>     heap = []
+>     fuel, stops, prev = start_fuel, 0, 0
+>     for pos, cap in stations + [[target, 0]]:
+>         fuel -= pos - prev
+>         while fuel < 0 and heap:
+>             fuel += -heapq.heappop(heap)
+>             stops += 1
+>         if fuel < 0:
+>             return -1
+>         heapq.heappush(heap, -cap)
+>         prev = pos
+>     return stops
+> ```
+
+> [!success] Complexity
+> Heap: Time O(n log n), Space O(n). DP: Time O(n²), Space O(n).
+
+> [!tip] Alternatives
+> In interviews, present the O(n²) DP first (shows the state), then the heap as the optimization — both are accepted.
+
+---
+
 ## Interval DP
 
 ---
@@ -2028,6 +2363,212 @@ difficulty: mixed
 
 ---
 
+### Minimum Cost to Cut a Stick (LC 1547) `🎯 T2`
+
+> [!example] Problem
+> A stick of length `n` must be cut at the positions in `cuts`. Each cut costs the current length of the piece being cut. Return the minimum total cost over all orderings. [H]
+
+> [!tip] Recognize · Gotcha
+> **Signal:** Order of operations matters and each op splits a range into independent halves · **Gotcha:** Sort `cuts` and add `0` and `n` as sentinels; `dp[i][j]` is over indices in this list, with cost `c[j] - c[i]` for the piece between them.
+
+> [!info] Approach
+> Think about the **first** cut in segment `(i, j)`: it costs `c[j] - c[i]` and leaves independent segments `(i, k)` and `(k, j)`. `dp[i][j] = (c[j] - c[i]) + min over k in (i, j) of dp[i][k] + dp[k][j]`, with `dp[i][i+1] = 0`. Fill by increasing gap. Same shape as Burst Balloons (with "first" instead of "last" because costs depend on the segment's ends, which are fixed).
+
+> [!note]- Python Solution
+> ```python
+> def min_cost_cut(n, cuts):
+>     c = [0] + sorted(cuts) + [n]
+>     m = len(c)
+>     dp = [[0] * m for _ in range(m)]
+>     for length in range(2, m):
+>         for i in range(m - length):
+>             j = i + length
+>             dp[i][j] = (c[j] - c[i]) + min(dp[i][k] + dp[k][j]
+>                                           for k in range(i + 1, j))
+>     return dp[0][m - 1]
+> ```
+
+> [!success] Complexity
+> Time O(m³), Space O(m²) where m = len(cuts) + 2.
+
+> [!tip] Alternatives
+> Same structure as Matrix Chain Multiplication and Minimum Cost to Merge Stones (LC 1000, `💤 T3`).
+
+---
+
+### Strange Printer (LC 664) `💤 T3`
+
+> [!example] Problem
+> A printer prints one repeated character in a contiguous range per turn, overwriting what is there. Return the min turns to print string `s`. [H]
+
+> [!tip] Recognize · Gotcha
+> **Signal:** Range overwrites; minimizing operations on a string · **Gotcha:** Compress consecutive duplicates first. For `s[j]`, either print it alone (`dp[i][j-1] + 1`) or extend the print that produced an earlier equal character `s[k]`.
+
+> [!info] Approach
+> `dp[i][j]` = min turns for `s[i..j]`. Default: `dp[i][j-1] + 1`. For each `k` in `[i, j)` with `s[k] == s[j]`, the stroke that prints `s[k]` can also cover `s[j]` for free, so `dp[i][j] = min(dp[i][j], dp[i][k] + dp[k+1][j-1])` (second term is 0 when empty). Fill `i` downward, `j` upward.
+
+> [!note]- Python Solution
+> ```python
+> def strange_printer(s):
+>     s = "".join(ch for i, ch in enumerate(s) if i == 0 or s[i - 1] != ch)
+>     n = len(s)
+>     if n == 0:
+>         return 0
+>     dp = [[0] * n for _ in range(n)]
+>     for i in range(n - 1, -1, -1):
+>         dp[i][i] = 1
+>         for j in range(i + 1, n):
+>             dp[i][j] = dp[i][j - 1] + 1
+>             for k in range(i, j):
+>                 if s[k] == s[j]:
+>                     dp[i][j] = min(dp[i][j],
+>                                    dp[i][k] + (dp[k + 1][j - 1] if k + 1 <= j - 1 else 0))
+>     return dp[0][n - 1]
+> ```
+
+> [!success] Complexity
+> Time O(n³), Space O(n²).
+
+> [!tip] Alternatives
+> Remove Boxes (LC 546, `💤 T3`) uses the same "merge equal characters across a gap" idea with an extra state for the count of attached boxes.
+
+---
+
+## Game Theory (Minimax) DP
+
+### Predict the Winner / Stone Game (LC 486 / 877) `🎯 T2`
+
+> [!example] Problem
+> Players alternately take a number from either end of `nums`. Player 1 starts. Return true if Player 1 can win (a tie counts as a win) with optimal play. (LC 877 Stone Game is the even-length special case where Alice always wins.) [M]
+
+> [!tip] Recognize · Gotcha
+> **Signal:** "Both players play optimally" over a shrinking range · **Gotcha:** Store the score **difference** for the player to move; `nums[i] - dp[i+1][j]` — subtract, don't add, because the opponent moves next.
+
+> [!info] Approach
+> `dp[i][j]` = best (mine − theirs) on `nums[i..j]` for the mover. Take left: `nums[i] - dp[i+1][j]`; take right: `nums[j] - dp[i][j-1]`. Player 1 wins iff `dp[0][n-1] >= 0`. Rolling over `i` descending lets one 1-D array hold row `i`: `dp[j]` before update is `dp[i+1][j]`, `dp[j-1]` is already `dp[i][j-1]`.
+
+> [!note]- Python Solution
+> ```python
+> def predict_the_winner(nums):
+>     n = len(nums)
+>     dp = nums[:]
+>     for i in range(n - 2, -1, -1):
+>         for j in range(i + 1, n):
+>             dp[j] = max(nums[i] - dp[j], nums[j] - dp[j - 1])
+>     return dp[n - 1] >= 0
+> ```
+
+> [!success] Complexity
+> Time O(n²), Space O(n).
+
+> [!tip] Alternatives
+> LC 877: `return True` (even length ⇒ first player can force taking all odd- or all even-indexed piles). Mention it, then show the DP.
+
+---
+
+### Stone Game II (LC 1140) `🎯 T2`
+
+> [!example] Problem
+> Piles in a row. Alice then Bob alternately take the first `X` piles where `1 <= X <= 2M`, then `M = max(M, X)`. Start `M = 1`. Return the max stones Alice can get. [M]
+
+> [!tip] Recognize · Gotcha
+> **Signal:** Take-from-front game where the allowed move size grows · **Gotcha:** State needs `M`. Use suffix sums: `best(i, M)` = most stones the mover collects from `piles[i:]`; the opponent then gets `best(i+x, max(M,x))` of the remainder.
+
+> [!info] Approach
+> `best(i, m) = suf[i]` when `i + 2m >= n` (take everything). Otherwise `max over x in 1..2m of suf[i] - best(i + x, max(m, x))` — everything remaining minus what the opponent will collect. Memoize on `(i, m)`; `m` is at most `n`.
+
+> [!note]- Python Solution
+> ```python
+> from functools import lru_cache
+>
+> def stone_game_ii(piles):
+>     n = len(piles)
+>     suf = [0] * (n + 1)
+>     for i in range(n - 1, -1, -1):
+>         suf[i] = suf[i + 1] + piles[i]
+>
+>     @lru_cache(None)
+>     def best(i, m):
+>         if i + 2 * m >= n:
+>             return suf[i]
+>         return max(suf[i] - best(i + x, max(m, x)) for x in range(1, 2 * m + 1))
+>
+>     return best(0, 1)
+> ```
+
+> [!success] Complexity
+> Time O(n³) (n·n states × O(n) moves), Space O(n²).
+
+> [!tip] Alternatives
+> Bottom-up over `i` descending with a `dp[i][m]` table. Stone Game III (LC 1406) is the same idea with moves 1–3.
+
+---
+
+## Digit DP
+
+### Numbers At Most N Given Digit Set (LC 902) `💤 T3`
+
+> [!example] Problem
+> Given a sorted list `digits` of characters `'1'..'9'` and an integer `n`, return how many positive integers `<= n` can be written using only digits from the set (digits reusable). [H]
+
+> [!tip] Recognize · Gotcha
+> **Signal:** "Count numbers ≤ N with allowed digits" · **Gotcha:** Two parts: all **shorter** lengths are free (`d^1 + … + d^(L-1)`), then walk N's digits while staying tight. If a digit of N isn't in the set, you can't stay tight — stop. If you survive every digit, add 1 for N itself.
+
+> [!info] Approach
+> For each position `i` of N's string `s`: numbers whose first `i` digits match `s` and whose digit `i` is strictly smaller than `s[i]` can fill the remaining `L-i-1` positions freely: `smaller * d^(L-i-1)`. Then require `s[i]` in the set to keep matching; otherwise return the running total. After the loop add 1.
+
+> [!note]- Python Solution
+> ```python
+> def at_most_n_given_digit_set(digits, n):
+>     s, L, d = str(n), len(str(n)), len(digits)
+>     total = sum(d ** k for k in range(1, L))
+>     for i, ch in enumerate(s):
+>         smaller = sum(1 for x in digits if x < ch)
+>         total += smaller * d ** (L - i - 1)
+>         if ch not in digits:
+>             return total
+>     return total + 1
+> ```
+
+> [!success] Complexity
+> Time O(L · d), Space O(1).
+
+> [!tip] Alternatives
+> General digit DP `go(pos, tight, started)` — see the lecture's *Digit DP* pattern. Prefer it if the interviewer tweaks the property.
+
+---
+
+### Count Numbers with Unique Digits (LC 357) `🎯 T2`
+
+> [!example] Problem
+> Given `n`, count numbers `x` with `0 <= x < 10^n` whose digits are all distinct. [M]
+
+> [!tip] Recognize · Gotcha
+> **Signal:** Count with "no repeated digit" · **Gotcha:** First digit has 9 choices (no leading zero), later digits have 9, 8, 7, … because zero becomes available but used digits are removed. `n = 0` returns 1; lengths beyond 10 add nothing (multiplier hits 0).
+
+> [!info] Approach
+> Count by length. Length 1: 10 (including 0). Length `L >= 2`: `9 * 9 * 8 * … ` (the last factor is `10 - (L-1)`). Running sum over lengths `1..n`. The multiplicative product is the DP: `cur_L = cur_{L-1} * avail`.
+
+> [!note]- Python Solution
+> ```python
+> def count_numbers_unique_digits(n):
+>     if n == 0:
+>         return 1
+>     total, cur, avail = 10, 9, 9
+>     for _ in range(2, n + 1):
+>         cur *= avail
+>         avail -= 1
+>         total += cur
+>     return total
+> ```
+
+> [!success] Complexity
+> Time O(n), Space O(1).
+
+> [!tip] Alternatives
+> Digit-DP with a used-digit bitmask answers "unique digits in `[0, N]`" for arbitrary `N` (LC 1012, `💤 T3`) — see the lecture's `count_no_repeat`.
+
+---
 ## See Also
 
 [[recursion]] | [[sorting]] | [[binary-search]] | [[graph-algorithms]]

@@ -28,6 +28,7 @@
 | Sorting (reference) | [Jump](#sorting-reference) | `🎯 T2` |
 | Union-Find (DSU) | [Jump](#union-find-dsu) | `🎯 T2` |
 | Intervals | [Jump](#intervals) | `🎯 T2` |
+| Range Queries (Fenwick / segment tree) | [Deep-dive](19-range-queries.md) | `💤 T3` (prefix sums `⚡ T1`) |
 
 ---
 
@@ -578,7 +579,7 @@
             - Description: A number is happy if repeatedly replacing it with the sum of squares of its digits eventually reaches 1. Determine if n is happy.
             - Pattern: Cycle detection (fast/slow or set)
             - Key insight: repeatedly replace `n` with sum of squares of its digits. If `n == 1` → happy. If you enter a cycle → not happy. Fastest: use a set to detect revisit.
-        - **[Reverse Integer](17-bit-manipulation.md#reverse-integer--t2) `🎯 T2`**
+        - **[Reverse Integer](../04-practice/algorithms/18-math-and-number-theory.md#reverse-integer--t2) `🎯 T2`**
             - Description: Given a 32-bit signed integer, return it with its digits reversed. Return 0 if the reversed integer overflows.
             - Pattern: Math / modulo
             - Key insight: build reversed number via `rev = rev * 10 + digit`. Check overflow at each step (Python: check against `2^31 - 1` range).
