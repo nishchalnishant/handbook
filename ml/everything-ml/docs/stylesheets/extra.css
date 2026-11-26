@@ -1,0 +1,16 @@
+/* Custom CSS for Everything-ML to enhance the OpenAI look */
+
+:root {
+  --md-text-font: "Inter", sans-serif;
+  --md-code-font: "Roboto Mono", monospace;
+}
+
+/* Subtly adjusting the navigation sidebar if needed */
+.md-nav--primary .md-nav__title {
+    font-weight: 600;
+}
+
+/* Enhance code blocks */
+.md-typeset pre > code {
+    border-radius: 4px;
+}

@@ -1,0 +1,64 @@
+site_name: Everything ML
+site_url: https://example.com/
+repo_url: https://github.com/nishchalnishant/Everything-ML
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  logo: assets/logo.png
+  favicon: assets/favicon.png
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - toc.integrate
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: white
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  font:
+    text: CONNECT INTER
+    code: Roboto Mono
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - tables
+  - attr_list
+
+nav:
+  - Home: index.md
+  - Supervised Learning:
+    - Regression: supervised/regression.md
+    - Classification: supervised/classification.md
+  - Unsupervised Learning:
+    - Clustering: unsupervised/clustering.md
+    - Dimensionality Reduction: unsupervised/dimensionality_reduction.md
+  - Deep Learning:
+    - Neural Networks: deep-learning/neural-networks.md
+    - CNNs: deep-learning/cnn.md
+
+extra_css:
+  - stylesheets/extra.css
