@@ -1,0 +1,506 @@
+---
+module: 01-data-structures
+topic: Array
+tags: [data-structures, array]
+---
+# Arrays — L3 Core
+
+← [Data structures index](README.md) · [Patterns master](../05-review/01-pattern-sheet.md)
+
+## What this covers
+
+> [!abstract] In this file
+> **Covers:** Memory model of arrays, then the O(N) toolkit: two pointers, sliding window, prefix sum, difference array, Kadane, Dutch-flag partition, Boyer-Moore, binary search on answer.
+> **You'll be able to:** Pick the right array technique from the constraints in under a minute; write in-place index passes with no off-by-one bugs; explain why sliding window fails on negatives.
+> **Prereqs:** Big-O basics · **Pair with:** [Array problems](../04-practice/data-structures/01-array.md) · [Two pointers](../03-algorithms/02-two-pointers.md) · [Sliding window](../03-algorithms/03-sliding-window.md) · **Time:** 2–3 h
+> **Tiers:** ⚡ T1 must master · 🎯 T2 build fluency · 💤 T3 skip at L3 ([details](../00-start-here/01-roadmap.md#tier-legend))
+
+**Sections:** [Core Idea](#core-idea) · [Theory & Mental Models](#theory--mental-models) · [1. Technique Selection Guide](#1-technique-selection-guide) · [2. Core Algorithms & Click Moments](#2-core-algorithms--click-moments) · [3. Common Interview Problems](#3-common-interview-problems) · [Interview Questions — Logic & Trickiness](#interview-questions--logic--trickiness) · [Quick Revision Triggers](#quick-revision-triggers) · [Flashcards](#flashcards)
+
+---
+
+## Core Idea
+- **Root problem**: Need O(1) access to the k-th element; linked structures require k traversals.
+- **Core insight**: Contiguous memory + uniform element size means any element's address is a simple arithmetic formula.
+- **Invariant**: Element i lives at exactly `base + i × elem_size` — never changes after allocation.
+- **Why it's fast**: CPU fetches cache lines (64 bytes), so iterating an array prefetches neighbors for free.
+- **Where it breaks**: Insertion/deletion at arbitrary index is O(n) due to shifting; resizing copies the whole array; sparse keys waste memory.
+
+### One-Page Map
+
+```
+[ARRAY]
+├── WHY IT EXISTS
+│   ├── Problem it solves: random-access to a collection of homogeneous elements in O(1)
+│   ├── Without it: linked traversal every time → O(N) reads even for indexed access
+│   └── Real-world analogy: numbered mailboxes in a row — slot 7 is instantly reachable
+├── WHAT IT IS (First Principles)
+│   ├── Core property: contiguous block of memory; all elements same size
+│   ├── Address formula: addr(i) = base_address + i × element_size
+│   ├── Index is arithmetic, not a pointer chase
+│   └── Memory model: stack-allocated (fixed) or heap-allocated (dynamic); cache-line friendly
+├── HOW IT WORKS
+│   ├── Read/Write by index: O(1) — single multiplication + addition
+│   ├── Insert at end (dynamic array, amortized): O(1) — append if capacity exists
+│   ├── Insert at arbitrary index: O(N) — shift all right-side elements one slot
+│   ├── Delete at arbitrary index: O(N) — shift all right-side elements one slot
+│   ├── Search (unsorted): O(N) linear scan
+│   ├── Search (sorted): O(log N) binary search
+│   ├── Resize (dynamic): allocate 2× buffer, copy all elements → amortized O(1) per append
+│   └── Range update (difference array trick): O(1) per update, O(N) to reconstruct
+├── KEY TECHNIQUES (L3 level)
+│   ├── Two pointers: O(N) in-place reversal, partition, sorted-merge
+│   ├── Sliding window: O(N) subarray problems — fixed/variable window
+│   │   └── CAUTION: variable window breaks with negative numbers (use prefix sums instead)
+│   ├── Prefix sums: O(1) range-sum queries after O(N) build
+│   ├── Difference array: O(1) range-increment updates, O(N) reconstruction
+│   ├── Kadane's algorithm: O(N) maximum subarray
+│   ├── Dutch-national-flag / 3-way partition: O(N) sort 0/1/2
+│   └── Binary search on answer: when "find minimum K such that condition holds"
+├── COMPLEXITY
+│   ├── Time — access: O(1), search unsorted: O(N), search sorted: O(log N)
+│   ├── Time — insert/delete at end: O(1) amortized, at arbitrary: O(N)
+│   └── Space: O(N) total; O(1) extra for in-place operations
+└── WHEN TO USE vs ALTERNATIVES
+    ├── Use arrays when: index-based access is frequent, memory locality matters (cache), size is known or bounded
+    ├── Use linked list when: frequent O(1) mid-sequence inserts/deletes, size highly dynamic
+    ├── Use hash map when: key is not an integer index, O(1) lookup by arbitrary key
+    └── Avoid arrays when: prepend-heavy workload or unbounded growth with heavy mid-insertion
+```
+
+Fixed-size sequential collection in contiguous memory. Mastery at L3 means choosing the right technique, proving it correct, knowing when sliding window fails (negatives), and handling range updates at scale.
+
+---
+
+## Theory & Mental Models
+
+**What it is:** A contiguous block of memory where elements are stored sequentially and accessed in O(1) by index. Core invariant: `address(i) = base_address + i × element_size`.
+
+**Why it exists:** Solves the problem of storing and accessing ordered data efficiently. Real-world analogy: numbered parking spots in a row — you jump directly to spot #42 without checking every spot before it.
+
+**Memory layout:** All elements live in adjacent memory cells. This enables CPU cache prefetching — iterating an array is cache-friendly; pointer-chasing structures (linked lists) are not.
+
+**Key invariants:**
+- Fixed allocation size (in low-level sense); dynamic arrays (Python list) amortize reallocation at 2× growth.
+- Index is always O(1): direct address arithmetic, no traversal.
+- Insert/delete at arbitrary index requires shifting all subsequent elements — O(N).
+
+**Complexity at a glance:**
+
+| Operation | Time | Notes |
+| :--- | :--- | :--- |
+| Access by index | O(1) | Direct address arithmetic |
+| Search (unsorted) | O(N) | Linear scan |
+| Search (sorted) | O(log N) | Binary search |
+| Insert at end | O(1) amortized | Dynamic array reallocation |
+| Insert at arbitrary index | O(N) | Shifting required |
+| Delete at arbitrary index | O(N) | Shifting required |
+
+**When to reach for it:**
+- Random access by index is needed (O(1) read/write by position).
+- Cache locality matters — sequential processing of large data.
+- Sliding window or two-pointer patterns (requires index arithmetic).
+- Prefix sum precomputation for range queries.
+- Input is already sorted and binary search applies.
+
+> [!warning] Common mistakes
+> - Off-by-one errors in slice bounds (`nums[l:r]` excludes `r`; `nums[l:r+1]` includes it).
+> - Forgetting to handle the empty array edge case before accessing `nums[0]`.
+> - Mutating the array while iterating over it (use a copy or two-pointer approach).
+> - Using sliding window when negatives exist and sum isn't monotone — switch to prefix sum + map.
+
+---
+
+## 1. Technique Selection Guide
+
+| Constraint | Technique | Complexity |
+| :--- | :--- | :--- |
+| Pairs in sorted array / validity from both ends | Two pointers (opposite ends) | O(N) |
+| Contiguous segment satisfying a condition | Sliding window | O(N) |
+| Range sum queries (static data) | Prefix sum | O(1) per query after O(N) build |
+| Many range-add updates, one final read | Difference array | O(1) update, O(N) reconstruct |
+| Maximum contiguous subarray sum | Kadane's algorithm | O(N) |
+| Partition into 3 groups in-place | Dutch National Flag | O(N) |
+| Random sample of size K from stream | Reservoir sampling | O(N) |
+
+---
+
+## 2. Core Algorithms & Click Moments
+
+### Two Pointers — Opposite Ends
+
+> [!IMPORTANT]
+> **The Click Moment**: "**Sorted** array + find a pair/triplet summing to target" — OR — "**maximize container** size" — OR — "**compare from both ends**". The invariant: if the current sum is too small, advance left; if too large, advance right. This only works on sorted or structurally symmetric arrays.
+
+```python
+def two_sum_sorted(nums: list[int], target: int) -> list[int]:
+    left, right = 0, len(nums) - 1
+    while left < right:
+        s = nums[left] + nums[right]
+        if s == target:
+            return [left, right]
+        elif s < target:
+            left += 1
+        else:
+            right -= 1
+    return []  # no pair found
+
+def three_sum(nums: list[int]) -> list[list[int]]:
+    nums.sort()
+    result = []
+    for i in range(len(nums) - 2):
+        if i > 0 and nums[i] == nums[i-1]:
+            continue  # skip duplicate fixed element
+        left, right = i + 1, len(nums) - 1
+        while left < right:
+            s = nums[i] + nums[left] + nums[right]
+            if s == 0:
+                result.append([nums[i], nums[left], nums[right]])
+                while left < right and nums[left] == nums[left+1]: left += 1
+                while left < right and nums[right] == nums[right-1]: right -= 1
+                left += 1; right -= 1
+            elif s < 0:
+                left += 1
+            else:
+                right -= 1
+    return result
+```
+
+> [!CAUTION]
+> **3Sum duplicate skipping has three sites**: skip duplicate `i` at the outer loop, and skip duplicate `left`/`right` after recording a valid triplet. Missing any one of the three causes duplicate results.
+
+#### Common Variants & Twists
+1. **3Sum Closest `⚡ T1`**: 
+   - **What (The Problem & Goal):** Find three integers in the array that sum closest to a given target, returning the sum rather than the exact match.
+   - **How (Intuition & Mental Model):** Instead of checking for an exact target, maintain a `min_diff` variable to track the closest sum seen so far. After calculating the current sum, advance the `left` or `right` pointers based on whether the current sum is `< target` or `> target` to pull the sum closer.
+2. **4Sum `⚡ T1`**:
+   - **What (The Problem & Goal):** Find all unique quadruplets that sum to a target.
+   - **How (Intuition & Mental Model):** Wrap the standard Two-Pointer 3Sum logic inside another outer loop. This fixes the first two elements (`i` and `j`), allowing you to use two pointers (`left` and `right`) for the remaining two elements. Sort first and skip duplicates at all 4 levels. Time complexity is O(N³).
+3. **Container With Most Water `⚡ T1`**:
+   - **What (The Problem & Goal):** Given an array of heights, find two lines that together form a container holding the most water.
+   - **How (Intuition & Mental Model):** Place two pointers at opposite ends. The area is bounded by the shorter line (`min(h[l], h[r]) * width`). To maximize area, always advance the pointer pointing to the shorter line inward, as moving the taller line can never increase the height bound.
+
+---
+
+### Sliding Window — Variable or Fixed Size
+
+> [!IMPORTANT]
+> **The Click Moment**: "**Longest/shortest** contiguous subarray/substring satisfying a condition" — OR — "**at most K distinct** characters/elements" — OR — "**contains all characters** of T". The window expands right; when the condition breaks, it contracts from the left.
+
+> [!CAUTION]
+> **Sliding window requires monotonicity**: the window only shrinks when the condition breaks, and it only breaks once per expansion. This fails for "subarray sum equals K" when negatives exist — a negative element can restore validity after shrinking would normally stop. Use **prefix sum + hash map** for arbitrary integers.
+
+```python
+def length_of_longest_substring(s: str) -> int:
+    char_idx: dict[str, int] = {}
+    left = best = 0
+    for right, ch in enumerate(s):
+        if ch in char_idx and char_idx[ch] >= left:
+            left = char_idx[ch] + 1  # shrink window past the duplicate
+        char_idx[ch] = right
+        best = max(best, right - left + 1)
+    return best
+
+def min_window_substring(s: str, t: str) -> str:
+    from collections import Counter
+    need = Counter(t)
+    have, required = 0, len(need)
+    window: dict[str, int] = {}
+    result = ""
+    result_len = float('inf')
+    left = 0
+    for right, ch in enumerate(s):
+        window[ch] = window.get(ch, 0) + 1
+        if ch in need and window[ch] == need[ch]:
+            have += 1
+        while have == required:
+            if right - left + 1 < result_len:
+                result_len = right - left + 1
+                result = s[left:right+1]
+            lch = s[left]
+            window[lch] -= 1
+            if lch in need and window[lch] < need[lch]:
+                have -= 1
+            left += 1
+    return result
+```
+
+#### Common Variants & Twists
+1. **Max Consecutive Ones III (Math Constraint) `⚡ T1`**:
+   - **What (The Problem & Goal):** Given a binary array, flip at most `K` zeros to ones to get the longest contiguous subarray of ones.
+   - **How (Intuition & Mental Model):** Instead of distinct characters, track the count of `0`s in your window. The valid condition is `zeros <= K`. Expand right; if `zeros > K`, shrink left until `zeros` drops back down to `K` or below.
+2. **Longest Repeating Character Replacement (Dynamic Target) `⚡ T1`**:
+   - **What (The Problem & Goal):** Replace at most `k` characters to find the longest substring of a single repeating character.
+   - **How (Intuition & Mental Model):** The valid condition is `window_len - max_freq_char <= k`. Maintain a frequency map. If the condition is violated, shrink left. You don't even need to accurately decrement `max_freq_char` strictly when shrinking, because a smaller frequency cannot possibly create a larger valid window!
+3. **Subarrays with K Different Integers (Exact K Twist) `⚡ T1`**:
+   - **What (The Problem & Goal):** Count the number of subarrays with *exactly* `K` different integers.
+   - **How (Intuition & Mental Model):** Counting exact `K` directly with a sliding window is extremely difficult because shrinking the window doesn't necessarily change the number of distinct elements immediately. Instead, write a helper function `atMost(K)` and return `atMost(K) - atMost(K - 1)`.
+
+---
+
+### Prefix Sum — Range Queries
+
+> [!IMPORTANT]
+> **The Click Moment**: "**Subarray sum equals K `⚡ T1`**" — OR — "**range sum** query" — OR — "how many subarrays have sum divisible by K". Once you build the prefix array, any range sum is O(1). Combined with a hash map, it enables counting subarrays with any target sum in O(N).
+
+```python
+def subarray_sum_equals_k(nums: list[int], k: int) -> int:
+    count = 0
+    prefix = 0
+    seen: dict[int, int] = {0: 1}  # prefix sum 0 seen once (empty subarray)
+    for x in nums:
+        prefix += x
+        count += seen.get(prefix - k, 0)
+        seen[prefix] = seen.get(prefix, 0) + 1
+    return count
+
+def range_sum_query(nums: list[int]) -> callable:
+    prefix = [0] * (len(nums) + 1)
+    for i, x in enumerate(nums):
+        prefix[i+1] = prefix[i] + x
+    def query(left: int, right: int) -> int:
+        return prefix[right+1] - prefix[left]
+    return query
+```
+
+#### Common Variants & Twists
+1. **Subarray Sums Divisible by K**:
+   - **What (The Problem & Goal):** Find the number of contiguous subarrays whose sum is evenly divisible by `K`.
+   - **How (Intuition & Mental Model):** Instead of storing the raw sum, store `running_sum % K` in the map. If you encounter the exact same modulo at two different points, it means the subarray between those two points added a sum that is a perfect multiple of `K` (which cancels out in modulo arithmetic).
+2. **Continuous Subarray Sum**:
+   - **What (The Problem & Goal):** Check if there's a multiple of `K` subarray of size `>= 2`.
+   - **How (Intuition & Mental Model):** Similar modulo logic, but instead of mapping `mod -> frequency`, map `running_sum % k -> first_index_seen`. It is a valid sequence if `current_index - map[mod] >= 2`.
+
+---
+
+### Kadane's Algorithm — Maximum Subarray Sum
+
+> [!IMPORTANT]
+> **The Click Moment**: "**Maximum contiguous subarray** sum" — OR — "**largest gain** from sequential elements" — OR — any problem reducible to "best window with no lower bound on size". Kadane's is the O(N) optimal — reject any D&C or DP solution that is O(N log N) or O(N²).
+
+```python
+def max_subarray(nums: list[int]) -> int:
+    if not nums:
+        raise ValueError("nums must be non-empty")
+    cur = best = nums[0]  # handles all-negative case correctly
+    for x in nums[1:]:
+        cur = max(x, cur + x)
+        best = max(best, cur)
+    return best
+
+def max_subarray_with_indices(nums: list[int]) -> tuple[int, int, int]:
+    cur = best = nums[0]
+    start = end = best_start = 0
+    for i, x in enumerate(nums[1:], 1):
+        if x > cur + x:
+            cur = x
+            start = i
+        else:
+            cur += x
+        if cur > best:
+            best = cur
+            best_start = start
+            end = i
+    return best, best_start, end
+```
+
+> [!CAUTION]
+> Initializing `cur = best = 0` is wrong when all elements are negative — it returns 0 instead of the least-negative element. Always initialize to `nums[0]` and start the loop from index 1.
+
+#### Common Variants & Twists
+1. **Maximum Product Subarray `🎯 T2`**:
+   - **What (The Problem & Goal):** Find a contiguous subarray that has the largest product.
+   - **How (Intuition & Mental Model):** Negative numbers complicate things because two negatives multiply to a large positive. Therefore, Kadane's must track *both* `max_prod` and `min_prod` (the largest negative) at each step. If the current number is negative, swapping `max_prod` and `min_prod` before multiplying solves it.
+2. **Maximum Circular Subarray**:
+   - **What (The Problem & Goal):** Find the maximum subarray sum in a circular array (the end connects to the beginning).
+   - **How (Intuition & Mental Model):** The max subarray is either the standard Kadane's maximum (no wrapping), OR it wraps around the edges. The wrap-around maximum is simply `total_array_sum - kadanes_minimum_subarray`. Return `max(max_kadane, total_sum - min_kadane)`.
+
+---
+
+### Difference Array — Bulk Range Updates
+
+> [!IMPORTANT]
+> **The Click Moment**: "Apply **many range updates** (add value to all elements in [l, r])" — AND — "only need to **read final values**, not intermediate state". A difference array converts O(N) range updates to O(1) each, with a single O(N) prefix-sum pass to recover the final array.
+
+```python
+def apply_range_updates(n: int, updates: list[tuple[int, int, int]]) -> list[int]:
+    diff = [0] * (n + 1)
+    for left, right, val in updates:
+        diff[left] += val
+        if right + 1 <= n:
+            diff[right + 1] -= val
+    # Reconstruct via prefix sum
+    result = []
+    running = 0
+    for i in range(n):
+        running += diff[i]
+        result.append(running)
+    return result
+```
+
+---
+
+### Dutch National Flag — 3-Way Partition
+
+> [!IMPORTANT]
+> **The Click Moment**: "Sort array of **three distinct values** (0, 1, 2)" — OR — "**partition** elements into three groups in one pass". Three pointers: `lo` (boundary of 0s), `mid` (current), `hi` (boundary of 2s). Elements between `mid` and `hi` are unexamined.
+
+```python
+def sort_colors(nums: list[int]) -> None:
+    lo, mid, hi = 0, 0, len(nums) - 1
+    while mid <= hi:
+        if nums[mid] == 0:
+            nums[lo], nums[mid] = nums[mid], nums[lo]
+            lo += 1; mid += 1
+        elif nums[mid] == 1:
+            mid += 1
+        else:
+            nums[mid], nums[hi] = nums[hi], nums[mid]
+            hi -= 1  # don't increment mid — swapped element from hi is unexamined
+```
+
+---
+
+### Boyer-Moore Majority Vote — O(1) Space
+
+> [!IMPORTANT]
+> **The Click Moment**: "Find the **majority element `🎯 T2`** (appears > N/2 times)" — AND — "must use **O(1) space**". Hash map is O(N) space. Sorting is O(N log N) time. Boyer-Moore pairs up different elements and cancels them out; the majority element will survive because it outnumbers all other elements combined.
+
+```python
+def majority_element(nums: list[int]) -> int:
+    candidate = None
+    count = 0
+    for num in nums:
+        if count == 0:
+            candidate = num
+            count = 1
+        elif candidate == num:
+            count += 1
+        else:
+            count -= 1
+    # If a majority is not guaranteed, a second pass is required to verify:
+    # return candidate if nums.count(candidate) > len(nums) // 2 else -1
+    return candidate
+```
+
+> [!CAUTION]
+> This algorithm only works if a majority element strictly > N/2 is **guaranteed to exist**. If it might not exist, the algorithm still returns a candidate, but it could be a false positive. You must run a second pass to verify the candidate's frequency.
+
+---
+
+### Floyd's Cycle Detection on Arrays
+
+> [!IMPORTANT]
+> **The Click Moment**: "Find the **duplicate number** in an array of size N+1 containing values [1, N]" — AND — "must use **O(1) space and not modify the array**". Array mutation via sign flipping violates "read-only". Treat the array as a linked list where `next_node = nums[current]`. Since values are in `[1, N]`, index 0 is not in the cycle, making it the perfect start node.
+
+```python
+def find_duplicate(nums: list[int]) -> int:
+    # Phase 1: Fast and Slow pointers to find intersection inside cycle
+    slow = fast = nums[0]
+    while True:
+        slow = nums[slow]
+        fast = nums[nums[fast]]
+        if slow == fast:
+            break
+            
+    # Phase 2: Find the cycle entry point (which is the duplicate value)
+    slow = nums[0]
+    while slow != fast:
+        slow = nums[slow]
+        fast = nums[fast]
+        
+    return slow
+```
+
+---
+
+## 3. Common Interview Problems
+
+### Easy
+- **[Two Sum](../04-practice/data-structures/01-array.md#two-sum-sorted-variant--t1) `⚡ T1`** — Hash map for complement; or two pointers if sorted.
+- **[Move Zeros](../04-practice/data-structures/01-array.md#move-zeroes--t1) `⚡ T1`** — Two-pointer: maintain `write_idx` for non-zeros.
+- **[Best Time to Buy/Sell Stock](../04-practice/data-structures/01-array.md#best-time-to-buy-and-sell-stock--t2) `🎯 T2`** — Track min so far; `profit = max(profit, price - min_price)`.
+
+### Medium
+- **[Container with Most Water](../04-practice/data-structures/01-array.md#container-with-most-water--t1) `⚡ T1`** — Two pointers; advance the side with shorter height.
+- **[3Sum](../04-practice/data-structures/01-array.md#3sum--t1) `⚡ T1`** — Sort + fix one + two pointers; skip duplicates at all three sites.
+- **[Subarray Sum Equals K](../04-practice/data-structures/01-array.md#subarray-sum-equals-k-with-negative-numbers--t1) `⚡ T1`** — Prefix sum + count map; `seen[0] = 1`.
+- **[Jump Game](../04-practice/data-structures/01-array.md#jump-game-lc-55--t2) `🎯 T2`** — Track `farthest` reachable; unreachable if `i > farthest`.
+- **[Longest Subarray with K Distinct](../04-practice/algorithms/03-sliding-window.md#variable-window--at-most-k) `🎯 T2`** — Sliding window + frequency map.
+- **[Product of Array Except Self](../04-practice/data-structures/01-array.md#product-of-array-except-self--t2) `🎯 T2`** — Prefix product from left × suffix product from right; O(1) extra space.
+- **[Next Permutation](../04-practice/data-structures/01-array.md#next-permutation--t2) `🎯 T2`** — Find rightmost descent, swap with next larger, reverse suffix.
+
+### Hard
+- **[Sliding Window Maximum](../04-practice/algorithms/03-sliding-window.md#sliding-window-maximum-lc-239--t1) `⚡ T1`** — Monotonic deque; O(N).
+- **[Trapping Rain Water](../04-practice/data-structures/01-array.md#trapping-rain-water--t1) `⚡ T1`** — Two pointers `l_max, r_max`; advance side with smaller max.
+- **[Median of Two Sorted Arrays](../04-practice/algorithms/04-binary-search.md#median-of-two-sorted-arrays-lc-4--t1) `⚡ T1`** — Binary search on partition of shorter array.
+
+---
+
+## Interview Questions — Logic & Trickiness
+
+| Question | Pattern | Click Moment | Core Logic | Trickiness / Gotchas |
+| :--- | :--- | :--- | :--- | :--- |
+| **Two Sum `⚡ T1`** | Complement Map | "Pair summing to target" | Complement map `target - x` | Return **indices** vs values — clarify with interviewer. |
+| **3Sum `⚡ T1`** | "Triplets summing to 0, no duplicates" | Sort + fix i + two pointers | Skip duplicates at **three** sites: i, left, right — miss one, get duplicates. |
+| **Trapping Rain Water `⚡ T1`** | "Water level bounded by shorter wall" | Two pointers; advance smaller max side | Level at position i = `min(l_max, r_max) - height[i]`; advance the smaller-max side. |
+| **Subarray Sum = K** | "Count subarrays with exact sum K" | Prefix sum + `seen[0]=1`; `count += seen[prefix-K]` | Sliding window **fails** with negatives — always use prefix map. |
+| **Product Except Self** | "Product of all but self, no division" | Left-pass product × right-pass product | Division approach fails on zeros; two-pass achieves O(1) extra space. |
+| **Container with Most Water `⚡ T1`** | "Max area between two lines" | Two pointers; advance shorter side | Area = `min(h[l], h[r]) * (r - l)`; advancing taller side never improves. |
+| **Next Permutation** | "Lexicographic next arrangement" | Find rightmost descent; swap with next larger; reverse suffix | Rightmost **ascending** pair from the right = descent point; edge case: fully descending → reverse all. |
+| **Jump Game II `🎯 T2`** | "Minimum jumps to reach end" | Greedy BFS levels; extend `current_end` | Track `farthest` in current level; when `i == current_end`, increment jumps. |
+| **Sliding Window Maximum `⚡ T1`** | "Max in each window of size K" | Monotonic deque (decreasing); front = max of window | Remove from front if out of window `deque[0] <= i - k`; remove from back if smaller than current. |
+| **Median of Two Arrays** | "Median without merging" | Binary search partition on shorter array | Partition so `len(left_half) == len(right_half)±1`; compare `max_left <= min_right`. |
+| **Best Time to Buy and Sell Stock `🎯 T2`** [E] | "One transaction, maximize profit" | Single pass: track `min_price` so far; `max_profit = max(max_profit, price - min_price)` | Only one buy before one sell — not two-pointer; `min_price` resets naturally. |
+| **Remove Duplicates from Sorted Array `⚡ T1`** [E] | "In-place, return new length" | Two pointers: `slow` marks write position; `slow` advances only on new value | Write `nums[slow] = nums[fast]`; return `slow + 1`; array is modified in-place. |
+| **Find All Disappearing Numbers** [E] | "Numbers in [1,N] absent from array" | Negate `nums[abs(val)-1]`; collect indices still positive | O(1) space trick: use the array itself as a visited marker via sign flipping. |
+| **Maximum Subarray `🎯 T2`** [M] | "Contiguous subarray with max sum" | Kadane: `cur = max(nums[i], cur + nums[i])`; update global max | Don't reset `cur` to 0 — that misses all-negative arrays; reset to `nums[i]`. |
+| **Rotate Array** [M] | "Rotate right by K steps in-place" | Reverse all; reverse `[0:k]`; reverse `[k:]` | Normalize `k = k % n` first; forgetting this causes wrong answers for k > n. |
+| **Find the Duplicate Number** [M] | "One duplicate in [1,N], O(1) space" | Floyd's cycle detection: treat array as linked list with `next = nums[i]` | Requires O(1) space — XOR or sum tricks fail when duplicates appear more than twice. |
+| **Spiral Matrix** [M] | "Traverse matrix in spiral order" | Shrink boundaries: `top`, `bottom`, `left`, `right`; advance after each direction | After each row/col traversal, check `top <= bottom` and `left <= right` before next direction. |
+| **Set Matrix Zeroes** [M] | "Zero out row and col for each zero cell" | First pass: record zeroed rows/cols; second pass: apply | O(1) space: use first row and col as markers; handle them last with a separate `first_row_zero` flag. |
+| **Longest Consecutive Sequence `⚡ T1`** [H] | "Longest run, O(N) time" | Hash set; only start counting from `n` if `n-1` not in set | Starting only from sequence beginnings avoids O(N²) — each element processed once. |
+| **Minimum Window Substring `⚡ T1`** [H] | "Smallest window containing all of T" | Sliding window; `have` tracks satisfied char counts | `have` tracks characters meeting their target count — not just counts; `have == need` means window is valid. |
+| **Subarray Sums Divisible by K** [M] | Prefix Sum Modulo | "Count subarrays whose sum is divisible by K" | Track running prefix sum modulo K; `(prefix_sum % k + k) % k` to handle negatives; add count of seen remainders | Python modulo is always positive; Java/C++ can be negative. Normalize: `(pref % k + k) % k`. `seen[0]=1` for subarray from index 0. |
+| **Subarrays with K Different Integers `⚡ T1`** [H] | Sliding Window | "Count subarrays with exactly K distinct integers" | Exactly K = At Most K - At Most K-1; write helper `atMost(K)` and subtract | Exactly K is non-monotonic (growing window can make it invalid, shrinking can also make it invalid). At Most K is monotonic (expanding always preserves or increases distinct counts). |
+
+---
+
+## Quick Revision Triggers
+
+- If the problem needs O(1) access by position → think Array because index = base + i×size.
+- If the problem says "contiguous subarray satisfying a condition" → think Sliding Window (monotone) or Prefix Sum + Map (with negatives).
+- If the problem says "range sum queries on static data" → think Prefix Sum; O(1) per query after O(N) build.
+- If the problem says "many range-add updates, read final values" → think Difference Array; O(1) update, O(N) reconstruct.
+- If the problem says "maximum subarray sum" → think Kadane's; initialize to `nums[0]`, not 0.
+- If the problem says "sorted array + find pair/triplet with target sum" → think Two Pointers; advance the side that moves you toward the target.
+- If the problem says "partition into 3 groups in one pass" → think Dutch National Flag; three-pointer dance.
+
+## See also
+
+- [Hashing](02-hashing.md) — two sum, subarray sum = K complement maps
+- [Searching](../03-algorithms/04-binary-search.md) — binary search on answer for array problems
+- [Stack](05-stack.md) — monotonic stack/deque for sliding window max and histogram
+- [Patterns Master](../05-review/01-pattern-sheet.md) — sliding window and two-pointer triggers
+
+## Flashcards
+
+**Why does the sliding window technique fail for subarray sum queries when an array contains negative numbers, and what is the O(N) alternative?** #flashcard
+Sliding window relies on monotonicity (expanding the window increases the sum; shrinking decreases it). If negative numbers are present, the sum isn't monotonic. The alternative is prefix sum + hash map (`seen[prefix_sum] = count`).
+
+**What is the difference array technique and when is it preferred over a segment tree?** #flashcard
+Difference array allows $O(1)$ range updates by modifying the boundaries (`diff[l] += val` and `diff[r+1] -= val`), followed by a single $O(N)$ prefix sum pass to rebuild the array. It is preferred when all updates are completed before any queries. Segment trees are needed when queries and updates are interleaved.
+
+**What is the common bug when running Kadane's algorithm on all-negative arrays, and how do you prevent it?** #flashcard
+Initializing the running sum `cur` or best sum `best` to `0`. If all numbers are negative, the algorithm will incorrectly return `0` instead of the least-negative element. To prevent this, initialize both `cur` and `best` to `nums[0]` and iterate from index 1.
+
+**Explain the Dutch National Flag 3-way partitioning pointer mechanics.** #flashcard
+Three pointers: `lo` (boundary for low values), `mid` (current element), and `hi` (boundary for high values).
+- `nums[mid] == 0`: Swap `nums[lo]` and `nums[mid]`, increment both `lo` and `mid`.
+- `nums[mid] == 1`: Increment `mid`.
+- `nums[mid] == 2`: Swap `nums[mid]` and `nums[hi]`, decrement `hi` (do NOT increment `mid` since the swapped element is unexamined).
+
+**How does Floyd's Cycle Detection find a duplicate in an array of size N+1 with elements in [1, N] in O(N) time and O(1) space?** #flashcard
+Treat the array as a linked list where `next_node = nums[current]`. Since values are in $[1, N]$, index 0 is guaranteed to be outside the cycle (no element points to 0).
+- **Phase 1**: Fast and slow pointers meet at an intersection point inside the cycle.
+- **Phase 2**: Reset slow pointer to 0, advance both at speed 1. They will meet at the cycle entry point, which represents the duplicate number.
