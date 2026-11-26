@@ -1,0 +1,276 @@
+> [!NOTE]
+> **📋 5-Minute Summary**
+>
+> **What this covers:** Design Google Maps — map tile serving, road graph routing, real-time traffic ingestion from GPS data, and sub-second ETA computation at global scale.
+>
+> **Key design decisions:**
+> - Map tiles: pre-rendered vector/raster tiles at zoom levels 0–20 stored in S3; served via CDN; tile key = (zoom, x, y) quadtree coordinates
+> - Routing graph: road network as directed weighted graph (nodes = intersections, edges = road segments); stored in custom binary format; loaded into memory per region
+> - Routing algorithm: Dijkstra for short distances; Contraction Hierarchies (CH) for long routes (200× faster than plain Dijkstra); pre-process graph offline
+> - Real-time traffic: GPS pings from active navigating users → Kafka → stream processing → traffic speed per road segment → update edge weights in routing graph
+> - ETA: route distance / traffic-adjusted speed per segment; ML model corrects for time-of-day, weather, incidents
+> - Geospatial indexing: H3 hexagonal cells for spatial queries (nearby POIs, traffic density per area); R-tree for bounding-box queries
+> - Map updates: OSM + commercial providers → validate → conflate → push to tile render pipeline; edge case: road closures propagate in <5 min
+>
+> **Key takeaway:** Contraction Hierarchies preprocessing is what makes sub-second routing possible — plain Dijkstra on a full road network takes seconds; CH reduces it to milliseconds by pre-computing shortcuts.
+
+---
+module: 05-hld-problems
+topic: Hard
+status: unread
+tags: [05-hld-problems, system-design, hard, google-maps, routing, geospatial, eta, map-tiles]
+---
+# Design Google Maps
+
+> **Difficulty**: Hard | **Asked at**: Google, Uber, Lyft, Apple
+
+---
+
+## Problem Statement
+
+Design a mapping and navigation platform like Google Maps. Users see a map, search for places, get turn-by-turn directions with ETA, and receive real-time traffic updates. The system must serve map tiles globally, compute routes across road networks with millions of edges, and ingest real-time GPS data from millions of active drivers/users.
+
+---
+
+## Functional Requirements
+
+1. **Map rendering**: Display map tiles at various zoom levels globally
+2. **Place search**: Search for businesses, addresses, and landmarks by name or category
+3. **Routing**: Compute the fastest/shortest route between two points with step-by-step directions
+4. **ETA**: Estimate arrival time considering real-time traffic
+5. **Navigation**: Real-time turn-by-turn directions; reroute when user deviates
+6. **Live traffic**: Display current traffic speed per road segment; incorporate into routing
+
+---
+
+## Non-Functional Requirements
+
+- **Scale**: 1B users, 100M active navigation sessions/day, 10M GPS pings/sec from active users
+- **Latency**: Initial route computation < 2s; map tile load < 100ms; ETA update < 5s
+- **Accuracy**: Route should always be the fastest available given current traffic
+- **Availability**: 99.99% — navigation cannot drop mid-drive
+- **Map data**: 10 PB of map tiles (raster and vector); road graph: 1B nodes, 2B edges (road segments)
+
+---
+
+## Core Entities
+
+| Entity | Key Fields |
+|--------|-----------|
+| `RoadSegment` | segment_id, start_node, end_node, length_m, speed_limit, current_speed, road_class |
+| `MapTile` | z (zoom), x, y (tile coordinates), format (raster/vector), gcs_path, last_updated |
+| `Place` | place_id, name, category, lat, lng, address, rating |
+| `Route` | route_id, start, end, waypoints[], segments[], total_distance, total_time, created_at |
+| `GPSPing` | user_id, lat, lng, speed, heading, timestamp |
+
+---
+
+## API Design
+
+```http
+GET /api/v1/tiles/{z}/{x}/{y}.pbf
+Response 200: <vector tile binary (Protocol Buffers)>
+
+GET /api/v1/directions?origin=37.4,-122.1&dest=37.7,-122.4&mode=driving
+Response 200: {
+  "routes": [{
+    "distance_m": 28400,
+    "duration_s": 1860,
+    "eta": "2026-06-29T15:31:00Z",
+    "legs": [{ "start_address": "...", "steps": [{ "instruction": "Turn left on Market St", "distance_m": 400 }] }]
+  }]
+}
+
+GET /api/v1/places/search?q=coffee+shop&lat=37.4&lng=-122.1&radius=1000
+Response 200: { "places": [{ "place_id": "...", "name": "Blue Bottle", "distance_m": 250 }] }
+
+POST /api/v1/gps/ping
+Body: { "user_id": "u123", "lat": 37.4, "lng": -122.1, "speed_kmh": 42, "heading": 180 }
+```
+
+---
+
+## High-Level Design
+
+```
+Mobile App / Browser
+  │
+  ├── Map tiles → CDN (99% cache hit; tiles rarely change)
+  │
+  ├── Place search → Search Service (Elasticsearch, geospatial index)
+  │
+  ├── Directions → Routing Service
+  │     Load road graph (from in-memory store or distributed graph DB)
+  │     Run A* / Dijkstra with traffic-weighted edges
+  │     Return route + ETA
+  │
+  ├── GPS pings → Traffic Ingestion Service
+  │     Kafka: gps-pings (100M events/min)
+  │     Flink: compute speed per segment (aggregate pings on same segment)
+  │     Update: segment speeds in Redis + road graph edge weights
+  │
+  └── Navigation (active turn-by-turn)
+        WebSocket: server pushes ETA updates, traffic alerts
+        Reroute: recalculate route on deviation or new traffic
+
+Storage:
+  GCS: map tile files (PB scale)
+  Redis: road segment current speeds, ETA cache
+  PostgreSQL: places, road graph metadata
+  In-memory graph: partitioned road graph on routing servers
+```
+
+---
+
+## Deep Dive 1: Routing Algorithm at Scale
+
+**Problem**: Compute the fastest route from San Francisco to Los Angeles across a road graph with 1B nodes and 2B edges. A single-threaded Dijkstra on this graph would take hours.
+
+**Hierarchical routing (Contraction Hierarchies — CH)**:
+- **Observation**: Long-distance routes always use highways; local roads are only relevant near start/end.
+- **Pre-processing**: Build a hierarchy of "shortcut" edges. A shortcut edge (A→C) is added if the shortest path from A to C goes through an intermediate node B, and B is of lower importance (rank) than A and C. This contracts unimportant nodes.
+- **Bidirectional search**: Run Dijkstra forward from the origin and backward from the destination simultaneously. Each search only explores upward in the hierarchy. The two searches meet at the highest-ranking nodes.
+- **Speedup**: CH reduces query time from O(N log N) to O(√N log N) or better. SF→LA in milliseconds, not hours.
+
+**Graph partitioning**: The 1B-node graph is partitioned into tiles (matching map tile boundaries). Each routing server holds the full graph of a continent in RAM (200 GB per server). For cross-continent routing, boundary nodes connect partitions.
+
+**Traffic-weighted edges**: Each edge has weight = `length_m / current_speed`. Updated every 5 minutes from GPS ping aggregation. Pre-processing (CH shortcut computation) runs every 15 minutes on the latest traffic data.
+
+> 🎯 **Staff signal:** The real insight is that Contraction Hierarchies moves cost from query time to *pre-processing* time — and that only works because the graph topology is near-static while edge *weights* change constantly. So you separate the two: shortcut structure is recomputed every 15 min (expensive, topology-stable), but weights refresh every 5 min against that fixed structure (cheap). The rejected alternative is plain bidirectional Dijkstra or A\*-with-landmarks: correct, but O(√N) exploration on a 1B-node graph is hundreds of ms per query and can't hit interactive latency. E5 says "use Dijkstra with a good heuristic"; E6 says "CH, and here's why the static-topology/dynamic-weight split is what makes the precompute amortizable — the day road *geometry* changes you eat a full rebuild, but that's weekly, not per-query."
+
+---
+
+## Deep Dive 2: Real-Time Traffic from GPS Pings
+
+**Problem**: 10M active navigation users send GPS pings every 5 seconds = 2M pings/sec. How do you turn these pings into traffic speed estimates per road segment?
+
+**Map matching**: GPS coordinates have 5-10m accuracy — they don't fall exactly on road segments. **Hidden Markov Model (HMM) map matching** probabilistically assigns each GPS ping to the most likely road segment given the sequence of pings and road geometry.
+
+```
+GPS ping sequence: (37.401, -122.107), (37.402, -122.107), (37.403, -122.106)
+HMM assigns: all three pings → segment_id=S1234 (El Camino Real, northbound)
+Speed estimate: 3 pings × 5s = 15s; distance between first+last = 220m → speed ≈ 53 km/h
+```
+
+**Flink stream processing**:
+```
+source: Kafka gps-pings
+keyBy: segment_id (after map matching)
+window: 60-second sliding window
+aggregate: compute median speed from all pings in window for this segment
+sink: Redis HSET segment_speeds:{segment_id} speed:42 updated_at:1735689600
+      Also write to segment DB for historical analysis
+```
+
+**Segment speed database**: Redis hash `segment_speeds:{segment_id}` holds current speed and last-updated timestamp. Routing service reads speeds from Redis when computing routes. Speed data expires after 5 minutes if no new pings received (fallback to speed limit).
+
+> 🎯 **Staff signal:** The non-obvious hard part isn't the aggregation — it's map matching. A raw GPS ping is 5–10m noisy and a divided highway, its frontage road, and an overpass can all be within that error radius, so a naïve nearest-segment snap assigns cars to the wrong road and reports a jam that doesn't exist. The HMM fixes this by scoring the whole *sequence* — transition probabilities between segments make an impossible teleport (frontage → highway → frontage in 10s) low-likelihood — so you match on trajectory, not point. And you sink the median, not the mean: one parked-but-still-pinging car or a GPS spike is an outlier that a median absorbs and a mean doesn't. E5 says "aggregate pings per segment in a Flink window"; E6 says "map-match the sequence with an HMM before aggregation, and take the median — the accuracy of the whole system is gated by ping-to-segment assignment, not by the windowing."
+
+---
+
+## Deep Dive 3: ETA Prediction
+
+**Problem**: "Turn left in 500m, ETA 15 minutes" — but traffic changes. How do you continuously update ETA during navigation and surface it to the user?
+
+**ETA components**:
+```
+ETA = sum over remaining route segments of (segment_length / predicted_speed)
+```
+
+**Predicted speed per segment**: Not just current speed — model the traffic at the *time the user will pass through that segment*. A user 20 minutes away from a bottleneck benefits from predicting traffic in 20 minutes, not now.
+
+**Historical traffic patterns**: For each segment, store average speed by day-of-week + hour-of-day. A machine learning model blends:
+```
+predicted_speed = α × current_speed + β × historical_speed_at_ETA_time + γ × incident_factor
+```
+
+**Live ETA updates**: During navigation, the server recalculates ETA every 30 seconds using updated segment speeds. If ETA changes by > 2 minutes, push update to the client via WebSocket.
+
+**Rerouting**: If the user deviates from the route (GPS position > 50m off the expected path for 5 seconds), the routing service recomputes from the user's current position. Reroute results are pushed via WebSocket within 2 seconds.
+
+> 🎯 **Staff signal:** The ETA that beats competitors predicts traffic at the *time the user arrives at each segment*, not traffic now. A driver 20 minutes upstream of a bottleneck should be routed against the traffic that bottleneck will have in 20 minutes — which is why the model blends current speed with the historical speed-at-ETA-time (day-of-week × hour-of-day), and the two searches are coupled: ETA depends on the route, but the traffic-aware route depends on predicted ETA at each edge, so you iterate. The pushed-update policy is a deliberate signal-vs-noise tradeoff: recompute every 30s but only push when ETA moves >2 min, because a client whose ETA flickers ±30s every cycle reads as broken. E5 says "sum segment_length / current_speed"; E6 says "predict per-segment speed at *arrival time* using historical patterns, and gate client pushes on a change threshold so you don't ship jitter as information."
+
+---
+
+## Interviewer Questions by Level
+
+**Junior**:
+- What is a map tile? How does the zoom level affect which tiles are displayed?
+- How does a GPS-based navigation app know when you've deviated from the route?
+- What is the difference between the shortest route and the fastest route?
+
+**Mid-level**:
+- How do you build a routing algorithm that considers real-time traffic? What data structure represents the road graph?
+- How do you convert raw GPS pings into speed estimates per road segment?
+- How does map matching work? Why can't you just use the raw GPS coordinates?
+
+**Senior**:
+- Explain Contraction Hierarchies. How does pre-processing the road graph enable sub-second route queries on a billion-node graph?
+- Design the traffic ingestion pipeline for 2M GPS pings/sec — from ingest to updating segment speeds globally.
+- How do you predict ETA for a segment the user won't reach for 30 minutes? What data do you use?
+- Design the map tile generation pipeline — how do you render and cache tiles at 20 zoom levels for the entire world?
+
+---
+
+## Back-of-Envelope Estimation
+
+**Scale inputs (given in NFRs):**
+- 1B users; 100M active navigation sessions/day; 10M GPS pings/sec; 10 PB map tiles; 1B road graph nodes
+
+**GPS ping ingest:**
+- 10M GPS pings/sec from active navigating users
+- Each ping: `{user_id, lat, lng, heading, speed, accuracy, ts}` ≈ 80 bytes
+- Ingest rate: 10M × 80 bytes = **~800 MB/sec** to the location processing pipeline
+- Kafka topic `gps-pings` with 100 partitions at 8 MB/sec each — comfortable
+
+**Traffic speed aggregation:**
+- 10M GPS pings/sec; each ping carries speed + road segment (map-matched)
+- Aggregate: median speed per road segment per 5-minute window
+- Road segments globally: ~1B (2B edges / 2 directions); active segments (driven in last 5 min): ~5M
+- Redis: `ZADD traffic:{segment_id} {speed} {ts}` per active segment
+- 5M active segments × 100 bytes = **~500 MB** traffic data in Redis — fits in one Redis node
+- Flink job: reads GPS pings → map matches to segment → updates segment speed → emits ETA adjustments
+
+**Map tile storage:**
+- 10 PB total map tile data (raster + vector, all zoom levels, global)
+- Global CDN: 200 PoPs × average 50 TB cache each = **10 PB** edge cache capacity — full world map cacheable at the edge
+- Cache hit rate: >99.9% for tiles (maps change infrequently; user requests concentrate on populated areas)
+- Origin (S3/GCS): cold storage for tiles; CDN handles virtually all reads
+
+**Map tile request rate:**
+- 100M active navigation sessions/day; each session loads ~50 tiles on initial view + 10 tiles/min during navigation
+- Peak: 100M sessions × 10 tiles/min ÷ 60 sec = **~16.7M tile requests/sec** globally
+- CDN edge handles this; each PoP serves ~83K requests/sec (200 PoPs) — trivial for CDN infrastructure
+
+**Route computation:**
+- 100M navigation sessions/day; each session computes 1 initial route + re-routes every ~5 min = ~5 route computations/session
+- Total: 100M × 5 ÷ 86,400 sec = **~5,800 route computations/sec**
+- Road graph: 1B nodes, 2B edges; Dijkstra on full graph is O((V+E) log V) ≈ 3B log 1B ≈ 90B operations — too slow (~90s on 1 GHz single core)
+- Bidirectional Dijkstra + Contraction Hierarchies (CH): precompute shortcut edges; query time O(√V log V) ≈ ~30K operations → **~30µs per route** on modern hardware
+- At 5,800 routes/sec: 5,800 × 30µs = **174ms of CPU/sec** → 1 server handles ~5,700 routes/sec. Need ~2 route servers for the global load.
+
+**Architecture decisions driven by these numbers:**
+- **Contraction Hierarchies for routing, not vanilla Dijkstra**: Full-graph Dijkstra takes ~90s per query — unusable. CH precomputes a hierarchy of shortcut edges during an offline preprocessing step (runs once when map data updates). Query time drops to ~30µs. This is what enables sub-2s route computation with real-time traffic overlaid.
+- **Flink for traffic aggregation, not polling**: 10M GPS pings/sec must be aggregated into per-segment speeds continuously. A batch job every 5 minutes would make traffic data stale and inaccurate. Flink tumbling 1-minute windows per segment provide near-real-time traffic that feeds into ETA adjustments.
+- **CDN edge for map tiles**: 16.7M tile requests/sec globally cannot hit an origin — even a large S3 cluster would saturate. Tiles are immutable per zoom/coordinate (change only on map updates, ~weekly). CDN cache hit rate >99.9% means origin sees <17K requests/sec — entirely manageable.
+- **Road graph fits in RAM**: 1B nodes × 32 bytes + 2B edges × 64 bytes = **~160 GB** for the full road graph. A route server with 256 GB RAM holds the entire global graph in memory. No disk I/O during query — pure in-memory graph traversal at 30µs per route.
+
+---
+
+## Related
+
+**Concepts used in this design**
+
+- [Sharding](../../02-building-blocks/03-data-partitioning/01-sharding.md)
+- [Caching Layer](../../02-building-blocks/02-performance/01-caching-layer.md)
+- [CDN](../../02-building-blocks/01-networking/05-cdn.md)
+- [Global Distribution](../../03-scaling/04-global-distribution.md)
+
+**Practice next**
+
+- [Real-Time Gaming Leaderboard](../03-hard/realtime-gaming-leaderboard.md)
+- [Hotel Booking](../03-hard/hotel-booking.md)
+
+Geospatial indexing here also drives proximity search in booking.
+
+**Frameworks**: [HLD Template](../../07-interview-templates/01-frameworks/01-hld-template.md) · [Capacity Estimation](../../07-interview-templates/02-cheat-sheets/02-capacity-estimation.md) · [Trade-offs Cheat Sheet](../../07-interview-templates/02-cheat-sheets/01-trade-offs-cheat-sheet.md)

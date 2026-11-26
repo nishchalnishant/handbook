@@ -1,0 +1,146 @@
+> [!NOTE]
+> **📋 5-Minute Summary**
+>
+> **What this covers:** Behavioral Design Patterns — algorithms and the assignment of responsibilities between objects, focusing on communication patterns.
+>
+> **The 11 Patterns (Key Ones):**
+> - Strategy: Swap algorithms at runtime (e.g., Payment processing with CreditCard/PayPal). The most important behavioral pattern.
+> - Observer: Publish-Subscribe mechanism. When subject changes state, all subscribers are notified (e.g., UI reacting to data changes).
+> - State: Object alters its behavior when its internal state changes (e.g., Vending Machine states like HAS_COIN, DISPENSING).
+> - Command: Encapsulate a request as an object to support queuing, logging, and undo/redo operations.
+> - Chain of Responsibility: Pass a request along a chain of handlers (e.g., Logger filtering `DEBUG` vs `ERROR`, or Middleware).
+> - Template Method: Define the skeleton of an algorithm in a base class, letting subclasses override specific steps.
+> - Memento: Capture and restore an object's state without breaking encapsulation (e.g., undo/redo, game save points).
+> - Mediator, Iterator, Visitor, Interpreter: Less commonly asked, but cover centralized communication, sequential traversal, adding operations to object structures, and evaluating a small grammar/DSL respectively.
+>
+> **Key takeaway:** Strategy, Observer, and State are the "Big Three" behavioral patterns for LLD interviews. Master them first. They handle 80% of communication logic in design problems.
+
+---
+
+# Behavioral Design Patterns
+
+Behavioral patterns are concerned with algorithms and the assignment of responsibilities between objects.
+
+## Patterns in this Category
+
+### 
+
+### [Observer](./observer-pattern.md)
+Defines a subscription mechanism to notify multiple objects about events.
+* **Interview Examples:**
+  * Stock market ticker where multiple dashboards update when prices change.
+  * Event-driven systems (Pub/Sub like Kafka/RabbitMQ concepts).
+  * Model-View-Controller (MVC) where View observes Model changes.
+* **Java Implementation:**
+  * `interface` for the Observer (with an `update()` method).
+  * `interface` or `class` for the Subject maintaining a List of Observers.
+
+### [Strategy](./strategy-pattern.md)
+Defines a family of algorithms and makes them interchangeable.
+* **Interview Examples:**
+  * Payment Gateway (Credit Card, PayPal, UPI strategies calculating different fees/processes).
+  * Navigation map routing (Driving, Walking, Transit strategies).
+  * Sorting algorithms (QuickSort, MergeSort based on data size or type).
+* **Java Implementation:**
+  * `interface` for the Strategy algorithm.
+  * `class` for the Context holding a reference to a Strategy and delegating work to it.
+
+### [Command](./command-pattern.md)
+Encapsulates a request as an object, allowing parameterization and queuing of requests.
+* **Interview Examples:**
+  * Implementing Undo/Redo functionality in text editors.
+  * GUI buttons where each button triggers a specific command object.
+  * Job Queue processing where tasks are executed asynchronously.
+* **Java Implementation:**
+  * `interface` for the Command (with an `execute()` method).
+  * `class` for Concrete Commands storing a reference to the Receiver.
+
+### [State](./state-pattern.md)
+Allows an object to alter its behavior when its internal state changes.
+* **Interview Examples:**
+  * Vending Machine state transitions (HasCoin, NoCoin, Dispensing).
+  * Media Player (Play, Pause, Stop states).
+  * Document workflows (Draft, In-Review, Published).
+* **Java Implementation:**
+  * `interface` for the State defining behaviors.
+  * `class` for the Context holding a reference to the current State.
+
+
+### [Visitor](./visitor-pattern.md)
+Separates algorithms from the objects they operate on.
+* **Interview Examples:**
+  * Abstract Syntax Tree (AST) parsing in compilers.
+  * Exporting data from a complex object hierarchy (e.g., returning JSON/XML from a document structure).
+  * Processing tax calculations on different types of grocery items.
+* **Java Implementation:**
+  * `interface` for the Visitor (with overloaded `visit()` methods for each element type).
+  * `interface` for the Element (with an `accept(Visitor)` method).
+
+### [Iterator](./iterator-pattern.md)
+Provides a way to access elements of a collection sequentially without exposing underlying representation.
+* **Interview Examples:**
+  * Custom collection classes in Java/C++ (like Trees, Graphs) providing a unified way to iterate over nodes.
+  * Paginating results from a database.
+* **Java Implementation:**
+  * `interface` for the Iterator (with `hasNext()` and `next()`).
+  * `interface` for the Iterable Collection (with a method returning the Iterator).
+
+### [Mediator](./mediator-pattern.md)
+Reduces coupling by making objects communicate through a mediator rather than directly.
+* **Interview Examples:**
+  * Chat Room application where users don't talk directly but through a central server.
+  * Air Traffic Control system coordinating planes.
+  * UI Dialog boxes coordinating complex interactions between various UI components.
+* **Java Implementation:**
+  * `interface` for the Mediator.
+  * `abstract class` or `class` for Colleagues holding a reference to the Mediator.
+
+[Chain of Responsibility](./chain-of-responsibility.md)
+Passes requests along a chain of handlers, where each handler decides to process or pass it.
+* **Interview Examples:**
+  * Middleware in web frameworks (e.g., Express.js, Spring Security filters).
+  * Logging frameworks where a log goes through multiple filters before being written.
+  * Request approval workflows (Manager -> Director -> VP).
+* **Java Implementation:**
+  * `abstract class` for the Handler (holds a reference to the `nextHandler`).
+  * `class` for each Concrete Handler implementing the processing logic.
+  
+### [Template Method](./template-method-pattern.md)
+Defines the skeleton of an algorithm, letting subclasses override specific steps.
+* **Interview Examples:**
+  * Data parsing framework where steps are (Open, Parse, Close) and subclasses implement `Parse` (CSV, XML, JSON).
+  * Game AI behavior skeletons.
+  * UI lifecycle methods (React/Android component lifecycles).
+* **Java Implementation:**
+  * `abstract class` with a `final` template method and `abstract` primitive operation steps.
+
+### [Memento](./memento-pattern.md)
+Captures and restores an object's internal state without violating encapsulation.
+* **Interview Examples:**
+  * Undo/redo in text editors and drawing apps (snapshot the document state).
+  * Game save points and checkpoints (restore position, health, inventory).
+  * Transactional rollback — snapshot before a risky multi-step change, restore on failure.
+* **Java Implementation:**
+  * `Originator` with `save()` returning a `Memento` and `restore(Memento)`.
+  * `Memento` as an opaque snapshot (often a private nested class) and a `Caretaker` (undo stack) that stores mementos without reading them.
+
+### [Interpreter](./interpreter-pattern.md)
+Defines a grammar for a small language and evaluates sentences by modeling each rule as a class.
+* **Interview Examples:**
+  * Rules engines and filter DSLs (`age > 18 AND country == "US"`).
+  * Calculators / arithmetic expression evaluation.
+  * Feature-flag condition evaluation.
+* **Java Implementation:**
+  * `Expression` interface with `interpret(context)`.
+  * Terminal expressions (`Number`, `Variable`) and non-terminal expressions (`And`, `GreaterThan`) that compose sub-expressions into an AST.
+  * *Know when to stop:* for complex/evolving grammars, reach for ANTLR instead.
+
+
+---
+
+## When to Use Behavioral Patterns
+
+- When you need flexible communication between objects
+- When you want to define algorithms independently
+- When object behavior depends on state
+- When you need to decouple sender and receiver

@@ -1,0 +1,326 @@
+> [!NOTE]
+> **📋 5-Minute Summary**
+>
+> **What this covers:** Design a stock exchange — matching engine, order book, market data distribution, and microsecond-latency infrastructure for financial trading systems.
+>
+> **Key design decisions:**
+> - Order book: per-symbol price-time priority book; buy orders (bids) sorted descending by price; sell orders (asks) sorted ascending; best bid/ask = NBBO
+> - Matching engine: single-threaded per symbol to avoid locks; match buy vs sell when bid ≥ ask; price-time priority (same price → earliest order wins)
+> - Order types: market (execute immediately at best price), limit (execute at specified price or better), stop (trigger at price, then market)
+> - Data structures: price level → doubly-linked list of orders; price levels in Red-Black tree; O(log N) insert/cancel, O(1) best bid/ask
+> - Market data: after every trade → publish trade feed (price, qty, time) + order book delta to all subscribers; fan-out via multicast UDP or pub-sub
+> - Latency: co-location (exchange rack), FPGA for market data processing, kernel bypass (DPDK), CPU pinning; target <100μs round-trip
+> - Persistence: event sourcing (log every order event); replay log to reconstruct order book; WAL for crash recovery
+>
+> **Key takeaway:** The matching engine must be single-threaded per symbol — any locking or coordination introduces latency spikes that fairness-sensitive traders exploit; price-time priority is non-negotiable for regulatory compliance.
+
+---
+module: 05-hld-problems
+topic: Hard
+status: unread
+tags: [05-hld-problems, system-design, hard, stock-exchange, order-book, matching-engine, market-data]
+---
+# Design a Stock Exchange
+
+> **Difficulty**: Hard | **Asked at**: Jane Street, Citadel, Goldman Sachs, Amazon, Google
+
+---
+
+## Problem Statement
+
+Design a stock exchange like NYSE or NASDAQ. Traders submit buy and sell orders; the matching engine pairs buyers with sellers based on price-time priority. The system must process thousands of orders per second with microsecond latency, maintain a fair and accurate order book, and publish real-time market data to all participants.
+
+---
+
+## Functional Requirements
+
+1. **Order placement**: Submit market orders (execute immediately) and limit orders (execute at specified price)
+2. **Order matching**: Match buy and sell orders by price-time priority (best price first; tie-break by arrival time)
+3. **Order cancellation**: Cancel an open limit order before it executes
+4. **Market data**: Publish real-time price, volume, and order book depth to all subscribers
+5. **Trade confirmation**: Notify buyer and seller of executed trades
+6. **Order book**: Show current best bid (highest buy), best ask (lowest sell), and depth
+
+---
+
+## Non-Functional Requirements
+
+- **Throughput**: 500K orders/sec; 1M market data messages/sec
+- **Latency**: Order-to-trade: < 100 microseconds (µs) for co-located traders; < 1ms for remote
+- **Fairness**: Orders matched in strict price-time priority — no favoritism
+- **Durability**: All orders and trades persisted; zero data loss on crash
+- **Determinism**: Given the same sequence of orders, the matching engine always produces the same trades
+
+---
+
+## Core Entities
+
+| Entity | Key Fields |
+|--------|-----------|
+| `Order` | order_id, trader_id, symbol, side (buy/sell), type (market/limit), price, quantity, timestamp, status |
+| `Trade` | trade_id, buy_order_id, sell_order_id, symbol, price, quantity, executed_at |
+| `OrderBook` | symbol, bids (price-sorted buy orders), asks (price-sorted sell orders) |
+| `MarketDataTick` | symbol, bid_price, ask_price, last_price, volume, timestamp |
+
+---
+
+## API Design
+
+```http
+POST /api/v1/orders
+Body: {
+  "trader_id": "t123",
+  "symbol": "AAPL",
+  "side": "buy",
+  "type": "limit",
+  "price": 150.00,
+  "quantity": 100
+}
+Response 201: { "order_id": "o456", "status": "open", "timestamp": "2026-06-29T14:30:00.000123Z" }
+
+DELETE /api/v1/orders/{order_id}
+Response 200: { "order_id": "o456", "status": "cancelled" }
+
+GET /api/v1/orderbook/{symbol}
+Response 200: {
+  "bids": [{ "price": 150.00, "quantity": 500 }, { "price": 149.99, "quantity": 1200 }],
+  "asks": [{ "price": 150.01, "quantity": 300 }, { "price": 150.02, "quantity": 800 }]
+}
+
+# Market data: multicast UDP (low latency) or WebSocket
+WebSocket /ws/market-data/{symbol}
+→ { "type": "trade", "price": 150.00, "quantity": 100, "timestamp": "..." }
+```
+
+---
+
+## High-Level Design
+
+```
+Trader (co-located or remote)
+  │ FIX protocol (industry standard) or REST for retail
+  ▼
+Order Gateway
+  │ Auth, validate order, assign timestamp (nanosecond precision)
+  │ Persist order to WAL (write-ahead log) → durable
+  │ Forward to Matching Engine (single-threaded, in-memory)
+  ▼
+Matching Engine (one per trading symbol)
+  │ In-memory order book: sorted buy orders (descending price) + sorted sell orders (ascending price)
+  │ Match: if best_bid >= best_ask → trade executes
+  │ Output: Trade events → WAL → Market Data Publisher
+  │
+  ▼
+Market Data Publisher
+  │ Multicast UDP to all subscribers (low latency)
+  │ WebSocket gateway for retail clients
+  │
+  ▼
+Post-Trade
+  ├── Clearing: confirm trade, update positions
+  ├── Settlement: transfer cash and shares (T+2)
+  └── Regulatory reporting: log all trades
+
+Storage:
+  WAL: append-only log for all orders and trades (durability)
+  PostgreSQL: historical orders, trades (for queries/reports)
+  In-memory: live order book per symbol (matching engine state)
+```
+
+---
+
+## Deep Dive 1: Order Book Data Structure
+
+**Problem**: The matching engine receives 500K orders/sec. For each incoming order, it must find the best matching counter-orders in microseconds. What data structure backs the order book?
+
+**Price level tree**: Bids and asks are organized into price levels. Each price level contains a FIFO queue of orders at that price.
+
+```python
+class OrderBook:
+    def __init__(self):
+        # Bids: max-heap (highest price first)
+        # Asks: min-heap (lowest price first)
+        self.bids = SortedDict(neg)  # price → deque of orders; sorted descending
+        self.asks = SortedDict()      # price → deque of orders; sorted ascending
+        self.order_map = {}           # order_id → (side, price, deque_position)
+
+    def add_limit_order(self, order):
+        book = self.bids if order.side == "buy" else self.asks
+        if order.price not in book:
+            book[order.price] = deque()
+        book[order.price].append(order)
+        self.order_map[order.order_id] = (order.side, order.price)
+
+    def cancel_order(self, order_id):
+        side, price = self.order_map.pop(order_id)
+        book = self.bids if side == "buy" else self.asks
+        # Mark as cancelled (lazy deletion); remove from deque on next access
+        book[price].remove_by_id(order_id)
+        if not book[price]:
+            del book[price]
+```
+
+**Time complexity**:
+- Add order: O(log P) where P = number of distinct price levels (typically < 1,000)
+- Cancel order: O(1) if order_map → position tracked; O(log P) to clean empty level
+- Match: O(log P) to peek best bid/ask
+
+**Why not a heap**: A heap supports O(1) peek but O(N) cancellation. SortedDict (balanced BST) supports O(log N) for all operations, enabling fast cancellation.
+
+> 🎯 **Staff signal:** The data-structure choice is driven by the *workload mix*, and naming why a heap loses is the signal. In real markets the vast majority of order events are cancels and modifies, not fills — HFT firms post and pull constantly — so cancellation, not matching, is the hot path. A heap gives O(1) best-price peek but O(N) cancel because you can't locate an arbitrary order; the winning structure is a price-level tree (sorted map price→FIFO-queue) *plus a side `order_map` from order_id to its position*, which makes cancel O(1) to find and O(log P) to clean up. The FIFO queue at each price level isn't incidental — it *is* the time-priority guarantee, and P (distinct price levels) stays small (<1000) while order count is huge, so keying the tree on price not order keeps it shallow. E5 says "use a heap for best bid/ask"; E6 says "cancels dominate the workload, so I optimize the cancel path — a price-level tree with a side index gives O(1) cancel lookup that a heap can't, and the per-level FIFO queue encodes time priority directly."
+
+---
+
+## Deep Dive 2: Matching Algorithm (Price-Time Priority)
+
+**Problem**: A buy limit order arrives at $150 for 300 shares. There are sell orders at $149.50 (100 shares, arrived at 10:00:01), $149.50 (200 shares, arrived at 10:00:03), and $150.00 (150 shares, arrived at 10:00:05). How does the matching engine fill this order?
+
+**Price-time priority (FIFO)**:
+1. Best price first: lowest ask price for buys; highest bid price for sells
+2. For same-price orders: earlier arrival time (timestamp) has priority
+
+**Matching loop**:
+```python
+def match(self, incoming_buy):
+    remaining_qty = incoming_buy.quantity
+    trades = []
+    while remaining_qty > 0 and self.asks:
+        best_ask_price, queue = self.asks.peekitem(0)  # lowest ask
+        if best_ask_price > incoming_buy.price:
+            break  # no match (ask price too high for limit order)
+        sell_order = queue[0]  # earliest order at this price
+        fill_qty = min(remaining_qty, sell_order.remaining_quantity)
+        trades.append(Trade(
+            buy_order=incoming_buy, sell_order=sell_order,
+            price=sell_order.price,  # price = the resting order's price (maker)
+            quantity=fill_qty
+        ))
+        sell_order.remaining_quantity -= fill_qty
+        remaining_qty -= fill_qty
+        if sell_order.remaining_quantity == 0:
+            queue.popleft()
+        if not queue:
+            del self.asks[best_ask_price]
+    if remaining_qty > 0:
+        self.add_limit_order(incoming_buy, remaining_qty)  # rest becomes resting order
+    return trades
+```
+
+**Result for the example**:
+- Fill 100 shares from $149.50 sell (10:00:01) → Trade at $149.50
+- Fill 200 shares from $149.50 sell (10:00:03) → Trade at $149.50
+- Remaining: 0 shares. Fully filled.
+
+> 🎯 **Staff signal:** The correctness property that must be stated is *determinism*, and price-time priority is what provides it: given the same input sequence, the matching engine must produce byte-identical trades on every replica and every replay — because this is what makes the WAL-recovery and hot-standby of Deep Dive 3 even possible, and what makes the exchange auditable and fair. That forces the engine to be single-threaded (concurrency introduces nondeterministic ordering) and to derive *every* decision from the deterministic input order, never from wall-clock time read at match time. The non-obvious fairness detail is that the trade executes at the *resting (maker) order's price*, not the incoming (taker) price — so a buy limit at \$150 that hits a \$149.50 ask fills at \$149.50, giving price improvement to the taker; getting this backwards is a subtle but serious bug. E5 says "match best price, break ties by time"; E6 says "price-time priority exists to make matching *deterministic* so replicas and replay reconstruct identical state — which is why the engine is single-threaded and clock-free in its decisions — and fills print at the maker's resting price, not the taker's."
+
+---
+
+## Deep Dive 3: Durability and Recovery
+
+**Problem**: The matching engine is single-threaded, in-memory, and processes 500K orders/sec. If it crashes, how do you recover the exact state of the order book without replaying millions of events?
+
+**Write-Ahead Log (WAL)**:
+- Every incoming order and every generated trade is written to the WAL before processing
+- WAL is an append-only file on durable storage (NVMe SSD or network storage)
+- The matching engine never acknowledges an order to the gateway until the WAL write completes
+- WAL write: synchronous fsync (< 5 µs on NVMe) or async with group commit (batch 1,000 writes → one fsync)
+
+**Recovery from WAL**:
+1. On crash, replay the WAL from the beginning
+2. Re-process every order in sequence → matching engine deterministically reconstructs exact order book state
+3. Recovery time: 1M events × 1 µs processing = 1 second to recover 1 second of trading history
+
+**Snapshot + WAL** (for faster recovery at scale):
+1. Every N minutes, serialize the entire in-memory order book to a snapshot file
+2. On recovery: load snapshot → replay only WAL entries since snapshot
+3. Reduces recovery time from "replay full day" to "replay last 5 minutes"
+
+**Hot standby**: Run a replica matching engine that also consumes the WAL in real-time. If primary crashes, replica can take over in < 100ms with zero replay needed.
+
+> 🎯 **Staff signal:** The whole recovery architecture rests on one property established upstream — deterministic replay — and the senior move is making the durability boundary explicit: the engine must not acknowledge an order until its WAL write has fsync'd, because an ack the client trusts for money must survive a crash the microsecond later. That ordering (log-then-ack, never ack-then-log) is the non-negotiable, and it puts fsync latency directly on the critical path — which is exactly why group commit exists: batch 1,000 orders into one fsync to amortize the syscall while keeping the durability guarantee. Snapshot+WAL is the standard "bound the replay window" trick (load last snapshot, replay only the tail), and the hot standby upgrades recovery from *replay* to *failover* by keeping a second deterministic engine already caught up — turning minutes of replay into <100ms of promotion. The tradeoff to name: synchronous replication to the standby adds latency but guarantees zero data loss; async is faster but the standby can lag the primary at the instant of failure. E5 says "write a WAL and replay it on crash"; E6 says "log-then-ack is the invariant so fsync is on the hot path — I group-commit to amortize it, snapshot to bound replay, and keep a hot standby fed by the same deterministic stream so failover is promotion, not replay."
+
+---
+
+## Interviewer Questions by Level
+
+**Junior**:
+- What is an order book? What is a bid and an ask?
+- What is price-time priority? Give an example of how two orders at the same price are ordered.
+- What is a market order vs a limit order?
+
+**Mid-level**:
+- What data structure backs the order book? Why can't you use a simple heap?
+- Walk through the matching algorithm — how does a limit buy order fill against the ask side?
+- How do you handle order cancellations efficiently?
+
+**Senior**:
+- Design the matching engine for 500K orders/sec with < 100µs latency. What architectural choices eliminate latency?
+- How do you persist all orders and trades durably without degrading matching latency?
+- Design the market data feed — how do you broadcast 1M price updates/sec to thousands of subscribers with minimum latency?
+- How do you prevent front-running (a trading firm using your exchange's systems to get an unfair timing advantage)?
+
+---
+
+## Back-of-Envelope Estimation
+
+**Scale inputs (given in NFRs):**
+- 500K orders/sec; 1M market data messages/sec; < 100µs order-to-trade latency
+
+**Order throughput and matching engine load:**
+- 500K orders/sec × 2 sides (buy/sell) = up to 1M order book mutations/sec
+- Each match generates a trade event: assume 30% fill rate → 150K trades/sec
+- Trade event size: `{trade_id, symbol, price, qty, buyer, seller, ts}` ≈ 200 bytes
+- Trade stream: 150K × 200 bytes = **~30 MB/sec** persisted to trade log
+
+**Market data fan-out:**
+- 1M price update messages/sec to thousands of subscribers
+- Each message: `{symbol, bid, ask, last_price, volume, ts}` ≈ 100 bytes
+- Aggregate outbound bandwidth: 1M × 100 bytes × 500 subscribers = **~50 GB/sec** via multicast UDP
+- Why multicast: unicast TCP to 500 subscribers at 1M msgs/sec = 500M sends/sec — impossible. Multicast delivers one packet to a network group; all subscribers receive it simultaneously.
+
+**Latency budget breakdown (100µs total for co-located):**
+- Network (co-located, same rack): ~5µs round trip
+- Order deserialization (FIX/ITCH protocol): ~2µs
+- Order book lookup (Red-Black tree or sorted array): ~1µs
+- Matching logic: ~5µs
+- Trade confirmation serialization + send: ~2µs
+- Disk persistence (NVMe SSD, async write): ~10µs (non-blocking; ack before persist)
+- Total critical path: **~25µs** — leaves headroom for 100µs SLA
+
+**Storage sizing:**
+- 500K orders/sec × 300 bytes/order = 150 MB/sec raw order log
+- 150K trades/sec × 200 bytes/trade = 30 MB/sec trade log
+- Retention: regulatory requirement = 7 years
+- 7 years × 365 days × 86,400 sec × (150 MB + 30 MB) = **~40 PB** raw (before compression)
+- Compressed (LZ4, ~5× ratio for structured data): **~8 PB** long-term cold storage
+
+**Order book in-memory sizing:**
+- 5,000 symbols (NYSE + NASDAQ tradeable) × 100 price levels per side × 2 sides × 100 bytes = **~100 MB** — trivially fits in L3 cache on a single NUMA node
+- This is why matching engines use a single-threaded loop on a pinned CPU core: no lock contention, L3 cache warm, predictable latency
+
+**Architecture decisions driven by these numbers:**
+- **Single-threaded matching engine (no locks)**: At 100µs latency budget, a mutex acquisition alone costs 1–10µs. Lock-free ring buffers (LMAX Disruptor pattern) feed orders to the matching core; the core processes one order at a time, eliminating contention. 500K orders/sec = one order every 2µs — well within single-thread capacity.
+- **Async persistence**: Writing to disk synchronously would add ~10µs and blow the latency budget. The engine ACKs the order, appends to an in-memory ring buffer, and a separate thread flushes to NVMe SSDs. Recovery uses the persisted log to rebuild state.
+- **UDP multicast for market data**: TCP fan-out to 500+ subscribers at 1M msg/sec is 500M sends/sec — impossible. UDP multicast delivers one packet to all subscribers simultaneously. Subscribers use sequence numbers to detect gaps and request retransmission.
+- **Co-location data center**: At 100µs, the speed of light is the constraint. Light travels ~30 km in 100µs. Co-located traders are in the same rack — <5µs network. Remote traders at 1ms are 150 km away. This is why exchanges sell co-location rack space for millions per year.
+
+---
+
+## Related
+
+**Concepts used in this design**
+
+- [Distributed Locks](../../02-building-blocks/04-coordination/02-distributed-locks.md)
+- [Consistency & Conflicts](../../01-foundations/05-advanced-distributed-theory/01-consistency-and-conflicts.md)
+- [Message Brokers](../../02-building-blocks/04-coordination/01-message-brokers.md)
+- [Raft & Paxos](../../04-advanced-topics/03-internals/11-raft-paxos-conceptual.md)
+- [Circuit Breaker](../../02-building-blocks/02-performance/03-circuit-breaker.md)
+
+**Practice next**
+
+- [Payment System](../03-hard/payment-system.md)
+- [Ticketmaster Seat Booking](../03-hard/ticketmaster-seat-booking.md)
+
+Both demand strict ordering and no double-allocation under contention.
+
+**Frameworks**: [HLD Template](../../07-interview-templates/01-frameworks/01-hld-template.md) · [Capacity Estimation](../../07-interview-templates/02-cheat-sheets/02-capacity-estimation.md) · [Trade-offs Cheat Sheet](../../07-interview-templates/02-cheat-sheets/01-trade-offs-cheat-sheet.md)

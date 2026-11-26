@@ -1,0 +1,301 @@
+> [!NOTE]
+> **📋 5-Minute Summary**
+>
+> **What this covers:** Design a RAG (Retrieval-Augmented Generation) system — grounding LLM responses in a document corpus via semantic search, embedding vectors, and prompt construction.
+>
+> **Key design decisions:**
+> - Ingestion pipeline: documents → chunking (512–1024 tokens, overlap 50 tokens) → embedding model → vector embeddings → vector DB (Pinecone/Weaviate/pgvector)
+> - Chunking strategy: fixed-size chunks vs semantic chunks (sentence-boundary aware); overlap prevents context loss at chunk boundaries
+> - Retrieval: user query → embed query → ANN search in vector DB (HNSW index) → top-K semantically similar chunks → re-rank with cross-encoder
+> - Hybrid search: semantic (dense vector) + keyword (BM25) → combine scores with RRF (Reciprocal Rank Fusion); catches both semantic and exact matches
+> - Prompt construction: system prompt + retrieved chunks + user query → sent to LLM; chunk count limited by context window (e.g., 5 chunks × 512 tokens)
+> - Citation: each chunk tagged with source document + page; LLM instructed to cite sources; UI displays reference links
+> - Freshness: incremental ingestion for new documents; chunk-level deduplication by content hash; re-embed on document update
+>
+> **Key takeaway:** HNSW vector search + re-ranking (cross-encoder) is the retrieval backbone — ANN gives recall, re-ranking gives precision; hybrid BM25+vector catches cases where semantic search misses exact keyword matches.
+
+---
+module: 05-hld-problems
+topic: Hard
+status: unread
+tags: [05-hld-problems, system-design, hard, rag, vector-db, embeddings, hnsw, semantic-search]
+---
+# Design a RAG System (Retrieval-Augmented Generation)
+
+> **Difficulty**: Hard | **Asked at**: OpenAI, Anthropic, Google, Cohere, Amazon
+
+---
+
+## Problem Statement
+
+Design a Retrieval-Augmented Generation (RAG) system that allows an LLM to answer questions by retrieving relevant context from a large document corpus. Users ask natural language questions; the system retrieves semantically relevant document chunks, injects them into the LLM prompt, and returns a grounded answer with citations.
+
+---
+
+## Functional Requirements
+
+1. **Document ingestion**: Upload documents (PDF, Word, web pages, code); index for retrieval
+2. **Semantic search**: Given a query, retrieve top-K most semantically similar document chunks
+3. **Answer generation**: Inject retrieved chunks as context into an LLM prompt; return answer with source citations
+4. **Multi-tenant**: Different organizations have isolated document corpora
+5. **Re-ranking**: Apply a cross-encoder re-ranker to improve precision of retrieved chunks
+6. **Hybrid retrieval**: Combine dense (embedding) search with sparse (BM25 keyword) search
+
+---
+
+## Non-Functional Requirements
+
+- **Scale**: 100M document chunks per tenant; 10M queries/day; 1,000 TPS retrieval
+- **Latency**: End-to-end (retrieval + LLM generation) < 5s; retrieval alone < 200ms
+- **Relevance**: Retrieved chunks must be semantically relevant (measured by MRR, NDCG)
+- **Freshness**: New documents indexed and searchable within 30 seconds
+- **Isolation**: Cross-tenant data leakage is a critical failure
+
+---
+
+## Core Entities
+
+| Entity | Key Fields |
+|--------|-----------|
+| `Document` | doc_id, tenant_id, title, source_url, mime_type, created_at, metadata |
+| `Chunk` | chunk_id, doc_id, tenant_id, text, chunk_index, token_count, embedding_model |
+| `Embedding` | chunk_id, vector (float32[1536]), model_version, created_at |
+| `Query` | query_id, tenant_id, user_id, text, retrieved_chunk_ids[], llm_response, latency_ms |
+
+---
+
+## API Design
+
+```http
+POST /api/v1/documents
+Body: { "title": "Q3 Earnings Report", "content": "<text or base64 PDF>", "metadata": {"source": "internal"} }
+Response 202: { "doc_id": "d123", "status": "processing", "chunk_count": 0 }
+
+GET /api/v1/documents/{doc_id}/status
+Response 200: { "doc_id": "d123", "status": "indexed", "chunk_count": 48 }
+
+POST /api/v1/query
+Body: {
+  "question": "What was the revenue growth in Q3 2026?",
+  "top_k": 5,
+  "hybrid_weight": 0.7  # 0=pure BM25, 1=pure embedding
+}
+Response 200: {
+  "answer": "Revenue grew 23% YoY in Q3 2026...",
+  "citations": [{ "chunk_id": "c456", "doc_title": "Q3 Earnings Report", "text": "..." }]
+}
+
+DELETE /api/v1/documents/{doc_id}
+Response 200: { "deleted_chunks": 48 }
+```
+
+---
+
+## High-Level Design
+
+```
+User
+  │ POST /query
+  ▼
+Query Service
+  │ 1. Embed query: call Embedding Model → query_vector (1536-dim float32)
+  │ 2. Dense retrieval: ANN search in Vector DB (top-K by cosine similarity)
+  │ 3. Sparse retrieval: BM25 search in Elasticsearch (keyword match)
+  │ 4. Fusion: Reciprocal Rank Fusion → merged top-K chunks
+  │ 5. Re-rank: cross-encoder model scores each (query, chunk) pair → re-ordered
+  │ 6. Build prompt: system_prompt + retrieved chunks + user question
+  │ 7. Call LLM API → stream response
+  │ 8. Return answer + citations
+  ▼
+Ingestion Pipeline (async, for POST /documents):
+  Document → Text Extraction → Chunking → Embedding Model → Vector DB + Elasticsearch
+
+Storage:
+  Vector DB (Pinecone / Weaviate / pgvector): embeddings for ANN search
+  Elasticsearch: BM25 full-text index
+  PostgreSQL: document metadata, chunk text, query logs
+  S3: raw document files
+```
+
+---
+
+## Deep Dive 1: Chunking Strategies
+
+**Problem**: A 100-page PDF must be split into chunks for embedding. The chunk boundaries determine retrieval quality — too small and a chunk lacks context; too large and it dilutes the embedding's specificity.
+
+**Fixed-size chunking** (naive):
+```python
+def fixed_chunks(text, size=512, overlap=50):
+    words = text.split()
+    chunks = []
+    for i in range(0, len(words), size - overlap):
+        chunks.append(" ".join(words[i:i+size]))
+    return chunks
+```
+Simple. `overlap=50` words prevents context loss at boundaries. Problem: splits mid-sentence, mid-paragraph.
+
+**Sentence/paragraph chunking** (better):
+- Split on paragraph boundaries (`\n\n`)
+- If a paragraph > max_tokens, split at sentence boundaries
+- Merge short paragraphs up to max_tokens
+
+**Recursive character text splitting** (LangChain default):
+- Try to split on `\n\n` first → then `\n` → then `.` → then ` ` → characters
+- Ensures chunks respect semantic boundaries as much as possible
+
+**Semantic chunking** (state of the art):
+- Embed each sentence
+- Compute cosine similarity between consecutive sentences
+- Create chunk boundary where similarity drops sharply (topic shift)
+- Most expensive but best quality
+
+**Chunk metadata enrichment**: Prepend document title, section heading, and page number to each chunk text before embedding. Retrieval is more precise when the chunk contains its own context.
+
+> 🎯 **Staff signal:** Chunking is where retrieval quality is actually decided, and the reason is a tension a single embedding can't escape: an embedding is one fixed-length vector, so a chunk that's too large averages several topics into a mushy centroid that matches everything weakly, while a chunk that's too small is precise but lacks the surrounding context needed to be *useful* once retrieved. The senior recognition is that this is a retrieval-vs-generation split — you can retrieve on small precise units but hand the LLM a larger window around the hit (the "small-to-big" / parent-document pattern), decoupling the granularity you *search* at from the granularity you *read* at. Metadata prepending (title, heading) fixes the orphaned-chunk problem where "it increased 40%" is meaningless without knowing *what* increased. E5 says "split into 512-token chunks with overlap"; E6 says "chunk boundaries set the recall ceiling because one vector can't represent a multi-topic chunk — so I retrieve on small semantically-coherent units, expand to their parent context for generation, and enrich each chunk with its structural metadata so it's self-describing."
+
+---
+
+## Deep Dive 2: ANN Search with HNSW
+
+**Problem**: 100M embeddings, 1,536 dimensions each. Exact nearest-neighbor search requires computing cosine similarity against all 100M vectors — 153.6B multiplications per query. At 1,000 TPS, infeasible.
+
+**Approximate Nearest Neighbor (ANN) with HNSW** (Hierarchical Navigable Small World):
+
+**Structure**: A multi-layer graph. Bottom layer contains all 100M nodes. Each higher layer is a random subset (~1/e fewer nodes). Edges connect nodes that are close in embedding space.
+
+**Search**:
+1. Enter at the top layer; greedily traverse edges toward the query vector
+2. Found nearest neighbor at top layer → use as entry point for next layer down
+3. Repeat until bottom layer; at bottom layer, return top-K closest nodes
+
+**Build**:
+```
+For each new node:
+  1. Assign to layers up to level = floor(-ln(random()) * mL)
+  2. At each layer: greedily navigate to nearest existing node → connect (max efConstruction=200 candidates checked)
+  3. Prune long-range edges if node has too many connections (max_M=32 per node)
+```
+
+**Parameters**:
+- `M=32`: max edges per node. Higher → better recall, more memory
+- `ef_construction=200`: candidates during build. Higher → better graph quality, slower build
+- `ef_search=100`: candidates during query. Higher → better recall, more latency
+
+**Performance**: 100M vectors, 1536-dim, HNSW → ~5ms query latency, 95% recall@10. Compare to brute-force: 100s per query.
+
+**Tenant isolation**: Each tenant gets a separate HNSW index namespace. Cross-tenant ANN search never occurs.
+
+> 🎯 **Staff signal:** The point to make about HNSW isn't how it works but *what you're trading* — it's approximate, so every parameter is a knob on a recall/latency/memory triangle, and the senior move is stating which corner your product sits in. `ef_search` trades recall for tail latency at query time (cheap to change per-query); `M` trades recall for RAM and is baked in at build time (expensive to change). The trap that separates levels: HNSW is a graph that lives in memory and is painful to *mutate* — deletes leave tombstones that degrade the graph, so a high-churn corpus needs periodic rebuilds, and metadata-filtered search ("only this tenant's docs") interacts badly with graph traversal because the filter can disconnect the navigable graph. That last point is why per-tenant *namespaces* beat a shared index with a tenant filter — isolation is both a security boundary and a way to keep each graph dense and navigable. E5 says "use HNSW for fast ANN"; E6 says "HNSW is approximate and mutation-hostile, so I tune `ef_search` per-query for the latency SLO, treat `M` as a build-time memory commitment, plan for rebuilds under churn, and shard by tenant because post-filtering a shared graph wrecks both recall and isolation."
+
+---
+
+## Deep Dive 3: Hybrid Retrieval and Re-ranking
+
+**Problem**: Pure embedding search misses exact keyword matches ("GPT-4o" matches "GPT4o" semantically but not via BM25). Pure BM25 misses semantic matches ("car" vs "automobile"). How do you combine both?
+
+**BM25 (sparse retrieval)**: Term frequency + inverse document frequency scoring. Finds exact and near-exact keyword matches. Implemented in Elasticsearch.
+
+**Dense retrieval**: Embedding cosine similarity. Finds semantically similar chunks even with different vocabulary.
+
+**Reciprocal Rank Fusion (RRF)**:
+```python
+def rrf_score(rank, k=60):
+    return 1.0 / (k + rank)
+
+def fuse(dense_results, sparse_results, top_k=20):
+    scores = defaultdict(float)
+    for rank, chunk_id in enumerate(dense_results):
+        scores[chunk_id] += rrf_score(rank)
+    for rank, chunk_id in enumerate(sparse_results):
+        scores[chunk_id] += rrf_score(rank)
+    return sorted(scores.keys(), key=lambda c: -scores[c])[:top_k]
+```
+No tuning of relative weights needed; ranks are combined directly.
+
+**Cross-encoder re-ranking**: After fusing to 20 candidates, a cross-encoder model scores each (query, chunk) pair jointly:
+- Bi-encoder (used for retrieval): query and chunk embedded separately → fast but approximate
+- Cross-encoder (used for re-ranking): query and chunk concatenated as one input to a transformer → slow but accurate
+- Re-rank top-5 from 20 candidates: 20 cross-encoder calls × 50ms each = 1s (acceptable within 5s budget)
+
+> 🎯 **Staff signal:** The architecture insight is that retrieval is a *funnel* of progressively more expensive, more accurate stages, and each stage exists to shrink the candidate set for the next one that couldn't afford to run on everything. You can't cross-encode 100M chunks (each is a full transformer forward pass), so cheap bi-encoder ANN + BM25 generate ~hundreds of candidates, RRF fuses them, and only then does the expensive cross-encoder rescore the final ~20. Hybrid (dense + sparse) exists because the two retrievers fail on *disjoint* queries — dense misses exact tokens like error codes and product SKUs, sparse misses paraphrases — so fusing them covers both failure modes, and RRF is chosen over weighted score-blending precisely because raw BM25 and cosine scores aren't on comparable scales, whereas ranks are. E5 says "combine keyword and vector search and re-rank"; E6 says "it's a cost-ordered funnel — cheap high-recall retrieval to generate candidates, rank-based fusion because the score spaces don't align, then a cross-encoder only on the survivors because joint query-chunk attention is too expensive to run at corpus scale."
+
+---
+
+## Interviewer Questions by Level
+
+**Junior**:
+- What is RAG? Why do we retrieve documents instead of just asking the LLM directly?
+- What is an embedding? Why do similar sentences have similar embeddings?
+- What is chunking? Why can't you just embed entire documents?
+
+**Mid-level**:
+- What is ANN search? Why is exact nearest-neighbor search not feasible for 100M vectors?
+- What is the difference between BM25 and embedding-based retrieval? When does each fail?
+- How does Reciprocal Rank Fusion combine results from sparse and dense retrieval?
+
+**Senior**:
+- Explain HNSW — how is the graph built, how does search work, and what trade-offs do `M` and `ef_search` control?
+- Design the ingestion pipeline for real-time document updates — a document is edited; how do you re-index only the changed chunks without re-embedding the entire document?
+- Design multi-tenant RAG — how do you ensure tenant A can never retrieve documents from tenant B's corpus?
+- How do you evaluate RAG system quality? What metrics (MRR, NDCG, faithfulness, groundedness) do you use?
+
+---
+
+## Back-of-Envelope Estimation
+
+**Scale inputs (given in NFRs):**
+- 10M documents in the corpus; 1M queries/day; embedding dimensions 1,536 (OpenAI ada-002); < 500ms end-to-end
+
+**Embedding storage:**
+- 10M documents × 1,536 dimensions × 4 bytes/float = **~61 GB** for all document embeddings
+- Fits comfortably in RAM on a single high-memory server (256 GB) for brute-force similarity search
+- With quantization (int8 instead of float32): 61 GB → **~15 GB** — fits in L3 cache of a cluster
+
+**Vector index sizing (HNSW):**
+- HNSW index overhead: ~10× the raw embedding size for graph connections
+- 61 GB raw × 10 = **~610 GB** for a full HNSW index
+- Distributed across 10 nodes with 64 GB RAM each: 64 GB × 10 = 640 GB — just fits
+- Alternatively: use IVF-PQ (inverted file + product quantization): 61 GB raw → **~6 GB** compressed index, fits on one node, trades recall accuracy (~95% vs 99% for HNSW)
+
+**Query throughput:**
+- 1M queries/day ÷ 86,400 sec = **~11.6 queries/sec** average
+- Peak: 5× = **~58 queries/sec**
+- Per query: embed the query (~10ms via API) + ANN search (~5ms on HNSW) + fetch top-K docs (~20ms) + LLM generation (~500ms) = **~535ms** P50 — slightly over budget
+- Optimization: embed query locally (self-hosted model, ~2ms), use IVF-PQ for faster ANN search (~2ms) → **~525ms** → still tight; pre-warm LLM KV cache for common query patterns
+
+**Document ingestion pipeline:**
+- New documents need to be chunked, embedded, and indexed before queries can find them
+- Chunking: split 10M documents into ~2-4 chunks each = **~25M chunks** total
+- Embedding 25M chunks at 10M tokens/min (OpenAI Batch API): 25M chunks × 100 tokens/chunk = 2.5B tokens ÷ 10M tokens/min = **~250 minutes** for initial indexing
+- Incremental updates: new documents arrive at ~1,000/day; 4,000 new chunks/day × 100ms embedding each = **6.7 minutes/day** of embedding compute
+
+**Top-K retrieval precision:**
+- K=5 retrieved chunks × average 200 tokens per chunk = 1,000 tokens added to LLM context
+- LLM context window budget: 1,000 (retrieved) + 500 (system prompt) + 200 (user query) + 500 (response) = **2,200 tokens** total — well within any modern LLM context window
+- Retrieval recall@5: HNSW with ef=200 achieves ~99% recall at K=5 for 10M vectors — acceptable
+
+**Architecture decisions driven by these numbers:**
+- **HNSW for high recall, IVF-PQ for memory-constrained deployments**: HNSW at 99% recall requires 610 GB — needs a 10-node cluster. IVF-PQ achieves 95% recall with 6 GB — fits on one node. At 58 queries/sec peak, the latency difference is small (5ms vs 2ms for ANN search). The real constraint is memory budget: if the full 10M-doc corpus must fit in RAM for < 500ms latency, HNSW on a 10-node cluster is correct; if memory budget is tight, IVF-PQ with a slight recall trade-off is the right call.
+- **Chunking strategy directly impacts retrieval quality**: A 10M-document corpus with 4,000-token documents in single chunks makes retrieval imprecise — a query about one paragraph retrieves the entire document. Chunking at 200-400 tokens with 50-token overlap ensures retrieved context is tightly relevant. 25M chunks vs 10M documents increases index size 2.5× but improves retrieval precision significantly.
+- **Self-hosted embedding model to hit 500ms SLA**: OpenAI API embedding call: 10–50ms (network round trip to API). Self-hosted `text-embedding-3-small` on GPU: ~2ms. At 58 queries/sec, API calls add 58 × 50ms = 2.9 seconds of aggregate latency per second of throughput — creating a bottleneck. Self-hosted embedding eliminates this bottleneck and also eliminates per-query API cost ($0.00002/1K tokens × 11.6 queries/sec × 100 tokens = **$0.0023/sec = $200/day** saved).
+
+---
+
+## Related
+
+**Concepts used in this design**
+
+- [Elasticsearch Internals](../../04-advanced-topics/03-internals/09-elasticsearch-internals.md)
+- [Caching Layer](../../02-building-blocks/02-performance/01-caching-layer.md)
+- [Index Structures](../../04-advanced-topics/03-internals/01-index-structures.md)
+- [Message Brokers](../../02-building-blocks/04-coordination/01-message-brokers.md)
+- [Sharding](../../02-building-blocks/03-data-partitioning/01-sharding.md)
+
+**Practice next**
+
+- [LLM Chat System](../03-hard/llm-chat-system.md)
+- [Typeahead Search](../02-medium/typeahead-search.md)
+
+The chat system is the product surface over this retrieval core.
+
+**Frameworks**: [HLD Template](../../07-interview-templates/01-frameworks/01-hld-template.md) · [Capacity Estimation](../../07-interview-templates/02-cheat-sheets/02-capacity-estimation.md) · [Trade-offs Cheat Sheet](../../07-interview-templates/02-cheat-sheets/01-trade-offs-cheat-sheet.md)
