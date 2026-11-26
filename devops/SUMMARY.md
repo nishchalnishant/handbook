@@ -262,6 +262,8 @@
 * [General Scenario-Based Drills](Interview_Prep/scenario-drills.md)
 
 * Cross-Cutting Resources
+  * [DevOps, MLOps, and Cloud Glossary](glossary.md)
+  * [4-Year Interview Glossary](interview-glossary-4-years.md)
   * [System Design Problems](system-design.md)
   * [Behavioral & Leadership Interview](behavioral.md)
   * [Career and Community](Career_and_Community.md)

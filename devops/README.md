@@ -33,6 +33,8 @@ DevOps Interview Handbook & Senior Learning Roadmap
 │   ├── Easy / Medium / Hard sections in each tool directory
 │   └── Supporting playbooks, scenario drills, STAR guides
 └── Supporting Guides
+    ├── glossary.md                  ── DevOps, MLOps, cloud, Kubernetes, Terraform terminology
+    ├── interview-glossary-4-years.md ── focused interview glossary for 4-year experience level
     ├── system-design.md             ── 10 design problems with mindmap + first principles
     ├── behavioral.md                ── STAR stories, leadership anchors, 90-day framework
     └── SUMMARY.md                   ── GitBook-style table of contents
