@@ -1,0 +1,109 @@
+---
+module: LLMs
+topic: LLM Core: Theory, Training & Research
+subtopic: ""
+status: unread
+tags: [llms, ml, llm-core-theory-training-research]
+---
+# LLM Core: Theory, Training & Research
+
+This directory serves as the theoretical bedrock for Large Language Models (LLMs). It covers the fundamental research, architectural innovations, and training methodologies that power models like GPT-4, Llama 3, and Claude.
+
+> **Frontier model roster:** the specific-model examples in this folder's deep-dives (GPT-4o, Claude 3, o3, DeepSeek-R1, Qwen3, etc.) are illustrative, not exhaustive — they're not refreshed every model release.
+
+## Theoretical Roadmap
+
+### 1. [Training Lifecycle](01-training-process.md)
+*From trillions of tokens to a helpful assistant.*
+- Pre-training (Objectives, Data Mixture).
+- SFT (Instruction Tuning).
+- Alignment (RLHF vs DPO).
+
+### 2. [Scaling Laws & Data](02-scaling-and-data.md)
+*The physics of LLM performance.*
+- Compute Optimality (Chinchilla Laws).
+- Data Quality & Deduplication.
+- Synthetic Data generation.
+
+### 3. [Advanced Architecture](03-architecture-deep-dive.md)
+*State-of-the-art model internals.*
+- Mixture of Experts (MoE).
+- KV-Cache & Attention Optimization (GQA, MQA).
+- Flash Attention & RoPE.
+
+### 4. [Evaluation & Benchmarks](04-evaluation-benchmarks.md)
+*Measuring intelligence objectively.*
+- MMLU, GSM8K, and HumanEval.
+- Model-as-a-Judge.
+- LMSYS Chatbot Arena.
+
+### 5. [Training Stability](05-training-stability.md)
+*Keeping a large run from diverging.*
+- Loss spikes and recovery.
+- Mixed precision and numerical issues.
+- Checkpointing strategy.
+
+### 6. [Fine-Tuning at Scale](06-fine-tuning-at-scale.md)
+*Adapting a pre-trained model efficiently.*
+- LoRA/QLoRA and adapter methods.
+- Full fine-tuning vs. PEFT tradeoffs.
+- Catastrophic forgetting.
+
+### 7. [Context Window Extension](07-context-window-extension.md)
+*Making long context actually work.*
+- RoPE scaling and interpolation.
+- Attention approximations for long sequences.
+- Effective vs. claimed context length.
+
+### 8. [KV Cache, MQA, GQA](08-kv-cache-and-mqa-gqa.md)
+*Memory-efficient inference attention.*
+- KV cache memory math.
+- Multi-query and grouped-query attention.
+- Serving-time tradeoffs.
+
+### 9. [MoE — Advanced and Routing](09-moe-advanced-and-routing.md)
+*Scaling parameters without scaling compute per token.*
+- Routing algorithms and load balancing.
+- Expert capacity and dropped tokens.
+- Sparse vs. dense compute tradeoffs.
+
+### 10. [Tokenization](10-tokenization.md)
+*Where the model's view of text is decided.*
+- BPE, WordPiece, SentencePiece.
+- Vocabulary size tradeoffs.
+- Tokenizer failure modes (numbers, non-English text).
+
+### 11. [Large Language Models](11-large-language-model.md)
+*Model-family survey and synthesis.*
+- GPT/Llama/Claude family comparisons.
+- How the pieces above compose into a shipped model.
+
+---
+
+## Related Directories
+
+This folder is the *theory/training* layer. Applied and systems treatments of the same topics live next door:
+- **[11-llm-applications/](../11-llm-applications/)** — building with LLMs: RAG, agentic workflows, prompt optimization, multimodal, inference optimization, MCP.
+- **[12-systems-and-scale/](../12-systems-and-scale/)** — the serving/systems layer: model compression, LLM serving, inference ops.
+- **[16-interview-prep/llm-interview-notes/](../16-interview-prep/llm-interview-notes/)** — interview-ready answers and drills, trimmed from the theory files.
+
+**Boundary rule:** if the question is "how do LLMs work?", "why does training behave this way?", or "what is the architecture tradeoff?", it belongs here. If the question is "how do we build a useful LLM product or serve it well?", it belongs in [11-llm-applications](../11-llm-applications/) or [12-systems-and-scale](../12-systems-and-scale/).
+
+---
+
+## [Interview Question Bank](_interview-questions.md)
+*Direct answers to high-signal LLM interview questions.*
+- Architecture deep-dives.
+- Training strategies.
+- Production trade-offs.
+
+> This is a small, first-principles-reasoning-focused set (why the trap exists, how to reason to the answer) — for a much larger topic-by-topic Q&A bank (deep + snappy versions, RAG/agents/fine-tuning/evals/system design), see [llm-interview-notes/README.md](../16-interview-prep/llm-interview-notes/README.md).
+
+**Applied companion:** [_interview-questions-applied.md](_interview-questions-applied.md) — a 37-question bank concentrated on RAG pipelines, agent patterns (ReAct, MCP, prompt injection), serving optimizations (PagedAttention, continuous batching, prefix caching), quantization, and LLMOps/eval design.
+
+There is also [interviewquestions.md](../16-interview-prep/_interview-questions.md) — a rapid-fire Easy/Medium/Hard tiered Q&A bank spanning the whole folder (tokenization through RLHF math), calibrated to interview round depth rather than organized by topic.
+
+---
+
+## [Recommended Reading](../18-resources/llm-books/README.md)
+*Deep-dive books and resources on LLM development.*
