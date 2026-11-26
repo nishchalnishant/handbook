@@ -1,0 +1,560 @@
+# DevOps, MLOps, and Cloud Interview Glossary
+
+Use this as a revision map before interviews. Each term is intentionally short: know the definition, where it appears in production, and one failure mode.
+
+## Core DevOps and Delivery
+
+- **DevOps**: Culture and engineering practice that joins development and operations through automation, feedback, ownership, and continuous delivery.
+- **CI (Continuous Integration)**: Frequently merging code and validating it with automated builds, tests, and checks.
+- **CD (Continuous Delivery)**: Keeping software always releasable through automated packaging, promotion, and deployment readiness.
+- **Continuous Deployment**: Automatically deploying every validated change to production without manual approval.
+- **Pipeline**: Automated workflow that moves code from commit to build, test, scan, package, deploy, and verify.
+- **Artifact**: Versioned output of a build, such as a container image, JAR, Helm chart, model file, or binary.
+- **Artifact repository**: Store for build outputs, such as Nexus, Artifactory, GitHub Packages, ECR, ACR, or GCR.
+- **Immutable artifact**: Build output that is never modified after creation; the same artifact is promoted across environments.
+- **Environment promotion**: Moving the same tested artifact from dev to test, staging, and production.
+- **Blue-green deployment**: Two production environments exist; traffic switches from old blue to new green after validation.
+- **Canary deployment**: Gradual rollout where a small percentage of users receive the new version first.
+- **Rolling deployment**: Replacing old instances with new ones incrementally.
+- **Feature flag**: Runtime switch that enables or disables functionality without redeploying.
+- **Rollback**: Returning to a previous known-good version after a failed release.
+- **Roll forward**: Fixing production by deploying a new corrected version instead of reverting.
+- **Change failure rate**: Percentage of deployments that cause incidents or require remediation.
+- **Deployment frequency**: How often software is released to production.
+- **Lead time for changes**: Time from code commit to production availability.
+- **MTTR (Mean Time To Recovery)**: Average time needed to restore service after an incident.
+- **DORA metrics**: Four delivery metrics: deployment frequency, lead time, change failure rate, and MTTR.
+- **Shift left**: Moving testing, security, and quality checks earlier in the development lifecycle.
+- **Release train**: Fixed release schedule where changes board the next planned release.
+- **Trunk-based development**: Developers merge small changes frequently into the main branch.
+- **GitFlow**: Branching model with long-lived feature, release, and hotfix branches.
+- **Monorepo**: Single repository containing multiple projects or services.
+- **Polyrepo**: Separate repository per service or component.
+- **Semantic versioning**: Version format `MAJOR.MINOR.PATCH` indicating breaking, feature, and bug-fix changes.
+- **Idempotency**: Running an operation multiple times produces the same final state.
+- **Drift**: Difference between declared desired state and actual running state.
+- **Golden path**: Recommended paved workflow for teams to build, deploy, and operate services safely.
+
+## Linux and Scripting
+
+- **Kernel**: Core of the operating system that manages CPU, memory, devices, processes, and system calls.
+- **System call**: Interface used by programs to request kernel services.
+- **Process**: Running instance of a program.
+- **Thread**: Lightweight execution unit inside a process.
+- **PID**: Process identifier.
+- **Exit code**: Numeric result of a command; `0` usually means success.
+- **Signal**: Notification sent to a process, such as `SIGTERM`, `SIGKILL`, or `SIGHUP`.
+- **Zombie process**: Completed process whose parent has not collected its exit status.
+- **Orphan process**: Process whose parent exited; it is adopted by init/systemd.
+- **systemd**: Linux service manager responsible for starting and supervising services.
+- **Unit file**: systemd configuration for services, timers, mounts, sockets, or targets.
+- **cgroup**: Kernel feature that limits and accounts CPU, memory, and I/O for process groups.
+- **namespace**: Kernel isolation mechanism used by containers for PID, network, mount, user, and IPC separation.
+- **File descriptor**: Numeric handle for open files, sockets, pipes, or devices.
+- **stdin/stdout/stderr**: Standard input, output, and error streams.
+- **Pipe**: Connects output of one command to input of another.
+- **Redirection**: Sends command input/output to or from files.
+- **Cron**: Time-based job scheduler.
+- **Shell script**: Script executed by a shell such as Bash or Zsh.
+- **Shebang**: First line like `#!/bin/bash` that selects the interpreter.
+- **Environment variable**: Key-value configuration available to processes.
+- **PATH**: Environment variable listing directories searched for executables.
+- **Permissions**: File access bits for owner, group, and others.
+- **sudo**: Executes commands with elevated privileges based on policy.
+- **Package manager**: Tool for installing and updating software, such as `apt`, `yum`, `dnf`, or `brew`.
+- **Load average**: CPU run queue pressure over 1, 5, and 15 minutes.
+- **OOMKill**: Process termination by the kernel when memory is exhausted.
+- **ulimit**: Shell and process resource limits.
+- **strace**: Traces system calls for debugging.
+- **tcpdump**: Captures network packets for troubleshooting.
+
+## Networking
+
+- **TCP/IP**: Foundational protocol suite for internet communication.
+- **TCP**: Reliable, connection-oriented transport protocol.
+- **UDP**: Connectionless transport protocol used when low latency matters.
+- **IP address**: Network address assigned to a device or interface.
+- **CIDR**: Address range notation like `10.0.0.0/16`.
+- **Subnet**: Logical segment of an IP network.
+- **Route table**: Rules that decide where packets should be forwarded.
+- **Gateway**: Network device or service that forwards traffic to another network.
+- **NAT**: Translates private addresses to public or alternate addresses.
+- **SNAT**: Source NAT; changes source address of packets.
+- **DNAT**: Destination NAT; changes destination address of packets.
+- **DNS**: Resolves names like `api.example.com` to IP addresses.
+- **TTL**: Time-to-live for DNS records or packets.
+- **A record**: DNS record mapping a name to an IPv4 address.
+- **AAAA record**: DNS record mapping a name to an IPv6 address.
+- **CNAME**: DNS alias pointing one name to another.
+- **MX record**: DNS record for mail routing.
+- **TLS**: Encryption protocol used by HTTPS.
+- **mTLS**: Mutual TLS where both client and server verify certificates.
+- **Certificate Authority (CA)**: Trusted issuer of certificates.
+- **SNI**: TLS extension allowing multiple certificates on one IP.
+- **HTTP**: Application protocol for web APIs and sites.
+- **HTTPS**: HTTP over TLS.
+- **HTTP/2**: Multiplexed HTTP version that improves connection efficiency.
+- **HTTP/3**: HTTP over QUIC using UDP.
+- **gRPC**: RPC framework commonly using HTTP/2 and Protocol Buffers.
+- **WebSocket**: Long-lived bidirectional connection over HTTP upgrade.
+- **Load balancer**: Distributes traffic across multiple backends.
+- **L4 load balancing**: Balancing based on transport data like IP and port.
+- **L7 load balancing**: Balancing based on application data like host, path, or headers.
+- **Reverse proxy**: Server that receives client traffic and forwards it to backend services.
+- **Forward proxy**: Proxy used by clients to reach external destinations.
+- **Firewall**: Enforces allow/deny network rules.
+- **WAF**: Web Application Firewall that blocks malicious HTTP traffic.
+- **VPN**: Encrypted private network over an untrusted network.
+- **BGP**: Routing protocol used to exchange routes between networks.
+- **MTU**: Maximum packet size on a network path.
+- **Latency**: Time taken for a request or packet to travel.
+- **Throughput**: Amount of data processed per unit of time.
+- **Packet loss**: Dropped packets that cause retransmits, timeouts, or degraded quality.
+
+## Git and Version Control
+
+- **Repository**: Storage for source code and version history.
+- **Commit**: Immutable snapshot of tracked changes.
+- **Branch**: Movable pointer to a commit line.
+- **Tag**: Named pointer to a specific commit, often used for releases.
+- **Merge**: Combines changes from one branch into another.
+- **Rebase**: Replays commits on top of another base commit.
+- **Cherry-pick**: Applies a specific commit onto another branch.
+- **Pull request**: Review workflow for merging proposed changes.
+- **Code review**: Human inspection of code for correctness, maintainability, and risk.
+- **Conflict**: Overlapping changes Git cannot merge automatically.
+- **Fast-forward merge**: Moves branch pointer forward without a merge commit.
+- **Squash merge**: Combines multiple commits into one before merging.
+- **Git hook**: Script triggered by Git events such as commit or push.
+- **Submodule**: Repository embedded inside another repository.
+- **Git LFS**: Extension for storing large files outside normal Git objects.
+- **Protected branch**: Branch with rules for reviews, checks, or restricted pushes.
+- **CODEOWNERS**: File mapping paths to required reviewers.
+
+## Containers and Docker
+
+- **Container**: Isolated process packaged with its runtime dependencies.
+- **Image**: Read-only container filesystem template.
+- **Layer**: Immutable filesystem delta in an image.
+- **Dockerfile**: Build recipe for creating a container image.
+- **Build context**: Files sent to the image builder.
+- **Multi-stage build**: Dockerfile pattern that separates build tools from final runtime image.
+- **Distroless image**: Minimal image without shell/package manager, reducing attack surface.
+- **Base image**: Starting image used by a Dockerfile.
+- **Registry**: Store for container images, such as Docker Hub, ECR, ACR, or GCR.
+- **Tag**: Human-readable image reference such as `v1.2.0`.
+- **Digest**: Immutable content hash for an image.
+- **Entrypoint**: Main executable run when a container starts.
+- **CMD**: Default arguments or command for a container.
+- **Volume**: Persistent or shared storage mounted into a container.
+- **Bind mount**: Host path mounted into a container.
+- **Bridge network**: Default Docker network connecting containers through a virtual bridge.
+- **Overlay network**: Multi-host container network.
+- **Container runtime**: Software that runs containers, such as containerd or CRI-O.
+- **OCI**: Open Container Initiative standards for images and runtimes.
+- **SBOM**: Software Bill of Materials listing components in an artifact.
+- **Image scanning**: Checking images for vulnerabilities, secrets, and misconfigurations.
+
+## Kubernetes and Cloud Native
+
+- **Kubernetes**: Container orchestration platform for scheduling, scaling, networking, and managing workloads.
+- **Cluster**: Set of Kubernetes control-plane and worker nodes.
+- **Control plane**: Components that manage cluster state and scheduling.
+- **Node**: Machine that runs workloads.
+- **Pod**: Smallest deployable Kubernetes unit; one or more containers sharing network and storage.
+- **ReplicaSet**: Ensures a specified number of pod replicas exist.
+- **Deployment**: Manages stateless application rollout and rollback.
+- **StatefulSet**: Manages stateful pods with stable identity and storage.
+- **DaemonSet**: Runs one pod on each matching node.
+- **Job**: Runs a finite task to completion.
+- **CronJob**: Runs Jobs on a schedule.
+- **Namespace**: Logical partition for resources and policies.
+- **Label**: Key-value metadata used for selection.
+- **Selector**: Query used to match labels.
+- **Annotation**: Non-identifying metadata for tools and controllers.
+- **Service**: Stable virtual endpoint for pods.
+- **ClusterIP**: Internal-only Service IP.
+- **NodePort**: Exposes a Service on each node port.
+- **LoadBalancer**: Creates an external load balancer through the cloud provider.
+- **Headless Service**: Service without a ClusterIP, often used for StatefulSets.
+- **Ingress**: HTTP routing resource for exposing services.
+- **Ingress Controller**: Controller that implements Ingress rules.
+- **Gateway API**: Newer Kubernetes API for advanced traffic routing.
+- **ConfigMap**: Non-secret configuration object.
+- **Secret**: Sensitive configuration object, base64-encoded by default and ideally encrypted at rest.
+- **ServiceAccount**: Identity used by pods to access the Kubernetes API.
+- **RBAC**: Role-based access control using Roles, ClusterRoles, RoleBindings, and ClusterRoleBindings.
+- **Admission controller**: Intercepts API requests before persistence to validate or mutate them.
+- **CRD**: Custom Resource Definition that extends the Kubernetes API.
+- **Operator**: Controller that manages an application using Kubernetes-native APIs.
+- **Controller**: Reconciliation loop that drives actual state toward desired state.
+- **Reconciliation**: Continuous correction of actual state to match declared state.
+- **kube-apiserver**: Front door of the Kubernetes control plane.
+- **etcd**: Distributed key-value store holding cluster state.
+- **scheduler**: Assigns pods to nodes.
+- **controller-manager**: Runs built-in controllers.
+- **kubelet**: Node agent that starts and monitors pods.
+- **kube-proxy**: Implements Service networking rules on nodes.
+- **CNI**: Container Network Interface plugin model for pod networking.
+- **CSI**: Container Storage Interface plugin model for storage.
+- **CRI**: Container Runtime Interface between kubelet and runtimes.
+- **CoreDNS**: DNS service inside Kubernetes.
+- **NetworkPolicy**: Kubernetes object controlling pod ingress and egress traffic.
+- **Resource request**: Guaranteed CPU/memory amount used for scheduling.
+- **Resource limit**: Maximum CPU/memory a container may use.
+- **QoS class**: Pod quality category: Guaranteed, Burstable, or BestEffort.
+- **HPA**: Horizontal Pod Autoscaler; scales pod count based on metrics.
+- **VPA**: Vertical Pod Autoscaler; adjusts resource requests.
+- **Cluster Autoscaler**: Adds or removes nodes based on pending pods and utilization.
+- **Taint**: Marks nodes to repel pods.
+- **Toleration**: Allows pods to schedule onto tainted nodes.
+- **Affinity**: Rules that attract pods to nodes or other pods.
+- **Anti-affinity**: Rules that spread pods away from nodes or other pods.
+- **PodDisruptionBudget**: Limits voluntary disruptions to preserve availability.
+- **Readiness probe**: Determines whether a pod should receive traffic.
+- **Liveness probe**: Determines whether a container should be restarted.
+- **Startup probe**: Protects slow-starting containers from premature liveness failures.
+- **CrashLoopBackOff**: Repeated container crash and restart backoff state.
+- **ImagePullBackOff**: Failure to pull a container image.
+- **Init container**: Container that runs before app containers.
+- **Sidecar**: Helper container in the same pod, often for proxying or logging.
+- **Service mesh**: Infrastructure layer for service-to-service traffic, security, and observability.
+- **Istio**: Popular service mesh using Envoy proxies.
+- **Envoy**: High-performance L7 proxy used in meshes and gateways.
+- **xDS**: Envoy discovery APIs for listeners, routes, clusters, and endpoints.
+- **OpenShift**: Red Hat Kubernetes platform with added security, build, routing, and enterprise features.
+
+## Helm and Packaging
+
+- **Helm**: Kubernetes package manager.
+- **Chart**: Helm package containing templates, values, and metadata.
+- **Release**: Installed instance of a chart.
+- **values.yaml**: Default configuration input for chart templates.
+- **Template**: Kubernetes manifest with Go template expressions.
+- **Chart dependency**: Another chart required by a parent chart.
+- **OCI chart**: Helm chart stored in an OCI-compatible registry.
+- **Helmfile**: Tool for managing multiple Helm releases declaratively.
+- **Kustomize**: Kubernetes-native manifest customization tool.
+- **Patch**: Targeted modification applied to a Kubernetes manifest.
+
+## API Management and Kong
+
+- **API gateway**: Entry point that handles routing, authentication, rate limiting, transformations, and observability for APIs.
+- **Kong Gateway**: NGINX/OpenResty-based API gateway with plugin architecture.
+- **Kong Service**: Upstream API or backend target definition in Kong.
+- **Kong Route**: Matching rule that maps client requests to a Kong Service.
+- **Kong Plugin**: Extension that adds behavior such as auth, rate limiting, logging, or transformation.
+- **Consumer**: Client identity in Kong.
+- **Upstream**: Logical backend group in Kong.
+- **Target**: Concrete backend instance inside an upstream.
+- **KIC (Kong Ingress Controller)**: Kubernetes controller that configures Kong from Kubernetes resources.
+- **DB-less mode**: Kong mode where declarative config is loaded from files or generated by KIC.
+- **Traditional mode**: Kong mode using PostgreSQL as the configuration database.
+- **Hybrid mode**: Kong topology with control plane distributing config to data planes.
+- **Control plane**: Kong component that stores and publishes configuration.
+- **Data plane**: Kong proxy nodes that serve runtime traffic.
+- **deck**: CLI for managing Kong configuration declaratively.
+- **Rate limiting**: Restricting request volume per consumer, IP, route, or service.
+- **Request transformation**: Modifying request headers, body, path, or query before upstream.
+- **Response transformation**: Modifying upstream response before returning to client.
+- **JWT**: Signed token commonly used for API authentication.
+- **OIDC**: Identity layer on top of OAuth 2.0 for user authentication.
+- **OAuth 2.0**: Authorization framework for delegated access.
+- **API versioning**: Strategy for supporting old and new API contracts.
+- **North-south traffic**: Traffic entering or leaving the platform.
+- **East-west traffic**: Internal service-to-service traffic.
+
+## CI/CD Tools
+
+- **Jenkins**: Extensible automation server for CI/CD.
+- **Jenkinsfile**: Pipeline definition stored as code.
+- **Declarative pipeline**: Structured Jenkins pipeline syntax.
+- **Scripted pipeline**: Flexible Groovy-based Jenkins pipeline syntax.
+- **Shared library**: Reusable Jenkins pipeline code.
+- **JCasC**: Jenkins Configuration as Code.
+- **Agent/runner**: Machine or pod that executes pipeline jobs.
+- **GitHub Actions**: GitHub-native workflow automation system.
+- **Workflow**: GitHub Actions automation file in `.github/workflows`.
+- **Job**: Set of workflow steps executed on a runner.
+- **Step**: Individual command or action in a job.
+- **Action**: Reusable GitHub Actions component.
+- **Reusable workflow**: Workflow callable from another workflow.
+- **Matrix strategy**: Runs jobs across combinations of versions, platforms, or parameters.
+- **OIDC federation**: Short-lived identity exchange from CI to cloud without long-lived secrets.
+- **GitLab CI**: GitLab-native CI/CD system.
+- **.gitlab-ci.yml**: GitLab pipeline definition file.
+- **Stage**: Logical grouping of CI jobs.
+- **Runner**: GitLab worker that executes jobs.
+- **Azure DevOps Pipelines**: CI/CD service for Azure and multi-cloud delivery.
+- **Self-hosted runner**: Runner managed by your organization.
+- **Cache**: Reusable pipeline files that speed up builds.
+- **Pipeline secret**: Sensitive value injected into automation securely.
+
+## Infrastructure as Code and Configuration
+
+- **IaC (Infrastructure as Code)**: Managing infrastructure through versioned declarative or procedural code.
+- **Terraform**: Declarative IaC tool for provisioning infrastructure.
+- **Provider**: Terraform plugin for a platform such as AWS, Azure, GCP, Kubernetes, or GitHub.
+- **Resource**: Infrastructure object managed by Terraform.
+- **Data source**: Read-only lookup of existing infrastructure or external data.
+- **Module**: Reusable Terraform configuration package.
+- **Root module**: Terraform configuration in the working directory.
+- **State file**: Terraform record mapping configuration to real infrastructure.
+- **Backend**: Location where Terraform state is stored.
+- **Remote state**: State stored centrally, such as S3, Azure Storage, or Terraform Cloud.
+- **State locking**: Prevents concurrent Terraform writes.
+- **Plan**: Terraform preview of proposed changes.
+- **Apply**: Terraform operation that makes real changes.
+- **Destroy**: Terraform operation that removes managed resources.
+- **Workspace**: Terraform state separation mechanism.
+- **Variable**: Input to Terraform configuration.
+- **Output**: Exposed value from Terraform configuration.
+- **Lifecycle rule**: Terraform behavior control such as `prevent_destroy` or `ignore_changes`.
+- **Drift detection**: Finding infrastructure changes made outside IaC.
+- **Terragrunt**: Wrapper for managing Terraform at scale with DRY configuration.
+- **Sentinel**: Policy as code framework used with Terraform Cloud/Enterprise.
+- **Ansible**: Agentless configuration management and automation tool.
+- **Playbook**: YAML automation definition in Ansible.
+- **Inventory**: List of hosts managed by Ansible.
+- **Role**: Reusable Ansible structure for tasks, templates, files, and defaults.
+- **Collection**: Packaged Ansible content.
+- **Fact**: Host information discovered by Ansible.
+- **Handler**: Ansible task triggered by notification, often for service restart.
+- **Molecule**: Testing framework for Ansible roles.
+- **Packer**: Tool for building machine images.
+- **Cloud-init**: First-boot configuration system for cloud instances.
+
+## Cloud Engineering
+
+- **Cloud provider**: Platform such as AWS, Azure, or GCP offering compute, storage, networking, and managed services.
+- **Region**: Geographic cloud location containing multiple availability zones.
+- **Availability Zone**: Isolated datacenter group inside a region.
+- **VPC/VNet**: Isolated cloud network.
+- **Public subnet**: Subnet with route to an internet gateway.
+- **Private subnet**: Subnet without direct inbound internet exposure.
+- **Internet Gateway**: Cloud gateway for internet access.
+- **NAT Gateway**: Allows private resources to reach the internet without inbound exposure.
+- **Security Group**: Stateful virtual firewall for cloud resources.
+- **Network ACL**: Stateless subnet-level firewall in AWS.
+- **IAM**: Identity and Access Management for users, roles, policies, and permissions.
+- **Role**: Identity assumed by services or users to receive permissions.
+- **Policy**: Permission document defining allowed or denied actions.
+- **Least privilege**: Granting only permissions required for a task.
+- **KMS**: Key Management Service for encryption keys.
+- **Object storage**: Durable storage for objects, such as S3, Azure Blob, or GCS.
+- **Block storage**: Disk-like storage for VMs, such as EBS or Azure Disk.
+- **File storage**: Shared filesystem storage, such as EFS or Azure Files.
+- **Managed Kubernetes**: Provider-operated Kubernetes control plane, such as EKS, AKS, or GKE.
+- **EKS**: Amazon Elastic Kubernetes Service.
+- **AKS**: Azure Kubernetes Service.
+- **GKE**: Google Kubernetes Engine.
+- **ECS**: AWS container orchestration service.
+- **Fargate**: Serverless container compute in AWS.
+- **Lambda / Functions / Cloud Functions**: Serverless function compute services.
+- **Serverless**: Execution model where infrastructure management is abstracted and billed by usage.
+- **Auto Scaling Group**: AWS group that scales EC2 instances.
+- **VM Scale Set**: Azure equivalent for scaling VM instances.
+- **Cloud Load Balancer**: Managed traffic distribution service.
+- **Private Link / Private Endpoint**: Private connectivity to managed services without public internet exposure.
+- **Peering**: Private network connection between VPCs/VNets.
+- **Transit Gateway / Virtual WAN**: Hub for connecting multiple networks.
+- **Route 53 / Azure DNS / Cloud DNS**: Managed DNS services.
+- **CloudWatch / Azure Monitor / Cloud Monitoring**: Cloud-native monitoring services.
+- **CloudTrail / Activity Log / Audit Logs**: Cloud audit records.
+- **Organizations / Management Groups / Resource Hierarchy**: Structures for multi-account or multi-subscription governance.
+- **Landing zone**: Preconfigured cloud foundation with accounts, networking, identity, logging, and guardrails.
+- **Multi-cloud**: Using two or more cloud providers.
+- **Hybrid cloud**: Combining cloud resources with on-premises infrastructure.
+
+## DevSecOps and Supply Chain Security
+
+- **DevSecOps**: Integrating security into development, delivery, and operations.
+- **SAST**: Static Application Security Testing; scans source code without running it.
+- **DAST**: Dynamic Application Security Testing; tests a running application.
+- **SCA**: Software Composition Analysis; checks dependencies for vulnerabilities and licenses.
+- **Secret scanning**: Detecting credentials accidentally committed to code.
+- **Vulnerability**: Weakness that can be exploited.
+- **CVE**: Public identifier for a known vulnerability.
+- **CVSS**: Severity scoring system for vulnerabilities.
+- **Threat model**: Structured analysis of assets, attackers, risks, and mitigations.
+- **Zero trust**: Security model that continuously verifies identity and context.
+- **Defense in depth**: Multiple layers of security controls.
+- **Policy as Code**: Versioned machine-enforced policy, such as OPA, Kyverno, or Sentinel.
+- **OPA**: Open Policy Agent for policy decisions.
+- **Rego**: Policy language used by OPA.
+- **Kyverno**: Kubernetes-native policy engine.
+- **Falco**: Runtime threat detection for Linux and Kubernetes.
+- **Vault**: Secret management system for dynamic secrets and encryption.
+- **Secret rotation**: Regularly replacing credentials.
+- **Sealed Secrets**: Kubernetes encrypted Secret workflow.
+- **External Secrets Operator**: Syncs secrets from external secret stores into Kubernetes.
+- **SLSA**: Supply-chain Levels for Software Artifacts framework.
+- **Provenance**: Verifiable record of how an artifact was built.
+- **Attestation**: Signed statement about an artifact or process.
+- **Cosign**: Tool for signing and verifying container images/artifacts.
+- **Sigstore**: Ecosystem for keyless signing and transparency logs.
+- **Admission policy**: Rule enforced before Kubernetes accepts a resource.
+- **Pod Security Standards**: Kubernetes baseline/restricted policies for pod security.
+- **Rootless container**: Container running without root privileges.
+- **Seccomp**: Linux syscall filtering.
+- **AppArmor/SELinux**: Linux mandatory access control systems.
+
+## Observability, SRE, and Reliability
+
+- **Observability**: Ability to understand system behavior from outputs like metrics, logs, and traces.
+- **Monitoring**: Collecting and alerting on known signals.
+- **Metric**: Numeric measurement over time.
+- **Log**: Event record emitted by applications or systems.
+- **Trace**: End-to-end request path across services.
+- **Span**: Single operation inside a trace.
+- **Prometheus**: Metrics collection and query system.
+- **Grafana**: Visualization and dashboarding platform.
+- **PromQL**: Query language for Prometheus.
+- **Exporter**: Component exposing metrics for Prometheus scraping.
+- **Alertmanager**: Prometheus component that groups, routes, and silences alerts.
+- **OpenTelemetry**: Standard framework for metrics, logs, and traces.
+- **Jaeger/Tempo**: Distributed tracing backends.
+- **ELK/EFK**: Elasticsearch/OpenSearch, Logstash/Fluentd/Fluent Bit, Kibana logging stack.
+- **SLI**: Service Level Indicator; measured reliability signal.
+- **SLO**: Service Level Objective; target for an SLI.
+- **SLA**: Service Level Agreement; contractual reliability promise.
+- **Error budget**: Allowed unreliability derived from an SLO.
+- **Burn rate**: Speed at which error budget is being consumed.
+- **Golden signals**: Latency, traffic, errors, and saturation.
+- **RED method**: Rate, errors, duration for request-driven services.
+- **USE method**: Utilization, saturation, errors for infrastructure resources.
+- **Incident**: Unplanned service degradation or outage.
+- **Postmortem**: Blameless review of an incident and corrective actions.
+- **Runbook**: Step-by-step operational procedure.
+- **Playbook**: Higher-level operational guide for a scenario.
+- **On-call**: Rotation responsible for responding to incidents.
+- **MTTA**: Mean time to acknowledge.
+- **RTO**: Recovery Time Objective; maximum acceptable restoration time.
+- **RPO**: Recovery Point Objective; maximum acceptable data loss window.
+- **Chaos engineering**: Controlled failure experiments to validate resilience.
+- **Circuit breaker**: Stops calls to failing dependencies temporarily.
+- **Timeout**: Maximum time a caller waits before failing.
+- **Retry**: Reattempting a failed operation.
+- **Backoff**: Increasing delay between retries.
+- **Bulkhead**: Isolation pattern that prevents one failure domain from consuming all resources.
+
+## GitOps, Progressive Delivery, and Platform Engineering
+
+- **GitOps**: Operating infrastructure and applications from declarative config stored in Git.
+- **Argo CD**: GitOps continuous delivery controller for Kubernetes.
+- **Application**: Argo CD resource representing a deployable unit.
+- **ApplicationSet**: Argo CD controller for generating many Applications.
+- **App of Apps**: Argo CD pattern where one app manages other apps.
+- **Sync**: Applying desired Git state to the cluster.
+- **OutOfSync**: Live state differs from Git state.
+- **Self-heal**: Automatically correcting live drift.
+- **Prune**: Removing live resources no longer declared in Git.
+- **Progressive delivery**: Controlled rollout using canaries, analysis, and automated promotion.
+- **Argo Rollouts**: Kubernetes controller for canary and blue-green deployments.
+- **Flagger**: Progressive delivery operator integrating with meshes and metrics.
+- **IDP (Internal Developer Platform)**: Platform that gives teams self-service paths for building and operating services.
+- **Backstage**: Developer portal framework often used for service catalogs and golden paths.
+- **Service catalog**: Inventory of services, owners, metadata, and dependencies.
+- **Scorecard**: Standardized health or maturity assessment for services.
+- **Crossplane**: Kubernetes-based control plane for provisioning cloud infrastructure.
+- **Platform as a Product**: Treating internal platform capabilities as products for developers.
+- **FinOps**: Cloud financial operations discipline balancing cost, speed, and quality.
+- **Unit cost**: Cost per business unit such as request, customer, model run, or transaction.
+- **Showback/chargeback**: Reporting or billing cloud costs to teams.
+- **Rightsizing**: Matching resource size to actual demand.
+- **Reserved instances / savings plans**: Commitment-based cloud discounts.
+- **Spot instances**: Discounted interruptible compute capacity.
+
+## MLOps and ML Fundamentals
+
+- **MLOps**: Practices for reliably building, deploying, monitoring, and governing machine learning systems.
+- **Dataset**: Collection of data used for training, validation, testing, or inference.
+- **Feature**: Input variable used by a model.
+- **Label**: Target value the model learns to predict.
+- **Training**: Process of fitting a model to data.
+- **Validation**: Evaluating model choices during development.
+- **Test set**: Held-out data used for final unbiased evaluation.
+- **Inference**: Running a trained model to produce predictions.
+- **Batch inference**: Generating predictions on scheduled or bulk data.
+- **Online inference**: Serving predictions synchronously through an API.
+- **Model artifact**: Serialized trained model plus metadata needed for deployment.
+- **Experiment tracking**: Recording parameters, metrics, code, data, and artifacts for model runs.
+- **Model registry**: Versioned catalog of models and lifecycle stages.
+- **Feature store**: Central system for defining, storing, and serving reusable features.
+- **Online feature store**: Low-latency feature serving for real-time inference.
+- **Offline feature store**: Historical feature storage for training and batch inference.
+- **Training-serving skew**: Difference between feature computation in training and production.
+- **Data drift**: Change in input data distribution over time.
+- **Concept drift**: Change in relationship between inputs and target outcome.
+- **Model drift**: Degradation in model performance over time.
+- **Data validation**: Checking schema, ranges, nulls, freshness, and quality before training or inference.
+- **Feature engineering**: Transforming raw data into useful model inputs.
+- **Hyperparameter**: Model setting chosen before training.
+- **Hyperparameter tuning**: Searching for the best hyperparameter values.
+- **Model evaluation**: Measuring model quality using task-specific metrics.
+- **Accuracy**: Fraction of correct predictions.
+- **Precision**: Of predicted positives, how many were truly positive.
+- **Recall**: Of actual positives, how many were found.
+- **F1 score**: Harmonic mean of precision and recall.
+- **ROC-AUC**: Ranking quality metric for classifiers.
+- **RMSE/MAE**: Common regression error metrics.
+- **Overfitting**: Model performs well on training data but poorly on unseen data.
+- **Underfitting**: Model too simple to learn the pattern.
+- **Bias**: Systematic error or unfair model behavior.
+- **Variance**: Sensitivity to training data changes.
+- **Reproducibility**: Ability to recreate a model run with the same code, data, config, and environment.
+- **Data lineage**: Record of where data came from and how it changed.
+- **CT (Continuous Training)**: Automated retraining pipeline triggered by data, code, or schedule.
+- **CM (Continuous Monitoring)**: Ongoing monitoring of data, model, and service health.
+- **Shadow deployment**: New model receives production traffic copies without affecting users.
+- **A/B testing**: Comparing model or feature variants with real users.
+- **Champion/challenger**: Current production model competes with candidate models.
+- **Model serving**: Infrastructure for exposing models as APIs, batch jobs, or streaming processors.
+- **KServe/Seldon/BentoML**: Common model serving frameworks.
+- **MLflow**: Platform for experiment tracking, model registry, and packaging.
+- **Kubeflow**: Kubernetes-native ML workflow platform.
+- **Airflow**: Workflow orchestration system often used for data and ML pipelines.
+- **DVC**: Data Version Control for datasets and ML pipelines.
+- **GPU**: Accelerator commonly used for deep learning training and inference.
+- **CUDA**: NVIDIA parallel computing platform for GPUs.
+- **MIG**: NVIDIA GPU partitioning feature.
+- **Vector database**: Database optimized for embedding similarity search.
+- **Embedding**: Numeric vector representation of text, image, audio, or other data.
+- **RAG**: Retrieval-Augmented Generation; adds retrieved context to LLM prompts.
+- **LLMOps**: Operational practices for deploying, evaluating, monitoring, and governing LLM applications.
+- **Prompt template**: Reusable structure for LLM inputs.
+- **Token**: Unit of text processed by an LLM.
+- **Context window**: Maximum tokens a model can consider at once.
+- **Hallucination**: Model output that is unsupported or false.
+- **Guardrail**: Policy, validation, or control around model input/output.
+- **Model quantization**: Reducing numeric precision to lower memory and compute cost.
+
+## Data, Messaging, and Storage
+
+- **Database migration**: Versioned change to database schema or data.
+- **Connection pool**: Reusable database connections to reduce overhead.
+- **Read replica**: Database copy used for read scaling.
+- **Backup**: Copy of data for recovery.
+- **Restore**: Returning data from a backup.
+- **Replication**: Copying data between systems.
+- **Sharding**: Splitting data across multiple partitions or nodes.
+- **Partitioning**: Dividing data by key, range, or time for performance and management.
+- **Queue**: Buffer for asynchronous work.
+- **Topic**: Named stream/category of messages in pub-sub systems.
+- **Producer**: Component that writes messages.
+- **Consumer**: Component that reads messages.
+- **Dead-letter queue**: Destination for messages that cannot be processed successfully.
+- **Kafka**: Distributed event streaming platform.
+- **Consumer group**: Kafka consumers sharing partitions for parallel processing.
+- **Exactly-once semantics**: Processing guarantee that avoids duplicates in supported conditions.
+- **At-least-once delivery**: Messages may be delivered more than once but not lost.
+- **Idempotent consumer**: Consumer that can safely process duplicate messages.
+
+## Interview Anchors
+
+- **When asked about a tool**, explain the problem it solves, its architecture, one production use case, and one failure mode.
+- **When asked about Kubernetes**, connect workload, networking, storage, security, and observability.
+- **When asked about cloud**, connect identity, networking, compute, storage, cost, and reliability.
+- **When asked about CI/CD**, connect source control, artifact immutability, security gates, deployment strategy, and rollback.
+- **When asked about MLOps**, connect data, training, registry, serving, monitoring, drift, and governance.
+- **When asked a scenario**, clarify symptoms, blast radius, recent changes, metrics/logs/traces, mitigation, root cause, and prevention.
