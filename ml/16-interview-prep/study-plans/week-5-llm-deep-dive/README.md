@@ -1,6 +1,6 @@
 ---
 module: Interview Prep
-topic: Week 5 (Days 31-35): LLM Deep Dive
+topic: 'Week 5 (Days 31-35): LLM Deep Dive'
 subtopic: ""
 status: unread
 tags: [studyplans, ml, week-5-days-31-35-llm-deep-dive]

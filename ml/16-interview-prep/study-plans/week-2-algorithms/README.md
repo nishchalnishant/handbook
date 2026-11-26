@@ -1,6 +1,6 @@
 ---
 module: Interview Prep
-topic: Week 2 (Days 8-21): Algorithms
+topic: 'Week 2 (Days 8-21): Algorithms'
 subtopic: ""
 status: unread
 tags: [studyplans, ml, week-2-days-8-21-algorithms]

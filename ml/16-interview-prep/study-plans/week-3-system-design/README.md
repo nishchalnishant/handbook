@@ -1,6 +1,6 @@
 ---
 module: Interview Prep
-topic: Week 3 (Days 22-25): System Design
+topic: 'Week 3 (Days 22-25): System Design'
 subtopic: ""
 status: unread
 tags: [studyplans, ml, week-3-days-22-25-system-design]

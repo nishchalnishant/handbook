@@ -1,6 +1,6 @@
 ---
 module: LLMs
-topic: LLM Core: Theory, Training & Research
+topic: 'LLM Core: Theory, Training & Research'
 subtopic: ""
 status: unread
 tags: [llms, ml, llm-core-theory-training-research]

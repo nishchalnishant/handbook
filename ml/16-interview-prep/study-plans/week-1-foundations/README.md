@@ -1,6 +1,6 @@
 ---
 module: Interview Prep
-topic: Week 1 (Days 1-7): Foundations
+topic: 'Week 1 (Days 1-7): Foundations'
 subtopic: ""
 status: unread
 tags: [studyplans, ml, week-1-days-1-7-foundations]

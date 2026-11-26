@@ -1,6 +1,6 @@
 ---
 module: Interview Prep
-topic: Week 4 (Days 26-30): Final Prep
+topic: 'Week 4 (Days 26-30): Final Prep'
 subtopic: ""
 status: unread
 tags: [studyplans, ml, week-4-days-26-30-final-prep]
