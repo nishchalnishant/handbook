@@ -58,6 +58,14 @@ Each term uses this structure:
 
 ## B
 
+
+### BM25 / Lexical Search
+- **Definition:** A bag-of-words retrieval function that ranks documents based on term frequency and inverse document frequency.
+- **Math / Formula:** Saturates term frequency impacts and penalizes overly long documents compared to raw TF-IDF.
+- **How it works:** Matches exact keywords between the query and documents.
+- **Why it matters:** Essential half of Hybrid Search. Dense embeddings miss exact IDs, product codes, and rare names that BM25 catches.
+- **Pitfalls:** Cannot match synonyms or semantic intent (e.g., "laptop" vs "macbook").
+- **Related:** [[glossary#RAG (Retrieval-Augmented Generation)|RAG]], [[glossary#Reciprocal Rank Fusion (RRF)|Reciprocal Rank Fusion]], Sparse Retrieval.
 ## C
 
 ### Calibration
@@ -102,6 +110,22 @@ Each term uses this structure:
 
 ---
 
+
+### Chunking
+- **Definition:** The process of splitting large documents into smaller text segments before embedding them for vector storage.
+- **Math / Formula:** Controlled by `chunk_size` (e.g., 500 tokens) and `overlap` (e.g., 50 tokens).
+- **How it works:** Documents are split at fixed token counts, sentence boundaries, or structural elements (paragraphs, markdown headers).
+- **Why it matters:** LLMs have limited context windows and attention degrades on long inputs. Chunking ensures only relevant context is retrieved.
+- **Pitfalls:** Arbitrary splitting can cut sentences in half or separate a question from its answer.
+- **Related:** [[glossary#RAG (Retrieval-Augmented Generation)|RAG]], [[glossary#Embedding|Embedding]], Document Parsing.
+
+### Cosine Similarity
+- **Definition:** A mathematical measure of similarity between two non-zero vectors based on the angle between them.
+- **Math / Formula:** `cos(θ) = (A · B) / (||A|| ||B||)`
+- **How it works:** Ranges from -1 (opposite) to 1 (identical). In embedding spaces, 1 means highly semantically similar.
+- **Why it matters:** The primary distance metric used in vector databases to find the most relevant chunks for a user's query.
+- **Pitfalls:** Requires vectors to be normalized. Not sensitive to vector magnitude, only direction.
+- **Related:** [[glossary#Embedding|Embedding]], [[glossary#Vector Database / ANN Index|Vector Database]], Dot Product.
 ## D
 
 ### DPO (Direct Preference Optimization)
@@ -232,6 +256,14 @@ Each term uses this structure:
 
 ---
 
+
+### LLM-as-a-Judge
+- **Definition:** An evaluation pattern where a strong LLM (like GPT-4) is prompted to grade the output of another model against a specific rubric.
+- **Math / Formula:** Often calibrated against human raters using Cohen's Kappa score.
+- **How it works:** The judge model evaluates faithfulness, relevance, or safety, returning a numeric score and reasoning.
+- **Why it matters:** Traditional metrics like ROUGE/BLEU fail to capture semantic correctness in generative tasks.
+- **Pitfalls:** Judge models suffer from position bias, verbosity bias, and drift (if the provider updates the model behind the API).
+- **Related:** [[glossary#Evaluation at Scale|Evaluation]], [[glossary#RAG Evaluation|RAG Evaluation]], Ground Truth.
 ## M
 
 ### Multi-Agent Orchestration
@@ -284,8 +316,24 @@ Each term uses this structure:
 
 ---
 
+
+### Model Routing
+- **Definition:** Dynamically dispatching user queries to different LLMs (e.g., small vs. large) based on query complexity or intent.
+- **Math / Formula:** Routing threshold optimized for `Cost = %_small * C_small + %_large * C_large` while maintaining quality.
+- **How it works:** A fast, cheap classifier (or rule engine) determines if a query is simple enough for a small model (e.g., Llama 3 8B) or requires a frontier model (e.g., GPT-4).
+- **Why it matters:** Can reduce production inference costs by 5-20x without noticeable quality degradation on simple tasks.
+- **Pitfalls:** If the router is slow, it negates the latency benefits of the smaller model.
+- **Related:** Intent Classification, [[glossary#Cost Optimization as a Design Concern|Cost Optimization]], [[glossary#Throughput|Throughput]].
 ## N
 
+
+### nDCG (Normalized Discounted Cumulative Gain)
+- **Definition:** A metric for evaluating ranking quality that heavily penalizes highly relevant documents appearing lower in the search results.
+- **Math / Formula:** `DCG = Σ (rel_i / log2(i + 1))`; nDCG is DCG divided by ideal DCG.
+- **How it works:** Measures both presence and position of relevant documents in the top-K retrieved chunks.
+- **Why it matters:** The gold standard metric for evaluating RAG retrieval pipelines.
+- **Pitfalls:** Requires graded relevance judgments (0-3 scale) rather than simple binary (relevant/not relevant).
+- **Related:** [[glossary#Recall|Recall@K]], MRR, [[glossary#Cross-Encoder Reranking|Cross-Encoder Reranking]].
 ## P
 
 ### Perplexity
@@ -338,6 +386,14 @@ Each term uses this structure:
 
 ---
 
+
+### Prefix Caching
+- **Definition:** Caching the KV states for long, static prompt prefixes (like system instructions or few-shot examples) so they aren't recomputed on every request.
+- **Math / Formula:** Reduces Time To First Token (TTFT) by skipping the prefill computation for the cached prefix.
+- **How it works:** The inference server (e.g., vLLM) recognizes shared prompt prefixes across different user requests and loads their KV matrices directly from GPU memory.
+- **Why it matters:** Drastically reduces latency and compute cost for applications with massive system prompts.
+- **Pitfalls:** Cache misses trigger full recomputation; requires a server that supports it natively.
+- **Related:** [[glossary#KV Cache|KV Cache]], [[glossary#TTFT (Time To First Token)|TTFT]], [[glossary#Context Window|Context Window]].
 ## Q
 
 ### Quantization
@@ -386,6 +442,14 @@ Each term uses this structure:
 
 ---
 
+
+### Reciprocal Rank Fusion (RRF)
+- **Definition:** An algorithm to combine ranked lists from multiple search algorithms into a single unified ranking.
+- **Math / Formula:** `RRF Score = Σ (1 / (k + rank_i))`, usually k=60.
+- **How it works:** It takes the rank position from a dense retriever and a BM25 retriever, calculates a score, and sorts the combined list.
+- **Why it matters:** The standard, parameter-free way to merge hybrid search results because it doesn't require normalizing vastly different scoring scales.
+- **Pitfalls:** Can dilute strong signals from one retriever if the other brings in excessive noise.
+- **Related:** [[glossary#BM25 / Lexical Search|BM25]], Hybrid Search, [[glossary#RAG (Retrieval-Augmented Generation)|RAG]].
 ## S
 
 ### Safety Filter / Guardrails
@@ -430,6 +494,22 @@ Each term uses this structure:
 
 ---
 
+
+### Semantic Caching
+- **Definition:** Caching LLM responses based on the semantic similarity of the query, rather than an exact string match.
+- **Math / Formula:** Cache hit if `cosine_similarity(query_emb, cached_emb) > threshold`.
+- **How it works:** When a new query arrives, it is embedded. If it is highly similar to a previous query (e.g., "how do I reset password" vs "password reset instructions"), the cached response is served instantly.
+- **Why it matters:** Reduces API costs by up to 40% for FAQ-like workloads and provides sub-100ms latency on hits.
+- **Pitfalls:** Setting the threshold too low causes false hits (serving the wrong answer to a superficially similar question).
+- **Related:** [[glossary#Cosine Similarity|Cosine Similarity]], [[glossary#Embedding|Embedding]], [[glossary#Cost Optimization as a Design Concern|Cost Optimization]].
+
+### System Prompt
+- **Definition:** The metaprompt or instruction set that defines the core persona, boundaries, and rules of engagement for an LLM application.
+- **Math / Formula:** Often consumes 10-50% of the input token budget on small queries.
+- **How it works:** Injected into the model's context as the highest-privilege instruction before the user's input.
+- **Why it matters:** The primary defense mechanism against prompt injection and the main driver of application behavior.
+- **Pitfalls:** Long system prompts dilute attention; contradictory instructions cause erratic behavior.
+- **Related:** [[glossary#Prompt Injection|Prompt Injection]], [[glossary#Safety Filter / Guardrails|Guardrails]], [[glossary#Prefix Caching|Prefix Caching]].
 ## T
 
 ### Temperature
