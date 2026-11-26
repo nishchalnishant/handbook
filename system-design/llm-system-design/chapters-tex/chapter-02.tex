@@ -1,0 +1,192 @@
+\chapter{Chapter 2: The LLM Stack and Core Patterns}
+
+\section*{Context}
+\textbf{Problem statement:} Design a production LLM stack and decision framework for choosing between prompt chaining, RAG, and agentic orchestration under strict latency, cost, and safety constraints.
+
+
+\subsection*{Real-World Examples}
+\begin{itemize}
+  \item A SaaS company routes invoice classification to a small model, customer policy Q&A to RAG, and dispute-resolution workflows to an agentic path.
+  \item An enterprise migration uses managed APIs for launch, then moves stable high-volume routes to self-hosted GPUs for unit-cost reduction.
+\end{itemize}
+
+\section*{Step 1: Understand the Problem and Establish Design Scope}
+\subsection*{Simulated Dialogue}
+\textbf{Interviewer:} Design the LLM stack for a multi-product AI platform.\\
+\textbf{Candidate:} I will quantify traffic, latency budgets, and risk classes first, then define pattern routing and serving architecture.
+
+\subsection*{Functional Requirements}
+\begin{itemize}
+  \item Support prompt chaining, RAG, and agentic flows under one platform.
+  \item Route requests dynamically across model tiers and providers.
+  \item Enforce policy checks and deterministic fallback behavior.
+  \item Provide traceable outputs with quality and cost telemetry.
+\end{itemize}
+
+\subsection*{Non-Functional Requirements}
+\begin{itemize}
+  \item Latency: route-specific TTFT/TPOT and p95 targets.
+  \item Scale: absorb burst traffic without cascading failures.
+  \item Cost: per-route token budgets and monthly controls.
+  \item Reliability/compliance: tenant isolation, auditability, policy enforcement.
+\end{itemize}
+
+\subsection*{Back-of-the-envelope Estimation}
+\begin{itemize}
+  \item Requests/day: 16M; pattern split 50\% prompt chain, 35\% RAG, 15\% agentic.
+  \item Average QPS: $16,000,000/86,400 \approx 185$; peak QPS (12x): $\approx 2,220$.
+  \item Total input/day: $\approx 29.44B$ tokens; total output/day: $\approx 3.888B$ tokens.
+  \item Cost/day: $(input/10^6)\cdot p_{in} + (output/10^6)\cdot p_{out}$.
+  \item Latency envelope: prompt chain p95 1.5--2.5s, RAG p95 3--5s, agentic p95 6--12s.
+  \item VRAM planning: 7B class $\sim 16$--$24GB$, 13B--34B $\sim 40$--$80GB$, 70B class requires multi-GPU parallel serving.
+\end{itemize}
+
+\section*{Step 2: Propose High-Level Design and Get Buy-In}
+\subsection*{Core Architecture Components}
+\begin{itemize}
+  \item API gateway + policy layer
+  \item Intent/complexity router
+  \item Prompt runtime, retrieval runtime, and agent runtime
+  \item Model router and serving runtime with batching and KV cache
+  \item Safety/runtime verification plus observability/eval loop
+\end{itemize}
+
+\subsection*{Pipeline A: Stack Preparation / Data and Runtime Setup}
+\begin{enumerate}
+  \item Register prompts, schemas, tools, and policy rules.
+  \item Build retrieval artifacts and model catalog tiers.
+  \item Configure route budgets and fallback chains.
+  \item Publish config with versioned rollback handles.
+\end{enumerate}
+
+\subsection*{Pipeline B: Runtime Query Execution}
+\begin{enumerate}
+  \item Validate request and classify intent/complexity.
+  \item Route into prompt, RAG, or agentic execution graph.
+  \item Execute with bounded token/time budgets and streaming.
+  \item Apply safety checks and emit traces/eval metrics.
+\end{enumerate}
+
+\textit{[Insert Architecture Diagram: Show gateway and policy layer feeding a router that branches into prompt, RAG, and agentic runtimes; all converge via model router + serving runtime with continuous batching/KV cache, with safety validators and observability loop.]}
+
+\subsection*{TikZ Architecture Diagram}
+\begin{center}
+\begin{tikzpicture}[node distance=1.6cm, auto, >=stealth]
+  \node[draw, rounded corners] (client) {UserClient};
+  \node[draw, rounded corners, right=of client] (gateway) {APIGateway};
+  \node[draw, rounded corners, right=of gateway] (router) {IntentRouter};
+  \node[draw, rounded corners, above right=0.8cm and 1.5cm of router] (rag) {RAGRuntime};
+  \node[draw, rounded corners, below right=0.8cm and 1.5cm of router] (agent) {AgentRuntime};
+  \node[draw, rounded corners, right=3.2cm of router] (model) {ModelRouter};
+  \node[draw, rounded corners, below=of model] (safe) {SafetyVerifier};
+  \draw[->] (client) -- (gateway);
+  \draw[->] (gateway) -- (router);
+  \draw[->] (router) -- (rag);
+  \draw[->] (router) -- (agent);
+  \draw[->] (rag) -- (model);
+  \draw[->] (agent) -- (model);
+  \draw[->] (model) -- (safe);
+  \draw[->] (safe) |- (client);
+\end{tikzpicture}
+\end{center}
+
+\section*{Step 3: Design Deep Dive}
+\begin{enumerate}
+  \item \textbf{Pattern Selection: RAG vs Agent}
+  \item \textbf{Prompt Chaining Design}
+  \item \textbf{Model Routing and Tiering}
+\end{enumerate}
+
+\subsection*{Trade-off Comparisons}
+\begin{tabular}{|p{0.18\linewidth}|p{0.24\linewidth}|p{0.24\linewidth}|p{0.24\linewidth}|}
+\hline
+\textbf{Decision} & \textbf{Option A} & \textbf{Option B} & \textbf{Recommended} \\
+\hline
+Execution pattern & Prompt chaining only & RAG/agentic everywhere & Route by complexity and risk \\
+\hline
+Model hosting & Managed-only & Self-hosted-only & Hybrid managed + self-hosted \\
+\hline
+Routing policy & Static mapping & Dynamic rule-based & Dynamic with eval-gated updates \\
+\hline
+Caching & No cache & Single cache layer & Semantic + KV cache hierarchy \\
+\hline
+\end{tabular}
+
+\subsection*{Production Bottlenecks and Mitigations}
+\begin{itemize}
+  \item Provider rate limits and retry storms: use token buckets, circuit breakers, and jittered retries.
+  \item Router drift: track confusion matrix, false escalations/downgrades, and rollback quickly.
+  \item Metadata DB pool exhaustion: read replicas + TTL cache + connection caps.
+  \item Stale embeddings/index skew: embedding versioning, shadow tests, alias-based rollback.
+  \item Agentic hallucination loops: step ceilings, loop-signature detection, forced terminal action.
+  \item GPU OOM: strict token caps, dynamic batch shrink, and route downgrades under memory pressure.
+\end{itemize}
+
+\subsection*{Advanced Techniques}
+\begin{itemize}
+  \item Continuous batching
+  \item KV caching
+  \item Semantic caching with policy-aware invalidation
+  \item Cross-encoder reranking
+  \item Parent-child chunking
+  \item LoRA adapters
+\end{itemize}
+
+\section*{Step 4: Wrap Up}
+\textbf{Final design:} A policy-driven execution platform that routes each request to the cheapest safe path meeting quality and latency targets.
+
+\textbf{Wrap-around concerns:}
+\begin{itemize}
+  \item Routing drift and provider concentration risk
+  \item Prompt/runtime governance and release gates
+  \item Operational debt from uncontrolled chain/tool growth
+\end{itemize}
+
+\section*{Step 5: Interviewer Curveballs}
+\subsection*{Interviewer Follow-ups \& Frequently Asked Questions}
+\textbf{Q1:} If only two patterns are allowed in v1, which and why?\\
+\textbf{The Ideal Answer:} Prompt chaining + RAG for best latency-cost-quality coverage.\\
+\textbf{Deep Dive \& Trade-offs:} Add agentic only after measured unresolved complexity.\\
+\textbf{The Interviewer's Rubric:} Tests prioritization and scope discipline.
+
+\textbf{Q2:} Trigger to migrate a route from managed to self-hosted?\\
+\textbf{The Ideal Answer:} Sustained TCO and SLO advantage for multiple weeks plus ops readiness.\\
+\textbf{Deep Dive \& Trade-offs:} Include infra and on-call costs, keep managed failover path.\\
+\textbf{The Interviewer's Rubric:} Tests practical migration judgment.
+
+\textbf{Q3:} Detect router harming quality?\\
+\textbf{The Ideal Answer:} Monitor route confusion, quality pass-rate by tier, and false downgrade/upgrade rates.\\
+\textbf{Deep Dive \& Trade-offs:} Use offline oracle labels + online A/B evaluation.\\
+\textbf{The Interviewer's Rubric:} Tests routing as first-class system component.
+
+\textbf{Q4:} Hidden bottleneck in this stack?\\
+\textbf{The Ideal Answer:} Metadata/policy lookup path often dominates p95 under load.\\
+\textbf{Deep Dive \& Trade-offs:} Use pooled connections, replicas, and short TTL caches.\\
+\textbf{The Interviewer's Rubric:} Tests full-path bottleneck diagnosis.
+
+\textbf{Q5:} Keep agentic path from becoming cost sink?\\
+\textbf{The Ideal Answer:} Enforce strict step/token budgets and deterministic terminal actions.\\
+\textbf{Deep Dive \& Trade-offs:} Track cost per successful task and enforce planner budgets.\\
+\textbf{The Interviewer's Rubric:} Tests control-plane cost governance.
+
+\textbf{Q6:} When does semantic cache become dangerous?\\
+\textbf{The Ideal Answer:} Loose similarity thresholds + long freshness windows on dynamic data.\\
+\textbf{Deep Dive \& Trade-offs:} Use route-specific thresholds and source-version invalidation.\\
+\textbf{The Interviewer's Rubric:} Tests safe cache policy design.
+
+\textbf{Q7:} How to set reranker depth?\\
+\textbf{The Ideal Answer:} Tune candidate size for recall gain vs latency overhead by query class.\\
+\textbf{Deep Dive \& Trade-offs:} Usually 20--80 candidates depending on corpus and intent.\\
+\textbf{The Interviewer's Rubric:} Tests practical retrieval optimization.
+
+\textbf{Q8:} Minimum weekly KPI set?\\
+\textbf{The Ideal Answer:} TTFT p95, TPOT p95, cost/query, route distribution, Recall@K, citation precision, safety violations.\\
+\textbf{Deep Dive \& Trade-offs:} Evaluate by route/version to catch drift early.\\
+\textbf{The Interviewer's Rubric:} Tests multidimensional operational maturity.
+
+\section*{End of Chapter}
+\begin{itemize}
+  \item \textbf{Key takeaway:} Tie architecture decisions to measurable SLOs, cost, and safety outcomes.
+  \item \textbf{What to practice:} Defend one default and one fallback design with explicit trade-offs.
+  \item \textbf{Interview drill:} Explain regression detection, rollback triggers, and risk communication.
+\end{itemize}

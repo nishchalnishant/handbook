@@ -1,0 +1,35 @@
+\chapter{Chapter 23: Design an MCP-Based Tool Integration Platform}
+
+\section*{Context}
+\textbf{Problem statement:} Design an enterprise platform that lets AI applications connect to internal and third-party tools through the Model Context Protocol (MCP) while preserving security, user control, auditability, and reliable developer operations.
+
+\subsection*{Core Architecture}
+\begin{itemize}
+  \item \textbf{MCP host layer:} AI application surface that owns the conversation, model calls, and approval UX.
+  \item \textbf{MCP client manager:} maintains per-server client sessions and capability discovery.
+  \item \textbf{Server registry:} approved MCP servers, versions, owners, trust tiers, transports, and scopes.
+  \item \textbf{Policy engine:} evaluates user, tenant, tool, resource, data, and action risk.
+  \item \textbf{Tool and resource gateways:} validate calls, enforce permissions, apply approvals, and log outcomes.
+  \item \textbf{Authorization service:} handles OAuth and credentials outside model context.
+  \item \textbf{Sanitizer and audit store:} clean untrusted tool/resource content and preserve replayable traces.
+\end{itemize}
+
+\section*{Key Design Points}
+\begin{itemize}
+  \item MCP standardizes host-client-server integration through tools, resources, and prompts.
+  \item MCP does not replace enterprise controls: registry, permissions, approvals, sanitization, and audit are still required.
+  \item Treat all tool results and resource content as untrusted data.
+  \item Use intent-bound approvals for sensitive actions.
+\end{itemize}
+
+\section*{Production Risks}
+\begin{itemize}
+  \item \textbf{Prompt injection through resources:} quote and sanitize untrusted content; enforce policy outside the model.
+  \item \textbf{Tool poisoning:} review server metadata, sign approved server definitions, and use trust tiers.
+  \item \textbf{Confused deputy:} bind approval to exact tool, args, data scope, and side effect.
+  \item \textbf{Data exfiltration:} apply taint tracking and egress controls.
+\end{itemize}
+
+\section*{Interview Drill}
+Explain how a model can safely read a private document through one MCP server and then be prevented from posting that content to an external system through another server.
+

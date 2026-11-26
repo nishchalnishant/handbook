@@ -1,0 +1,191 @@
+\chapter{Chapter 1: A Framework for LLM System Design Interviews}
+
+\section*{Context}
+\textbf{Problem statement:} Build a repeatable framework for answering any LLM system design interview question with production-grade technical depth in 40-45 minutes.
+
+
+\subsection*{Real-World Examples}
+\begin{itemize}
+  \item A fintech team designs an internal LLM assistant and must justify why RAG is safer than fine-tuning for policy updates every week.
+  \item A healthcare startup interview asks for a triage bot design where abstention and escalation logic matter more than fluent prose.
+\end{itemize}
+
+\section*{Step 1: Understand the Problem and Establish Design Scope}
+\subsection*{Simulated Dialogue}
+\textbf{Interviewer:} Design a framework for LLM system design interviews.\\
+\textbf{Candidate:} I will scope product goals, risk profile, and numeric constraints first, then map them to architecture and trade-offs.
+
+\subsection*{Functional Requirements}
+\begin{itemize}
+  \item Provide a reusable 5-step response structure for any LLM system design prompt.
+  \item Force explicit design choices for retrieval, model routing, and safety controls.
+  \item Include deterministic fallback paths for low-confidence and high-risk states.
+  \item Produce outputs that are implementable and measurable.
+\end{itemize}
+
+\subsection*{Non-Functional Requirements}
+\begin{itemize}
+  \item Interview execution: coherent high-level design in under 10 minutes.
+  \item Latency discipline with explicit TTFT and TPOT budgets.
+  \item Cost visibility via token economics and serving envelope.
+  \item Scalability, safety, and rollback readiness.
+\end{itemize}
+
+\subsection*{Back-of-the-envelope Estimation}
+\begin{itemize}
+  \item DAU: 1.5M, Requests/day: 18M, Avg input: 1,600 tokens, Avg output: 280 tokens.
+  \item Average QPS: $18,000,000/86,400 \approx 208$, Peak QPS: $\approx 2,500$.
+  \item Input tokens/day: $28.8B$, Output tokens/day: $5.04B$.
+  \item Daily API cost: $(input/10^6)\cdot p_{in} + (output/10^6)\cdot p_{out}$.
+  \item Vector storage example (300M chunks, 1536-dim float32): raw $\approx 1.8TB$, production $\approx 4.0$--$5.5TB$ with overhead and replicas.
+  \item VRAM planning (order-of-magnitude): 7B quantized $\sim 16$--$24GB$, 13B--34B $\sim 40$--$80GB$, 70B class requires multi-GPU parallel serving.
+\end{itemize}
+
+\section*{Step 2: Propose High-Level Design and Get Buy-In}
+\subsection*{Core Architecture Components}
+\begin{itemize}
+  \item Client + gateway, policy layer, orchestrator, retrieval stack, model router.
+  \item Serving runtime with continuous batching, KV/prefix cache, and streaming.
+  \item Cache hierarchy: retrieval cache, semantic cache, response cache.
+  \item Safety stack and observability/evaluation loop.
+\end{itemize}
+
+\subsection*{Pipeline A: Data Ingestion / Indexing}
+\begin{enumerate}
+  \item Ingest and normalize sources.
+  \item Parse and chunk (including parent-child when needed).
+  \item Embed and index vectors + lexical terms + metadata.
+  \item Validate index quality and promote by alias swap.
+\end{enumerate}
+
+\subsection*{Pipeline B: Inference / Query}
+\begin{enumerate}
+  \item Authenticate and apply quota/policy checks.
+  \item Classify intent and choose execution path (direct/RAG/tool/agent).
+  \item Retrieve, rerank, pack context, and route model tier.
+  \item Stream output, run safety/grounding verification, emit traces.
+\end{enumerate}
+
+\textit{[Insert Architecture Diagram: Show gateway -> policy layer -> orchestrator branching into direct LLM, RAG, and tool/agent paths; include hybrid retrieval + reranker, model router with managed/self-hosted tiers, continuous batching runtime with KV cache, semantic cache check, and observability feedback loop feeding evaluation and release gates.]}
+
+\subsection*{TikZ Architecture Diagram}
+\begin{center}
+\begin{tikzpicture}[node distance=1.6cm, auto, >=stealth]
+  \node[draw, rounded corners] (client) {UserClient};
+  \node[draw, rounded corners, right=of client] (gateway) {APIGateway};
+  \node[draw, rounded corners, right=of gateway] (orch) {Orchestrator};
+  \node[draw, rounded corners, above right=0.8cm and 1.6cm of orch] (retr) {HybridRetrieval};
+  \node[draw, rounded corners, below right=0.8cm and 1.6cm of orch] (mr) {ModelRouter};
+  \node[draw, rounded corners, right=3.2cm of orch] (run) {ServeRuntime};
+  \node[draw, rounded corners, below=of run] (safe) {SafetyVerifier};
+  \draw[->] (client) -- (gateway);
+  \draw[->] (gateway) -- (orch);
+  \draw[->] (orch) -- (retr);
+  \draw[->] (orch) -- (mr);
+  \draw[->] (retr) -- (mr);
+  \draw[->] (mr) -- (run);
+  \draw[->] (run) -- (safe);
+  \draw[->] (safe) |- (client);
+\end{tikzpicture}
+\end{center}
+
+\section*{Step 3: Design Deep Dive}
+\begin{enumerate}
+  \item \textbf{Interview Scoping for LLM Systems}
+  \item \textbf{Cost-Latency-Quality-Safety Trade-off Engine}
+  \item \textbf{Production Failure Modes and Mitigations}
+\end{enumerate}
+
+\subsection*{Trade-off Comparisons}
+\begin{tabular}{|p{0.2\linewidth}|p{0.24\linewidth}|p{0.24\linewidth}|p{0.24\linewidth}|}
+\hline
+\textbf{Component} & \textbf{Option A} & \textbf{Option B} & \textbf{Recommended} \\
+\hline
+Retrieval & Keyword-only & Dense-only & Hybrid + cross-encoder reranking \\
+\hline
+Chunking & Fixed-size & Semantic & Parent-child for large docs \\
+\hline
+Serving & Managed-only & Self-hosted-only & Hybrid managed + self-hosted \\
+\hline
+Caching & No cache & Semantic cache only & Semantic + KV cache hierarchy \\
+\hline
+\end{tabular}
+
+\subsection*{Production Bottlenecks}
+\begin{itemize}
+  \item Provider rate limits and retry storms.
+  \item Queue saturation and head-of-line blocking.
+  \item GPU OOM from long prompts and oversized dynamic batches.
+  \item Stale embeddings and index drift.
+  \item Metadata/ACL connection pool exhaustion.
+  \item Agentic hallucination loops without step budgets.
+\end{itemize}
+
+\subsection*{Advanced Techniques to Mention Explicitly}
+\begin{itemize}
+  \item KV caching
+  \item Continuous batching
+  \item Semantic caching
+  \item Cross-encoder reranking
+  \item Parent-child chunking
+  \item LoRA adapters
+\end{itemize}
+
+\section*{Step 4: Wrap Up}
+\textbf{Final design:} A deterministic decision framework that prioritizes quantification first, then routes execution by complexity/risk, and enforces safety plus rollback as first-class concerns.
+
+\textbf{Wrap-around concerns:}
+\begin{itemize}
+  \item Release engineering with canary/shadow/rollback triggers.
+  \item Governance with policy versioning and audit-complete traces.
+  \item Route-level cost controls and drift monitoring by version.
+\end{itemize}
+
+\section*{Step 5: Interviewer Curveballs}
+\subsection*{Interviewer Follow-ups \& Frequently Asked Questions}
+\textbf{Q1:} TTFT regressed from 900ms to 2.4s overnight. Where first?\\
+\textbf{The Ideal Answer:} Check queue wait, cache-hit regressions, then provider throttling and scheduler saturation.\\
+\textbf{Deep Dive \& Trade-offs:} Prioritize queue metrics and route distribution; apply emergency token caps and fast-tier rerouting.\\
+\textbf{The Interviewer's Rubric:} Tests incident triage under LLM latency pressure.
+
+\textbf{Q2:} Managed vs self-hosted for one route?\\
+\textbf{The Ideal Answer:} Choose by all-in unit economics and SLO risk at steady-state volume.\\
+\textbf{Deep Dive \& Trade-offs:} Managed for speed, self-hosted for stable high-throughput economics, hybrid for resilience.\\
+\textbf{The Interviewer's Rubric:} Tests pragmatic hosting decisions.
+
+\textbf{Q3:} Default token budget policy?\\
+\textbf{The Ideal Answer:} Hard route-level input/output caps with context-packing quotas and truncation policy.\\
+\textbf{Deep Dive \& Trade-offs:} Prevents OOM, tail latency, and cost spikes while preserving relevance via reranking.\\
+\textbf{The Interviewer's Rubric:} Tests context-window operationalization.
+
+\textbf{Q4:} Avoid stale vector quality without full re-embedding?\\
+\textbf{The Ideal Answer:} Incremental re-embedding plus periodic shadow-index evaluation and alias-based promotion.\\
+\textbf{Deep Dive \& Trade-offs:} Balances freshness and cost; keep rollback alias hot.\\
+\textbf{The Interviewer's Rubric:} Tests lifecycle rigor.
+
+\textbf{Q5:} What breaks first at 10x spikes?\\
+\textbf{The Ideal Answer:} Queueing and upstream rate limits, then cache misses amplify model load.\\
+\textbf{Deep Dive \& Trade-offs:} Use reserved capacity lanes, deterministic degrade modes, and bounded retries.\\
+\textbf{The Interviewer's Rubric:} Tests burst resilience design.
+
+\textbf{Q6:} Stop agent tool loops?\\
+\textbf{The Ideal Answer:} Max-step budgets, loop-signature detection, and forced terminal action.\\
+\textbf{Deep Dive \& Trade-offs:} Enforce task-class step ceilings and escalation fallback.\\
+\textbf{The Interviewer's Rubric:} Tests control-plane safety.
+
+\textbf{Q7:} Minimum weekly health metrics?\\
+\textbf{The Ideal Answer:} TTFT p95, TPOT p95, cost/query, Recall@K, citation precision, policy violation rate.\\
+\textbf{Deep Dive \& Trade-offs:} Monitor quality, cost, and safety jointly by route and version.\\
+\textbf{The Interviewer's Rubric:} Tests multidimensional operating discipline.
+
+\textbf{Q8:} Why mention LoRA adapters in interviews?\\
+\textbf{The Ideal Answer:} They deliver low-cost domain adaptation with faster iteration than full fine-tuning.\\
+\textbf{Deep Dive \& Trade-offs:} Adds routing/version complexity; keep base-model rollback path.\\
+\textbf{The Interviewer's Rubric:} Tests practical adaptation knowledge.
+
+\section*{End of Chapter}
+\begin{itemize}
+  \item \textbf{Key takeaway:} Tie architecture decisions to measurable SLOs, cost, and safety outcomes.
+  \item \textbf{What to practice:} Defend one default and one fallback design with explicit trade-offs.
+  \item \textbf{Interview drill:} Explain regression detection, rollback triggers, and risk communication.
+\end{itemize}

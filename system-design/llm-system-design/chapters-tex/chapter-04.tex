@@ -1,0 +1,499 @@
+\chapter{Chapter 4: Serving, Scaling, and Optimizing LLMs}
+
+\section*{Context}
+
+\textbf{Problem statement:} Engineer low-latency, high-throughput LLM serving with predictable TTFT/TPOT, bounded cost/query, and graceful degradation under traffic spikes.
+
+\subsection*{Real-World Examples}
+
+\begin{itemize}
+  \item A coding assistant launch hits 12x expected traffic; continuous batching and KV caching reduce TTFT from 2.1s to 900ms without additional GPUs.
+  \item A support assistant outage reveals retry storms from provider 429s; queue isolation and deterministic degrade modes restore stability within minutes.
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 1: Understand the Problem and Establish Design Scope}
+
+\subsection*{Simulated Dialogue}
+
+\textbf{Interviewer:} Design the serving and scaling infrastructure for a multi-tenant LLM platform.\\
+\textbf{Candidate:} I need to understand the traffic shape, latency SLOs, model mix, and cost targets before proposing architecture.
+
+\textbf{Candidate:} What is the request profile?\\
+\textbf{Interviewer:} 20M requests/day, mix of short completions (avg 200 output tokens) and long generations (avg 800 output tokens). Peak is 15x average.
+
+\textbf{Candidate:} What latency SLOs must we hit?\\
+\textbf{Interviewer:} Interactive routes: TTFT $<$ 800ms, TPOT $<$ 40ms. Batch routes: p95 completion $<$ 30s.
+
+\textbf{Candidate:} What is the model landscape?\\
+\textbf{Interviewer:} Three tiers: 7B quantized (fast), 34B (balanced), 70B (complex). Plus managed API fallback.
+
+\subsection*{Functional Requirements}
+
+\begin{itemize}
+  \item Serve multiple model tiers (7B, 34B, 70B) with automatic routing by request complexity and SLO.
+  \item Support streaming responses with token-level delivery.
+  \item Handle managed API failover when self-hosted capacity is exhausted.
+  \item Enforce per-tenant and per-route token budgets and rate limits.
+\end{itemize}
+
+\subsection*{Non-Functional Requirements}
+
+\begin{itemize}
+  \item \textbf{Latency:} TTFT p95 $<$ 800ms (interactive), TPOT p95 $<$ 40ms/token.
+  \item \textbf{Throughput:} sustain 3,500 QPS peak with $<$ 5\% error rate.
+  \item \textbf{Cost:} self-hosted unit cost $<$ 60\% of equivalent managed API cost at steady state.
+  \item \textbf{Availability:} 99.9\% uptime with graceful degradation under overload.
+  \item \textbf{GPU utilization:} target $>$ 70\% average utilization across serving fleet.
+\end{itemize}
+
+\subsection*{Back-of-the-Envelope Estimation}
+
+\subsubsection*{Traffic Profile}
+
+\begin{itemize}
+  \item Requests/day: 20M
+  \item Average QPS: $20M / 86{,}400 \approx 231$
+  \item Peak QPS: $\sim$3,470 (15x average)
+  \item Token mix: 60\% short (200 output tokens), 40\% long (800 output tokens)
+  \item Average output tokens: $0.6 \times 200 + 0.4 \times 800 = 440$ tokens/request
+  \item Output tokens/day: $20M \times 440 = 8.8B$ tokens
+\end{itemize}
+
+\subsubsection*{GPU Capacity Planning (Self-Hosted)}
+
+\begin{itemize}
+  \item 7B quantized (INT4): $\sim$18GB VRAM, $\sim$120 tokens/sec/GPU
+  \item 34B quantized (INT8): $\sim$40GB VRAM, $\sim$45 tokens/sec/GPU
+  \item 70B (FP16, tensor parallel across 2xA100): $\sim$160GB VRAM, $\sim$25 tokens/sec/GPU
+\end{itemize}
+
+\textbf{Peak throughput demand (tokens/sec):}
+
+\begin{itemize}
+  \item Peak QPS $\times$ avg output tokens: $3{,}470 \times 440 \approx 1.53M$ tokens/sec
+  \item Route split at peak: 50\% fast (7B), 35\% balanced (34B), 15\% complex (70B)
+  \item 7B demand: $765K$ tok/sec $/\, 120 \approx 6{,}375$ GPU-equivalents $\rightarrow$ with continuous batching (4--8x efficiency): \textbf{$\sim$800--1,600 GPUs}
+  \item 34B demand: $\sim$535K tok/sec $/\, 45 \approx 11{,}900$ GPU-equiv $\rightarrow$ with batching: \textbf{$\sim$1,500--3,000 GPUs}
+  \item 70B demand: $\sim$230K tok/sec $/\, 25 \approx 9{,}200$ GPU-equiv $\rightarrow$ with batching: \textbf{$\sim$1,150--2,300 GPUs}
+  \item Total fleet: \textbf{$\sim$3,500--7,000 GPUs} (order-of-magnitude for peak; autoscaling reduces steady-state to $\sim$30\% of this)
+\end{itemize}
+
+\subsubsection*{KV Cache Memory}
+
+\begin{itemize}
+  \item 70B model, 128K context window, 80 layers, 128 heads, 128 head-dim:
+  \begin{itemize}
+    \item Per-token KV: $2 \times 80 \times 128 \times 128 \times 2$ bytes (FP16) $\approx 5.2$MB/token
+    \item 4K context: $\sim$20.5GB KV cache per request
+    \item Concurrent batch of 16 requests: $\sim$328GB $\rightarrow$ requires careful memory management
+  \end{itemize}
+\end{itemize}
+
+\subsubsection*{Cost Comparison}
+
+\begin{itemize}
+  \item Managed API (GPT-4 class): $\sim$\$30/1M input tokens, $\sim$\$60/1M output tokens
+  \item Self-hosted 70B (amortized GPU + ops): $\sim$\$8--12/1M output tokens at scale
+  \item Breakeven: self-hosted wins when sustained volume $>$ $\sim$2M output tokens/day per GPU
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 2: Propose High-Level Design and Get Buy-In}
+
+\subsection*{Core Architecture Components}
+
+\begin{itemize}
+  \item \textbf{Load Balancer + API Gateway:} TLS termination, tenant auth, rate limiting, request classification.
+  \item \textbf{Request Classifier:} estimates complexity/length to select model tier and queue priority.
+  \item \textbf{Model Router:} routes to self-hosted tier or managed API fallback based on capacity and SLO.
+  \item \textbf{Serving Runtime (per tier):} continuous batching scheduler, KV cache manager, streaming output handler.
+  \item \textbf{Autoscaler:} GPU fleet autoscaling based on queue depth, utilization, and latency signals.
+  \item \textbf{Cache Hierarchy:} prefix/KV cache (VRAM), semantic response cache (Redis), session prompt cache.
+  \item \textbf{Managed API Gateway:} rate-limited client for external provider failover.
+  \item \textbf{Observability:} TTFT/TPOT histograms, GPU utilization, queue depth, cache hit rate, error rate by tier.
+\end{itemize}
+
+\subsection*{Pipeline A: Model Deployment Pipeline}
+
+\begin{enumerate}
+  \item Model artifact (weights + tokenizer + config) versioned in model registry.
+  \item Quantization and optimization applied (GPTQ/AWQ for INT4/INT8, or FP16 for large tier).
+  \item Serving config generated: max batch size, max sequence length, KV cache budget per GPU.
+  \item Canary deployment to shadow traffic (5\% of production load).
+  \item Quality gate: compare output quality, latency, and error rate against baseline.
+  \item Gradual traffic shift (5\% $\rightarrow$ 25\% $\rightarrow$ 50\% $\rightarrow$ 100\%) with automatic rollback triggers.
+\end{enumerate}
+
+\subsection*{Pipeline B: Request Serving Pipeline}
+
+\begin{enumerate}
+  \item Request arrives at gateway; auth, rate limit, and quota checks applied.
+  \item Request classifier estimates token count and complexity $\rightarrow$ assigns model tier and priority.
+  \item Model router checks self-hosted capacity (queue depth $<$ threshold); falls back to managed API if overloaded.
+  \item Serving runtime adds request to continuous batch scheduler.
+  \item Scheduler groups requests by sequence length, manages KV cache allocation, begins prefill.
+  \item Tokens streamed to client as generated; TTFT and TPOT tracked per request.
+  \item On completion: response logged, telemetry emitted, cache updated if eligible.
+\end{enumerate}
+
+\textit{[Insert Architecture Diagram: Load balancer $\rightarrow$ request classifier $\rightarrow$ model router branching to self-hosted tiers (7B/34B/70B each with continuous batching runtime and KV cache) and managed API fallback. Autoscaler watches queue depth and GPU utilization. Cache hierarchy at multiple levels. Observability collecting TTFT/TPOT/utilization.]}
+
+\subsection*{Mermaid Architecture Diagram}
+
+\begin{verbatim}
+flowchart LR
+  client[Client] --> lb[LoadBalancer]
+  lb --> gateway[APIGateway]
+  gateway --> classifier[RequestClassifier]
+  classifier --> router[ModelRouter]
+
+  router --> fast[FastTier7B]
+  router --> balanced[BalancedTier34B]
+  router --> complex[ComplexTier70B]
+  router --> managed[ManagedAPIFallback]
+
+  fast --> batchSched1[ContinuousBatchScheduler]
+  balanced --> batchSched2[ContinuousBatchScheduler]
+  complex --> batchSched3[ContinuousBatchScheduler]
+
+  batchSched1 --> kvCache1[KVCacheManager]
+  batchSched2 --> kvCache2[KVCacheManager]
+  batchSched3 --> kvCache3[KVCacheManager]
+
+  kvCache1 --> stream[StreamingOutput]
+  kvCache2 --> stream
+  kvCache3 --> stream
+  managed --> stream
+
+  stream --> client
+
+  autoscaler[Autoscaler] --> fast
+  autoscaler --> balanced
+  autoscaler --> complex
+
+  semanticCache[SemanticResponseCache] --> router
+  observability[Observability] --> autoscaler
+  stream --> observability
+\end{verbatim}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 3: Design Deep Dive}
+
+Focus areas for this chapter:
+
+\begin{enumerate}
+  \item \textbf{Continuous Batching and Scheduling}
+  \item \textbf{KV Cache Management}
+  \item \textbf{Autoscaling and Overload Protection}
+\end{enumerate}
+
+\subsection*{1) Continuous Batching and Scheduling}
+
+Traditional static batching wastes GPU cycles waiting for the longest sequence in a batch to complete. \textbf{Continuous batching} (also called iteration-level or in-flight batching) admits new requests and retires completed ones at every decode step.
+
+\textbf{How it works:}
+
+\begin{itemize}
+  \item Scheduler maintains a running batch of active requests.
+  \item At each decode iteration, completed requests are evicted and new requests are admitted.
+  \item Prefill (prompt processing) and decode (token generation) can be interleaved or separated.
+\end{itemize}
+
+\subsubsection*{Batching Strategy Trade-off Table}
+
+\small
+\begin{tabular}{|p{0.16\linewidth}|p{0.15\linewidth}|p{0.15\linewidth}|p{0.14\linewidth}|p{0.24\linewidth}|}
+\hline
+\textbf{Strategy} & \textbf{GPU Utilization} & \textbf{TTFT Impact} & \textbf{Complexity} & \textbf{Best For} \\
+\hline
+Static batching & 30--50\% & High (waits for batch fill) & Low & Dev/testing \\
+\hline
+Continuous batching & 60--80\% & Low (admit immediately) & Medium & Production default \\
+\hline
+Chunked prefill & 70--85\% & Very low (prefill interleaved) & High & High-throughput serving \\
+\hline
+Disaggregated prefill/decode & 80--90\% & Lowest & Very high & Hyperscale platforms \\
+\hline
+\end{tabular}
+\normalsize
+
+\textbf{Scheduling policies:}
+
+\begin{itemize}
+  \item \textbf{FCFS (first-come first-served):} simple, fair, but head-of-line blocking from long prompts.
+  \item \textbf{Shortest-job-first (SJF):} lower average latency but starvation risk for long requests.
+  \item \textbf{Priority queues:} route-level isolation, SLO-based priority, with starvation timeout.
+  \item \textbf{Recommended:} priority queues with SLO-based preemption and starvation guard (max wait 5s).
+\end{itemize}
+
+\subsection*{2) KV Cache Management}
+
+The KV cache stores computed key/value attention states for previously processed tokens. It is the primary memory bottleneck in LLM serving.
+
+\textbf{Memory anatomy for 70B model, single request, 4K context:}
+
+\begin{itemize}
+  \item Per-layer KV: $2 \text{ (K+V)} \times \text{head\_dim} \times \text{num\_heads} \times 2$ bytes (FP16)
+  \item 80 layers, 128 heads, 128 head-dim: $\sim$5.2MB/token
+  \item 4K context: $\sim$20.5GB per concurrent request
+  \item Batch of 32: $\sim$656GB $\rightarrow$ exceeds single-node capacity
+\end{itemize}
+
+\subsubsection*{KV Cache Optimization Trade-off Table}
+
+\small
+\begin{tabular}{|p{0.18\linewidth}|p{0.14\linewidth}|p{0.17\linewidth}|p{0.14\linewidth}|p{0.23\linewidth}|}
+\hline
+\textbf{Technique} & \textbf{Memory Savings} & \textbf{Quality Impact} & \textbf{Complexity} & \textbf{Best For} \\
+\hline
+No optimization (FP16 full) & Baseline & None & None & Small models, low concurrency \\
+\hline
+KV cache quantization (INT8) & $\sim$50\% & Minimal ($<$0.5\% quality loss) & Low & Default for large models \\
+\hline
+PagedAttention (vLLM) & Variable (reduces fragmentation) & None & Medium & Production serving engines \\
+\hline
+Sliding window attention & Proportional to window size & Degrades on long-range dependencies & Medium & Long-context with locality \\
+\hline
+Multi-query / grouped-query attention & 4--8x per head & Built into model architecture & None (model-level) & Newer model architectures \\
+\hline
+\end{tabular}
+\normalsize
+
+\textbf{PagedAttention (vLLM):}
+
+\begin{itemize}
+  \item Manages KV cache as virtual memory pages (blocks of token slots).
+  \item Eliminates fragmentation from pre-allocated contiguous buffers.
+  \item Enables memory sharing for beam search and parallel sampling.
+  \item Production default in vLLM, TensorRT-LLM, and similar serving engines.
+\end{itemize}
+
+\textbf{Prefix caching:}
+
+\begin{itemize}
+  \item Cache KV states for common system prompts and instruction prefixes.
+  \item If system prompt is 2K tokens and repeats across 90\% of requests, prefix cache saves $\sim$10.4GB recomputation per request (70B model).
+  \item TTFT reduction: skip prefill for cached prefix $\rightarrow$ TTFT drops by 200--400ms.
+  \item Invalidation: version-tag prefixes; invalidate on prompt template change.
+\end{itemize}
+
+\subsection*{3) Autoscaling and Overload Protection}
+
+\subsubsection*{Autoscaling Signals}
+
+\small
+\begin{tabular}{|p{0.22\linewidth}|p{0.17\linewidth}|p{0.12\linewidth}|p{0.35\linewidth}|}
+\hline
+\textbf{Signal} & \textbf{Scaling Direction} & \textbf{Lag} & \textbf{Notes} \\
+\hline
+Queue depth (requests waiting) & Scale up & Seconds & Most responsive signal \\
+\hline
+GPU utilization & Scale up/down & Minutes & Smoothed average; avoid thrashing \\
+\hline
+TTFT p95 & Scale up & Minutes & Directly tied to user experience \\
+\hline
+Request error rate (timeouts, OOM) & Scale up (emergency) & Immediate & Circuit-breaker integration \\
+\hline
+Cost budget remaining & Scale down / cap & Hours & Prevents runaway spend \\
+\hline
+\end{tabular}
+\normalsize
+
+\textbf{Overload protection mechanisms:}
+
+\begin{itemize}
+  \item \textbf{Admission control:} reject or defer requests when queue exceeds threshold (e.g., 2x batch capacity).
+  \item \textbf{Load shedding:} drop low-priority requests first; serve cached/degraded responses for others.
+  \item \textbf{Circuit breaker to managed API:} when self-hosted error rate $>$ 5\%, overflow to managed provider.
+  \item \textbf{Token budget enforcement:} hard-reject requests exceeding max input/output token limits.
+  \item \textbf{Graceful degradation:} reduce max output tokens, skip reranking, serve cache-only summaries.
+\end{itemize}
+
+\subsection*{Production Bottlenecks and Mitigations}
+
+\begin{itemize}
+  \item \textbf{GPU OOM during long-context requests}
+  \begin{itemize}
+    \item Symptom: CUDA OOM errors, request failures on long prompts.
+    \item Mitigation: dynamic max sequence length per batch, prompt truncation policy, KV cache quantization.
+  \end{itemize}
+
+  \item \textbf{Queue saturation and head-of-line blocking}
+  \begin{itemize}
+    \item Symptom: TTFT spikes for all requests when one long prompt dominates.
+    \item Mitigation: priority queues, chunked prefill, sequence-length-based bucketing.
+  \end{itemize}
+
+  \item \textbf{Provider 429 storms during failover}
+  \begin{itemize}
+    \item Symptom: managed API rate limits hit during self-hosted outage; cascading failure.
+    \item Mitigation: token bucket rate limiting on managed API client, jittered retries, request prioritization.
+  \end{itemize}
+
+  \item \textbf{KV cache fragmentation}
+  \begin{itemize}
+    \item Symptom: effective batch size drops despite available VRAM.
+    \item Mitigation: PagedAttention, periodic cache compaction, right-sizing page block size.
+  \end{itemize}
+
+  \item \textbf{Autoscaler thrashing}
+  \begin{itemize}
+    \item Symptom: rapid scale up/down cycles during variable traffic.
+    \item Mitigation: cooldown periods, smoothed signals, min fleet size floor.
+  \end{itemize}
+
+  \item \textbf{Model version mismatch during canary}
+  \begin{itemize}
+    \item Symptom: inconsistent outputs during partial rollout.
+    \item Mitigation: sticky routing by session during canary window, clear version labeling in responses.
+  \end{itemize}
+\end{itemize}
+
+\subsection*{Advanced Techniques}
+
+\begin{itemize}
+  \item \textbf{Speculative decoding:} small draft model proposes tokens, large model verifies in parallel. 2--3x speedup when acceptance rate $>$ 70\%.
+  \item \textbf{Continuous batching with chunked prefill} for TTFT stability under mixed workloads.
+  \item \textbf{LoRA adapter serving:} load domain-specific adapters on shared base model, hot-swap per request. Adds $\sim$5\% overhead per adapter.
+  \item \textbf{Tensor parallelism} for models exceeding single-GPU VRAM (70B+ class).
+  \item \textbf{Quantized KV cache (INT8)} for 50\% memory savings with negligible quality loss.
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 4: Wrap Up}
+
+\subsection*{Final Design Summary}
+
+The design treats serving as latency engineering: route-tiered inference with continuous batching, hierarchical KV cache management, and deterministic overload controls that prioritize user experience under stress.
+
+\subsection*{Wrap-Around Concerns}
+
+\begin{itemize}
+  \item \textbf{Release engineering:} canary model deployments with quality gates and automatic rollback.
+  \item \textbf{Governance:} model version tracking, GPU allocation audits, cost attribution per tenant/route.
+  \item \textbf{Cost controls:} autoscaler cost caps, managed API budget limits, cache hit-rate targets ($>$ 30\% for semantic cache).
+  \item \textbf{Drift controls:} latency and quality dashboards sliced by model version, route, and traffic cohort.
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 5: Interviewer Curveballs}
+
+\subsection*{Interviewer Follow-ups \& Frequently Asked Questions (FAQ)}
+
+\textbf{Q: TTFT jumped from 700ms to 2.2s overnight. Walk me through your debugging steps.}
+
+\textbf{The Ideal Answer:} Check queue depth first (did traffic spike or did capacity drop?). Then check cache hit rates (did a deployment invalidate prefix cache?). Then check for routing shifts (are more requests hitting the slow tier?).
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Queue depth rise = capacity problem or traffic spike.
+  \item Cache hit-rate drop = deployment-induced invalidation or traffic pattern change.
+  \item Tier shift = request classifier regression or model router misconfiguration.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking structured incident triage for LLM-specific serving issues.
+
+\textbf{Q: How do you decide when to add a new model tier vs scaling an existing one?}
+
+\textbf{The Ideal Answer:} When latency distribution is bimodal (simple requests penalized by sharing queue with complex ones), add a smaller tier. When distribution is unimodal, scale horizontally.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item New tier: better SLO isolation but more operational complexity (deployment, monitoring, routing).
+  \item Horizontal scaling: simpler ops but wastes GPU on over-provisioned model for simple requests.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking fleet architecture reasoning beyond ``just add GPUs.''
+
+\textbf{Q: What is the practical limit of continuous batching efficiency?}
+
+\textbf{The Ideal Answer:} Bounded by KV cache memory. Maximum concurrent requests $\approx$ \texttt{available\_VRAM / (per\_request\_KV\_size)}. At 80GB VRAM and 2.5GB KV/request (34B, 2K context), max batch $\approx$ 32.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item KV quantization (INT8) doubles effective batch size.
+  \item PagedAttention reduces fragmentation overhead by 10--20\%.
+  \item Trade-off: larger batches improve throughput but increase per-token latency (TPOT).
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking whether you understand the memory-throughput-latency triangle.
+
+\textbf{Q: When is speculative decoding worth the complexity?}
+
+\textbf{The Ideal Answer:} When the draft model acceptance rate exceeds $\sim$70\% and TPOT reduction matters more than throughput (interactive use cases, not batch).
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Draft model adds VRAM overhead ($\sim$2--4GB for 1B draft model).
+  \item Low acceptance rate ($<$50\%) can actually increase latency due to wasted compute.
+  \item Best for: long generations where user is streaming and perceives token-by-token speed.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking nuanced understanding of inference optimization trade-offs.
+
+\textbf{Q: How do you handle a tenant that sends 10K-token prompts when your system is optimized for 2K average?}
+
+\textbf{The Ideal Answer:} Route to dedicated long-context queue with separate batch scheduling, enforce maximum context limit per tier, and charge premium pricing for long-context usage.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Long prompts consume 5x KV cache, blocking other requests in shared batch.
+  \item Separate queue prevents head-of-line blocking.
+  \item Consider prompt summarization as pre-processing step if full context is not needed.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking multi-tenancy fairness and resource isolation thinking.
+
+\textbf{Q: What GPU utilization target should you set, and why not 100\%?}
+
+\textbf{The Ideal Answer:} Target 70--80\% average. Headroom absorbs traffic bursts without queueing. At $>$90\%, any spike causes immediate latency degradation.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item 100\% utilization = zero burst absorption = queueing on any traffic fluctuation.
+  \item 60\% utilization = wasted capacity and poor economics.
+  \item Autoscaler should maintain 70--80\% band with scale-up triggered at 85\%.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking capacity planning discipline.
+
+\textbf{Q: How do you cost-compare self-hosted vs managed API for a specific route?}
+
+\textbf{The Ideal Answer:} Calculate all-in self-hosted cost (GPU amortization + networking + ops labor + electricity) per 1M output tokens, and compare against managed API per-token pricing at projected steady-state volume.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Self-hosted: high fixed cost, low marginal cost. Wins at sustained high volume.
+  \item Managed: zero fixed cost, high marginal cost. Wins for bursty/low-volume routes.
+  \item Breakeven typically at $\sim$2--5M output tokens/day per GPU depending on model size.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking total cost of ownership reasoning.
+
+\textbf{Q: How would you serve LoRA adapters for 50 different tenants on shared infrastructure?}
+
+\textbf{The Ideal Answer:} Load base model once per GPU. Hot-swap LoRA adapters per request using adapter registry. Use adapter batching to group requests with same adapter.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Each LoRA adapter: $\sim$50--200MB (rank 16--64, applied to attention layers).
+  \item Adapter switch overhead: $\sim$2--5ms per request (negligible).
+  \item Challenge: cache pollution if adapter diversity is high and batch sizes are small.
+  \item Alternative: tenant-dedicated model instances for high-volume tenants.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking parameter-efficient serving architecture knowledge.
+
+\section*{End of Chapter}
+
+\begin{itemize}
+  \item \textbf{Key takeaway:} LLM serving is memory-bound, not compute-bound. KV cache management, batching strategy, and overload protection determine whether your system hits latency SLOs at scale.
+  \item \textbf{What to practice:} Size a GPU fleet for a specific traffic profile with back-of-the-envelope math including VRAM, throughput, and cost.
+  \item \textbf{Interview drill:} Given a TTFT regression, walk through the full debug path from queue depth to cache hit rate to model routing to GPU utilization.
+\end{itemize}

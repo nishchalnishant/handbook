@@ -1,0 +1,637 @@
+\chapter{Chapter 17: Design a Legal Contract Review System}
+
+\section*{Context}
+
+\textbf{Problem statement:} Design a system that reviews legal contracts at scale---extracting clauses, grounding every finding to exact source text, comparing against master templates, and producing structured risk assessments---while handling documents that routinely exceed 100K tokens and tolerating zero hallucinated legal language.
+
+\subsection*{Real-World Examples}
+
+\begin{itemize}
+  \item A corporate legal team reviews 500 vendor contracts/month against a Master Service Agreement (MSA). Each contract averages 80 pages. A junior associate spends $\sim$4 hours per contract identifying deviations. Deploying an LLM-based review system with clause-level grounding reduces review time to 20 minutes per contract, but a hallucinated indemnification clause in the first week (the model fabricated language that wasn't in the contract) nearly causes a \$2M liability. Adding character-level citation verification eliminates hallucinated clauses entirely at the cost of 15\% more processing time.
+  \item An insurance company processes 10K policy documents/day during renewal season. Each policy must be compared against the current template to flag clause changes. Manual comparison misses 8\% of material deviations. An LLM-based diff pipeline with structured clause alignment catches 99.2\% of deviations, but the long-context processing pipeline must handle policies with 200+ page appendices that exceed single-model context windows.
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 1: Understand the Problem and Establish Design Scope}
+
+\subsection*{Simulated Dialogue}
+
+\textbf{Interviewer:} Design a legal contract review system powered by LLMs.\\
+\textbf{Candidate:} Legal review has a unique constraint hierarchy: correctness $>$ completeness $>$ speed. A hallucinated clause that doesn't exist in the contract is worse than missing a real clause. I need to understand document characteristics, clause taxonomy, and the acceptable error budget for different clause risk tiers.
+
+\textbf{Candidate:} What are the document characteristics?\\
+\textbf{Interviewer:} 10K contracts/day. Average 80 pages, $\sim$120K tokens. Some contracts have 200+ page appendices pushing to 300K tokens. Formats: PDF (80\%), DOCX (15\%), scanned images (5\%).
+
+\textbf{Candidate:} What is the review task?\\
+\textbf{Interviewer:} Extract 50+ clause types (indemnification, limitation of liability, termination, IP assignment, confidentiality, governing law, etc.). Compare each extracted clause against a master template. Flag deviations with risk scores. Every finding must cite exact text from the source document.
+
+\textbf{Candidate:} What accuracy is required?\\
+\textbf{Interviewer:} For critical clauses (indemnification, liability caps, termination): 99\%+ extraction accuracy, zero tolerance for hallucinated text. For standard clauses (notice periods, assignment rights): 95\%+ accuracy. False positives (flagging a deviation that isn't one) are acceptable at 5\%; false negatives (missing a real deviation) must be $<$1\% for critical clauses.
+
+\textbf{Candidate:} Latency requirements?\\
+\textbf{Interviewer:} This is a batch workflow, not interactive. Acceptable processing time: $<$5 minutes per contract for standard (80 pages), $<$15 minutes for complex (200+ pages). Results delivered to a review queue for attorney sign-off.
+
+\subsection*{Functional Requirements}
+
+\begin{itemize}
+  \item Extract 50+ predefined clause types from contracts with exact text spans (start/end character offsets).
+  \item Compare extracted clauses against master templates to identify deviations, additions, and omissions.
+  \item Produce structured risk assessments: per-clause risk score (critical/high/medium/low), deviation summary, recommended action.
+  \item Support multi-document comparison: compare two contracts against each other (e.g., proposed vs.\ executed version).
+  \item Handle documents exceeding 200K tokens through chunked or hierarchical processing.
+  \item Every extracted clause and finding must include exact source citation (page, paragraph, character span).
+  \item Support PDF, DOCX, and scanned document ingestion with OCR.
+\end{itemize}
+
+\subsection*{Non-Functional Requirements}
+
+\begin{itemize}
+  \item \textbf{Accuracy:} 99\%+ extraction for critical clauses, 95\%+ for standard clauses. Zero hallucinated text in citations.
+  \item \textbf{Throughput:} 10K contracts/day = $\sim$7 contracts/minute sustained.
+  \item \textbf{Latency:} $<$5 min per standard contract (80 pages), $<$15 min per complex contract (200+ pages).
+  \item \textbf{Cost:} $<$\$2 per contract (LLM + compute).
+  \item \textbf{Auditability:} full trace from finding to source text; reproducible results for legal discovery.
+  \item \textbf{Security:} contracts contain sensitive business terms; data must not leave tenant boundary. On-prem or private cloud deployment required for many customers.
+\end{itemize}
+
+\subsection*{Back-of-the-Envelope Estimation}
+
+\subsubsection*{Document Processing}
+
+\begin{itemize}
+  \item Contracts/day: 10K
+  \item Average pages: 80
+  \item Average tokens: 120K
+  \item Total tokens/day (input): \texttt{10K * 120K = 1.2B tokens}
+  \item With clause extraction (50 clauses $\times$ $\sim$200 output tokens each): \texttt{10K * 50 * 200 = 100M output tokens/day}
+  \item Comparison output (deviations): $\sim$500 output tokens/contract $\rightarrow$ \texttt{10K * 500 = 5M output tokens/day}
+  \item Total output tokens/day: $\sim$105M
+\end{itemize}
+
+\subsubsection*{LLM Cost}
+
+\begin{itemize}
+  \item Using GPT-4-class model (128K context): $\sim$\$0.01/1K input, \$0.03/1K output
+  \item Input cost/day: \texttt{1.2B / 1K * \$0.01 = \$12,000}
+  \item Output cost/day: \texttt{105M / 1K * \$0.03 = \$3,150}
+  \item Total/day: $\sim$\$15,150
+  \item Per contract: \texttt{\$15,150 / 10K = \$1.52} $\leftarrow$ under \$2 budget
+  \item With chunked processing overhead (20\% token increase for overlapping chunks): \texttt{\$1.52 * 1.2 = \$1.82}
+\end{itemize}
+
+\subsubsection*{Alternative: Long-Context Model (1M+ tokens)}
+
+\begin{itemize}
+  \item Claude/Gemini with 1M context: $\sim$\$0.003/1K input, \$0.015/1K output (cheaper per token but uses full context)
+  \item Per contract (120K input): \texttt{120 * \$0.003 + 10 * \$0.015 = \$0.36 + \$0.15 = \$0.51}
+  \item 60\% cheaper per contract but requires the model to attend over 120K tokens accurately
+\end{itemize}
+
+\subsubsection*{Processing Budget per Contract (80 pages, $<$5 min)}
+
+\begin{tabular}{|p{0.32\linewidth}|p{0.08\linewidth}|p{0.48\linewidth}|}
+\hline
+\textbf{Stage} & \textbf{Budget} & \textbf{Notes} \\
+\hline
+Document ingestion (PDF parse + OCR if needed) & 30s & PDF $\rightarrow$ text with layout preservation \\
+\hline
+Document chunking + indexing & 10s & Overlapping chunks, section detection \\
+\hline
+Clause extraction (LLM, multiple chunks) & 150s & 5--8 LLM calls for chunked processing, or 1 call for long-context \\
+\hline
+Citation verification & 30s & Verify each extracted clause exists verbatim in source \\
+\hline
+Template comparison & 30s & Clause alignment + deviation detection \\
+\hline
+Risk scoring + report generation & 30s & Structured output assembly \\
+\hline
+\textbf{Total} & \textbf{280s} & $\sim$4.7 min, within 5-min budget \\
+\hline
+\end{tabular}
+
+\subsubsection*{Infrastructure}
+
+\begin{itemize}
+  \item Throughput: 7 contracts/min $\rightarrow$ 7 concurrent processing pipelines
+  \item GPU (if self-hosted): 7 pipelines $\times$ 1 GPU each (for 70B model) = 7 GPUs sustained
+  \item With API-based: 7 concurrent API calls with rate limit headroom
+  \item OCR processing (5\% scanned): 500 contracts/day $\times$ 80 pages $\times$ 200ms/page = $\sim$2.2 GPU-hours for OCR
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 2: Propose High-Level Design and Get Buy-In}
+
+\subsection*{Core Architecture Components}
+
+\begin{itemize}
+  \item \textbf{Document Ingestion Service:} PDF/DOCX parsing with layout preservation, OCR for scanned documents, text normalization, section boundary detection.
+  \item \textbf{Document Chunker:} Splits long documents into overlapping chunks aligned to section boundaries. Preserves paragraph integrity. Maintains character offset mapping from chunks back to original document.
+  \item \textbf{Clause Extractor (LLM):} Identifies and extracts 50+ clause types from document chunks. Returns clause text + character offsets. Operates per-chunk with cross-chunk deduplication.
+  \item \textbf{Citation Verifier:} Post-extraction verification that every cited clause text exists verbatim in the source document at the claimed offset. Rejects any extraction where the cited text doesn't match.
+  \item \textbf{Template Registry:} Stores master contract templates with pre-extracted clause definitions. Each clause type has: expected language, acceptable variations, and deviation severity rules.
+  \item \textbf{Clause Comparator:} Aligns extracted clauses against template clauses. Computes semantic similarity, identifies additions/deletions/modifications, and classifies deviation severity.
+  \item \textbf{Risk Scorer:} Combines clause extraction confidence, deviation severity, and clause criticality into a per-clause risk score. Produces structured risk report.
+  \item \textbf{Review Queue:} Attorney-facing UI showing the contract with inline annotations, extracted clauses with source highlights, deviations with risk scores, and approve/reject/escalate actions.
+  \item \textbf{Observability:} Extraction accuracy (sampled against attorney judgments), hallucination rate, processing time, cost per contract.
+\end{itemize}
+
+\subsection*{Pipeline A: Template Ingestion Pipeline}
+
+\begin{enumerate}
+  \item Legal team uploads a master contract template (the ``gold standard'' document).
+  \item \textbf{Document Ingestion} parses the template with full layout preservation.
+  \item \textbf{Clause Extractor} runs with a specialized prompt: ``Extract every clause in this template. For each: clause type, exact text, section number, page number.''
+  \item Attorney reviews and corrects the extracted template clauses (human-in-the-loop calibration).
+  \item Approved template clauses stored in \textbf{Template Registry} with: clause\_type, canonical\_text, acceptable\_variation\_rules (e.g., ``liability cap must be between \$1M and \$10M''), severity\_if\_missing (critical/high/medium/low).
+  \item Template versioned. Multiple templates can coexist (e.g., vendor MSA template v3.2, NDA template v1.1).
+\end{enumerate}
+
+\subsection*{Pipeline B: Contract Review Pipeline}
+
+\begin{enumerate}
+  \item Contract submitted for review (PDF/DOCX upload via API or batch).
+  \item \textbf{Document Ingestion:} parse PDF with \texttt{pdfplumber} (for native PDF) or \texttt{Tesseract} (for scanned). Preserve page numbers, paragraph boundaries, and character offsets. Output: structured text with character-level position mapping.
+  \item \textbf{Section Detection:} identify document structure---section headers, numbered clauses, appendices, exhibits, signature blocks. Use a combination of regex patterns (numbered sections like ``3.1'', ``ARTICLE IV'') and an LLM classifier for ambiguous boundaries.
+  \item \textbf{Document Chunking:} split into overlapping chunks of $\sim$8K tokens with 500-token overlap. Align chunk boundaries to section breaks when possible. Each chunk carries its character offset range in the original document.
+  \item \textbf{Clause Extraction:} for each chunk, call the LLM with the prompt:
+  \begin{itemize}
+    \item System: ``You are a legal contract reviewer. Extract all clauses matching the following types: [list of 50+ clause types]. For each clause found, return: clause\_type, exact\_verbatim\_text (copy character-for-character from the document), start\_char\_offset, end\_char\_offset, confidence\_score.''
+    \item Emphasis in prompt: ``Do NOT paraphrase or summarize. Return the EXACT text as it appears in the document.''
+  \end{itemize}
+  \item \textbf{Cross-chunk deduplication:} clauses spanning chunk boundaries appear in both chunks. Deduplicate by character offset overlap ($>$50\% overlap $\rightarrow$ merge, keep the extraction with higher confidence).
+  \item \textbf{Citation Verification:} for every extracted clause, verify: \texttt{document\_text[start\_offset:end\_offset] == extracted\_text}. If mismatch: fuzzy-match within a $\pm$200 character window. If still no match: reject the extraction (hallucination detected).
+  \item \textbf{Template Comparison:} for each extracted clause, find the matching clause in the template. Compute:
+  \begin{itemize}
+    \item Token-level diff (insertion/deletion/modification).
+    \item Semantic similarity (sentence embedding cosine similarity).
+    \item Clause-specific deviation rules (e.g., ``liability cap changed from \$5M to \$2M'' $\rightarrow$ critical deviation).
+  \end{itemize}
+  \item \textbf{Missing clause detection:} for each template clause not found in the contract, flag as ``clause omitted'' with severity from template definition.
+  \item \textbf{Risk Scoring:} aggregate per-clause scores into a contract-level risk report. Structure: critical (must fix), high (should fix), medium (review), low (informational).
+  \item Results pushed to \textbf{Review Queue} for attorney sign-off.
+\end{enumerate}
+
+\subsection*{Mermaid Architecture Diagram}
+
+% Mermaid diagram (not natively supported in LaTeX)
+\begin{verbatim}
+flowchart LR
+  contract[ContractUpload PDF/DOCX] --> ingestion[DocumentIngestion]
+  ingestion --> ocr{Scanned?}
+  ocr -->|yes| ocrEngine[OCR Tesseract/PaddleOCR]
+  ocr -->|no| parser[PDFParser pdfplumber]
+  ocrEngine --> structuredText[StructuredText + CharOffsets]
+  parser --> structuredText
+
+  structuredText --> sectionDetect[SectionDetector]
+  sectionDetect --> chunker[DocumentChunker 8K overlap]
+
+  chunker --> clauseExtract[ClauseExtractor LLM]
+  clauseExtract --> dedup[CrossChunkDedup]
+  dedup --> citVerify[CitationVerifier]
+
+  citVerify -->|verified| comparator[ClauseComparator]
+  citVerify -->|hallucination| reject[RejectedExtraction]
+
+  templateUpload[TemplateUpload] --> templateIngest[TemplateIngestion]
+  templateIngest --> templateRegistry[TemplateRegistry]
+
+  templateRegistry --> comparator
+  comparator --> riskScorer[RiskScorer]
+  riskScorer --> reviewQueue[AttorneyReviewQueue]
+
+  reviewQueue --> attorney[Attorney Approve/Reject/Escalate]
+
+  observability[Observability Accuracy Hallucination Latency]
+    --> clauseExtract
+  observability --> citVerify
+  observability --> comparator
+\end{verbatim}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 3: Design Deep Dive}
+
+Focus areas:
+
+\begin{enumerate}
+  \item \textbf{Long-Context Processing Strategies}
+  \item \textbf{Exact Grounding and Citation Verification}
+  \item \textbf{Multi-Document Comparison Pipeline}
+\end{enumerate}
+
+\subsection*{1) Long-Context Processing Strategies}
+
+An 80-page contract at $\sim$120K tokens exceeds the effective context window of most models. Even models with 128K or 1M token context windows degrade in accuracy on tasks requiring attention to specific passages deep in the context (the ``lost in the middle'' problem). Three architectural approaches:
+
+\textbf{Approach A: Chunked Processing with Cross-Chunk Reconciliation}
+
+Split the document into overlapping chunks, process each independently, reconcile results.
+
+\begin{itemize}
+  \item Chunk size: 8K tokens (fits comfortably in any model's context with room for the system prompt + clause definitions).
+  \item Overlap: 500 tokens (ensures clauses spanning chunk boundaries are captured in at least one chunk).
+  \item Processing: each chunk gets an independent LLM call for clause extraction.
+  \item Reconciliation: deduplicate by character offset, merge split clauses, resolve conflicts (same text classified as different clause types in different chunks $\rightarrow$ use the classification with higher confidence).
+  \item Chunks per 120K-token contract: \texttt{120K / (8K - 0.5K) = 16 chunks}
+  \item LLM calls: 16 per contract for extraction + 1 for final reconciliation = 17 calls.
+\end{itemize}
+
+\textbf{Approach B: Long-Context Model (Single Pass)}
+
+Use a model with 128K+ context window (Claude 3.5, Gemini 1.5 Pro, GPT-4-turbo 128K) to process the entire document in one call.
+
+\begin{itemize}
+  \item Entire 120K-token document + system prompt + clause definitions ($\sim$5K tokens) = 125K tokens.
+  \item Single LLM call. No chunking, no reconciliation.
+  \item Risk: ``lost in the middle'' effect---clauses in the middle third of the document have lower extraction recall ($\sim$15\% lower) than clauses near the beginning or end.
+  \item Mitigation: use two passes with different document orderings (original order, then reversed order), merge results.
+\end{itemize}
+
+\textbf{Approach C: Hierarchical Processing}
+
+Two-stage pipeline: coarse pass identifies clause locations, fine pass extracts and analyzes each.
+
+\begin{enumerate}
+  \item \textbf{Stage 1 (coarse):} Use a fast model (or even regex + NLP) to identify candidate clause locations---section headers matching clause type patterns (``Indemnification'', ``Limitation of Liability'', ``Term and Termination''). Output: (section\_header, page, char\_offset) tuples.
+  \item \textbf{Stage 2 (fine):} For each candidate location, extract a $\sim$4K token window around it. Run the LLM on this focused context with the specific clause type prompt. Higher accuracy because the model attends to a small, relevant window.
+  \item \textbf{Stage 3 (gap check):} Run a sweep to find clauses in unexpected locations (e.g., an indemnification clause buried in an appendix). Use embedding search: embed each paragraph, search for paragraphs similar to template clause embeddings.
+\end{enumerate}
+
+\subsubsection*{Long-Context Strategy Trade-off Table}
+
+\begin{tabular}{|p{0.14\linewidth}|p{0.08\linewidth}|p{0.10\linewidth}|p{0.08\linewidth}|p{0.06\linewidth}|p{0.08\linewidth}|p{0.22\linewidth}|}
+\hline
+\textbf{Strategy} & \textbf{Recall} & \textbf{Precision} & \textbf{LLM Calls} & \textbf{Cost} & \textbf{Latency} & \textbf{Best For} \\
+\hline
+Chunked (8K, overlap) & 92\% & 96\% & 17 & \$1.80 & 150s (parallel) & Universal fallback \\
+\hline
+Long-context single pass & 85\% & 97\% & 1 & \$0.51 & 60s & Short contracts ($<$60 pages) \\
+\hline
+Long-context dual pass & 93\% & 97\% & 2 & \$1.02 & 120s & Medium contracts \\
+\hline
+Hierarchical (coarse + fine + gap) & 96\% & 98\% & 10--15 & \$1.20 & 180s & \textbf{Production default for critical} \\
+\hline
+Hybrid: hierarchical for critical, chunked for standard & 96\%/92\% & 98\%/96\% & 12--18 & \$1.50 & 200s & \textbf{Production default overall} \\
+\hline
+\end{tabular}
+
+\textbf{Recommended:} Hybrid approach. Use hierarchical processing for the 15 critical clause types (indemnification, liability, termination, IP, confidentiality, etc.) and chunked processing for the remaining 35+ standard clause types. This allocates compute budget where accuracy matters most.
+
+\subsection*{2) Exact Grounding and Citation Verification}
+
+In legal review, a hallucinated clause---text the model generates that doesn't exist in the contract---can cause material harm. The citation verification layer is the system's most critical safety component.
+
+\textbf{The hallucination problem in legal text:}
+
+LLMs hallucinate legal text in predictable ways:
+\begin{itemize}
+  \item \textbf{Paraphrasing:} the model rephrases a clause in its own words instead of quoting verbatim. ``Company shall indemnify'' becomes ``The company agrees to provide indemnification.''
+  \item \textbf{Interpolation:} the model combines language from two different clauses into one quote.
+  \item \textbf{Confabulation:} the model generates legally plausible language that doesn't appear anywhere in the document.
+  \item \textbf{Offset drift:} the model returns the correct text but with wrong character offsets (pointing to a different part of the document).
+\end{itemize}
+
+\textbf{Citation verification pipeline:}
+
+\begin{enumerate}
+  \item \textbf{Exact match check:} \texttt{document\_text[start:end] == extracted\_text}. If match $\rightarrow$ verified. ($\sim$70\% of extractions pass this check immediately.)
+  \item \textbf{Normalized match:} strip whitespace variations, normalize Unicode, collapse multiple spaces. Re-check. (Catches $\sim$10\% more.)
+  \item \textbf{Fuzzy window search:} if no exact match at the claimed offset, search within $\pm$500 characters using Levenshtein distance. Accept if edit distance $<$ 3\% of text length. (Catches offset drift, $\sim$8\% more.)
+  \item \textbf{Full document search:} if still no match, search the entire document for the extracted text. If found elsewhere $\rightarrow$ correct the offset, flag as ``offset corrected.'' ($\sim$5\% more.)
+  \item \textbf{Rejection:} if no match found anywhere $\rightarrow$ reject as hallucination. Log for analysis. ($\sim$7\% of initial extractions rejected.)
+\end{enumerate}
+
+\textbf{Post-rejection recovery:}
+
+For rejected extractions, attempt recovery:
+\begin{itemize}
+  \item Re-prompt the LLM with explicit grounding instructions: ``The following text was not found in the document. Please re-read section [N] and extract the [clause\_type] clause using ONLY text from the document.''
+  \item Include the actual document text for the relevant section in the re-prompt.
+  \item Recovery success rate: $\sim$60\% (the model self-corrects when confronted with the actual text).
+\end{itemize}
+
+\textbf{Hallucination rate by model and strategy:}
+
+\begin{tabular}{|p{0.30\linewidth}|p{0.18\linewidth}|p{0.18\linewidth}|p{0.14\linewidth}|}
+\hline
+\textbf{Model/Strategy} & \textbf{Hallucination Rate (before verification)} & \textbf{After Verification (rejected)} & \textbf{Latency Overhead} \\
+\hline
+GPT-4-class, no grounding instructions & 12\% & 0\% (all caught) & +30s/contract \\
+\hline
+GPT-4-class, with ``quote verbatim'' instruction & 7\% & 0\% & +30s/contract \\
+\hline
+GPT-4-class, with verbatim + few-shot grounding & 3\% & 0\% & +30s/contract \\
+\hline
+Claude 3.5 (strong instruction following) & 4\% & 0\% & +30s/contract \\
+\hline
+Any model + citation verification + recovery & $<$1\% effective & 0\% & +45s/contract \\
+\hline
+\end{tabular}
+
+\textbf{Character offset tracking through the pipeline:}
+
+The entire system maintains a character-level coordinate system:
+\begin{itemize}
+  \item Document ingestion outputs text with character offsets per page, paragraph, and line.
+  \item Chunks carry their offset ranges.
+  \item LLM extractions include offsets relative to the chunk, which are translated to document-global offsets.
+  \item All downstream processing (comparison, risk scoring) references document-global offsets.
+  \item The review UI uses these offsets to highlight exact text spans in the rendered PDF.
+\end{itemize}
+
+\subsubsection*{Grounding Strategy Trade-off Table}
+
+\begin{tabular}{|p{0.20\linewidth}|p{0.12\linewidth}|p{0.10\linewidth}|p{0.14\linewidth}|p{0.26\linewidth}|}
+\hline
+\textbf{Strategy} & \textbf{Hallucination Rate} & \textbf{Recall Impact} & \textbf{Complexity} & \textbf{Notes} \\
+\hline
+Prompt instruction only & 7\% & None & Trivial & Insufficient for legal \\
+\hline
+Instruction + few-shot grounding & 3\% & None & Low & Good baseline \\
+\hline
+Post-extraction exact match & 0\% (caught), 7\% rejected & $-$7\% recall & Medium & Must recover rejected \\
+\hline
+Verification + fuzzy match + recovery & 0\% (caught), $<$1\% miss & $-$1\% recall & High & \textbf{Production default} \\
+\hline
+Constrained decoding (force from source) & 0\% by construction & $-$5\% recall & Very high & Research-stage \\
+\hline
+\end{tabular}
+
+\subsection*{3) Multi-Document Comparison Pipeline}
+
+Contract review often requires comparing a submitted contract against a master template, or comparing two versions of the same contract (redline diff). This is fundamentally a structured alignment problem.
+
+\textbf{Clause alignment algorithm:}
+
+\begin{enumerate}
+  \item \textbf{Extract clauses from both documents} using the extraction pipeline described above. Output: two lists of (clause\_type, text, offset) tuples.
+  \item \textbf{Match by clause type:} for each clause type present in the template, find the corresponding clause in the submitted contract. Three outcomes:
+  \begin{itemize}
+    \item \textbf{Matched:} same clause type found in both. Proceed to diff analysis.
+    \item \textbf{Missing:} clause type in template but not in contract. Flag severity from template rules.
+    \item \textbf{Added:} clause type in contract but not in template. Flag for review (may be innocuous or adversarial).
+  \end{itemize}
+  \item \textbf{Semantic similarity scoring:} for matched clauses, compute sentence-embedding cosine similarity between template clause and contract clause. Threshold: $>$0.95 = ``substantially similar,'' 0.80--0.95 = ``modified,'' $<$0.80 = ``significantly different.''
+  \item \textbf{Token-level diff:} for modified/different clauses, compute a word-level diff (similar to \texttt{git diff} but on legal text). Highlight insertions, deletions, and substitutions.
+  \item \textbf{Clause-specific rule evaluation:} some clauses have structured deviation rules:
+  \begin{itemize}
+    \item Liability cap: extract the dollar amount, compare against template range (\$1M--\$10M). Flag if outside range.
+    \item Termination notice period: extract the number of days, compare against template (30 days). Flag if shorter.
+    \item Governing law: extract jurisdiction, compare against template (State of Delaware). Flag if different.
+    \item These rules are codified in the Template Registry as structured extraction + comparison functions.
+  \end{itemize}
+\end{enumerate}
+
+\textbf{Structured extraction for parameterized clauses:}
+
+For clauses with extractable parameters (amounts, dates, durations, jurisdictions), use structured output:
+
+\begin{verbatim}
+{
+  "clause_type": "limitation_of_liability",
+  "full_text": "In no event shall either party's aggregate
+    liability exceed $5,000,000...",
+  "parameters": {
+    "cap_amount": 5000000,
+    "cap_currency": "USD",
+    "cap_type": "aggregate",
+    "applies_to": "both_parties",
+    "exclusions": ["willful misconduct",
+                   "indemnification obligations"]
+  },
+  "source_offset": {"start": 45230, "end": 45487},
+  "page": 23
+}
+\end{verbatim}
+
+The comparator then operates on structured parameters, not just text similarity.
+
+\textbf{Multi-document comparison at scale:}
+
+When comparing N contracts against a template (e.g., reviewing 100 vendor contracts against the same MSA):
+
+\begin{enumerate}
+  \item Extract template clauses once (cached).
+  \item Process all N contracts through the extraction pipeline (parallelizable).
+  \item For each contract, compare against the cached template.
+  \item Aggregate deviations across all N contracts into a heat map: which clause types are most frequently deviated? Which vendors have the most critical deviations?
+\end{enumerate}
+
+\textbf{Risk scoring model:}
+
+Each deviation receives a risk score:
+
+\begin{verbatim}
+risk_score = clause_severity * deviation_magnitude * confidence_penalty
+\end{verbatim}
+
+\begin{itemize}
+  \item \texttt{clause\_severity}: from template (critical=1.0, high=0.7, medium=0.4, low=0.1)
+  \item \texttt{deviation\_magnitude}: from semantic similarity ($1 - \text{cosine\_similarity}$) for text changes; rule-based for parameter changes (e.g., liability cap below template minimum = 1.0)
+  \item \texttt{confidence\_penalty}: from extraction confidence (if extraction confidence $<$ 0.8, multiply risk by 1.5 to ensure human review)
+\end{itemize}
+
+Contract-level risk = max(clause\_risks) for the traffic-light summary (red/yellow/green).
+
+\subsubsection*{Multi-Document Comparison Trade-off Table}
+
+\begin{tabular}{|p{0.18\linewidth}|p{0.14\linewidth}|p{0.14\linewidth}|p{0.10\linewidth}|p{0.26\linewidth}|}
+\hline
+\textbf{Strategy} & \textbf{Precision} & \textbf{Recall} & \textbf{Latency} & \textbf{Best For} \\
+\hline
+Full-text diff (no clause extraction) & Low (75\%) & High (98\%) & 5s & Quick first-pass scan \\
+\hline
+Clause-level extraction + type matching & High (93\%) & Medium (90\%) & 30s & Standard review \\
+\hline
+Clause extraction + semantic + rule-based & Very high (97\%) & High (96\%) & 45s & \textbf{Production default} \\
+\hline
+Clause extraction + LLM-based deviation analysis & Highest (99\%) & Highest (98\%) & 120s & Critical contracts (M\&A) \\
+\hline
+\end{tabular}
+
+\subsection*{Production Bottlenecks and Mitigations}
+
+\begin{itemize}
+  \item \textbf{OCR quality on scanned documents}\\
+    Symptom: clause extraction accuracy drops to 70\% on scanned PDFs with poor scan quality.\\
+    Mitigation: OCR confidence scoring per page. If average confidence $<$ 85\%, flag the document for manual re-scan or apply image enhancement (deskew, contrast normalization) before re-OCR. Use a multimodal model (GPT-4V) as fallback for low-confidence pages.
+
+  \item \textbf{Clause spanning page breaks with different formatting}\\
+    Symptom: a single clause split across pages is extracted as two separate clauses, or the second half is missed.\\
+    Mitigation: section-aware chunking that groups content by section headers, not page boundaries. The overlap in chunk boundaries ensures split clauses are captured. Post-extraction merge: if two extracted clauses of the same type have adjacent offsets, merge them.
+
+  \item \textbf{Template drift (template updated but not re-ingested)}\\
+    Symptom: the system flags deviations that were intentionally changed in the latest template version.\\
+    Mitigation: template versioning with mandatory re-ingestion on update. Comparison always uses the template version specified by the legal team. Alerts when a template hasn't been re-validated in 90 days.
+
+  \item \textbf{Adversarial clause insertion}\\
+    Symptom: a counterparty inserts a clause in an unexpected location (e.g., a limitation of liability buried in the definitions section) to evade detection.\\
+    Mitigation: the hierarchical pipeline's gap-check stage (Stage 3) uses embedding search across the entire document to find clause-like text in unexpected locations. This catches $\sim$85\% of adversarial placements.
+
+  \item \textbf{Cost explosion on 200+ page documents}\\
+    Symptom: a 300-page contract generates 40 chunks, resulting in 40+ LLM calls and \$4+ per contract.\\
+    Mitigation: hierarchical processing with aggressive section filtering. If the table of contents is extractable, skip sections known to be boilerplate (e.g., ``Exhibit A: List of Subprocessors''). Process only sections likely to contain the 50 target clause types.
+\end{itemize}
+
+\subsection*{Advanced Techniques}
+
+\begin{itemize}
+  \item \textbf{Clause-level fine-tuning:} fine-tune a smaller model (8B--13B) specifically on legal clause extraction with a dataset of 10K+ (contract\_section, extracted\_clauses) pairs. Reduces cost by 10x vs.\ GPT-4-class while maintaining 95\%+ accuracy on standard clauses. Reserve GPT-4-class for critical clauses only.
+  \item \textbf{Cross-reference resolution:} legal contracts reference other sections (``as defined in Section 3.2(a)''). Build a cross-reference graph during section detection and resolve references before clause extraction, injecting the referenced text inline.
+  \item \textbf{Precedent-based risk scoring:} train a risk model on historical attorney decisions (approved/rejected/negotiated) for each deviation type. The model learns that ``governing law changed from Delaware to California'' is low risk (attorney approved 95\% of the time) while ``liability cap removed entirely'' is critical (attorney escalated 100\% of the time).
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 4: Wrap Up}
+
+\subsection*{Final Design Summary}
+
+The system processes legal contracts through a five-stage pipeline: document ingestion with OCR and layout preservation; hierarchical clause extraction that focuses LLM compute on critical clause types while using chunked processing for standard clauses; character-level citation verification that catches and recovers from hallucinated text; structured clause comparison against versioned master templates with both semantic similarity and rule-based parameter checks; and risk scoring that combines clause severity, deviation magnitude, and extraction confidence into actionable attorney review queues. The architecture handles 120K-token documents within the 5-minute processing budget at $<$\$2/contract.
+
+\subsection*{Wrap-Around Concerns}
+
+\begin{itemize}
+  \item \textbf{Risk:} Hallucinated legal text that passes through to an attorney who trusts it. Mitigation: citation verification with exact match + fuzzy match + full-document search. The reject-and-recover pipeline ensures zero unverified text reaches the review queue. But verification adds 15\% to processing time.
+  \item \textbf{Risk:} ``Lost in the middle'' for long documents causes critical clauses in the middle pages to be missed. Mitigation: hierarchical processing with embedding-based gap search. Dual-pass (forward + reverse) for long-context models.
+  \item \textbf{Risk:} Scanned PDFs with poor quality produce garbled OCR, causing extraction failures. Mitigation: OCR confidence scoring with fallback to multimodal models (GPT-4V reads the page image directly). Adds \$0.01/page for vision model calls.
+  \item \textbf{Risk:} Template version mismatch causes false deviation flags, eroding attorney trust. Mitigation: strict template versioning with review date tracking. Comparison always binds to a specific template version.
+  \item \textbf{Risk:} Adversarial clause placement in unexpected document sections. Mitigation: embedding-based full-document sweep catches clauses outside expected sections. Not foolproof against highly obfuscated language---this is the argument for attorney-in-the-loop, not full automation.
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 5: Interviewer Curveballs}
+
+\subsection*{Interviewer Follow-ups \& Frequently Asked Questions (FAQ)}
+
+\textbf{Q:} A contract has an indemnification clause that spans two pages with a table of exceptions in between. Your chunked approach splits this into two chunks and extracts it as two separate clauses. How do you fix this?
+
+\textbf{The Ideal Answer:} This is the cross-boundary clause problem. Three fixes layered: (1) \textbf{Section-aware chunking:} detect that both parts belong to the same numbered section (e.g., ``Section 8.1 Indemnification'') and keep the entire section in one chunk, even if it exceeds the 8K target (allow up to 12K for section integrity). (2) \textbf{Overlap window:} the 500-token overlap ensures the start of the second part appears in the first chunk and vice versa. During deduplication, if two extractions of the same clause type have overlapping character offsets, merge them. (3) \textbf{Cross-chunk reference resolution:} if the first chunk ends with ``...subject to the exceptions in Table 8.1'' and the second chunk starts with that table, the hierarchical pipeline's fine-grained extraction stage pulls both the clause text and the table into a single extraction window.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Section-aware chunking requires robust section detection, which fails on poorly formatted documents ($\sim$10\% of PDFs).
+  \item Larger chunks (12K) increase per-call cost and may reduce accuracy for the non-target content in the chunk.
+  \item The merge algorithm must handle partial overlaps carefully---naive deduplication might drop the table of exceptions if it's classified as a different clause type.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking understanding of the interaction between document structure and chunking boundaries.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} The model extracts a clause and cites it verbatim, but the clause is from a DIFFERENT contract the model saw in its training data, not the one being reviewed. Your citation verifier passes because the text coincidentally also appears in the current document. How do you handle this?
+
+\textbf{The Ideal Answer:} This is an extremely subtle failure mode---the model hallucinates familiar boilerplate that happens to exist in the current document. The citation verifier correctly validates the text exists at the claimed location, so no alarm fires. Detection requires a second layer: \textbf{contextual coherence checking}. The extracted clause must be coherent with its surrounding context. If the extracted ``indemnification clause'' is located in the definitions section, that's suspicious. Cross-check: (1) the clause type must appear in a section that semantically matches (indemnification clauses belong in indemnification or liability sections). (2) The extracted text's section header must be consistent with the clause type. (3) For parameterized clauses, verify that the extracted parameters (party names, amounts) match the contract's parties, not some other entity.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item This failure mode is rare ($<$0.5\% of extractions) but high-impact for critical clauses.
+  \item Section-type validation requires a mapping of clause types to expected section types---manual curation, not hard to build.
+  \item Party name verification requires entity extraction (NER) from the contract header.
+  \item Defense in depth: even with these checks, the attorney review step is the ultimate safeguard. The system should never be positioned as replacing attorney judgment, only accelerating it.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking depth of adversarial thinking about grounding verification edge cases.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} Your system uses a 128K context model and processes the entire contract in one pass. Extraction accuracy for clauses on pages 30--50 (middle of document) is 15\% lower than pages 1--10 or 70--80. How do you fix this without switching to chunked processing?
+
+\textbf{The Ideal Answer:} The ``lost in the middle'' problem is well-documented for long-context transformers. Fixes within the single-pass paradigm: (1) \textbf{Document reordering:} process the contract twice---once in original order, once with sections shuffled (or reversed). Merge the two extraction results, keeping the higher-confidence extraction for each clause. This ensures every section appears ``near the edges'' in at least one pass. (2) \textbf{Attention anchoring:} insert marker tokens at key section boundaries: \texttt{[SECTION: Indemnification starts here]}. These markers help the model allocate attention to specific regions. (3) \textbf{Structured prompting:} instead of asking ``extract all clauses'' in one shot, ask clause-type-by-clause-type: ``Find the indemnification clause,'' then ``Find the liability limitation clause.'' Each focused query forces the model to attend to the relevant section. This turns 1 call into 50 calls but each is highly focused.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Dual-pass doubles cost (\$1.02 vs \$0.51). Justified for critical clauses; overkill for standard.
+  \item Clause-by-clause prompting (50 calls) is accurate but slow ($\sim$50 $\times$ 10s = 500s) and expensive (50 $\times$ \$0.51 = \$25.50/contract). Only viable for the 5--10 most critical clause types.
+  \item In practice: hybrid approach. Single pass for standard clauses, clause-by-clause for critical clauses, dual pass as a completeness check.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking knowledge of transformer attention limitations and practical workarounds.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} A customer wants to compare 100 vendor contracts against the same MSA template. How do you scale this and what aggregate insights can you provide?
+
+\textbf{The Ideal Answer:} Architecture for batch comparison: (1) Extract template clauses once, cache. (2) Process 100 contracts in parallel (7 concurrent workers = $\sim$15 minutes total, not 500 minutes serial). (3) For each contract, store structured deviations in a database: (contract\_id, clause\_type, deviation\_type, severity, extracted\_text, template\_text). (4) \textbf{Aggregate analytics:} query the deviations database to produce: a heatmap of most-deviated clause types across vendors; a ranked list of highest-risk vendors; common deviation patterns (e.g., ``35 out of 100 vendors reduced the liability cap below \$5M''); clause-specific trend analysis (``notice period deviations increased 20\% vs.\ last quarter''). (5) \textbf{Standardization recommendations:} based on the aggregate data, suggest template modifications. If 80\% of vendors reject a specific clause, the template may be unreasonable---flag for legal team review.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Parallel processing requires sufficient LLM API rate limits or self-hosted GPU fleet. At 7 QPS, 100 contracts complete in $\sim$15 minutes.
+  \item Aggregate analytics requires structured extraction (not just text diffs). The structured output format with parsed parameters is essential.
+  \item Privacy: different vendors' contract details must not leak across tenant boundaries in the aggregate view. Ensure aggregation only shows statistics, not raw clause text from other vendors.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking ability to think beyond single-document processing to portfolio-level legal analytics.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} How do you handle contracts in languages other than English?
+
+\textbf{The Ideal Answer:} Multilingual support requires changes at multiple layers: (1) \textbf{OCR:} use a multilingual OCR engine (PaddleOCR supports 80+ languages). (2) \textbf{Section detection:} language-specific section header patterns (e.g., ``Artikel'' in German, ``Article'' in French, ``\begin{CJK}{UTF8}{min}條\end{CJK}'' in Chinese). Maintain per-language regex libraries. (3) \textbf{Clause extraction:} modern LLMs (GPT-4, Claude) handle major languages well. The clause type taxonomy is language-independent but the extraction prompt must include language-specific instructions and few-shot examples in the target language. (4) \textbf{Citation verification:} exact-match verification works identically regardless of language (it's character comparison). Fuzzy matching must handle language-specific normalization (e.g., CJK character width normalization). (5) \textbf{Template comparison:} cross-language comparison (e.g., English template vs.\ French contract) requires clause-level translation before comparison. Use the LLM to translate the extracted clause, then compare against the English template. Flag that the comparison was cross-lingual.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item LLM accuracy for legal text extraction degrades for lower-resource languages. German/French: $\sim$90\% of English accuracy. Japanese/Korean: $\sim$80\%. Less common languages: may require fine-tuning.
+  \item Cross-language comparison introduces translation errors as a noise source. Consider requiring all comparisons to be intra-language (translate the template, not the contract).
+  \item The structured output format (JSON with parameters) is language-independent, which helps downstream processing.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking internationalization thinking for legal tech systems.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} An attorney reports that the system flagged a clause as ``missing'' when it actually exists under a different section title. How do you debug and fix this?
+
+\textbf{The Ideal Answer:} Root cause analysis: (1) Check the clause extraction output---was the clause extracted at all? If yes, was it classified as the wrong clause type? If no, the extraction missed it. (2) \textbf{If misclassified:} the clause type taxonomy may be too rigid. ``Indemnity'' might be titled ``Hold Harmless'' in some contracts. Fix: expand the clause type definitions with aliases and synonyms. In the template registry, ``indemnification'' maps to: [``indemnification'', ``indemnity'', ``hold harmless'', ``defence and indemnity'']. (3) \textbf{If not extracted at all:} check which chunk contained the clause. If the clause was at a chunk boundary, it may have been split. Check the hierarchical pipeline's gap search---did the embedding search flag this section? If not, the clause's language may be unusual enough that its embedding doesn't match the template clause embedding. Fix: add this contract's phrasing as an additional example in the few-shot pool. (4) \textbf{Systematic fix:} track all ``attorney overrides'' (attorney marks a clause as present after the system said missing). Use these overrides as training signal to expand clause type definitions and improve extraction prompts.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Every attorney correction is a training signal. Build a feedback pipeline: override $\rightarrow$ add to eval set $\rightarrow$ retune prompts/thresholds monthly.
+  \item Expanding clause aliases too aggressively causes false positives (extracting text that isn't actually that clause type).
+  \item The alias list should be curated by attorneys, not auto-generated, to maintain legal precision.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking closed-loop improvement thinking and humility about system limitations.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} How do you ensure reproducibility? If the same contract is processed twice, it must produce identical results.
+
+\textbf{The Ideal Answer:} LLMs are non-deterministic by default (temperature $>$ 0, sampling). For legal review, reproducibility is a compliance requirement. Enforcement: (1) \textbf{Temperature 0:} all LLM calls use temperature=0 and top\_p=1.0 (greedy decoding). This is necessary but not sufficient---some APIs still show minor variation. (2) \textbf{Deterministic seed:} if the API supports a seed parameter, set it to a deterministic hash of (document\_id + template\_version). (3) \textbf{Result caching:} after processing, store the full extraction result keyed by (document\_hash + template\_version + model\_version + prompt\_version). Subsequent requests for the same document return the cached result, not a new processing run. (4) \textbf{Version pinning:} pin model version, prompt version, and template version. Any change to these triggers a new processing run with a new version tag, not an in-place update. (5) \textbf{Audit trail:} every extraction includes a provenance record: model\_id, prompt\_hash, document\_hash, timestamp, full extraction output.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Temperature 0 slightly reduces extraction recall ($\sim$1--2\%) because the model can't explore alternative interpretations. Acceptable trade-off for reproducibility.
+  \item Caching means reprocessing requires explicit invalidation. If the model improves, old results persist until the cache is cleared.
+  \item Version pinning adds operational complexity (must maintain old model versions alongside new ones during transition periods).
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking compliance and auditability thinking for regulated industries.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} What's your strategy for handling contracts where the PDF is a scanned image of a fax of a photocopy---extremely degraded quality?
+
+\textbf{The Ideal Answer:} Degraded document pipeline: (1) \textbf{Image preprocessing:} deskew, binarization (Otsu's method), contrast enhancement, noise removal (median filter). These are deterministic CV operations, $<$100ms per page. (2) \textbf{Multi-engine OCR:} run both Tesseract and PaddleOCR; merge results using confidence-weighted voting per word. (3) \textbf{OCR confidence filtering:} if average word confidence $<$ 70\% for a page after preprocessing, escalate to a multimodal model (GPT-4V/Claude with vision). The vision model reads the page image directly, bypassing OCR entirely. Cost: $\sim$\$0.01/page for vision. (4) \textbf{Confidence-gated extraction:} if overall document OCR confidence is below a threshold, flag the entire document for manual review instead of producing low-confidence extractions. A wrong extraction on a degraded document is worse than no extraction. (5) \textbf{Quality reporting:} include an ``OCR quality score'' in the output so attorneys know which pages may have transcription errors.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Multimodal models are excellent at reading degraded text but expensive at scale (\$0.01/page $\times$ 80 pages = \$0.80 per contract, a significant uplift).
+  \item Use vision models only for pages below the confidence threshold, not the entire document.
+  \item Some documents are simply unreadable by any automated system. The system must know when to say ``I can't process this'' rather than produce garbage.
+  \item Pre-processing improves OCR accuracy by 10--15\% on degraded documents. Always apply before OCR.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking robustness thinking for real-world document quality issues.
+
+\section*{End of Chapter}
+
+\begin{itemize}
+  \item \textbf{Key takeaway:} Legal contract review is a precision-critical system where hallucinated text can cause material harm. Citation verification with character-level grounding is non-negotiable. Long-context processing requires a hybrid strategy---hierarchical for critical clauses, chunked for standard---because no single approach achieves 99\%+ accuracy across an entire 120K-token document. Multi-document comparison transforms from a text-diff problem into a structured alignment problem when clause-level extraction with parameterized outputs is in place.
+  \item \textbf{What to practice:} Trace a single clause through the entire pipeline: document ingestion $\rightarrow$ chunking $\rightarrow$ extraction $\rightarrow$ citation verification $\rightarrow$ template comparison $\rightarrow$ risk scoring. Identify where hallucination can enter and how each layer guards against it.
+  \item \textbf{Interview drill:} Given a 200-page contract with an indemnification clause split across pages 45--46, walk through how the system detects, extracts, verifies, and compares this clause. What happens if the citation verifier rejects the extraction?
+\end{itemize}

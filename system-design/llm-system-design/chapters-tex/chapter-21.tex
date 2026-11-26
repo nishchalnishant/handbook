@@ -1,0 +1,34 @@
+\chapter{Chapter 21: Design an Advanced RAG Platform}
+
+\section*{Context}
+\textbf{Problem statement:} Design a reusable RAG platform that multiple product teams can use to answer questions over large, permissioned, frequently changing enterprise corpora with citations and measurable faithfulness.
+
+\subsection*{Core Architecture}
+\begin{itemize}
+  \item \textbf{Source connectors and document processor:} ingest documents, preserve structure, metadata, ACLs, and freshness timestamps.
+  \item \textbf{Chunking and indexing:} create parent-child chunks, embeddings, lexical index entries, graph entities, and rollback-capable index versions.
+  \item \textbf{Query planner:} classify exact lookup, semantic, comparison, multi-hop, and freshness-sensitive queries.
+  \item \textbf{Retrieval orchestrator:} run BM25, dense retrieval, metadata filters, and optional graph expansion in parallel.
+  \item \textbf{Reranker and context packer:} rerank candidates, deduplicate evidence, enforce ACLs, and fit the strongest evidence into the token budget.
+  \item \textbf{Answer generator and grounding verifier:} produce cited answers and block or rewrite unsupported claims.
+\end{itemize}
+
+\section*{Key Design Points}
+\begin{itemize}
+  \item Advanced RAG is a retrieval and verification system, not just prompt stuffing.
+  \item Hybrid retrieval improves recall because exact identifiers, natural-language questions, and multi-hop questions need different retrieval strategies.
+  \item Context packing should optimize relevant evidence density, not merely fill the largest context window available.
+  \item Evaluation must be stage-specific: parse coverage, recall@K, reranking quality, context precision, unsupported-claim rate, citation accuracy, and freshness lag.
+\end{itemize}
+
+\section*{Production Risks}
+\begin{itemize}
+  \item \textbf{ACL leak:} enforce permissions before reranking and again before context packing.
+  \item \textbf{Stale evidence:} use CDC events, cache invalidation, and source-to-index reconciliation.
+  \item \textbf{Reranker bottleneck:} cache repeated reranks and route low-risk queries to cheaper ranking paths.
+  \item \textbf{Context dilution:} prefer concise, diverse, high-confidence evidence over large prompt payloads.
+\end{itemize}
+
+\section*{Interview Drill}
+Walk through a wrong answer by tracing query rewrite, retrieval candidates, ACL filtering, reranker scores, packed evidence, generated claims, and verifier labels.
+

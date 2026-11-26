@@ -1,0 +1,573 @@
+\chapter{Chapter 14: Design a Real-Time Meeting Summarizer}
+
+\section*{Context}
+
+\textbf{Problem statement:} Design a system that ingests live audio from concurrent meetings, performs real-time speech-to-text with speaker diarization, and produces streaming incremental summaries with action item extraction---all within seconds of utterance.
+
+\subsection*{Real-World Examples}
+
+\begin{itemize}
+  \item A videoconferencing platform (Zoom AI Companion-class) serves 100K concurrent meetings. A 3-second STT lag causes the incremental summary to drift out of sync with the conversation, and participants lose trust. Switching from batch Whisper transcription to a streaming Conformer model with 200ms chunk processing restores real-time parity.
+  \item An enterprise meeting assistant attributes action items to the wrong speaker because diarization fails when two participants have similar vocal profiles over a VoIP codec. Adding embedding-based speaker enrollment at meeting start (3-second voice sample per participant) raises attribution accuracy from 78\% to 94\%.
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 1: Understand the Problem and Establish Design Scope}
+
+\subsection*{Simulated Dialogue}
+
+\textbf{Interviewer:} Design a real-time meeting summarizer that works across a large videoconferencing platform.\\
+\textbf{Candidate:} I need to decompose this into three distinct subsystems: real-time audio ingestion and STT, speaker diarization and attribution, and incremental summarization. Each has radically different latency and accuracy constraints.
+
+\textbf{Candidate:} What is the concurrency and meeting profile?\\
+\textbf{Interviewer:} 100K concurrent meetings at peak, average meeting duration 45 minutes, 2--20 participants per meeting.
+
+\textbf{Candidate:} What are the real-time constraints?\\
+\textbf{Interviewer:} Transcript must appear within 2 seconds of utterance. Running summary must update every 30 seconds. Final polished summary within 10 seconds of meeting end.
+
+\textbf{Candidate:} What accuracy targets for STT and diarization?\\
+\textbf{Interviewer:} Word Error Rate (WER) $<$ 12\% for English across accents. Speaker diarization accuracy $>$ 90\% (DER $<$ 10\%). Action item extraction precision $>$ 85\%.
+
+\textbf{Candidate:} Multi-language support?\\
+\textbf{Interviewer:} English first. Design extensibility for top-10 languages by meeting volume.
+
+\subsection*{Functional Requirements}
+
+\begin{itemize}
+  \item Real-time streaming transcription with $<$ 2s utterance-to-text latency.
+  \item Speaker diarization with identity labels (speaker enrollment optional, fallback to Speaker A/B/C).
+  \item Incremental rolling summary updated every 30 seconds during the meeting.
+  \item Action item and decision extraction with speaker attribution.
+  \item Final polished summary generated within 10 seconds of meeting end.
+  \item Searchable transcript archive with speaker-labeled segments.
+\end{itemize}
+
+\subsection*{Non-Functional Requirements}
+
+\begin{itemize}
+  \item \textbf{Latency:} STT utterance-to-text $<$ 2s. Summary update cycle $\leq$ 30s. Final summary $<$ 10s after meeting end.
+  \item \textbf{Scale:} 100K concurrent meetings, average 6 participants per meeting $\rightarrow$ 600K concurrent audio streams.
+  \item \textbf{Accuracy:} WER $<$ 12\%, DER $<$ 10\%, action item precision $>$ 85\%.
+  \item \textbf{Availability:} 99.95\% uptime for STT path; summarization can degrade gracefully.
+  \item \textbf{Cost:} $<$ \$0.02 per meeting-minute at scale (inclusive of STT + diarization + LLM summarization).
+\end{itemize}
+
+\subsection*{Back-of-the-Envelope Estimation}
+
+\subsubsection*{Traffic Profile}
+
+\begin{itemize}
+  \item Concurrent meetings at peak: 100K
+  \item Average participants/meeting: 6
+  \item Concurrent audio streams: \texttt{100K * 6 = 600K}
+  \item Average meeting duration: 45 min
+  \item Meetings starting/ending per minute (steady-state): \texttt{100K / 45 $\approx$ 2,222 meetings/min}
+  \item Total meeting-minutes/day (assuming 8-hour peak): \texttt{100K * 45 * (480 / 45) $\approx$ 48M meeting-minutes/day}
+\end{itemize}
+
+\subsubsection*{Audio Ingestion}
+
+\begin{itemize}
+  \item Audio format: Opus codec, 16kHz mono per speaker, $\sim$32kbps per stream
+  \item Aggregate bandwidth (peak): \texttt{600K streams * 32kbps = 19.2 Gbps} inbound audio
+  \item Chunk size for streaming STT: 200ms audio chunks (3,200 samples at 16kHz)
+  \item Chunks/sec (all streams): \texttt{600K * 5 = 3M audio chunks/sec}
+\end{itemize}
+
+\subsubsection*{STT Compute}
+
+\begin{itemize}
+  \item Streaming Conformer model: processes 200ms chunk in $\sim$50ms on GPU (real-time factor 0.25x)
+  \item Concurrent STT inferences: 600K streams, each needing 5 inferences/sec = 3M inferences/sec
+  \item Per-GPU throughput (batched, A100): $\sim$200 concurrent streams per GPU (batch of 200, 50ms/batch)
+  \item GPU requirement for STT: \texttt{600K / 200 = 3,000 GPUs}
+  \item With mixed-precision and optimized kernels: $\sim$2,000--2,500 A100 GPUs for STT
+\end{itemize}
+
+\subsubsection*{Diarization Compute}
+
+\begin{itemize}
+  \item Speaker embedding extraction: run every 1.5s per meeting (not per stream---done on mixed audio)
+  \item Meetings needing diarization inference/sec: \texttt{100K / 1.5 $\approx$ 67K inferences/sec}
+  \item Speaker embedding model (ECAPA-TDNN): $\sim$5ms per inference on GPU, batch of 256
+  \item GPUs for diarization: \texttt{67K / (256 / 0.005) $\approx$ $\sim$1,300 GPUs} $\rightarrow$ with optimization: $\sim$400--600 GPUs
+\end{itemize}
+
+\subsubsection*{Summarization Compute}
+
+\begin{itemize}
+  \item Summary update every 30s per meeting: \texttt{100K / 30 $\approx$ 3,333 summarization requests/sec}
+  \item Input: rolling transcript window $\sim$2K tokens, output: $\sim$200 tokens per update
+  \item 7B quantized model: $\sim$120 tok/sec/GPU, batch of 8 $\rightarrow$ $\sim$960 tok/sec effective
+  \item Output tokens/sec demand: \texttt{3,333 * 200 = 666K tok/sec}
+  \item GPUs for summarization: \texttt{666K / 960 $\approx$ 694 GPUs} $\rightarrow$ $\sim$700--900 GPUs
+\end{itemize}
+
+\subsubsection*{Final Summary Burst}
+
+\begin{itemize}
+  \item Meetings ending per minute: $\sim$2,222
+  \item Final summary: $\sim$4K input tokens (full transcript summary), $\sim$500 output tokens
+  \item Burst demand: \texttt{2,222 / 60 $\approx$ 37 requests/sec} $\rightarrow$ manageable with summarization fleet headroom
+\end{itemize}
+
+\subsubsection*{Cost Estimation}
+
+\begin{itemize}
+  \item Total GPU fleet: $\sim$3,000--4,000 GPUs (STT dominant)
+  \item A100 hourly cost (cloud): $\sim$\$2.50/hr
+  \item Hourly GPU cost: \texttt{3,500 * \$2.50 = \$8,750/hr}
+  \item Meeting-minutes/hour (peak): \texttt{100K * 60 = 6M meeting-minutes}
+  \item Cost/meeting-minute: \texttt{\$8,750 / 6M $\approx$ \$0.0015} $\leftarrow$ well under \$0.02 budget
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 2: Propose High-Level Design and Get Buy-In}
+
+\subsection*{Core Architecture Components}
+
+\begin{itemize}
+  \item \textbf{Audio Ingestion Gateway:} Receives per-participant audio streams via WebRTC/SFU, demuxes into per-speaker mono channels, buffers 200ms chunks.
+  \item \textbf{Streaming STT Service:} Conformer-based streaming ASR with endpointer. Emits partial and final transcript segments per speaker stream.
+  \item \textbf{Speaker Diarization Service:} Extracts speaker embeddings from mixed audio, clusters or matches against enrollment embeddings, assigns speaker labels to transcript segments.
+  \item \textbf{Transcript Assembler:} Merges STT output with diarization labels, resolves timing overlaps, produces a time-aligned speaker-attributed transcript stream.
+  \item \textbf{Incremental Summarizer:} Consumes rolling transcript window, generates updated summary every 30s, extracts action items and decisions.
+  \item \textbf{Final Summary Generator:} On meeting end, takes full condensed transcript and produces polished summary with structured sections.
+  \item \textbf{Storage Layer:} Time-series transcript store (per-meeting), summary snapshots, speaker enrollment embeddings.
+  \item \textbf{Observability:} WER sampling, DER monitoring, summary latency, GPU utilization per service.
+\end{itemize}
+
+\subsection*{Pipeline A: Audio Ingestion and Transcription Pipeline}
+
+\begin{enumerate}
+  \item SFU (Selective Forwarding Unit) extracts per-participant audio tracks from WebRTC session.
+  \item Audio preprocessor resamples to 16kHz mono, applies noise suppression (RNNoise), and segments into 200ms chunks.
+  \item Chunks are routed by meeting-ID to a stateful streaming STT worker (sticky session via consistent hashing).
+  \item STT worker runs incremental Conformer inference, emitting partial hypotheses (updated every chunk) and final segments (on endpointer detection).
+  \item Parallel path: mixed audio (all speakers) sent to diarization service at 1.5s intervals.
+  \item Transcript segments tagged with speaker labels from diarization and pushed to Transcript Assembler.
+  \item Assembler resolves overlapping speech, aligns timestamps, and writes to meeting transcript stream (Kafka topic partitioned by meeting-ID).
+\end{enumerate}
+
+\subsection*{Pipeline B: Summarization Pipeline}
+
+\begin{enumerate}
+  \item Summarization worker subscribes to meeting transcript stream.
+  \item Every 30 seconds, worker snapshots the latest transcript window (last 5 minutes of transcript + previous summary state).
+  \item Constructs prompt: \texttt{[System: You are a meeting summarizer] [Previous Summary] [New Transcript Segment] $\rightarrow$ [Updated Summary + Action Items]}.
+  \item Routes to 7B summarization model with streaming output.
+  \item Summary delta is diffed against previous summary; new action items appended to action list.
+  \item Updated summary pushed to real-time client (WebSocket to meeting UI).
+  \item On meeting end signal: final summary job queued with full condensed transcript $\rightarrow$ 13B/34B model for polished output.
+  \item Final summary stored, emailed to participants, indexed for search.
+\end{enumerate}
+
+\subsection*{Mermaid Architecture Diagram}
+
+% Mermaid diagram (not natively supported in LaTeX)
+\begin{verbatim}
+flowchart LR
+  webrtc[WebRTC/SFU] -->|per-speaker audio| gateway[AudioIngestionGateway]
+  gateway -->|200ms chunks| preprocess[NoiseSuppress + Resample]
+  preprocess -->|per-speaker| stt[StreamingSTTService]
+  preprocess -->|mixed audio| diarize[SpeakerDiarizationService]
+
+  stt -->|partial/final segments| assembler[TranscriptAssembler]
+  diarize -->|speaker labels| assembler
+
+  assembler -->|speaker-attributed transcript| kafka[TranscriptStream Kafka]
+
+  kafka --> incrSumm[IncrementalSummarizer 7B]
+  kafka --> storage[TranscriptStore]
+
+  incrSumm -->|summary updates| client[MeetingUI WebSocket]
+  incrSumm -->|summary state| summaryStore[SummarySnapshotStore]
+
+  kafka -->|meeting end| finalSumm[FinalSummaryGenerator 13B]
+  finalSumm --> summaryStore
+  finalSumm -->|email + archive| notify[NotificationService]
+
+  enrollment[SpeakerEnrollment] --> diarize
+  observability[Observability WER/DER/Latency] --> stt
+  observability --> diarize
+  observability --> incrSumm
+\end{verbatim}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 3: Design Deep Dive}
+
+Focus areas:
+
+\begin{enumerate}
+  \item \textbf{Real-Time Audio Pipeline (STT, VAD, Diarization, Streaming Transcript)}
+  \item \textbf{Incremental Summarization (Rolling Context, Section Detection, Action Item Extraction)}
+  \item \textbf{Speaker Attribution and Correction}
+\end{enumerate}
+
+\subsection*{1) Real-Time Audio Pipeline}
+
+The audio pipeline must convert raw audio to speaker-attributed text with $<$ 2s end-to-end latency. This is the hardest latency constraint in the system.
+
+\textbf{Streaming STT architecture:}
+
+The STT model processes audio incrementally, maintaining hidden state across chunks. Unlike offline models (Whisper) that require the full utterance, streaming models emit partial hypotheses that are refined as more audio arrives.
+
+\begin{itemize}
+  \item \textbf{Model:} Streaming Conformer-Transducer (RNN-T) or Conformer-CTC with attention rescoring.
+  \item \textbf{Chunk size:} 200ms (balance between latency and acoustic context). Smaller chunks increase latency overhead from inference scheduling; larger chunks add perceptible delay.
+  \item \textbf{Lookahead:} 200ms future context (total algorithmic latency = 400ms).
+  \item \textbf{Endpointer (VAD):} Energy-based VAD with neural confirmation. Detects end-of-utterance to emit finalized segments. Threshold tuned to avoid cutting off mid-sentence.
+\end{itemize}
+
+\textbf{Stateful vs stateless STT workers:}
+
+\begin{tabular}{|p{0.15\linewidth}|p{0.38\linewidth}|p{0.38\linewidth}|}
+\hline
+\textbf{Aspect} & \textbf{Stateful Worker} & \textbf{Stateless Worker} \\
+\hline
+Architecture & Sticky session per stream; maintains RNN-T hidden state in GPU memory & Each chunk processed independently with context passed in request \\
+\hline
+Latency & Lower (no state serialization overhead) & Higher (+20--50ms for state reload) \\
+\hline
+Fault tolerance & Stream interrupted on worker failure; requires state checkpointing & Naturally fault-tolerant; any worker can serve any chunk \\
+\hline
+Scaling & Harder (must migrate state on rebalance) & Easier (stateless horizontal scaling) \\
+\hline
+GPU memory & Higher (holds state for all assigned streams) & Lower per-worker (state in external store) \\
+\hline
+\textbf{Recommended} & \textbf{Production default for $<$ 2s latency} & Fallback for overflow / fault recovery \\
+\hline
+\end{tabular}
+
+\textbf{Voice Activity Detection (VAD) pipeline:}
+
+\begin{enumerate}
+  \item Frame-level energy detection ($<$ 1ms, CPU): flags silence vs speech.
+  \item Neural VAD (Silero VAD, $\sim$2ms per 200ms chunk on CPU): classifies speech/non-speech with 96\%+ accuracy.
+  \item Speech segments routed to STT; silence segments suppressed (saves $\sim$40\% of STT compute since meetings are $\sim$60\% speech).
+  \item Endpointer: detects 600ms of silence after speech $\rightarrow$ triggers final hypothesis emission.
+\end{enumerate}
+
+\subsubsection*{STT Provider Trade-off Table}
+
+\begin{tabular}{|p{0.18\linewidth}|p{0.07\linewidth}|p{0.09\linewidth}|p{0.08\linewidth}|p{0.09\linewidth}|p{0.07\linewidth}|p{0.18\linewidth}|}
+\hline
+\textbf{Provider/Model} & \textbf{WER (English)} & \textbf{Streaming Support} & \textbf{Latency (chunk)} & \textbf{Cost/hr Audio} & \textbf{Self-Hosted} & \textbf{Best For} \\
+\hline
+Streaming Conformer-RNN-T (self-hosted) & 8--12\% & Native streaming & $\sim$50ms/chunk & \$0.10--0.20 & Yes & Production default at scale \\
+\hline
+Whisper Large V3 (offline) & 5--8\% & No (requires full utterance) & 2--5s per utterance & \$0.15 & Yes & Post-meeting re-transcription \\
+\hline
+Google Cloud STT Chirp & 6--10\% & Yes (streaming API) & $\sim$200ms & \$0.024/min & No & Low-scale or cold-start \\
+\hline
+AWS Transcribe Streaming & 10--14\% & Yes & $\sim$300ms & \$0.024/min & No & AWS-native stacks \\
+\hline
+Deepgram Nova-2 & 8--11\% & Yes & $\sim$200ms & \$0.015/min & No & Cost-optimized SaaS \\
+\hline
+Azure Speech (custom) & 7--11\% & Yes & $\sim$250ms & \$0.017/min & No & Enterprise Azure stacks \\
+\hline
+\end{tabular}
+
+\textbf{Recommendation:} Self-hosted streaming Conformer for the core path (cost and latency optimal at 100K concurrent meetings). Managed API as overflow during traffic spikes.
+
+\subsection*{2) Incremental Summarization}
+
+Summarizing a 45-minute meeting is not a single inference at meeting end---it is a continuous process that must produce useful output at any point during the meeting.
+
+\textbf{Three summarization strategies:}
+
+\begin{tabular}{|p{0.10\linewidth}|p{0.26\linewidth}|p{0.08\linewidth}|p{0.10\linewidth}|p{0.10\linewidth}|p{0.18\linewidth}|}
+\hline
+\textbf{Strategy} & \textbf{How It Works} & \textbf{Latency} & \textbf{Quality} & \textbf{Compute Cost} & \textbf{Best For} \\
+\hline
+Post-hoc & Full transcript $\rightarrow$ single LLM call at meeting end & 10--30s at end & Highest (full context) & Low (one call) & Short meetings ($<$15 min), async use \\
+\hline
+Incremental (rolling) & Every 30s: [prev summary + new transcript] $\rightarrow$ updated summary & 2--5s per update & Good (may lose early detail) & High (many calls) & Real-time display during meeting \\
+\hline
+Hybrid & Incremental during meeting + post-hoc final polish & 2--5s updates + 10s final & Best of both & Medium-high & \textbf{Production default} \\
+\hline
+\end{tabular}
+
+\textbf{Incremental summarization protocol (hybrid approach):}
+
+\begin{enumerate}
+  \item \textbf{Sliding window:} Maintain a rolling window of transcript: last 5 minutes ($T_{\text{recent}}$) + condensed summary of all prior content ($S_{\text{prev}}$).
+  \item \textbf{Update cycle (every 30s):}
+  \begin{itemize}
+    \item Input: $S_{\text{prev}}$ ($\sim$300 tokens) + $T_{\text{recent}}$ ($\sim$1,500 tokens) + system prompt ($\sim$200 tokens) = $\sim$2,000 tokens.
+    \item Output: updated summary ($\sim$200 tokens) + new action items ($\sim$50 tokens).
+    \item Model: 7B quantized, $\sim$120 tok/sec $\rightarrow$ inference time $\sim$2s per update.
+  \end{itemize}
+  \item \textbf{Section detection:} The model is prompted to identify topic transitions. When a new topic is detected, the current section summary is finalized and a new section begins. This prevents ``summary drift'' where early topics are gradually overwritten.
+  \item \textbf{Action item extraction:} Structured output parsing. The prompt enforces \texttt{[ACTION] \{assignee\}: \{task\} [by \{deadline\}]} format. Regex post-processing extracts and deduplicates action items.
+  \item \textbf{Final polish (meeting end):} Concatenate all section summaries + action items $\rightarrow$ feed to 13B model with instruction to produce a structured final summary (executive summary, key decisions, action items, next steps). Budget: 4K input tokens $\rightarrow$ 500 output tokens, $\sim$5--8s.
+\end{enumerate}
+
+\textbf{Context window management:}
+
+\begin{tabular}{|p{0.18\linewidth}|p{0.22\linewidth}|p{0.22\linewidth}|p{0.26\linewidth}|}
+\hline
+\textbf{Approach} & \textbf{Context Used} & \textbf{Risk} & \textbf{Mitigation} \\
+\hline
+Full transcript in context & All tokens from meeting start & Exceeds context window on long meetings (45 min $\approx$ 15K--25K tokens) & Not viable for real-time \\
+\hline
+Fixed sliding window (last N min) & Last 5 min of transcript & Loses information from early meeting & Combine with running summary \\
+\hline
+Hierarchical: summary + window & Compressed prior + recent raw & Summary may drop detail & Section-based summarization preserves structure \\
+\hline
+\textbf{Map-reduce} & Chunk transcript $\rightarrow$ summarize chunks $\rightarrow$ merge & Parallel processing possible & Loss of cross-chunk context; incoherent merging \\
+\hline
+\end{tabular}
+
+\textbf{Recommended:} Hierarchical (summary + window) for real-time updates; map-reduce for final summary of very long meetings ($>$90 min).
+
+\textbf{Prompt template for incremental update:}
+
+\begin{verbatim}
+<system>You are a meeting summarizer. Update the running summary with
+new transcript content. Preserve all prior decisions and action items.
+Identify topic transitions. Extract new action items in format:
+[ACTION] Speaker: Task.</system>
+
+<previous_summary>{S_prev}</previous_summary>
+
+<new_transcript>{T_recent}</new_transcript>
+
+<instructions>Output an updated summary. If the topic has changed,
+start a new section. List any new action items.</instructions>
+\end{verbatim}
+
+\subsection*{3) Speaker Attribution and Correction}
+
+Diarization answers ``who spoke when.'' Errors here propagate to action item attribution---assigning ``John will send the report'' to the wrong speaker undermines the entire system's value.
+
+\textbf{Diarization approaches:}
+
+\begin{tabular}{|p{0.14\linewidth}|p{0.24\linewidth}|p{0.06\linewidth}|p{0.08\linewidth}|p{0.10\linewidth}|p{0.20\linewidth}|}
+\hline
+\textbf{Approach} & \textbf{How It Works} & \textbf{DER} & \textbf{Latency} & \textbf{Enrollment Required} & \textbf{Best For} \\
+\hline
+Online clustering (spectral) & Extract embeddings from mixed audio, cluster in real-time & 12--18\% & 1--2s & No & Unknown speaker count, no enrollment \\
+\hline
+Enrollment-based matching & Compare segment embeddings to pre-registered voiceprints & 5--8\% & 500ms & Yes (3s voice sample) & Enterprise with known participants \\
+\hline
+Hybrid (enroll + cluster) & Match enrolled speakers first, cluster unknowns & 6--10\% & 1s & Optional & \textbf{Production default} \\
+\hline
+End-to-end neural (EEND) & Single model jointly segments and labels speakers & 8--12\% & 2--3s & No & Research; not production-ready for streaming \\
+\hline
+\end{tabular}
+
+\textbf{Speaker embedding pipeline:}
+
+\begin{enumerate}
+  \item \textbf{Feature extraction:} 80-dim log-mel filterbank features from 1.5s audio segments.
+  \item \textbf{Embedding model:} ECAPA-TDNN (192-dim speaker embedding). Inference: $\sim$5ms per segment on GPU.
+  \item \textbf{Enrollment matching:} Cosine similarity between segment embedding and enrolled speaker embeddings. Threshold: 0.65 (tuned per deployment). Above threshold $\rightarrow$ assign identity. Below $\rightarrow$ route to clustering.
+  \item \textbf{Online clustering:} Agglomerative clustering with a distance threshold. New clusters created when no existing cluster centroid is within threshold.
+  \item \textbf{Label smoothing:} Prevent rapid speaker label oscillation by enforcing a minimum segment duration of 500ms. If a speaker label change lasts $<$ 500ms, merge with the surrounding dominant speaker.
+\end{enumerate}
+
+\textbf{Correction mechanisms:}
+
+\begin{itemize}
+  \item \textbf{Overlap handling:} When two speakers talk simultaneously (cross-talk), diarization degrades. Strategy: detect overlap via energy-based analysis; label the segment as ``multiple speakers'' and attribute transcript to the dominant speaker (higher energy). Flag for human review if action items are detected in overlap regions.
+  \item \textbf{Retroactive correction:} When a new segment provides disambiguating evidence, retroactively relabel prior segments within a 30s window. Propagate corrections to the summary (invalidate and regenerate affected action items).
+  \item \textbf{Human-in-the-loop:} Expose a ``correct speaker'' button in the meeting UI. Corrections are fed back as additional enrollment data for the session, improving diarization for the remainder of the meeting.
+  \item \textbf{Post-meeting re-diarization:} After meeting end, run offline diarization (pyannote.audio pipeline with full meeting audio) to produce a higher-accuracy transcript. Replace the streaming transcript in the archive.
+\end{itemize}
+
+\textbf{Speaker embedding enrollment flow:}
+
+\begin{enumerate}
+  \item At meeting join, prompt participant: ``Say your name to enable speaker identification'' (3-second sample).
+  \item Extract ECAPA-TDNN embedding from sample. Store in session-scoped enrollment cache.
+  \item If participant has prior enrollment (from previous meetings), merge embeddings with exponential moving average ($\alpha$=0.3) for drift adaptation.
+  \item Enrollment is optional---system degrades to anonymous clustering labels (Speaker 1, Speaker 2, etc.) without it.
+\end{enumerate}
+
+\subsection*{Production Bottlenecks and Mitigations}
+
+\begin{itemize}
+  \item \textbf{STT worker failure mid-meeting}\\
+    Symptom: transcript gap of 5--10 seconds while stream is reassigned.\\
+    Mitigation: state checkpointing every 5s to Redis. On failure, new worker resumes from checkpoint. Gap filled by re-processing buffered audio chunks (held in Kafka for 60s).
+
+  \item \textbf{Diarization label flip-flopping}\\
+    Symptom: speaker labels oscillate rapidly between two speakers during quiet transitions.\\
+    Mitigation: minimum segment duration enforcement (500ms). Hysteresis on cosine similarity threshold (require 3 consecutive frames above threshold before switching label).
+
+  \item \textbf{Summary hallucination under sparse transcript}\\
+    Symptom: when participants are silent for extended periods, the summarizer fills in with fabricated content.\\
+    Mitigation: detect silence gaps $>$ 60s in transcript; inject \texttt{[No discussion for N minutes]} marker. Instruct model to skip summarization for gaps.
+
+  \item \textbf{Action item duplication across summary updates}\\
+    Symptom: same action item re-extracted in consecutive update cycles.\\
+    Mitigation: maintain a deduplication set of action items keyed by (speaker, task\_hash). Only surface new items. Hash uses semantic similarity (embedding distance $<$ 0.15 $\rightarrow$ duplicate).
+
+  \item \textbf{Cross-talk regions corrupting attribution}\\
+    Symptom: action items attributed to wrong speaker during simultaneous speech.\\
+    Mitigation: flag cross-talk regions in transcript. Attach \texttt{[attribution uncertain]} tag. In final summary, present uncertain attributions with both candidate speakers.
+
+  \item \textbf{Audio codec degradation on poor networks}\\
+    Symptom: WER spikes to 25\%+ when participants are on low-bandwidth connections (Opus at 8kbps).\\
+    Mitigation: detect low-bitrate streams via codec metadata. Route to STT model fine-tuned on degraded audio. Flag transcript segments as low-confidence.
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 4: Wrap Up}
+
+\subsection*{Final Design Summary}
+
+The design decomposes real-time meeting summarization into three loosely coupled subsystems: a streaming STT pipeline using Conformer-RNN-T with stateful workers and VAD gating that achieves $<$ 2s utterance-to-text latency across 600K concurrent streams; a hybrid diarization service combining enrollment-based matching with online clustering to hit $>$ 90\% speaker accuracy; and a hierarchical incremental summarizer that maintains rolling context with section detection and structured action item extraction, producing useful output at any point during the meeting and a polished final summary within 10 seconds of meeting end.
+
+\subsection*{Wrap-Around Concerns}
+
+\begin{itemize}
+  \item \textbf{Risk:} STT model WER degrades on non-native English accents, domain-specific jargon (medical, legal), and code-switching. Mitigation: domain-specific fine-tuning with adapter layers; custom vocabulary injection per organization.
+  \item \textbf{Risk:} Incremental summary loses critical early-meeting context as the meeting progresses. Mitigation: section-based hierarchical summarization; immutable section summaries that do not get overwritten.
+  \item \textbf{Risk:} Speaker enrollment adoption is low, degrading diarization quality. Mitigation: passive enrollment from calendar-linked audio history (with consent). Fall back to anonymous labels with graceful UX.
+  \item \textbf{Risk:} GPU cost for STT at 100K concurrent meetings is significant ($\sim$2,500 GPUs). Mitigation: VAD gating eliminates $\sim$40\% of STT inference. Silence-aware batching further improves utilization.
+  \item \textbf{Risk:} Regulatory constraints on audio recording and transcription (GDPR, HIPAA). Mitigation: explicit consent flow before recording; on-premise deployment option for regulated industries; audio not persisted (only transcript + summary stored, audio discarded after processing).
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 5: Interviewer Curveballs}
+
+\subsection*{Interviewer Follow-ups \& Frequently Asked Questions (FAQ)}
+
+\textbf{Q:} A participant reports that their statements are consistently attributed to another speaker. How do you debug this?
+
+\textbf{The Ideal Answer:} Pull the speaker embeddings for both participants from the enrollment cache. Compute cosine similarity---if $>$ 0.60, the voiceprints are too similar for the current threshold. Check if both participants are using the same audio device (shared conference room mic). Inspect the diarization clustering history: if the speakers were initially clustered together and never split, the online clustering merged them early. Fix: lower the similarity threshold for this meeting, or trigger re-enrollment with a longer voice sample.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Similar-sounding speakers (same gender, similar pitch) are the hardest case for embedding-based diarization.
+  \item Longer enrollment samples (10s vs 3s) improve embedding quality but hurt UX.
+  \item Alternative: use spatial audio features (if stereo/multi-channel mic is available) to separate speakers by location, not voice.
+  \item Post-meeting re-diarization with full audio context will produce better results than online streaming diarization.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking whether you can trace diarization errors to embedding space properties and propose practical fixes.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} The meeting runs for 3 hours (board meeting). How does your summarization strategy change?
+
+\textbf{The Ideal Answer:} At 3 hours, the raw transcript is $\sim$40K--60K tokens---far exceeding any single context window. The hierarchical approach becomes mandatory: the meeting is segmented into sections (agenda items), each section is summarized independently (section summaries $\sim$200 tokens each), and the final summary is a map-reduce over section summaries. The rolling summary state is checkpointed every 15 minutes to bound the risk of state corruption. For the final summary, use a long-context model (128K window) on the concatenation of all section summaries ($\sim$3K tokens) plus the raw transcript of the final 15 minutes for recency.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Map-reduce summarization loses cross-section references (``as we discussed earlier...''). Mitigate by including a 200-token ``prior context'' prefix in each section's summarization prompt.
+  \item Checkpointing summary state protects against worker failure but adds storage overhead ($\sim$1KB per checkpoint, negligible).
+  \item 3-hour meetings are rare ($<$2\% of meetings) but generate 80\% of support tickets about summary quality. Invest disproportionate quality effort here.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking understanding of how summarization architecture must adapt to content length, not just treat all meetings the same.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} How do you handle a meeting where participants switch between English and Japanese mid-sentence?
+
+\textbf{The Ideal Answer:} Code-switching is an unsolved hard problem for monolingual STT models. Options: (1) run parallel STT streams (English + Japanese) and merge based on language detection per segment---works for full-sentence switches but fails on intra-sentence mixing. (2) Use a multilingual streaming model (Whisper-class, but adapted for streaming) that handles code-switching natively---higher WER on both languages ($\sim$15--20\%) compared to monolingual models. (3) Detect language at the segment level (every 2 seconds) and route to the appropriate monolingual model---introduces 2--3s additional latency for language detection. I'd recommend option (3) for production: route each segment to the best monolingual model with a lightweight language ID classifier (wav2vec2 fine-tuned for language ID, $\sim$10ms inference).
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Multilingual models sacrifice accuracy on each language for breadth. At 100K concurrent meetings, the accuracy loss is unacceptable for primary languages.
+  \item Language detection adds latency and can misclassify short utterances ($<$ 1s).
+  \item Summarization also needs multilingual capability: summarize in the dominant meeting language, or offer per-language summaries.
+  \item Cost: running dual STT models for bilingual meetings doubles STT compute for affected meetings ($\sim$5\% of total).
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking awareness of multilingual STT challenges and pragmatic routing strategies.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} How do you evaluate summarization quality when there is no ground truth?
+
+\textbf{The Ideal Answer:} There is no clean ground truth for meeting summaries. Use a multi-signal evaluation framework: (1) \textbf{Faithfulness:} LLM-as-judge checks if every claim in the summary is supported by the transcript (NLI-based, precision-oriented). (2) \textbf{Coverage:} check if key topics from the transcript appear in the summary (recall-oriented, measured by topic overlap between transcript topic model and summary). (3) \textbf{Action item accuracy:} compare extracted action items against post-meeting survey where participants confirm their action items. (4) \textbf{User satisfaction:} thumbs-up/down on the summary within the meeting UI. (5) \textbf{Downstream utility:} do participants who use the summarizer send fewer ``what did we decide?'' follow-up messages? Measure thread reduction in post-meeting communication.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item LLM-as-judge for faithfulness can be gamed (summary copies transcript verbatim $\rightarrow$ perfect faithfulness, zero compression).
+  \item User satisfaction is noisy and biased by recency (users rate based on the last 5 minutes of the summary).
+  \item Action item accuracy via survey has $<$ 30\% response rate; need to sample and extrapolate.
+  \item The strongest signal is downstream utility (email/message reduction), but it requires weeks of measurement and A/B testing.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking whether evaluation strategy addresses the fundamental absence of ground truth for summarization.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} Your STT service goes down for 60 seconds mid-meeting. What happens?
+
+\textbf{The Ideal Answer:} Audio is buffered in Kafka (60s retention on the ingestion topic). When STT recovers, workers consume the backlog at accelerated rate (batch mode, not streaming---process 60s of audio in $\sim$10--15s). The transcript has a gap marker \texttt{[Transcript temporarily unavailable: 14:32:00 - 14:33:00]}. Once the backlog is processed, the gap is backfilled and the incremental summarizer receives the missing transcript. The summary regenerates for the affected window. Users see the gap filled in retroactively. The real-time summary during the outage simply pauses updates with a ``Catching up...'' indicator.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Buffered audio ensures no data loss for outages $<$ 60s. Longer outages require extending Kafka retention (trades storage cost for durability).
+  \item Backfill processing competes for GPU resources with live streams. Reserve 10\% of STT fleet as backfill capacity to avoid degrading live meetings.
+  \item The summarizer must handle out-of-order transcript delivery gracefully (timestamp-sorted insertion into the rolling window).
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking fault tolerance design for a stateful streaming pipeline.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} How do you reduce the 2,500 GPU requirement for STT?
+
+\textbf{The Ideal Answer:} Three levers: (1) \textbf{VAD gating} already reduces STT compute by $\sim$40\% (silence suppression). Further optimize by increasing VAD aggressiveness---only route to STT when speech probability $>$ 0.8 (vs 0.5 default). Risk: clipping initial syllables. (2) \textbf{Model distillation:} distill the Conformer-Large (600M params) to Conformer-Small (100M params) with $<$ 2\% WER degradation. 3--4x throughput improvement per GPU. (3) \textbf{Selective transcription:} not all participants need real-time STT---for meetings with $<$ 4 participants, process only the mixed audio (1 stream instead of N streams), then diarize offline. This reduces stream count by $\sim$60\% for small meetings (which are 70\% of total meetings). Combined: GPU reduction from 2,500 to $\sim$600--800.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Aggressive VAD risks losing short utterances (``yes,'' ``agreed''). Tune on meeting-specific audio, not general speech datasets.
+  \item Model distillation requires 2--4 weeks of training and risks degradation on tail accents/domains.
+  \item Mixed audio processing loses per-speaker audio quality but is adequate for small meetings with clear turn-taking.
+  \item This is an economic optimization---must be validated that accuracy remains within WER $<$ 12\% target.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking practical cost reduction strategies that go beyond ``use cheaper GPUs.''
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} A participant joins via phone (PSTN) with 8kHz audio while others are on 16kHz. How do you handle this?
+
+\textbf{The Ideal Answer:} The phone participant's audio is narrowband (300Hz--3.4kHz). Upsampling to 16kHz doesn't recover lost frequency information. Options: (1) Route the PSTN stream to a narrowband-specific STT model trained on 8kHz audio (lower WER on narrowband than a wideband model receiving upsampled audio). (2) Apply neural bandwidth extension (BWE) to hallucinate the missing frequency bands, then process with the standard 16kHz model. BWE adds $\sim$10ms latency. I'd use option (1) in production: maintain a small narrowband STT model variant alongside the standard model. PSTN streams are detected by codec metadata at ingestion and routed accordingly.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Narrowband models have $\sim$3--5\% higher WER than wideband even on their native domain. This is inherent---less acoustic information.
+  \item BWE introduces artifacts that can confuse downstream diarization (hallucinated frequencies don't match the speaker's real voice).
+  \item PSTN participants are $\sim$5\% of total streams---maintaining a separate model is justifiable.
+  \item Speaker diarization for PSTN participants is harder (narrowband embeddings are less discriminative). Lower the diarization confidence threshold and flag PSTN speakers for potential attribution errors.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking awareness of real-world audio heterogeneity in production meeting systems.
+
+\bigskip\hrule\bigskip
+
+\textbf{Q:} How do you handle a meeting with 20 participants where 5 people are in the same conference room sharing one microphone?
+
+\textbf{The Ideal Answer:} The shared microphone produces a single mixed audio stream for 5 speakers. Per-speaker audio separation is impossible from one channel without source separation. Strategy: (1) Treat the conference room mic as a single ``room'' stream. Apply diarization on the room stream using speaker embeddings---this works when speakers take turns, but fails during cross-talk. (2) Use a speech separation model (e.g., SepFormer) to attempt real-time source separation of the room audio into individual speaker streams. This adds $\sim$100ms latency and works for 2--3 speakers but degrades for 5. (3) Practical recommendation: in the meeting UI, label in-room participants as ``Conference Room'' and attribute at the group level. Post-meeting, offer re-diarization with enhanced offline processing.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Source separation for 5 speakers in real-time is beyond current production-quality models. Research models achieve $\sim$10dB SI-SNR improvement but add 200ms+ latency.
+  \item Group attribution (``Conference Room: John, Sarah, Mike, Lisa, David'') is honest about the limitation and doesn't introduce false attribution.
+  \item Hardware solution: meeting room devices with speaker-tracking beamforming microphone arrays (Polycom/Jabra) provide per-speaker audio tracks. This eliminates the problem at the hardware layer.
+  \item Encourage organizations to provide individual headsets or speaker-tracking hardware for critical meetings.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking whether you acknowledge system limitations honestly and propose practical workarounds.
+
+\section*{End of Chapter}
+
+\begin{itemize}
+  \item \textbf{Key takeaway:} Real-time meeting summarization is a pipeline coordination problem. The STT subsystem dominates both latency budget and GPU cost. Diarization accuracy determines whether summaries are trusted. Incremental summarization must be architected as a hierarchical stateful process, not a single LLM call at meeting end.
+  \item \textbf{What to practice:} Size the STT GPU fleet for a given concurrent meeting count, accounting for VAD gating, batching efficiency, and mixed narrowband/wideband streams. Draw the latency budget from utterance to displayed text.
+  \item \textbf{Interview drill:} Given a 3-hour meeting with 15 participants, walk through how the transcript, diarization, and summary systems interact---including failure recovery when a worker dies at the 90-minute mark.
+\end{itemize}

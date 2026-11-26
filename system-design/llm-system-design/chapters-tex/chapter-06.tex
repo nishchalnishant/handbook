@@ -1,0 +1,611 @@
+\chapter{Chapter 6: Design a Customer Support Chatbot}
+
+\section*{Context}
+
+\textbf{Problem statement:} Design a production customer support chatbot that maintains multi-turn conversational memory, retrieves grounded answers from a knowledge base via RAG, detects sentiment to calibrate tone, and escalates to human agents with full context when confidence is low or risk is high.
+
+\subsection*{Real-World Examples}
+
+\begin{itemize}
+  \item An e-commerce platform serving 500K tickets/day reduces human escalation rate from 45\% to 27\% after deploying a chatbot with sliding-window memory and confidence-calibrated handoff---but a memory overflow bug during a flash sale causes the bot to hallucinate order details from prior sessions, triggering a postmortem.
+  \item A telecom provider's chatbot serves stale cancellation policy after a policy update; the bot tells 1,200 customers the wrong early-termination fee before the freshness SLA violation is caught. Embedding a KB freshness check into the retrieval pipeline prevents recurrence.
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 1: Understand the Problem and Establish Design Scope}
+
+\subsection*{Simulated Dialogue}
+
+\textbf{Interviewer:} Design a customer support chatbot for a large e-commerce company.\\
+\textbf{Candidate:} I need to understand ticket volume, conversation shape, escalation expectations, and cost constraints before proposing architecture.
+
+\textbf{Candidate:} What is the daily ticket volume and conversation profile?\\
+\textbf{Interviewer:} 500K tickets/day. Average conversation is 6 turns (3 user, 3 bot). Peak is 5x average during sales events. About 40\% of tickets are order status, 25\% returns/refunds, 20\% product questions, 15\% account/billing.
+
+\textbf{Candidate:} What is the current escalation rate and target?\\
+\textbf{Interviewer:} Current human escalation is 45\%. Target is under 30\% with full context handoff---agent should never ask the customer to repeat themselves.
+
+\textbf{Candidate:} What latency and availability SLOs are required?\\
+\textbf{Interviewer:} Time-to-first-token under 1 second for the first bot message in a turn. Sessions must persist across reconnects. 99.9\% uptime.
+
+\textbf{Candidate:} Is there an existing knowledge base?\\
+\textbf{Interviewer:} Yes. 15K support articles, 2K FAQ entries, 500 policy documents. Updated weekly, some policies change mid-day during promotions.
+
+\textbf{Candidate:} What is the cost target per conversation?\\
+\textbf{Interviewer:} Under \$0.08 per full conversation (all turns). Human agent cost is \$4.50 per ticket for comparison.
+
+\subsection*{Functional Requirements}
+
+\begin{itemize}
+  \item Multi-turn conversation with persistent session memory across turns and reconnects.
+  \item RAG over a support knowledge base (articles, FAQs, policy docs) with citation.
+  \item Sentiment detection to adjust tone (empathetic for frustrated users, concise for transactional).
+  \item Confidence-calibrated escalation to human agents with full conversation context.
+  \item Order/account lookup via tool calls (order status, refund eligibility, account details).
+  \item Multi-language support (English primary, Spanish, French, German, Japanese).
+\end{itemize}
+
+\subsection*{Non-Functional Requirements}
+
+\begin{itemize}
+  \item \textbf{Latency:} TTFT $<$ 1s p95 for first token in each bot turn. Full response $<$ 3s p95.
+  \item \textbf{Session persistence:} conversation state survives client reconnects for 24 hours.
+  \item \textbf{Availability:} 99.9\% uptime ($<$ 8.7 hours downtime/year).
+  \item \textbf{Cost:} $<$ \$0.08 per full conversation (avg 6 turns).
+  \item \textbf{Containment rate:} $>$ 70\% of tickets resolved without human escalation.
+  \item \textbf{Safety:} no hallucinated order details, no unauthorized account actions, PII redaction in logs.
+\end{itemize}
+
+\subsection*{Back-of-the-Envelope Estimation}
+
+\subsubsection*{Traffic Profile}
+
+\begin{itemize}
+  \item Tickets/day: 500K
+  \item Turns per ticket: 6 (3 user messages, 3 bot responses)
+  \item Bot responses/day: $500K \times 3 = 1.5M$
+  \item Average QPS: $1.5M / 86{,}400 \approx 17.4$
+  \item Peak QPS (5x): $\sim$87
+  \item Peak during flash sale (15x): $\sim$260
+\end{itemize}
+
+\subsubsection*{Token Profile per Turn}
+
+\begin{itemize}
+  \item User message: $\sim$80 tokens
+  \item Retrieved context (RAG): $\sim$800 tokens (3--4 chunks)
+  \item Conversation history in prompt: $\sim$600 tokens (sliding window of last 4 turns)
+  \item System prompt + instructions: $\sim$300 tokens
+  \item Total input per bot turn: $\sim$1,780 tokens
+  \item Bot output per turn: $\sim$150 tokens
+  \item Total input tokens/day: $1.5M \times 1{,}780 = 2.67B$ tokens
+  \item Total output tokens/day: $1.5M \times 150 = 225M$ tokens
+\end{itemize}
+
+\subsubsection*{Cost per Conversation}
+
+\begin{itemize}
+  \item Using GPT-4o-mini class (\$0.15/1M input, \$0.60/1M output):
+  \begin{itemize}
+    \item Input cost per conversation: $3 \text{ turns} \times 1{,}780 \text{ tokens} \times \$0.15/1M = \$0.0008$
+    \item Output cost per conversation: $3 \text{ turns} \times 150 \text{ tokens} \times \$0.60/1M = \$0.00027$
+    \item RAG retrieval + embedding overhead: $\sim$\$0.001
+    \item \textbf{Total: $\sim$\$0.002 per conversation} (well within \$0.08 budget)
+  \end{itemize}
+  \item Using GPT-4o class for complex escalation paths (\$2.50/1M input, \$10/1M output):
+  \begin{itemize}
+    \item Per conversation: $\sim$\$0.018
+    \item Blended (80\% mini, 20\% full): \textbf{$\sim$\$0.005 per conversation}
+  \end{itemize}
+\end{itemize}
+
+\subsubsection*{Memory Storage Sizing}
+
+\begin{itemize}
+  \item Active sessions: $500K \text{ tickets/day} / 24 \text{ hours} \times \text{avg 15-min session} \approx 5{,}200$ concurrent sessions
+  \item Memory per session: $\sim$4KB (conversation history + metadata)
+  \item Active memory footprint: $5{,}200 \times 4KB \approx 20MB$ (trivially fits in Redis)
+  \item 24-hour retention for reconnect: $500K \times 4KB = 2GB$
+\end{itemize}
+
+\subsubsection*{Knowledge Base Index}
+
+\begin{itemize}
+  \item 15K articles + 2K FAQs + 500 policy docs $\approx$ 17.5K documents
+  \item Avg 2,000 tokens/doc $\rightarrow$ $\sim$35M tokens
+  \item Chunks (512 tokens, 25\% overlap): $\sim$85K chunks
+  \item Embedding cost (one-time): $35M \times \$0.02/1M = \$0.70$
+  \item Vector storage (1536-dim, float32): $85K \times 6KB \approx 510MB$
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 2: Propose High-Level Design and Get Buy-In}
+
+\subsection*{Core Architecture Components}
+
+\begin{itemize}
+  \item \textbf{Session Manager:} creates/resumes sessions, manages session TTL, handles reconnect with session token.
+  \item \textbf{Conversation Memory Store:} Redis-backed sliding window + summary store for long conversations.
+  \item \textbf{Intent Classifier:} routes to FAQ fast-path, RAG path, tool-call path, or escalation path.
+  \item \textbf{KB Retrieval Engine:} hybrid BM25 + vector search over support knowledge base with reranking.
+  \item \textbf{Tool Executor:} order lookup, refund eligibility check, account detail fetch via internal APIs.
+  \item \textbf{Model Router:} routes to small model (FAQ/simple) or large model (complex/sensitive) based on intent and sentiment.
+  \item \textbf{Sentiment Analyzer:} real-time sentiment scoring to adjust tone and trigger proactive escalation.
+  \item \textbf{Escalation Engine:} confidence-based handoff with full context packaging for human agent.
+  \item \textbf{Safety Layer:} PII redaction, hallucination guard (no fabricated order numbers), action confirmation.
+  \item \textbf{Observability:} TTFT, containment rate, CSAT proxy, escalation rate, cost/ticket, sentiment distribution.
+\end{itemize}
+
+\subsection*{Pipeline A: Knowledge Base Ingestion Pipeline}
+
+\begin{enumerate}
+  \item Crawl support articles, FAQs, and policy docs on schedule (hourly for policies, daily for articles).
+  \item Parse and clean content; preserve structure (headers, lists, tables).
+  \item Chunk with semantic boundaries (section-level for articles, Q+A pairs for FAQs, clause-level for policies).
+  \item Generate embeddings and dual-write to vector index (Pinecone/Qdrant) and BM25 index (Elasticsearch).
+  \item Tag each chunk with \texttt{source\_id}, \texttt{category}, \texttt{last\_updated}, \texttt{freshness\_ttl}.
+  \item Quality gate: sample retrieval on 50 benchmark queries; alert on Recall@5 regression $>$ 3\%.
+  \item Alias swap for zero-downtime index update.
+\end{enumerate}
+
+\subsection*{Pipeline B: Conversation Runtime Pipeline}
+
+\begin{enumerate}
+  \item User message arrives; session manager resolves or creates session.
+  \item Conversation memory loaded from Redis (sliding window of last N turns + running summary).
+  \item Sentiment analyzer scores user message (positive/neutral/negative/angry).
+  \item Intent classifier determines route: FAQ fast-path, RAG, tool-call, or escalation.
+  \item For RAG path: query rewriter reformulates using conversation context $\rightarrow$ hybrid retrieval $\rightarrow$ reranker $\rightarrow$ top-3 chunks.
+  \item For tool-call path: extract parameters, call internal API, format result.
+  \item Prompt assembled: system prompt + memory window + retrieved context + user message.
+  \item Model router selects tier (small for FAQ/simple, large for complex/sensitive).
+  \item LLM generates response with streaming; confidence score extracted from logprobs.
+  \item Safety layer validates: no hallucinated IDs, no unauthorized actions, PII redacted.
+  \item If confidence $<$ threshold or sentiment is angry + unresolved $\rightarrow$ escalation engine packages context for human.
+  \item Response streamed to user; memory store updated; telemetry emitted.
+\end{enumerate}
+
+\subsection*{Mermaid Architecture Diagram}
+
+\begin{verbatim}
+flowchart LR
+  user[User] --> sessionMgr[SessionManager]
+  sessionMgr --> memoryStore[ConversationMemoryRedis]
+  sessionMgr --> sentiment[SentimentAnalyzer]
+  sessionMgr --> intentClassifier[IntentClassifier]
+
+  intentClassifier --> faqPath[FAQFastPath]
+  intentClassifier --> ragPath[RAGRetrieval]
+  intentClassifier --> toolPath[ToolExecutor]
+  intentClassifier --> escalation[EscalationEngine]
+
+  ragPath --> queryRewriter[QueryRewriter]
+  queryRewriter --> hybridSearch[HybridBM25+Vector]
+  hybridSearch --> reranker[CrossEncoderReranker]
+  reranker --> contextPacker[ContextPacker]
+
+  toolPath --> orderAPI[OrderLookupAPI]
+  toolPath --> accountAPI[AccountAPI]
+
+  memoryStore --> promptBuilder[PromptBuilder]
+  contextPacker --> promptBuilder
+  faqPath --> promptBuilder
+  toolPath --> promptBuilder
+
+  promptBuilder --> modelRouter[ModelRouter]
+  modelRouter --> smallModel[SmallModelGPT4oMini]
+  modelRouter --> largeModel[LargeModelGPT4o]
+
+  smallModel --> safetyLayer[SafetyLayer]
+  largeModel --> safetyLayer
+  safetyLayer --> user
+
+  sentiment --> escalation
+  safetyLayer --> escalation
+  escalation --> humanAgent[HumanAgentQueue]
+
+  safetyLayer --> observability[Observability]
+\end{verbatim}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 3: Design Deep Dive}
+
+Focus areas for this chapter:
+
+\begin{enumerate}
+  \item \textbf{Conversation Memory Management}
+  \item \textbf{RAG for Customer Support}
+  \item \textbf{Escalation and Fallback Design}
+\end{enumerate}
+
+\subsection*{1) Conversation Memory Management}
+
+The core tension: including more history improves coherence but inflates token cost, increases latency, and risks context confusion across topics within a single session.
+
+\subsubsection*{Memory Strategy Trade-off Table}
+
+\small
+\begin{tabular}{|p{0.14\linewidth}|p{0.12\linewidth}|p{0.12\linewidth}|p{0.16\linewidth}|p{0.12\linewidth}|p{0.16\linewidth}|}
+\hline
+\textbf{Strategy} & \textbf{Token Cost/Turn} & \textbf{Coherence} & \textbf{Long Conv.\ Support} & \textbf{Complexity} & \textbf{Best For} \\
+\hline
+Full history & High (grows linearly) & Best & Breaks at $\sim$20 turns (context overflow) & Low & Short conversations ($<$8 turns) \\
+\hline
+Sliding window (last N turns) & Fixed ($\sim$600 tokens for N=4) & Good for recent context & Loses early context & Low & Default production choice \\
+\hline
+Summary + recent window & Medium ($\sim$400 summary + 400 window) & Good & Handles 50+ turns & Medium & Long/complex support sessions \\
+\hline
+Hierarchical (entity memory + summary + window) & Medium-high & Best for entity tracking & Handles unlimited turns & High & Account-heavy workflows \\
+\hline
+\end{tabular}
+\normalsize
+
+\textbf{Recommended approach: Sliding window + rolling summary.}
+
+\begin{itemize}
+  \item Keep last 4 turns verbatim in the prompt ($\sim$600 tokens).
+  \item After every 4 turns, compress older turns into a running summary using a cheap model call ($\sim$100 tokens output).
+  \item Store extracted entities (order IDs, product names, issue type) in structured session metadata.
+  \item Total memory overhead per turn: $\sim$1,000 tokens (summary + window + entities) regardless of conversation length.
+\end{itemize}
+
+\textbf{Summary compression prompt design:}
+
+\begin{itemize}
+  \item Input: previous summary + 4 new turns.
+  \item Output: updated summary preserving: customer issue, order IDs, actions taken, unresolved items.
+  \item Cost: $\sim$\$0.0001 per compression (GPT-4o-mini, 800 input + 100 output tokens).
+  \item Frequency: every 4 turns = $\sim$1 compression per conversation on average.
+\end{itemize}
+
+\textbf{Session persistence implementation:}
+
+\begin{itemize}
+  \item Redis with 24-hour TTL for active session data.
+  \item Session token issued on first message; client includes in subsequent requests.
+  \item On reconnect: load session from Redis, reconstruct last state, resume conversation.
+  \item Overflow to DynamoDB for sessions exceeding 24h (rare, $<$1\% of tickets).
+\end{itemize}
+
+\subsection*{2) RAG for Customer Support}
+
+Support RAG differs from general RAG: queries are conversational (not keyword-rich), context is multi-turn, and freshness of policy documents is critical.
+
+\subsubsection*{KB Chunking Strategy}
+
+\small
+\begin{tabular}{|p{0.14\linewidth}|p{0.18\linewidth}|p{0.14\linewidth}|p{0.10\linewidth}|p{0.28\linewidth}|}
+\hline
+\textbf{Content Type} & \textbf{Chunk Strategy} & \textbf{Chunk Size} & \textbf{Overlap} & \textbf{Rationale} \\
+\hline
+Support articles & Section-level semantic & 512--768 tokens & 25\% & Preserves section coherence \\
+\hline
+FAQ entries & Q+A pair as single chunk & Variable (100--400 tokens) & None & Atomic Q\&A units \\
+\hline
+Policy documents & Clause-level with parent link & 256--512 tokens & 10\% & Precise policy citation needed \\
+\hline
+Troubleshooting guides & Step-sequence chunks & 512 tokens & 50\% & Steps often span boundaries \\
+\hline
+\end{tabular}
+\normalsize
+
+\textbf{Conversation-aware query rewriting:}
+
+\begin{itemize}
+  \item Raw user message is often ambiguous without context (``What about the refund?'' $\rightarrow$ refund for which order?).
+  \item Query rewriter takes last 2 turns + user message $\rightarrow$ generates standalone search query.
+  \item Example: user says ``Can I return it?'' after discussing Order \#12345 $\rightarrow$ rewriter outputs ``return policy eligibility Order \#12345 wireless headphones''.
+  \item Cost: $\sim$\$0.0001 per rewrite (small model, short prompt).
+\end{itemize}
+
+\subsubsection*{Retrieval Pipeline}
+
+\small
+\begin{tabular}{|p{0.30\linewidth}|p{0.14\linewidth}|p{0.44\linewidth}|}
+\hline
+\textbf{Stage} & \textbf{Latency} & \textbf{Purpose} \\
+\hline
+Query rewrite & $\sim$50ms & Standalone query from conversation \\
+\hline
+BM25 lookup (Elasticsearch) & $\sim$15ms & Exact match on product names, order refs, policy IDs \\
+\hline
+ANN vector search (Qdrant) & $\sim$25ms & Semantic match on paraphrased queries \\
+\hline
+RRF fusion & $\sim$2ms & Merge ranked lists \\
+\hline
+Freshness filter & $\sim$3ms & Remove chunks with expired \texttt{freshness\_ttl} \\
+\hline
+Cross-encoder rerank top-20 & $\sim$40ms & Precision boost \\
+\hline
+Top-3 selection + citation & $\sim$5ms & Context packing \\
+\hline
+\textbf{Total} & \textbf{$\sim$140ms} & Within 200ms retrieval budget \\
+\hline
+\end{tabular}
+\normalsize
+
+\subsubsection*{Freshness Enforcement}
+
+\begin{itemize}
+  \item Each chunk tagged with \texttt{last\_updated} timestamp and \texttt{freshness\_ttl} (policies: 1 hour, articles: 24 hours, FAQs: 7 days).
+  \item At retrieval time, chunks exceeding TTL are demoted (not removed---avoids zero-result scenarios).
+  \item Stale chunk demotion: multiply relevance score by $\texttt{freshness\_decay} = \max(0.3,\; 1.0 - (\texttt{age} / \texttt{ttl}))$.
+  \item Critical policy changes trigger immediate re-index via webhook (bypasses scheduled crawl).
+\end{itemize}
+
+\subsubsection*{Grounding and Citation}
+
+\begin{itemize}
+  \item Every bot response that cites a policy or procedure must include \texttt{[Source: article\_id]} metadata.
+  \item Grounding validator checks that key claims in the response are traceable to retrieved chunks.
+  \item If grounding score $<$ 0.7, response is flagged and either regenerated or escalated.
+\end{itemize}
+
+\subsection*{3) Escalation and Fallback Design}
+
+Escalation is the safety valve. Getting it wrong in either direction is expensive: over-escalation wastes human agent time; under-escalation damages customer experience.
+
+\subsubsection*{Escalation Trigger Trade-off Table}
+
+\small
+\begin{tabular}{|p{0.16\linewidth}|p{0.12\linewidth}|p{0.12\linewidth}|p{0.14\linewidth}|p{0.28\linewidth}|}
+\hline
+\textbf{Trigger} & \textbf{Precision} & \textbf{Recall} & \textbf{Latency Impact} & \textbf{Best For} \\
+\hline
+Low confidence (logprob threshold) & Medium (70\%) & High (catches uncertainty) & None (free from generation) & Default primary trigger \\
+\hline
+Sentiment score (angry + unresolved) & Medium (65\%) & Medium & +20ms (sentiment model) & Proactive de-escalation \\
+\hline
+Explicit user request (``talk to a human'') & 100\% & Low (only catches explicit) & None & Mandatory override \\
+\hline
+Topic classifier (billing dispute, legal threat) & High (85\%) & Medium & +15ms (classifier) & High-risk topic routing \\
+\hline
+Turn count threshold ($>$10 turns unresolved) & Low (many false positives) & High & None & Catch-all safety net \\
+\hline
+Repeated question detection & High (80\%) & Medium & +5ms (similarity check) & Frustration signal \\
+\hline
+\end{tabular}
+\normalsize
+
+\textbf{Recommended escalation logic (multi-signal fusion):}
+
+\begin{verbatim}
+escalate = (
+    explicit_request OR
+    (confidence < 0.4) OR
+    (sentiment == angry AND turn_count > 4 AND issue_unresolved) OR
+    (topic IN [billing_dispute, legal_threat, safety_issue]) OR
+    (turn_count > 10 AND issue_unresolved) OR
+    (repeated_question_count >= 2)
+)
+\end{verbatim}
+
+\textbf{Context handoff to human agent:}
+
+\begin{itemize}
+  \item Package: conversation summary, full transcript, extracted entities (order IDs, issue type), sentiment trajectory, retrieved KB articles, bot confidence scores per turn.
+  \item Format: structured JSON pushed to agent desktop (Zendesk, Salesforce, custom).
+  \item Target: agent reads context in $<$30 seconds without asking customer to repeat.
+\end{itemize}
+
+\subsubsection*{Fallback Hierarchy}
+
+\small
+\begin{tabular}{|p{0.10\linewidth}|p{0.20\linewidth}|p{0.24\linewidth}|p{0.32\linewidth}|}
+\hline
+\textbf{Level} & \textbf{Condition} & \textbf{Action} & \textbf{User Experience} \\
+\hline
+L0: Normal & Confidence $>$ 0.7, positive/neutral sentiment & Respond normally & Standard bot response \\
+\hline
+L1: Low confidence & Confidence 0.4--0.7 & Hedge + suggest alternatives & ``Based on our policy, I believe\ldots\ Would you like me to connect you with a specialist?'' \\
+\hline
+L2: Escalation & Confidence $<$ 0.4 or escalation trigger & Transfer to human with context & ``Let me connect you with a support specialist who can help with this.'' \\
+\hline
+L3: System failure & Model timeout, retrieval failure & Canned response + ticket creation & ``I'm having trouble right now. I've created a ticket and a team member will follow up within 2 hours.'' \\
+\hline
+L4: Safety block & PII leak attempt, adversarial input & Block + log & ``I can't help with that request. Let me connect you with our support team.'' \\
+\hline
+\end{tabular}
+\normalsize
+
+\subsection*{Production Bottlenecks and Mitigations}
+
+\begin{itemize}
+  \item \textbf{Memory overflow during long sessions}
+  \begin{itemize}
+    \item Symptom: token count exceeds context window; response quality degrades or errors.
+    \item Mitigation: hard cap at summary + 4-turn window; compress aggressively after 10 turns; alert on sessions exceeding 20 turns.
+  \end{itemize}
+
+  \item \textbf{Stale KB chunks serving wrong policy}
+  \begin{itemize}
+    \item Symptom: bot quotes outdated refund policy during a promotion change.
+    \item Mitigation: freshness TTL per chunk type, webhook-triggered re-index for critical policy changes, freshness decay scoring.
+  \end{itemize}
+
+  \item \textbf{Escalation queue overflow during incidents}
+  \begin{itemize}
+    \item Symptom: human agent queue exceeds capacity during product outage (everyone escalates at once).
+    \item Mitigation: incident mode---bot acknowledges known issue, provides status page link, offers callback scheduling instead of live transfer.
+  \end{itemize}
+
+  \item \textbf{Sentiment misclassification causing premature escalation}
+  \begin{itemize}
+    \item Symptom: sarcasm or informal language triggers false-positive anger detection.
+    \item Mitigation: multi-signal escalation (sentiment alone never triggers); calibrate threshold on labeled support data.
+  \end{itemize}
+
+  \item \textbf{Cross-session memory contamination}
+  \begin{itemize}
+    \item Symptom: bot references a different customer's order due to session ID collision or cache bug.
+    \item Mitigation: cryptographic session tokens, strict session isolation in Redis, zero shared state between sessions.
+  \end{itemize}
+
+  \item \textbf{Model cost spike during traffic surge}
+  \begin{itemize}
+    \item Symptom: flash sale drives 15x traffic; cost per day explodes.
+    \item Mitigation: aggressive routing to small model during surges, semantic cache for repeated queries (order status FAQ), admission control with queue.
+  \end{itemize}
+\end{itemize}
+
+\subsection*{Advanced Techniques}
+
+\begin{itemize}
+  \item \textbf{Semantic caching} for FAQ-like repeated queries: hash query embedding, return cached response if similarity $>$ 0.95. Expected hit rate: 15--25\% for support workload.
+  \item \textbf{Confidence calibration} via logprob analysis: map raw logprobs to calibrated confidence using held-out labeled data.
+  \item \textbf{Proactive messaging:} if sentiment trajectory is declining across turns, inject empathy prefix (``I understand this is frustrating. Let me\ldots'') before the factual response.
+  \item \textbf{Multi-language support:} detect language in first message, route to language-specific system prompt, use language-matched retrieval index or cross-lingual embeddings.
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 4: Wrap Up}
+
+\subsection*{Final Design Summary}
+
+The design treats customer support as a containment optimization problem: maximize resolution rate while minimizing cost, latency, and risk. Sliding-window memory with rolling summaries keeps context bounded. RAG with freshness enforcement prevents stale policy errors. Multi-signal escalation ensures human handoff happens at the right time with full context.
+
+\subsection*{Wrap-Around Concerns}
+
+\begin{itemize}
+  \item \textbf{Risk:} Memory compression loses critical context (order ID dropped from summary).
+  \begin{itemize}
+    \item Gate: validate entity extraction before and after compression; alert on entity loss.
+  \end{itemize}
+  \item \textbf{Risk:} KB freshness gap during rapid policy changes (promotions, recalls).
+  \begin{itemize}
+    \item Gate: webhook-triggered re-index with $<$ 5-minute propagation SLA for critical updates.
+  \end{itemize}
+  \item \textbf{Risk:} Escalation rate creep from model drift or query distribution shift.
+  \begin{itemize}
+    \item Gate: daily escalation rate monitoring by category; alert on $>$ 5\% week-over-week increase.
+  \end{itemize}
+  \item \textbf{Risk:} Cost blowup from routing too many conversations to large model tier.
+  \begin{itemize}
+    \item Gate: per-tier traffic dashboards; auto-degrade to small model if daily cost exceeds budget by 20\%.
+  \end{itemize}
+\end{itemize}
+
+\bigskip\hrule\bigskip
+
+\section*{Step 5: Interviewer Curveballs}
+
+\subsection*{Interviewer Follow-ups \& Frequently Asked Questions (FAQ)}
+
+\textbf{Q: A customer's conversation hits 25 turns. How do you prevent memory overflow without losing critical context?}
+
+\textbf{The Ideal Answer:} I use a rolling summary that compresses every 4 turns, plus structured entity extraction (order IDs, issue type, actions taken) stored separately. The prompt always contains: system instructions + entity memory + compressed summary + last 4 verbatim turns. Total stays under $\sim$1,200 tokens regardless of conversation length.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Full history at 25 turns: $\sim$4,000 tokens of history alone---expensive and risks context confusion.
+  \item Summary-only loses nuance of recent exchanges.
+  \item Entity memory ensures order IDs and key facts survive compression.
+  \item Compression model error: $\sim$2\% chance of dropping a key entity. Mitigate with explicit entity extraction step.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking bounded memory design that preserves correctness under long conversations.
+
+\textbf{Q: How do you decide when to escalate vs.\ when to retry with a better prompt?}
+
+\textbf{The Ideal Answer:} I distinguish between recoverable uncertainty (retrieval miss, ambiguous query) and irrecoverable situations (high-risk topic, explicit user request, repeated failure). For recoverable: retry once with query expansion and fallback retrieval. For irrecoverable: escalate immediately with full context.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Retry adds 2--4 seconds of latency; acceptable once, not twice.
+  \item Retry on the same failing retrieval is pointless---must change the retrieval strategy (expand query, relax filters).
+  \item Retrying on angry customers increases frustration; sentiment signal should bias toward escalation.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking nuanced escalation logic beyond simple threshold checks.
+
+\textbf{Q: Your sentiment detection flags 30\% of conversations as ``angry'' but CSAT surveys show only 10\% dissatisfaction. What is going wrong?}
+
+\textbf{The Ideal Answer:} The sentiment model is likely miscalibrating on informal language, sarcasm, or urgency (not anger). I would audit a sample of false-positive ``angry'' classifications, add labeled examples to fine-tune the classifier, and switch from binary angry/not-angry to a multi-dimensional sentiment model (frustration, urgency, confusion, satisfaction).
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Binary sentiment is too coarse for support; urgency != anger.
+  \item Fine-tuning on domain-specific support data typically cuts false positives by 40--60\%.
+  \item Alternative: use sentiment as one signal in multi-signal escalation, never as sole trigger.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking whether candidate understands sentiment model limitations in production.
+
+\textbf{Q: During a flash sale, 80\% of queries are ``where is my order?'' How do you avoid paying full LLM cost for each one?}
+
+\textbf{The Ideal Answer:} Semantic cache with tight similarity threshold ($>$0.95). For ``where is my order'' queries, the response is a tool call to order status API---cache the response template, personalize only the order-specific data. Expected cache hit rate during flash sale: 60--70\%.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Pure semantic cache risks returning wrong order details $\rightarrow$ must personalize after cache hit.
+  \item Better approach: detect FAQ intent, skip LLM entirely, call order API directly, format with template.
+  \item Cost reduction: from $\sim$\$0.002/conversation to $\sim$\$0.0003 for cached path.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking cost optimization instincts under traffic spikes.
+
+\textbf{Q: A customer starts in English, switches to Spanish mid-conversation. How does the system handle this?}
+
+\textbf{The Ideal Answer:} Language detection on every user message. On detected switch: update session language, swap system prompt to Spanish, route retrieval to Spanish KB index (or use cross-lingual embeddings if no Spanish index exists), and continue with the same conversation memory (translated summary if needed).
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Maintaining separate KB indexes per language: higher quality but expensive to maintain.
+  \item Cross-lingual embeddings (e.g., multilingual-e5): single index but $\sim$5--10\% recall degradation vs.\ monolingual.
+  \item Summary translation adds latency ($\sim$200ms) and potential meaning drift.
+  \item Practical: most support KBs are English-primary; use the LLM's multilingual capability to answer in Spanish from English retrieval.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking multi-language architecture without over-engineering.
+
+\textbf{Q: How do you hand off a conversation to a human agent without the customer waiting in a queue for 10 minutes?}
+
+\textbf{The Ideal Answer:} Three strategies: (1) predictive routing---if escalation is likely based on early signals, pre-allocate a human agent slot while the bot continues; (2) warm handoff---bot keeps engaging with lower-confidence responses while agent reads context; (3) callback scheduling---if queue $>$ 5 minutes, offer ``we'll call you back in 15 minutes'' with full context preserved.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Pre-allocation wastes agent time on false-positive escalations ($\sim$15\% waste rate).
+  \item Warm handoff is best UX but requires agent desktop integration.
+  \item Callback avoids queue wait but adds follow-up complexity and customer may not answer.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking real-world handoff design beyond ``just transfer.''
+
+\textbf{Q: Your knowledge base has 15K articles. How do you ensure freshness without re-indexing everything daily?}
+
+\textbf{The Ideal Answer:} Incremental indexing via CDC (change data capture) on the article CMS. Only re-embed and re-index changed documents. Tag each chunk with \texttt{last\_updated}. For time-sensitive content (policies), use webhook-triggered re-index with $<$ 5-minute SLA. Full re-index only on embedding model upgrade.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Full re-index of 85K chunks: $\sim$\$0.70 and $\sim$10 minutes. Cheap but unnecessary daily.
+  \item Incremental: typically 50--200 articles change/day $\rightarrow$ $<$ \$0.01 and $<$ 1 minute.
+  \item Risk: CDC misses a change $\rightarrow$ stale chunk persists. Mitigate with daily full-diff reconciliation job.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking incremental indexing design and freshness engineering.
+
+\textbf{Q: How do you measure whether the chatbot is actually helping customers vs.\ just containing them?}
+
+\textbf{The Ideal Answer:} Three-layer measurement: (1) containment rate (resolved without human), (2) CSAT/NPS from post-conversation survey, (3) re-contact rate within 24 hours (did the customer come back with the same issue?). A bot that ``contains'' by giving unhelpful answers will show high containment but low CSAT and high re-contact rate.
+
+\textbf{Deep Dive \& Trade-offs:}
+\begin{itemize}
+  \item Containment alone is a vanity metric---easy to game by making escalation hard to reach.
+  \item CSAT has low response rate ($\sim$5--15\%); biased toward extreme experiences.
+  \item Re-contact rate is the most honest signal: if the customer comes back, the bot failed.
+  \item Combine all three with weekly trend analysis per category.
+\end{itemize}
+
+\textbf{The Interviewer's Rubric:} Checking whether candidate measures outcomes, not just operational metrics.
+
+\section*{End of Chapter}
+
+\begin{itemize}
+  \item \textbf{Key takeaway:} A support chatbot is a containment optimization problem bounded by memory management, retrieval freshness, and escalation precision. The hardest part is not generating answers---it is knowing when to stop trying and hand off gracefully.
+  \item \textbf{What to practice:} Walk through a 10-turn conversation showing how memory compresses, when retrieval fires, and what triggers escalation at each turn.
+  \item \textbf{Interview drill:} Given a spike in escalation rate from 28\% to 42\% after a deployment, trace the debug path: check memory compression errors $\rightarrow$ retrieval recall regression $\rightarrow$ confidence threshold drift $\rightarrow$ sentiment model update $\rightarrow$ KB freshness gap.
+\end{itemize}

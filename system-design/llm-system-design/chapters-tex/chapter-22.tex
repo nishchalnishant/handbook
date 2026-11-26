@@ -1,0 +1,35 @@
+\chapter{Chapter 22: Design a Multi-Agent Workflow Orchestrator}
+
+\section*{Context}
+\textbf{Problem statement:} Design a platform where multiple specialized agents collaborate on complex enterprise workflows such as incident response, sales research, code migration, or compliance review.
+
+\subsection*{Core Architecture}
+\begin{itemize}
+  \item \textbf{Workflow API:} receives goal, policy context, and approval preferences.
+  \item \textbf{Supervisor agent:} decomposes goals, assigns tasks, resolves conflicts, and decides completion.
+  \item \textbf{DAG scheduler:} runs ready tasks, retries failures, and enforces dependency constraints.
+  \item \textbf{Agent registry:} defines roles, model tiers, tools, permissions, budgets, and output schemas.
+  \item \textbf{Shared state store:} stores typed artifacts such as findings, plans, diffs, evidence, and decisions.
+  \item \textbf{Tool gateway:} validates tool calls, applies policy, routes to sandboxes, and records audit logs.
+  \item \textbf{Approval service:} pauses workflows for human review before sensitive actions.
+\end{itemize}
+
+\section*{Key Design Points}
+\begin{itemize}
+  \item Agents are unreliable workers inside a distributed workflow system; the workflow engine owns control flow.
+  \item Typed artifacts are safer than free-form chat as the system of record.
+  \item Use supervisor-worker plus DAG scheduling as the default production pattern.
+  \item Enforce workflow, agent, and tool budgets independently.
+\end{itemize}
+
+\section*{Production Risks}
+\begin{itemize}
+  \item \textbf{Runaway loops:} enforce max steps, novelty checks, and replan limits.
+  \item \textbf{Agent conflicts:} use resource locks, critic validation, and supervisor arbitration.
+  \item \textbf{Unsafe autonomy:} require approval for external writes, money movement, customer messages, and production changes.
+  \item \textbf{Debugging gaps:} store full traces with model inputs, artifacts, tool calls, costs, and decisions.
+\end{itemize}
+
+\section*{Interview Drill}
+Given a workflow where one agent wants to modify production config and another recommends waiting, explain state handling, conflict resolution, approval, and audit replay.
+
