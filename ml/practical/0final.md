@@ -1,0 +1,45 @@
+train > evaluate > deploy > monitor > rollback or retrain
+
+ml paradigms
+
+- classical ml
+  - supervised - have both label and target
+    - regression - trying to predict a number
+      - linear regression
+        - asuumption that the data is linear in nature
+        - we use min max scaler as we are not assuming the data follows a normal distribution
+    - classification - trying to predict a class
+      - logisctic regression 
+        - trying to predict a class, for multi class classifcation we use softmax (where each class has a probability and total sum is 1), if binary we use sigmoid function
+    - both 
+      - svm - support vectors try to create maximum seperation between the data points
+      - descision tree - data points are seperated on the basis of some conditions 
+      - knn
+      - bagging 
+        - random forest
+      - boosting 
+        - xgboost
+        - gradient boost
+    - metrics
+      - classification 
+        - accuracy -- ratio of total correct precition and all prediction 
+        - precision -- ratio of tp and tp+tn
+        - 
+      - regression
+  - unsupervised
+    - clusturing 
+      - k means clusturing
+    - dimensionality reduction
+      - pca
+      - t-sne
+- deep learning 
+  - ann
+  - cnns
+  - rnns
+  - lstm
+  - trasnformer (self attention)
+    - llms
+- reinforcement learning 
+  - policy
+  - reward
+  - punish
